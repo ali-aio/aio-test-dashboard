@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spreadsheet — Test Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .sp-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); margin-bottom: 18px; }
+  .sp-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .sp-table th { text-align: left; padding: 9px 12px; font-size: 0.68rem; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--surface2); cursor: pointer; }
+  .sp-table td { padding: 7px 12px; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
+  .sp-table tr.data-row { cursor: pointer; transition: background var(--dur); animation: slidein .25s var(--ease) both; }
+  .sp-table tr.data-row:hover { background: var(--hover, var(--surface2)); }
+  .sp-table tr.data-row.sel { background: var(--accent-soft); }
+  .detail-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow-sm); min-height: 260px; }
+  .detail-panel .empty-detail { color: var(--text-faint); text-align: center; padding: 60px 20px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-dot"></span><h1>Test Dashboard</h1></div>
+  <div class="topbar-actions">
+    <span id="scope-badge"></span>
+    <span id="last-sync" class="muted"><span class="live-dot"></span></span>
+    <button id="refresh" type="button" class="btn-primary">Refresh</button>
+    <a href="settings.html" class="btn-ghost" style="text-decoration:none">Settings</a>
+  </div>
+</header>
+<nav style="display:flex;gap:4px;margin-bottom:14px">
+  <a href="console.html" style="padding:8px 12px;font-size:0.8rem;font-weight:600;color:var(--muted);text-decoration:none">Console</a>
+  <a href="cycles.html" style="padding:8px 12px;font-size:0.8rem;font-weight:600;color:var(--muted);text-decoration:none">Cycles</a>
+  <a href="index.html" style="padding:8px 12px;font-size:0.8rem;font-weight:600;color:var(--accent-text);text-decoration:none;border-bottom:2px solid var(--accent)">Spreadsheet</a>
+</nav>
+
+<div id="banner" class="banner" hidden></div>
+
+<div class="toolbar">
+  <input id="search" type="search" placeholder="Search serial, restaurant, class…">
+  <span class="cc-tag" id="count-tag" style="padding:6px 12px;border-radius:999px;font-size:11px">0 devices</span>
+</div>
+
+<div class="sp-table-wrap">
+  <table class="sp-table">
+    <thead><tr id="head-row"></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+
+<div class="detail-panel" id="detail">
+  <div class="empty-detail">Click a row to load its battery history here.</div>
+</div>
+
+<script type="module">
+import { fetchDevices, fetchHistory, requireConfig, showBanner, mapLimit, initScopeBadge } from './shared/data.js';
+import { renderHistoryChart, sparkline } from './shared/chart.js';
+
+const banner = document.getElementById('banner');
+const rowsEl = document.getElementById('rows');
+const headRow = document.getElementById('head-row');
+const searchEl = document.getElementById('search');
+const countTag = document.getElementById('count-tag');
+const detail = document.getElementById('detail');
+const lastSync = document.getElementById('last-sync');
+const refreshBtn = document.getElementById('refresh');
+
+let allRows = [];
+let sortKey = null, sortDir = 1;
+let selected = null;
+const sparkCache = {};
+
+async function load(fresh = false) {
+  refreshBtn.classList.add('loading');
+  refreshBtn.innerHTML = '<span class="spinner"></span> Refreshing';
+  try {
+    allRows = await fetchDevices({ fresh });
+    showBanner(banner, null);
+    lastSync.innerHTML = `<span class="live-dot"></span>synced ${new Date().toLocaleTimeString()}`;
+    render();
+  } catch (err) {
+    showBanner(banner, `Error: ${err.message}`);
+  } finally {
+    refreshBtn.classList.remove('loading');
+    refreshBtn.textContent = 'Refresh';
+  }
+}
+
+function filtered() {
+  const q = searchEl.value.trim().toLowerCase();
+  return allRows.filter(r => !q || Object.entries(r).some(([k, v]) => k !== 'extra' && String(v ?? '').toLowerCase().includes(q)));
+}
+
+function sorted(rows) {
+  if (!sortKey) return rows;
+  return [...rows].sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    if (av == null) return 1; if (bv == null) return -1;
+    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * sortDir;
+    return String(av).localeCompare(String(bv)) * sortDir;
+  });
+}
+
+function render() {
+  const rows = sorted(filtered());
+  countTag.textContent = `${rows.length} devices`;
+  if (!allRows.length) return;
+  const cols = ['serial_number', 'device_class', 'battery_pct', 'trend', 'ram_used_pct', 'storage_free_pct', 'last_seen_at'];
+  headRow.innerHTML = cols.map(c => `<th data-col="${c}">${c}${sortKey === c ? (sortDir === 1 ? ' ▲' : ' ▼') : ''}</th>`).join('');
+  headRow.querySelectorAll('th').forEach(th => th.addEventListener('click', () => {
+    const c = th.dataset.col;
+    if (c === 'trend') return;
+    if (sortKey === c) sortDir *= -1; else { sortKey = c; sortDir = 1; }
+    render();
+  }));
+
+  rowsEl.innerHTML = rows.map((r, i) => `
+    <tr class="data-row ${selected === r.serial_number ? 'sel' : ''}" data-serial="${r.serial_number}" style="animation-delay:${Math.min(i,20)*15}ms">
+      <td style="font-family:var(--mono)">${r.serial_number}</td>
+      <td><span class="cc-tag">${r.device_class || '—'}</span></td>
+      <td style="font-family:var(--mono)">${r.battery_pct ?? '—'}</td>
+      <td><span class="spark-slot" data-serial="${r.serial_number}"></span></td>
+      <td style="font-family:var(--mono)">${r.ram_used_pct ?? '—'}</td>
+      <td style="font-family:var(--mono)">${r.storage_free_pct ?? '—'}</td>
+      <td style="color:var(--muted)">${r.last_seen_at ? new Date(r.last_seen_at).toLocaleString() : '—'}</td>
+    </tr>`).join('');
+  rowsEl.querySelectorAll('tr').forEach(tr => tr.addEventListener('click', () => selectRow(tr.dataset.serial)));
+  fillSparklines(rows);
+}
+
+async function fillSparklines(rows) {
+  await mapLimit(rows, 6, async r => {
+    try {
+      const hist = sparkCache[r.serial_number] || (sparkCache[r.serial_number] = await fetchHistory(r.serial_number, 24));
+      const slot = rowsEl.querySelector(`.spark-slot[data-serial="${CSS.escape(r.serial_number)}"]`);
+      if (slot) slot.innerHTML = sparkline(hist, 'battery_pct', 'var(--chart-battery)', 90, 22);
+    } catch (e) { /* leave blank */ }
+  });
+}
+
+async function selectRow(serial) {
+  selected = serial;
+  render();
+  detail.innerHTML = `
+    <div class="drawer-head" style="display:flex;justify-content:space-between;margin-bottom:10px">
+      <h3>${serial} — battery history</h3>
+      <div class="range-btns"><button data-h="24" class="active">24h</button><button data-h="168">7d</button><button data-h="720">30d</button></div>
+    </div>
+    <div class="chart-host" id="chart-host"></div>`;
+  detail.querySelectorAll('.range-btns button').forEach(b => b.addEventListener('click', () => loadChart(serial, +b.dataset.h)));
+  loadChart(serial, 24);
+}
+
+async function loadChart(serial, hours) {
+  detail.querySelectorAll('.range-btns button').forEach(b => b.classList.toggle('active', +b.dataset.h === hours));
+  const host = document.getElementById('chart-host');
+  host.innerHTML = '<div class="drawer-loading"><span class="spinner"></span>Loading…</div>';
+  try {
+    const rows = await fetchHistory(serial, hours);
+    renderHistoryChart(host, rows, { key: 'battery_pct', color: 'var(--chart-battery)', label: 'battery', unit: '%' });
+  } catch (err) {
+    host.innerHTML = `<div class="drawer-loading">Error: ${err.message}</div>`;
+  }
+}
+
+searchEl.addEventListener('input', render);
+refreshBtn.addEventListener('click', () => load(true));
+initScopeBadge(document.getElementById("scope-badge"));
+requireConfig(banner, load);
+</script>
+</body>
+</html>

@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Dashboard — round 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #f7f7f7; --surface: #fff; --surface2: #f1f1f3; --surface-3: #e6e6ea;
+  --border: #e9e9ed; --border-soft: #f0f0f3; --rule-2: #c9c9d0;
+  --text: #1a1a1a; --text-2: #4f4f4f; --muted: #5f5f66; --text-faint: #74747c;
+  --accent: #f9674e; --accent-h: #ec4f33; --accent-soft: rgba(249,103,78,.10); --accent-text: #cf4529;
+  --accent-2: #7a80f6; --accent-2-soft: rgba(122,128,246,.12);
+  --brand-grad: linear-gradient(90deg,#f9674e 0%,#7a80f6 100%);
+  --ok: #0f6d33; --ok-bg: rgba(21,127,60,.1); --warn: #8f4209; --warn-bg: rgba(180,83,9,.1);
+  --chart-battery: #2563eb; --chart-temp: #ea580c; --chart-ram: #15803d;
+  --chart-grid: rgba(16,24,40,.08); --chart-tick: #687078;
+  --shadow-sm: 0 2px 10px rgba(0,0,0,.04); --shadow-md: 0 6px 20px rgba(0,0,0,.06); --shadow-lg: 0 12px 40px rgba(0,0,0,.08);
+  --font: 'Poppins','IBM Plex Sans',system-ui,sans-serif; --mono: 'JetBrains Mono',monospace;
+}
+* , *::before, *::after { box-sizing: border-box; }
+body { margin: 0; font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; }
+.intro { max-width: 980px; margin: 0 auto; padding: 32px 20px 0; }
+.intro h1 { font-size: 1.4rem; margin: 0 0 6px; }
+.intro p { color: var(--muted); margin: 0 0 8px; max-width: 70ch; }
+.option { padding: 36px 0 56px; border-bottom: 2px solid var(--border); }
+.option-head { max-width: 980px; margin: 0 auto 18px; padding: 0 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.option-head h2 { font-size: 1.15rem; margin: 0; }
+.tag { font-size: 0.65rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--accent); color: #fff; text-transform: uppercase; letter-spacing: .04em; }
+.notes { max-width: 980px; margin: 14px auto 0; padding: 0 20px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.82rem; }
+.notes div { flex: 1; min-width: 260px; padding: 10px 14px; border-radius: 10px; border-left: 3px solid; background: var(--surface); box-shadow: var(--shadow-sm); }
+.good { border-color: var(--ok); } .bad { border-color: #b42318; }
+.stage { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+
+/* ── sparkline / chart shared ── */
+svg.spark { display: block; }
+.legend { display: flex; gap: 14px; font-size: 0.72rem; color: var(--muted); align-items: center; }
+.legend .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+.crosshair-line { stroke: var(--rule-2); stroke-width: 1; }
+.tooltip-box { font-family: var(--mono); font-size: 11px; }
+
+/* ═══════════ OPTION A — "Console" (dark, dense, ops-room) ═══════════ */
+.optA { background: #0d0d12; color: #f4f4f6; }
+.optA .notes div { background: #16161d; border-color: #2a2a35; color: #b3b4bd; }
+.optA .notes div.good { border-left-color: #55bd75; } .optA .notes div.bad { border-left-color: #e07575; }
+.optA-shell { display: grid; grid-template-columns: 180px 1fr 320px; gap: 1px; background: #2a2a35; border: 1px solid #2a2a35; border-radius: 14px; overflow: hidden; min-height: 520px; }
+.optA-nav { background: #121218; padding: 18px 14px; }
+.optA-nav .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 22px; font-size: 0.9rem; }
+.optA-nav .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--brand-grad); }
+.optA-nav a { display: block; padding: 8px 10px; border-radius: 8px; color: #a0a1ab; text-decoration: none; font-size: 0.8rem; font-weight: 600; margin-bottom: 2px; }
+.optA-nav a.active { background: #1e1e27; color: #f9805f; }
+.optA-main { background: #16161d; padding: 20px; }
+.optA-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+.optA-stat { background: #1e1e27; border-radius: 10px; padding: 12px 14px; }
+.optA-stat .n { font-family: var(--mono); font-size: 1.4rem; font-weight: 700; }
+.optA-stat .l { font-size: 0.68rem; color: #8a8b95; text-transform: uppercase; letter-spacing: .04em; }
+.optA-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.optA-table th { text-align: left; padding: 8px 10px; color: #8a8b95; font-size: 0.65rem; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid #2a2a35; }
+.optA-table td { padding: 8px 10px; border-bottom: 1px solid #202029; }
+.optA-table tr.sel { background: #1e1e27; }
+.optA-table tr:hover { background: #1a1a22; cursor: pointer; }
+.optA-badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 999px; background: #262633; color: #99a1f2; font-weight: 700; text-transform: uppercase; }
+.optA-detail { background: #121218; padding: 20px; }
+.optA-detail h3 { font-size: 0.95rem; margin: 0 0 4px; }
+.optA-detail .sub { font-size: 0.72rem; color: #8a8b95; margin-bottom: 16px; font-family: var(--mono); }
+.optA-chart-label { font-size: 0.68rem; color: #8a8b95; text-transform: uppercase; letter-spacing: .04em; margin: 14px 0 6px; }
+
+/* ═══════════ OPTION B — "Fleet Wall" (card mosaic) ═══════════ */
+.optB-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap: 12px; }
+.optB-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; box-shadow: var(--shadow-sm); cursor: pointer; transition: box-shadow .15s, transform .15s; }
+.optB-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.optB-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.optB-card h4 { margin: 0; font-size: 0.88rem; }
+.optB-card .cls { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; }
+.optB-card .metrics { display: flex; gap: 14px; margin-top: 10px; font-size: 0.72rem; color: var(--muted); }
+.optB-card .metrics b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+.optB-modal { margin-top: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-lg); padding: 22px; }
+.optB-modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.optB-modal-head h3 { margin: 0; }
+
+/* ═══════════ OPTION C — "Cycle Lab" (battery-cycle focus) ═══════════ */
+.optC-hero { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.optC-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow-sm); }
+.optC-tile .n { font-size: 2rem; font-weight: 700; font-family: var(--mono); color: var(--accent-text); }
+.optC-tile .l { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+.optC-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow-sm); }
+.optC-panel h3 { margin: 0 0 4px; font-size: 1rem; }
+.optC-panel .sub { color: var(--muted); font-size: 0.8rem; margin-bottom: 16px; }
+
+/* ═══════════ OPTION D — "Spreadsheet Pro" (dense grid + sparkline col) ═══════════ */
+.optD-toolbar { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
+.optD-toolbar input { flex: 1; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font: inherit; }
+.optD-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); }
+.optD-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.optD-table th { text-align: left; padding: 9px 12px; font-size: 0.68rem; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--surface2); }
+.optD-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-soft); }
+.optD-table tr.expanded-row { background: var(--accent-soft); }
+.optD-drawer { background: var(--surface2); }
+.optD-drawer td { padding: 16px 20px; }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>Test Dashboard — four directions</h1>
+  <p>Previous version: rejected as a whole — wrong shape, no history, flat look. These are four
+  different structural bets, not four skins on the same table. Each uses real interactive charts
+  (hover for a crosshair + tooltip) against mock 48h battery-cycle data, in the MDM's own chart
+  colors (<code>--chart-battery</code>/<code>--chart-temp</code>/<code>--chart-ram</code>).</p>
+</div>
+
+<!-- ══════════════════════ OPTION A — CONSOLE ══════════════════════ -->
+<div class="option optA">
+  <div class="option-head"><h2>A — Console</h2><span class="tag">ops-room</span></div>
+  <div class="stage">
+    <div class="optA-shell">
+      <div class="optA-nav">
+        <div class="brand"><span class="dot"></span>Test Dash</div>
+        <a class="active">Fleet</a>
+        <a>Cycles</a>
+        <a>Alerts</a>
+        <a>Saved views</a>
+      </div>
+      <div class="optA-main">
+        <div class="optA-stats">
+          <div class="optA-stat"><div class="n">37</div><div class="l">devices</div></div>
+          <div class="optA-stat"><div class="n">31</div><div class="l">seen &lt;15m</div></div>
+          <div class="optA-stat"><div class="n">4</div><div class="l">classes</div></div>
+          <div class="optA-stat"><div class="n">212</div><div class="l">cycles logged</div></div>
+        </div>
+        <table class="optA-table">
+          <thead><tr><th>serial</th><th>class</th><th>battery</th><th>trend</th><th>temp</th></tr></thead>
+          <tbody id="optA-rows"></tbody>
+        </table>
+      </div>
+      <div class="optA-detail">
+        <h3>T7-00231</h3>
+        <div class="sub">t7 · Downtown #4 · last seen 2m ago</div>
+        <div class="optA-chart-label">Battery % · last 48h</div>
+        <div id="optA-chart"></div>
+        <div class="legend" style="margin-top:8px">
+          <span><span class="sw" style="background:var(--chart-battery)"></span>battery_pct</span>
+          <span><span class="sw" style="background:var(--chart-temp)"></span>battery_temp_c</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="good"><strong>Good:</strong> one screen, no navigation to see list + detail together — exactly how you'd watch a cycle run live. Dark/dense suits a lab bench left open all day.</div>
+    <div class="bad"><strong>Bad:</strong> three-column layout doesn't collapse well under ~1000px; dark-only here (real build would need the light toggle back) commits visually to "ops tool" even for someone just doing a once-a-cycle CSV-style pull.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════ OPTION B — FLEET WALL ══════════════════════ -->
+<div class="option" style="background:var(--bg)">
+  <div class="option-head"><h2>B — Fleet Wall</h2><span class="tag" style="background:var(--accent-2)">at-a-glance</span></div>
+  <div class="stage">
+    <div class="optB-grid" id="optB-grid"></div>
+    <div class="optB-modal">
+      <div class="optB-modal-head">
+        <h3>POS-0014 <span style="font-weight:400;color:var(--muted);font-size:0.85rem">· pos · Downtown #4</span></h3>
+        <span class="cc-tag" style="background:var(--ok-bg);color:var(--ok);font-size:11px;padding:3px 10px;border-radius:999px;font-weight:700">mains powered</span>
+      </div>
+      <div class="legend" style="margin-bottom:10px">
+        <span><span class="sw" style="background:var(--chart-ram)"></span>ram_used_pct</span>
+        <span><span class="sw" style="background:var(--chart-temp)"></span>battery_temp_c (n/a — mains)</span>
+      </div>
+      <div id="optB-chart"></div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="good"><strong>Good:</strong> instantly spot the one tile that looks wrong in a wall of 30+ — closest to how the MDM's own device wall already works, so it's a familiar pattern. Click-to-expand keeps the grid as home base.</div>
+    <div class="bad"><strong>Bad:</strong> comparing one metric across many devices means scanning 30 tiles instead of one column — worse for "which devices have RAM &gt; 80%"-style triage than a table would be.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════ OPTION C — CYCLE LAB ══════════════════════ -->
+<div class="option" style="background:var(--bg)">
+  <div class="option-head"><h2>C — Cycle Lab</h2><span class="tag" style="background:#15803d">battery-cycle focus</span></div>
+  <div class="stage">
+    <div class="optC-hero">
+      <div class="optC-tile"><div class="n">4.2</div><div class="l">equivalent full cycles (discharge_total_pct ÷ 100)</div></div>
+      <div class="optC-tile"><div class="n">87%</div><div class="l">current charge</div></div>
+      <div class="optC-tile"><div class="n">29.4°C</div><div class="l">temp at last charge peak</div></div>
+    </div>
+    <div class="optC-panel">
+      <h3>T7-00231 — charge/discharge timeline</h3>
+      <div class="sub">Shaded bands = charging (wlc_state active). Everything from <code>/testdata/devices/{serial}/history</code>, no extra instrumentation needed.</div>
+      <div id="optC-chart"></div>
+      <div class="legend" style="margin-top:10px">
+        <span><span class="sw" style="background:var(--chart-battery)"></span>battery_pct</span>
+        <span><span class="sw" style="background:var(--accent-soft);border:1px solid var(--accent-edge)"></span>charging</span>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="good"><strong>Good:</strong> directly answers "do it yourself" for battery-cycle testing — cycle count as the headline number, charge bands visible without cross-referencing a separate charging column. Built straight from the new history endpoint's raw fields.</div>
+    <div class="bad"><strong>Bad:</strong> single-device focus — not a fleet overview, needs a device picker bolted on top (or pairs with B/D as the "list" half). Overkill for someone who just wants today's snapshot, not a cycle.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════ OPTION D — SPREADSHEET PRO ══════════════════════ -->
+<div class="option" style="background:var(--bg)">
+  <div class="option-head"><h2>D — Spreadsheet Pro</h2><span class="tag" style="background:var(--muted)">power user</span></div>
+  <div class="stage">
+    <div class="optD-toolbar">
+      <input placeholder="Search serial, restaurant, class…" disabled>
+      <span class="cc-tag" style="background:var(--surface2);padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;color:var(--muted)">37 devices</span>
+    </div>
+    <div class="optD-table-wrap">
+      <table class="optD-table">
+        <thead><tr><th></th><th>serial</th><th>class</th><th>battery_pct</th><th>48h trend</th><th>ram_used_pct</th><th>last_seen</th></tr></thead>
+        <tbody id="optD-rows"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="good"><strong>Good:</strong> closest to the CSV muscle-memory the testing team already has — sortable columns, every field in one scan — but the inline sparkline + expandable row drawer gives history for free, no page navigation.</div>
+    <div class="bad"><strong>Bad:</strong> least visually distinctive of the four — reads as "a nicer spreadsheet," not a tool. Sparkline column gets cramped past ~6 metric columns.</div>
+  </div>
+</div>
+
+<div class="intro" style="padding-bottom:60px">
+  <p><strong>No pick made here on purpose</strong> — you said surprise you, not pick for you. My actual
+  lean is <strong>C for the detail view + D for the list</strong>, used together (D's table row click opens
+  a C-style history panel below it): D answers "what does QA already know how to read" and C answers
+  "the specific thing you just asked for" (battery-cycle testing), without committing to the all-dark
+  ops-room feel of A or the weaker cross-device comparison of B.</p>
+</div>
+
+<script>
+function mockHistory(n, base, noise, driftPerStep, withCharge) {
+  const pts = [];
+  let v = base, t = Date.now() - n * 30 * 60 * 1000;
+  for (let i = 0; i < n; i++) {
+    v += (Math.random() - 0.48) * noise + driftPerStep;
+    v = Math.max(5, Math.min(100, v));
+    const charging = withCharge && (Math.floor(i / 8) % 3 === 0);
+    pts.push({ t: t + i * 30 * 60 * 1000, battery: v, temp: 24 + (charging ? 6 : 0) + Math.random() * 2, charging });
+  }
+  return pts;
+}
+
+function lineChart(el, data, opts) {
+  const w = opts.w || 520, h = opts.h || 160, pad = 28;
+  const xs = data.map(d => d.t), ys = data.map(d => d[opts.key]);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const yMin = opts.yMin ?? Math.min(...ys) - 2, yMax = opts.yMax ?? Math.max(...ys) + 2;
+  const X = t => pad + (t - xMin) / (xMax - xMin) * (w - pad * 2);
+  const Y = v => h - pad + 10 - (v - yMin) / (yMax - yMin) * (h - pad - 10);
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.setAttribute('width', '100%');
+  svg.classList.add('spark');
+
+  if (opts.chargeBands) {
+    let i = 0;
+    while (i < data.length) {
+      if (data[i].charging) {
+        let j = i;
+        while (j < data.length && data[j].charging) j++;
+        const rect = document.createElementNS(svg.namespaceURI, 'rect');
+        rect.setAttribute('x', X(data[i].t));
+        rect.setAttribute('y', 4);
+        rect.setAttribute('width', Math.max(1, X(data[j - 1].t) - X(data[i].t)));
+        rect.setAttribute('height', h - 8);
+        rect.setAttribute('fill', 'var(--accent-soft)');
+        svg.appendChild(rect);
+        i = j;
+      } else i++;
+    }
+  }
+
+  // gridlines
+  for (let g = 0; g <= 3; g++) {
+    const gy = pad + g * (h - pad - 10) / 3;
+    const line = document.createElementNS(svg.namespaceURI, 'line');
+    line.setAttribute('x1', pad); line.setAttribute('x2', w - pad);
+    line.setAttribute('y1', gy); line.setAttribute('y2', gy);
+    line.setAttribute('stroke', 'var(--chart-grid)'); line.setAttribute('stroke-width', '1');
+    svg.appendChild(line);
+  }
+
+  const path = data.map((d, i) => `${i === 0 ? 'M' : 'L'}${X(d.t)},${Y(d[opts.key])}`).join(' ');
+  const p = document.createElementNS(svg.namespaceURI, 'path');
+  p.setAttribute('d', path);
+  p.setAttribute('fill', 'none');
+  p.setAttribute('stroke', opts.color);
+  p.setAttribute('stroke-width', '2');
+  p.setAttribute('stroke-linecap', 'round');
+  p.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(p);
+
+  // crosshair + tooltip
+  const cross = document.createElementNS(svg.namespaceURI, 'line');
+  cross.setAttribute('class', 'crosshair-line');
+  cross.setAttribute('y1', 4); cross.setAttribute('y2', h - 4);
+  cross.setAttribute('visibility', 'hidden');
+  svg.appendChild(cross);
+  const dot = document.createElementNS(svg.namespaceURI, 'circle');
+  dot.setAttribute('r', 4);
+  dot.setAttribute('fill', opts.color);
+  dot.setAttribute('stroke', 'var(--surface)'); dot.setAttribute('stroke-width', '2');
+  dot.setAttribute('visibility', 'hidden');
+  svg.appendChild(dot);
+
+  const wrap = document.createElement('div');
+  wrap.style.position = 'relative';
+  const tip = document.createElement('div');
+  tip.className = 'tooltip-box';
+  tip.style.cssText = 'position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;box-shadow:var(--shadow-sm);display:none;color:var(--text);white-space:nowrap';
+  wrap.appendChild(svg);
+  wrap.appendChild(tip);
+
+  svg.addEventListener('mousemove', e => {
+    const rect = svg.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / rect.width * w;
+    let nearest = data[0], nd = Infinity;
+    for (const d of data) { const dx = Math.abs(X(d.t) - mx); if (dx < nd) { nd = dx; nearest = d; } }
+    cross.setAttribute('x1', X(nearest.t)); cross.setAttribute('x2', X(nearest.t));
+    cross.setAttribute('visibility', 'visible');
+    dot.setAttribute('cx', X(nearest.t)); dot.setAttribute('cy', Y(nearest[opts.key]));
+    dot.setAttribute('visibility', 'visible');
+    tip.style.display = 'block';
+    tip.style.left = Math.min(X(nearest.t) + 10, w - 110) + 'px';
+    tip.style.top = '2px';
+    const time = new Date(nearest.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    tip.textContent = `${time} · ${opts.label}: ${nearest[opts.key].toFixed(1)}${opts.unit || ''}`;
+  });
+  svg.addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); tip.style.display = 'none'; });
+
+  el.innerHTML = '';
+  el.appendChild(wrap);
+}
+
+function sparkline(data, key, color, w, h) {
+  const xs = data.map((_, i) => i), ys = data.map(d => d[key]);
+  const yMin = Math.min(...ys), yMax = Math.max(...ys);
+  const X = i => i / (data.length - 1) * w;
+  const Y = v => h - (v - yMin) / (yMax - yMin + 0.001) * h;
+  const path = data.map((d, i) => `${i === 0 ? 'M' : 'L'}${X(i)},${Y(d[key])}`).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${path}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+}
+
+const DEVICES = [
+  { serial: 'T7-00231', cls: 't7', battery: 87, temp: 31.2, color: 'var(--chart-battery)', hist: mockHistory(96, 60, 3, 0.1, true) },
+  { serial: 'KIOSK-0091', cls: 'kiosk', battery: null, temp: null, hist: mockHistory(96, 55, 4, -0.05, false) },
+  { serial: 'POS-0014', cls: 'pos', battery: null, temp: null, hist: mockHistory(96, 30, 5, 0.08, false) },
+  { serial: 'KDS-0004', cls: 'kds', battery: null, temp: null, hist: mockHistory(96, 45, 3, 0.02, false) },
+  { serial: 'MPOS-0022', cls: 'mpos', battery: 62, temp: 28.9, hist: mockHistory(96, 75, 4, -0.2, true) },
+];
+
+const statusColor = d => d.hist.at(-1).battery > 40 || d.battery === null ? 'var(--ok)' : 'var(--warn)';
+
+// Option A rows
+document.getElementById('optA-rows').innerHTML = DEVICES.map((d, i) => `
+  <tr class="${i === 0 ? 'sel' : ''}">
+    <td style="font-family:var(--mono)">${d.serial}</td>
+    <td><span class="optA-badge">${d.cls}</span></td>
+    <td style="font-family:var(--mono)">${d.battery ?? '—'}</td>
+    <td>${sparkline(d.hist, 'battery', '#99a1f2', 70, 20)}</td>
+    <td style="font-family:var(--mono)">${d.temp ?? '—'}</td>
+  </tr>`).join('');
+lineChart(document.getElementById('optA-chart'), DEVICES[0].hist, { key: 'battery', color: '#6ba3f0', yMin: 0, yMax: 100, w: 280, h: 140, label: 'battery_pct' });
+
+// Option B grid
+document.getElementById('optB-grid').innerHTML = DEVICES.map(d => `
+  <div class="optB-card">
+    <div class="optB-card-top">
+      <div><h4>${d.serial}</h4><div class="cls">${d.cls}</div></div>
+      <span class="status-dot" style="background:${statusColor(d)}"></span>
+    </div>
+    ${sparkline(d.hist, 'battery', 'var(--chart-battery)', 190, 36)}
+    <div class="metrics">
+      ${d.battery !== null ? `<span>battery <b>${d.battery}%</b></span>` : `<span>mains powered</span>`}
+    </div>
+  </div>`).join('');
+lineChart(document.getElementById('optB-chart'), DEVICES[2].hist, { key: 'battery', color: 'var(--chart-ram)', yMin: 0, yMax: 60, w: 1100, h: 140, label: 'ram_used_pct', unit: '%' });
+
+// Option C
+lineChart(document.getElementById('optC-chart'), DEVICES[0].hist, { key: 'battery', color: 'var(--chart-battery)', yMin: 0, yMax: 100, w: 1100, h: 220, label: 'battery_pct', unit: '%', chargeBands: true });
+
+// Option D rows
+document.getElementById('optD-rows').innerHTML = DEVICES.map(d => `
+  <tr>
+    <td>▸</td>
+    <td style="font-family:var(--mono)">${d.serial}</td>
+    <td>${d.cls}</td>
+    <td style="font-family:var(--mono)">${d.battery ?? '—'}</td>
+    <td>${sparkline(d.hist, 'battery', 'var(--chart-battery)', 90, 22)}</td>
+    <td style="font-family:var(--mono)">${Math.round(20 + Math.random() * 50)}</td>
+    <td style="color:var(--muted)">2m ago</td>
+  </tr>`).join('');
+</script>
+</body>
+</html>

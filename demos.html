@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Dashboard — layout options</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body { max-width: 1100px; margin: 0 auto; }
+  .option { margin-bottom: 48px; padding-bottom: 32px; border-bottom: 2px solid var(--border); }
+  .option h2 { display: flex; align-items: center; gap: 8px; }
+  .tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff; }
+  .notes { display: flex; gap: 24px; margin: 12px 0; font-size: 0.85rem; }
+  .notes div { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; }
+  .good { border-left: 3px solid #16a34a; }
+  .bad { border-left: 3px solid #dc2626; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .card h3 { margin: 0 0 8px; font-size: 0.95rem; }
+  .card dl { margin: 0; font-size: 0.8rem; display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; }
+  .card dt { color: #888; }
+  .pick { margin-top: 24px; padding: 16px; border: 2px solid var(--accent); border-radius: 8px; }
+</style>
+</head>
+<body>
+<h1>Test Dashboard — layout options</h1>
+<p>Mock data, 3 ways to present <code>GET /api/v1/testdata/devices</code>. Pick one.</p>
+
+<div class="option">
+  <h2>A — Flat table <span class="tag">already built</span></h2>
+  <table>
+    <thead><tr><th>serial</th><th>class</th><th>restaurant</th><th>battery_pct</th><th>battery_temp_c</th><th>charging</th><th>wlc_state</th><th>ram_used_pct</th></tr></thead>
+    <tbody>
+      <tr><td>T7-00231</td><td>t7</td><td>Downtown #4</td><td>87</td><td>31.2</td><td>true</td><td>active</td><td>42</td></tr>
+      <tr><td>KIOSK-0091</td><td>kiosk</td><td>Airport #2</td><td>—</td><td>—</td><td>—</td><td>—</td><td>58</td></tr>
+      <tr><td>POS-0014</td><td>pos</td><td>Downtown #4</td><td>—</td><td>—</td><td>—</td><td>—</td><td>31</td></tr>
+    </tbody>
+  </table>
+  <div class="notes">
+    <div class="good"><strong>Good:</strong> every field visible, zero styling decisions, sortable by clicking a browser extension or copy-paste to a spreadsheet. Matches what a CSV already looked like, lowest learning curve.</div>
+    <div class="bad"><strong>Bad:</strong> wide, horizontal scroll past ~8 columns, mains-powered devices show dashes in battery columns (noise).</div>
+  </div>
+</div>
+
+<div class="option">
+  <h2>B — Card grid, grouped by class</h2>
+  <div class="cards">
+    <div class="card">
+      <h3>T7-00231 <span style="color:#888;font-weight:400">t7</span></h3>
+      <dl>
+        <dt>restaurant</dt><dd>Downtown #4</dd>
+        <dt>battery</dt><dd>87% · charging · wlc active</dd>
+        <dt>temp</dt><dd>31.2°C</dd>
+        <dt>ram</dt><dd>42%</dd>
+      </dl>
+    </div>
+    <div class="card">
+      <h3>KIOSK-0091 <span style="color:#888;font-weight:400">kiosk</span></h3>
+      <dl>
+        <dt>restaurant</dt><dd>Airport #2</dd>
+        <dt>power</dt><dd>mains</dd>
+        <dt>ram</dt><dd>58%</dd>
+      </dl>
+    </div>
+    <div class="card">
+      <h3>POS-0014 <span style="color:#888;font-weight:400">pos</span></h3>
+      <dl>
+        <dt>restaurant</dt><dd>Downtown #4</dd>
+        <dt>power</dt><dd>mains</dd>
+        <dt>ram</dt><dd>31%</dd>
+      </dl>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="good"><strong>Good:</strong> battery-less devices don't show irrelevant dashes — card just omits fields that don't apply. Scans well at a glance for "is anything weird."</div>
+    <div class="bad"><strong>Bad:</strong> harder to compare one field across many devices (e.g. "which devices have low RAM") — no column to scan down. More code to maintain per-field conditionals.</div>
+  </div>
+</div>
+
+<div class="option">
+  <h2>C — Table grouped by restaurant, collapsible</h2>
+  <details open>
+    <summary><strong>Downtown #4</strong> (2 devices)</summary>
+    <table>
+      <thead><tr><th>serial</th><th>class</th><th>battery_pct</th><th>ram_used_pct</th></tr></thead>
+      <tbody>
+        <tr><td>T7-00231</td><td>t7</td><td>87</td><td>42</td></tr>
+        <tr><td>POS-0014</td><td>pos</td><td>—</td><td>31</td></tr>
+      </tbody>
+    </table>
+  </details>
+  <details open>
+    <summary><strong>Airport #2</strong> (1 device)</summary>
+    <table>
+      <thead><tr><th>serial</th><th>class</th><th>battery_pct</th><th>ram_used_pct</th></tr></thead>
+      <tbody>
+        <tr><td>KIOSK-0091</td><td>kiosk</td><td>—</td><td>58</td></tr>
+      </tbody>
+    </table>
+  </details>
+  <div class="notes">
+    <div class="good"><strong>Good:</strong> matches how test cycles are usually run — per site/lab bench — fast to find "my" devices, collapse the rest.</div>
+    <div class="bad"><strong>Bad:</strong> most columns still repeated per group, two render passes (group, then table) — more JS than A. Less useful if a test cycle spans many restaurants evenly.</div>
+  </div>
+</div>
+
+<div class="pick">
+  <strong>Recommendation: A (flat table).</strong>
+  It's what's already built in <code>index.html</code>, it's what the CSV already looked like
+  (lowest switching cost off CSV), and it's the only one that works unmodified regardless of
+  which fields the API ends up returning — B and C both need per-field layout decisions that
+  B and C would need updating every time a field is added. Can revisit if the test team wants
+  grouping once they're actually using it.
+</div>
+
+</body>
+</html>

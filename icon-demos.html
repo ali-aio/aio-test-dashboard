@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>T7 icon</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body { max-width: 900px; margin: 0 auto; }
+  .row { display: flex; gap: 28px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 20px; }
+  .icon-box { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .icon-box .lbl { font-size: 0.72rem; color: var(--muted); }
+  .mini-card { width: 190px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; box-shadow: var(--shadow-sm); }
+  .mini-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .mini-card h4 { margin: 0; font-size: 0.85rem; font-family: var(--mono); }
+  .mini-card .cls { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  .notes { display: flex; gap: 16px; margin-top: 20px; font-size: 0.82rem; flex-wrap: wrap; }
+  .notes div { flex: 1; min-width: 260px; padding: 10px 14px; border-radius: 10px; border-left: 3px solid; background: var(--surface); box-shadow: var(--shadow-sm); }
+  .good { border-color: var(--ok); }
+</style>
+</head>
+<body>
+<h1 style="margin:32px 0 6px">T7 device icon — straight-on silhouette</h1>
+<p style="color:var(--muted);margin-bottom:24px">Front view of the dock photo, not isometric: wedge wider at the base, narrowing toward the top, rounded top corners, sensor nub at top-center, tilted screen inset.</p>
+
+<div class="row">
+  <div class="icon-box">
+    <svg width="56" height="74" viewBox="0 0 48 64" fill="none">
+      <path d="M17,6 Q17,3 20,3 L28,3 Q31,3 31,6
+               L40,55 Q40.5,58 37,58 L11,58 Q7.5,58 8,55 Z"
+            stroke="var(--text-2)" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M19,11 L29,11 L35,52 L13,52 Z" stroke="var(--text-2)" stroke-width="1.4" opacity="0.6" stroke-linejoin="round"/>
+      <rect x="21.5" y="1" width="5" height="3" rx="1.2" fill="var(--text-2)"/>
+    </svg>
+    <span class="lbl">Ink / outline</span>
+  </div>
+
+  <div class="icon-box">
+    <svg width="56" height="74" viewBox="0 0 48 64" fill="none">
+      <defs>
+        <linearGradient id="bodyG" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#3a3a42"/>
+          <stop offset="100%" stop-color="#131316"/>
+        </linearGradient>
+        <linearGradient id="screenG" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#7a80f6"/>
+          <stop offset="100%" stop-color="#2a2d6e"/>
+        </linearGradient>
+        <filter id="shadowG" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-opacity="0.3"/>
+        </filter>
+      </defs>
+      <path d="M17,6 Q17,3 20,3 L28,3 Q31,3 31,6
+               L40,55 Q40.5,58 37,58 L11,58 Q7.5,58 8,55 Z"
+            fill="url(#bodyG)" filter="url(#shadowG)"/>
+      <path d="M17,6 Q17,3 20,3 L24,3 L24,58 L11,58 Q7.5,58 8,55 Z" fill="#fff" opacity="0.05"/>
+      <path d="M19,11 L29,11 L35,52 L13,52 Z" fill="url(#screenG)"/>
+      <path d="M19,11 L29,11 L30.5,24 L14.5,24 Z" fill="#fff" opacity="0.1"/>
+      <rect x="21.5" y="1" width="5" height="3" rx="1.2" fill="#000" opacity="0.5"/>
+    </svg>
+    <span class="lbl">Shaded (dark body + glow screen)</span>
+  </div>
+
+  <div class="icon-box">
+    <div class="mini-card">
+      <div class="mini-card-top">
+        <div><h4>AT070AABU00231</h4><div class="cls">t7</div></div>
+        <span class="status-dot"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg width="26" height="34" viewBox="0 0 48 64" fill="none">
+          <path d="M17,6 Q17,3 20,3 L28,3 Q31,3 31,6 L40,55 Q40.5,58 37,58 L11,58 Q7.5,58 8,55 Z" fill="url(#bodyG)"/>
+          <path d="M19,11 L29,11 L35,52 L13,52 Z" fill="url(#screenG)"/>
+        </svg>
+        <span style="font-size:0.72rem;color:var(--muted)">battery 87%</span>
+      </div>
+    </div>
+    <span class="lbl">In the Fleet Wall card</span>
+  </div>
+</div>
+
+<div class="notes">
+  <div class="good"><strong>Why this fits:</strong> matches the dock photo's actual profile (wedge wider at the base) instead of a guessed 3/4 perspective, and gives both a flat outline (for inline/table use) and a shaded version with a brand-gradient screen (for the Fleet Wall card) from the same silhouette.</div>
+</div>
+
+</body>
+</html>

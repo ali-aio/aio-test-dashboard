@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — Test Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .settings-card { max-width: 480px; margin: 10vh auto 0; animation: slidein .4s var(--ease) both; }
+  .settings-card h1 { font-size: 1.2rem; margin-bottom: 4px; }
+  .settings-card .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .field label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .field input { padding: 10px 12px; border-radius: var(--r-2); border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; }
+  .field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .saved-pop { display: none; align-items: center; gap: 8px; color: var(--ok); font-size: 0.85rem; font-weight: 600; margin-top: 10px; }
+  .saved-pop.show { display: flex; animation: pop .4s var(--ease) both; }
+  .okdot { width: 18px; height: 18px; border-radius: 50%; background: var(--ok-bg); display: flex; align-items: center; justify-content: center; }
+  .okdot svg { width: 11px; height: 11px; stroke: var(--ok); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .back-link { display: inline-block; margin-bottom: 20px; color: var(--muted); font-size: 0.82rem; text-decoration: none; }
+  .back-link:hover { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="settings-card">
+  <a href="index.html" class="back-link">← Back to dashboard</a>
+  <h1>Settings</h1>
+  <p class="sub">API connection — shared by every page in this dashboard (stored only in this browser).</p>
+
+  <div class="field">
+    <label>API base</label>
+    <input id="cfg-base" placeholder="https://mdm.dev.aioapp.com">
+  </div>
+  <div class="field">
+    <label>API key</label>
+    <input id="cfg-key" type="password" placeholder="X-API-Key">
+  </div>
+  <p class="sub" style="margin-top:-10px">Group scope is picked from the badge in each page's
+  topbar, not here.</p>
+
+  <button id="cfg-save" type="button" class="btn-primary">Save</button>
+  <div class="saved-pop" id="saved-pop">
+    <span class="okdot"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span>
+    Saved — key stored in this browser only.
+  </div>
+</div>
+
+<script type="module">
+import { saveConfig } from './shared/data.js';
+
+document.getElementById('cfg-base').value = localStorage.getItem('apiBase') || '';
+document.getElementById('cfg-key').value = localStorage.getItem('apiKey') || '';
+
+document.getElementById('cfg-save').addEventListener('click', () => {
+  saveConfig(document.getElementById('cfg-base').value, document.getElementById('cfg-key').value);
+  const pop = document.getElementById('saved-pop');
+  pop.classList.remove('show'); void pop.offsetWidth; pop.classList.add('show');
+});
+</script>
+</body>
+</html>

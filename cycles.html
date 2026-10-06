@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cycles — Test Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .shelves { display: flex; flex-direction: column; gap: 18px; margin-bottom: 28px; }
+  .shelf-stage {
+    background: linear-gradient(180deg, var(--surface2) 0%, var(--surface2) 82%, var(--border) 82%, var(--border) 85%, transparent 85%);
+    border-radius: 16px; padding: 36px 20px 20px;
+  }
+  .shelf-grid { display: flex; flex-wrap: wrap; gap: 22px 18px; }
+  .shelf-unit { position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; width: 64px; animation: slidein .3s var(--ease) both; border-radius: 10px; }
+  .shelf-unit .dev-img {
+    width: 42px; height: auto; filter: drop-shadow(0 6px 8px rgba(0,0,0,.22));
+    transition: transform .22s var(--ease), filter .22s var(--ease);
+  }
+  @media (prefers-color-scheme: dark) { .shelf-unit .dev-img { filter: drop-shadow(0 6px 8px rgba(0,0,0,.5)) brightness(0) invert(1); } }
+  .shelf-unit:hover .dev-img { transform: rotateX(8deg) translateY(-6px) scale(1.08); filter: drop-shadow(0 14px 16px rgba(0,0,0,.3)); }
+  .shelf-unit.selected { box-shadow: 0 0 0 2px var(--accent); background: var(--accent-soft); }
+  .shelf-unit.selected .dev-img { transform: translateY(-3px); }
+  .shelf-unit .led { position: absolute; top: 2px; right: 8px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 6px currentColor; animation: pulse 2s infinite; }
+  .shelf-unit .reflect { width: 42px; height: 9px; margin-top: 2px; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.18) 0%, transparent 70%); }
+  .shelf-unit .tag { font-size: 0.6rem; color: var(--text-2); font-family: var(--mono); margin-top: 5px; text-align: center; line-height: 1.25; word-break: break-all; }
+  .shelf-tooltip {
+    position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(6px);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg);
+    padding: 10px 12px; width: 160px; font-size: 0.72rem; opacity: 0; pointer-events: none;
+    transition: opacity .18s var(--ease), transform .18s var(--ease); z-index: 10; color: var(--text);
+  }
+  .shelf-unit:hover .shelf-tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .shelf-tooltip b { font-family: var(--mono); display: block; margin-bottom: 4px; font-size: 0.75rem; }
+  .shelf-tooltip .bar-track { height: 4px; border-radius: 2px; background: var(--surface-3); margin-top: 4px; overflow: hidden; }
+  .shelf-tooltip .bar-fill { height: 100%; border-radius: 2px; }
+
+  .detail-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .detail-head h2 { font-size: 1.05rem; }
+  .hero { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 20px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow-sm); animation: slidein .35s var(--ease) both; }
+  .tile .n { font-size: 2rem; font-weight: 700; font-family: var(--mono); color: var(--accent-text); }
+  .tile .l { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .panel-main { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow-sm); }
+  .panel-main h3 { margin: 0 0 4px; font-size: 1rem; }
+  .panel-main .sub { color: var(--muted); font-size: 0.8rem; margin-bottom: 16px; }
+  .empty-detail { color: var(--text-faint); text-align: center; padding: 60px 20px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-dot"></span><h1>Test Dashboard</h1></div>
+  <div class="topbar-actions">
+    <span id="scope-badge"></span>
+    <span id="last-sync" class="muted"><span class="live-dot"></span></span>
+    <button id="refresh" type="button" class="btn-primary">Refresh</button>
+    <a href="settings.html" class="btn-ghost" style="text-decoration:none">Settings</a>
+  </div>
+</header>
+<nav style="display:flex;gap:4px;margin-bottom:14px">
+  <a href="console.html" style="padding:8px 12px;font-size:0.8rem;font-weight:600;color:var(--muted);text-decoration:none">Console</a>
+  <a href="cycles.html" style="padding:8px 12px;font-size:0.8rem;font-weight:600;color:var(--accent-text);text-decoration:none;border-bottom:2px solid var(--accent)">Cycles</a>
+  <a href="index.html" style="padding:8px 12px;font-size:0.8rem;font-weight:600;color:var(--muted);text-decoration:none">Spreadsheet</a>
+</nav>
+
+<div id="banner" class="banner" hidden></div>
+
+<div class="shelves" id="shelves"></div>
+
+<div id="content">
+  <div class="empty-detail">Click a device on the shelf to see its cycle data.</div>
+</div>
+
+<script type="module">
+import { fetchDevices, fetchHistory, requireConfig, showBanner, initScopeBadge } from './shared/data.js';
+import { renderHistoryChart } from './shared/chart.js';
+
+const FALLBACK_ICON = `data:image/svg+xml,${encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 64" fill="none">
+    <path d="M17,6 Q17,3 20,3 L28,3 Q31,3 31,6 L40,55 Q40.5,58 37,58 L11,58 Q7.5,58 8,55 Z"
+          stroke="#8a8a94" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M19,11 L29,11 L35,52 L13,52 Z" stroke="#8a8a94" stroke-width="1.6" opacity="0.6" stroke-linejoin="round"/>
+  </svg>`)}`;
+
+const banner = document.getElementById('banner');
+const shelvesEl = document.getElementById('shelves');
+const content = document.getElementById('content');
+const lastSync = document.getElementById('last-sync');
+const refreshBtn = document.getElementById('refresh');
+const PER_SHELF = 10;
+
+let devices = [];
+let selectedSerial = null;
+let currentHours = 24;
+
+function statusColor(d) {
+  if (!d.last_seen_at) return 'var(--muted)';
+  const mins = (Date.now() - new Date(d.last_seen_at)) / 60000;
+  return mins < 15 ? 'var(--ok)' : mins < 60 ? 'var(--warn)' : 'var(--danger)';
+}
+
+async function load(fresh = false) {
+  refreshBtn.classList.add('loading');
+  refreshBtn.innerHTML = '<span class="spinner"></span> Refreshing';
+  try {
+    devices = await fetchDevices({ fresh });
+    showBanner(banner, null);
+    lastSync.innerHTML = `<span class="live-dot"></span>synced ${new Date().toLocaleTimeString()}`;
+    renderShelves();
+    if (devices.length && !devices.some(d => d.serial_number === selectedSerial)) {
+      selectDevice(devices[0].serial_number);
+    }
+  } catch (err) {
+    showBanner(banner, `Error: ${err.message}`);
+  } finally {
+    refreshBtn.classList.remove('loading');
+    refreshBtn.textContent = 'Refresh';
+  }
+}
+
+function unitHtml(d, i) {
+  const icon = d.device_class === 't7' ? 'assets/t7-icon.png' : FALLBACK_ICON;
+  const color = statusColor(d);
+  const battery = d.battery_pct != null ? `${d.battery_pct}%` : 'mains';
+  const barPct = d.battery_pct ?? 100;
+  return `
+    <div class="shelf-unit${d.serial_number === selectedSerial ? ' selected' : ''}" data-serial="${d.serial_number}" style="animation-delay:${Math.min(i,30)*20}ms">
+      <span class="led" style="color:${color};background:${color}"></span>
+      <img class="dev-img" src="${icon}" alt="">
+      <div class="reflect"></div>
+      <div class="tag">${d.serial_number}</div>
+      <div class="shelf-tooltip">
+        <b>${d.serial_number}</b>
+        ${d.device_class || '—'} · ${battery}
+        <div class="bar-track"><div class="bar-fill" style="width:${barPct}%;background:${color}"></div></div>
+      </div>
+    </div>`;
+}
+
+function renderShelves() {
+  const shelves = [];
+  for (let i = 0; i < devices.length; i += PER_SHELF) shelves.push(devices.slice(i, i + PER_SHELF));
+  shelvesEl.innerHTML = shelves.map(shelfDevices => `
+    <div class="shelf-stage">
+      <div class="shelf-grid">${shelfDevices.map((d, i) => unitHtml(d, i)).join('')}</div>
+    </div>`).join('');
+  shelvesEl.querySelectorAll('.shelf-unit').forEach(u => u.addEventListener('click', () => selectDevice(u.dataset.serial)));
+}
+
+function selectDevice(serial) {
+  selectedSerial = serial;
+  shelvesEl.querySelectorAll('.shelf-unit').forEach(u => u.classList.toggle('selected', u.dataset.serial === serial));
+  const d = devices.find(x => x.serial_number === serial);
+  if (!d) return;
+  content.innerHTML = `
+    <div class="detail-head">
+      <h2>${serial}</h2>
+      <div class="range-btns"><button data-h="24" class="active">24h</button><button data-h="168">7d</button><button data-h="720">30d</button></div>
+    </div>
+    <div class="hero">
+      <div class="tile"><div class="n">${((d.discharge_total_pct || 0) / 100).toFixed(1)}</div><div class="l">equivalent full cycles (discharge_total_pct ÷ 100)</div></div>
+      <div class="tile"><div class="n">${d.battery_pct ?? '—'}%</div><div class="l">current charge</div></div>
+      <div class="tile"><div class="n">${d.battery_temp_c != null ? d.battery_temp_c.toFixed(1) + '°C' : '—'}</div><div class="l">latest battery temp</div></div>
+    </div>
+    <div class="panel-main">
+      <h3>Charge/discharge timeline</h3>
+      <div class="sub">Shaded bands = charging. From <code>/testdata/devices/${serial}/history</code>, raw — no extra instrumentation.</div>
+      <div class="chart-host" id="chart-host"></div>
+      <div class="legend" style="display:flex;gap:14px;font-size:0.72rem;margin-top:10px">
+        <span><span class="sw" style="background:var(--chart-battery);width:10px;height:10px;display:inline-block;border-radius:2px;margin-right:5px"></span>battery_pct</span>
+        <span><span class="sw" style="background:var(--accent-soft);border:1px solid var(--accent-edge);width:10px;height:10px;display:inline-block;border-radius:2px;margin-right:5px"></span>charging</span>
+      </div>
+    </div>`;
+  content.querySelectorAll('.range-btns button').forEach(b => b.addEventListener('click', () => {
+    content.querySelectorAll('.range-btns button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    currentHours = +b.dataset.h;
+    loadChart(serial, currentHours);
+  }));
+  loadChart(serial, currentHours);
+}
+
+async function loadChart(serial, hours) {
+  const host = document.getElementById('chart-host');
+  if (!host) return;
+  host.innerHTML = '<div class="drawer-loading"><span class="spinner"></span>Loading…</div>';
+  try {
+    const rows = await fetchHistory(serial, hours);
+    renderHistoryChart(host, rows, { key: 'battery_pct', color: 'var(--chart-battery)', label: 'battery', unit: '%', h: 240 });
+  } catch (err) {
+    host.innerHTML = `<div class="drawer-loading">Error: ${err.message}</div>`;
+  }
+}
+
+refreshBtn.addEventListener('click', () => load(true));
+initScopeBadge(document.getElementById("scope-badge"));
+requireConfig(banner, load);
+</script>
+</body>
+</html>

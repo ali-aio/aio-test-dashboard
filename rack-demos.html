@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet Wall — rack concepts</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body { max-width: 1200px; margin: 0 auto; }
+  .intro { padding: 8px 0 24px; }
+  .intro h1 { font-size: 1.3rem; margin-bottom: 6px; }
+  .intro p { color: var(--muted); max-width: 70ch; }
+  .option { margin-bottom: 56px; padding-bottom: 40px; border-bottom: 2px solid var(--border); }
+  .option-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .option-head h2 { font-size: 1.15rem; margin: 0; }
+  .option-sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; max-width: 70ch; }
+  .notes { display: flex; gap: 16px; margin-top: 20px; font-size: 0.82rem; flex-wrap: wrap; }
+  .notes div { flex: 1; min-width: 260px; padding: 10px 14px; border-radius: 10px; border-left: 3px solid; background: var(--surface); box-shadow: var(--shadow-sm); }
+  .good { border-color: var(--ok); } .bad { border-color: #b42318; }
+
+  /* ═══ A: Charging Shelf ═══ */
+  .shelf-stage {
+    background: linear-gradient(180deg, var(--surface2) 0%, var(--surface2) 78%, var(--border) 78%, var(--border) 82%, transparent 82%);
+    border-radius: 16px; padding: 40px 24px 16px; overflow-x: auto;
+  }
+  .shelf-row { display: flex; gap: 22px; align-items: flex-end; min-width: max-content; padding-bottom: 8px; }
+  .shelf-unit { position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; perspective: 400px; }
+  .shelf-unit .dev-img {
+    width: 46px; filter: drop-shadow(0 6px 8px rgba(0,0,0,.22));
+    transition: transform .25s var(--ease), filter .25s var(--ease);
+    transform: rotateX(0deg) translateY(0);
+  }
+  @media (prefers-color-scheme: dark) { .shelf-unit .dev-img { filter: drop-shadow(0 6px 8px rgba(0,0,0,.5)) brightness(0) invert(1); } }
+  .shelf-unit:hover .dev-img { transform: rotateX(8deg) translateY(-6px) scale(1.08); filter: drop-shadow(0 14px 16px rgba(0,0,0,.3)); }
+  .shelf-unit .led { position: absolute; top: 4px; right: 8px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 6px currentColor; animation: pulse 2s infinite; }
+  .shelf-unit .reflect { width: 46px; height: 10px; margin-top: 2px; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.18) 0%, transparent 70%); }
+  .shelf-unit .tag { font-size: 0.6rem; color: var(--muted); font-family: var(--mono); margin-top: 6px; opacity: 0; transition: opacity .2s; }
+  .shelf-unit:hover .tag { opacity: 1; }
+  .shelf-tooltip {
+    position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%) translateY(6px);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg);
+    padding: 10px 12px; width: 160px; font-size: 0.72rem; opacity: 0; pointer-events: none;
+    transition: opacity .18s var(--ease), transform .18s var(--ease); z-index: 10;
+  }
+  .shelf-unit:hover .shelf-tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .shelf-tooltip b { font-family: var(--mono); display: block; margin-bottom: 4px; font-size: 0.75rem; }
+  .shelf-tooltip .bar-track { height: 4px; border-radius: 2px; background: var(--surface-3); margin-top: 4px; overflow: hidden; }
+  .shelf-tooltip .bar-fill { height: 100%; border-radius: 2px; background: var(--chart-battery); }
+
+  /* ═══ B: Server Rack ═══ */
+  .rack-frame { background: #0b0b0e; border-radius: 12px; padding: 14px; box-shadow: var(--shadow-lg); }
+  .rack-unit {
+    display: grid; grid-template-columns: 24px 1fr 90px 60px 14px; align-items: center; gap: 12px;
+    background: #16161c; border: 1px solid #26262e; border-radius: 6px; padding: 8px 12px; margin-bottom: 4px;
+    cursor: pointer; transition: background .15s, border-color .15s, transform .12s;
+    animation: slidein .25s var(--ease) both;
+  }
+  .rack-unit:hover { background: #1c1c24; border-color: #3a3a46; transform: translateX(2px); }
+  .rack-unit.expanded { background: #1c1c24; border-color: var(--accent); }
+  .rack-icon { width: 16px; height: 16px; opacity: 0.8; }
+  .rack-id { font-family: var(--mono); font-size: 0.78rem; color: #e4e4ea; }
+  .rack-id .cls { color: #6c6c78; font-size: 0.68rem; margin-left: 6px; text-transform: uppercase; }
+  .rack-bar-track { height: 6px; border-radius: 3px; background: #26262e; overflow: hidden; }
+  .rack-bar-fill { height: 100%; border-radius: 3px; }
+  .rack-pct { font-family: var(--mono); font-size: 0.72rem; color: #9a9aa6; text-align: right; }
+  .rack-led { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 6px currentColor; animation: pulse 2s infinite; justify-self: center; }
+  .rack-detail { max-height: 0; overflow: hidden; transition: max-height .25s var(--ease); background: #121217; border-radius: 0 0 6px 6px; margin: -4px 0 4px; }
+  .rack-detail.open { max-height: 120px; }
+  .rack-detail-inner { padding: 10px 16px 14px; display: flex; gap: 18px; font-size: 0.72rem; color: #9a9aa6; align-items: center; }
+  .rack-detail-inner .chart-host { flex: 1; }
+</style>
+</head>
+<body>
+<div class="intro">
+  <h1>Fleet Wall — rack concepts</h1>
+  <p>Two directions, both real interactive elements (hover, click-to-expand), not flat mockups. Mock battery/status data, real T7 icon asset.</p>
+</div>
+
+<!-- A: CHARGING SHELF -->
+<div class="option">
+  <div class="option-head"><h2>A — Charging Shelf</h2></div>
+  <p class="option-sub">Literal row of docked units, like the real charging station — your T7 icon upright, evenly spaced, with a soft floor shadow. Hover tilts the unit forward and lifts it slightly (like picking it up off the shelf) and reveals a tooltip card; a status LED sits at the top corner of each.</p>
+  <div class="shelf-stage">
+    <div class="shelf-row" id="shelf-row"></div>
+  </div>
+  <div class="notes">
+    <div class="good"><strong>Good:</strong> instantly reads as "a shelf of T7s" — the most literal, charming interpretation of "rack of devices," and the hover-lift is a genuinely satisfying micro-interaction rather than decoration.</div>
+    <div class="bad"><strong>Bad:</strong> only works well for one device class at a time (icons for kiosk/pos don't exist yet, so a mixed fleet needs a fallback glyph) and doesn't scale past ~30-40 visible units before the shelf needs to scroll/paginate.</div>
+  </div>
+</div>
+
+<!-- B: SERVER RACK -->
+<div class="option">
+  <div class="option-head"><h2>B — Server Rack</h2></div>
+  <p class="option-sub">Datacenter rack-unit rows: icon, serial, a horizontal battery bar (color follows charge level), percentage, and a pulsing status LED — exactly the "rack of devices" reading from ops tooling. Click a row to expand a battery history chart inline, rack-style (no modal, no navigation).</p>
+  <div class="rack-frame">
+    <div id="rack-rows"></div>
+  </div>
+  <div class="notes">
+    <div class="good"><strong>Good:</strong> scales to hundreds of devices (just more rows, same row height), the horizontal bar makes scanning "which devices are low" trivial at a glance, and it's the most literal "rack" reading — dense, dark, technical.</div>
+    <div class="bad"><strong>Bad:</strong> least charming of the two — purely functional, no personality. Loses the "oh that's our actual hardware" delight that A has.</div>
+  </div>
+</div>
+
+<script type="module">
+import { renderHistoryChart } from './shared/chart.js';
+
+function mockHistory(n, base) {
+  const pts = []; let v = base, t = Date.now() - n * 30 * 60 * 1000;
+  for (let i = 0; i < n; i++) {
+    v += (Math.random() - 0.48) * 3;
+    v = Math.max(5, Math.min(100, v));
+    pts.push({ timestamp: new Date(t + i * 30 * 60 * 1000).toISOString(), battery_pct: Math.round(v), extra: { charging: Math.floor(i / 10) % 3 === 0 } });
+  }
+  return pts;
+}
+
+const DEVICES = Array.from({ length: 14 }, (_, i) => ({
+  serial: `AT070AABU${String(231 + i).padStart(5, '0')}`,
+  cls: 't7',
+  battery: Math.round(20 + Math.random() * 78),
+  hist: mockHistory(60, 40 + Math.random() * 40),
+}));
+
+function statusColor(pct) {
+  return pct < 20 ? 'var(--danger)' : pct < 40 ? 'var(--warn)' : 'var(--ok)';
+}
+
+// ── Shelf ──
+document.getElementById('shelf-row').innerHTML = DEVICES.map(d => `
+  <div class="shelf-unit">
+    <span class="led" style="color:${statusColor(d.battery)};background:${statusColor(d.battery)}"></span>
+    <img class="dev-img" src="assets/t7-icon.png" alt="">
+    <div class="reflect"></div>
+    <div class="tag">${d.serial.slice(-5)}</div>
+    <div class="shelf-tooltip">
+      <b>${d.serial}</b>
+      battery ${d.battery}%
+      <div class="bar-track"><div class="bar-fill" style="width:${d.battery}%;background:${statusColor(d.battery)}"></div></div>
+    </div>
+  </div>`).join('');
+
+// ── Rack ──
+document.getElementById('rack-rows').innerHTML = DEVICES.map((d, i) => `
+  <div>
+    <div class="rack-unit" data-i="${i}" style="animation-delay:${i*25}ms">
+      <img class="rack-icon" src="assets/t7-icon.png" alt="" style="filter:brightness(0) invert(0.75)">
+      <div class="rack-id">${d.serial}<span class="cls">${d.cls}</span></div>
+      <div class="rack-bar-track"><div class="rack-bar-fill" style="width:${d.battery}%;background:${statusColor(d.battery)}"></div></div>
+      <div class="rack-pct">${d.battery}%</div>
+      <span class="rack-led" style="color:${statusColor(d.battery)};background:${statusColor(d.battery)}"></span>
+    </div>
+    <div class="rack-detail" id="rack-detail-${i}"><div class="rack-detail-inner"><div class="chart-host" id="rack-chart-${i}"></div></div></div>
+  </div>`).join('');
+
+document.querySelectorAll('.rack-unit').forEach(row => {
+  row.addEventListener('click', () => {
+    const i = row.dataset.i;
+    const wasOpen = row.classList.contains('expanded');
+    document.querySelectorAll('.rack-unit').forEach(r => r.classList.remove('expanded'));
+    document.querySelectorAll('.rack-detail').forEach(d => d.classList.remove('open'));
+    if (wasOpen) return;
+    row.classList.add('expanded');
+    const detail = document.getElementById(`rack-detail-${i}`);
+    detail.classList.add('open');
+    renderHistoryChart(document.getElementById(`rack-chart-${i}`), DEVICES[i].hist, { key: 'battery_pct', color: 'var(--chart-battery)', h: 90, label: 'battery', unit: '%' });
+  });
+});
+</script>
+</body>
+</html>

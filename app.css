@@ -1,7 +1,8 @@
 /* AIO Test dashboard — "Finder / Activity Monitor" shell (see mac-demos.html, option B).
-   A document window: unified toolbar with the view switcher, a source list of fleet filters
-   and runs on the left, the table/charts pane in the middle, an inspector for the selected
-   item on the right, a status bar below. System font at 13px, hairline separators,
+   A document window with no toolbar (toolbar-demos.html, option A): a source list on the
+   left that starts with search, then Views (colored glyphs), fleet filters, smart lists and
+   test cycles; the table/charts pane in the middle; an inspector for the selected item on
+   the right; a status bar below that also holds the sidebar / theme / inspector toggles. System font at 13px, hairline separators,
    alternating table rows, coral only for selection and the one primary button.
    Status colors are always paired with a label. Motion is short, ease-out, and off under
    prefers-reduced-motion. */
@@ -17,7 +18,7 @@
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   --fs: 13px; --r: 6px; --r-panel: 8px; --pad: 12px; --row: 5px; --metric: 20px; --shadow: none;
-  --side-w: 196px; --insp-w: 288px; --tb-h: 52px;
+  --side-w: 204px; --insp-w: 288px;
   --ease: cubic-bezier(.2,0,0,1);
 }
 :root[data-theme="dark"] {
@@ -50,25 +51,19 @@ a.link { color: var(--run); text-decoration: none; } a.link:hover { text-decorat
 ::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-thumb { background: rgba(128,128,128,.35); border: 3px solid transparent; background-clip: padding-box; border-radius: 10px; } ::-webkit-scrollbar-track { background: transparent; }
 [hidden] { display: none !important; }
 
-/* ── window: toolbar / body (source · pane · inspector) / status bar ── */
+/* ── window: body (source · pane · inspector) / status bar ── */
 .app { display: flex; flex-direction: column; height: 100vh; }
-.toolbar { height: var(--tb-h); flex: none; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--side); border-bottom: .5px solid var(--sep); }
-.toolbar .title { font-weight: 600; margin-left: 4px; white-space: nowrap; } .toolbar .tsub { color: var(--text-3); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.toolbar .sp { flex: 1; min-width: 8px; }
-.tbtn { height: 26px; min-width: 30px; padding: 0 7px; border: 0; border-radius: 6px; background: transparent; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: var(--text-3); font-size: 12px; font-weight: 500; cursor: default; transition: background .12s, color .12s; }
-.tbtn:hover { background: var(--hover); color: var(--text); } .tbtn.on { background: rgba(120,120,128,.18); color: var(--text); } .tbtn svg { width: 15px; height: 15px; }
-.views { display: inline-flex; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 .5px var(--border-strong); }
-.views button { border: 0; background: transparent; padding: 0 11px; height: 26px; font-size: 12px; color: var(--text-2); cursor: default; white-space: nowrap; transition: background .12s, color .12s; }
-.views button + button { box-shadow: -.5px 0 0 var(--border-strong); }
-.views button:hover { background: var(--hover); } .views button.on { background: rgba(120,120,128,.2); color: var(--text); font-weight: 500; }
-.views button .count { color: var(--text-3); margin-left: 5px; font-size: 11px; }
-.search { position: relative; width: 190px; max-width: 100%; } .search svg { position: absolute; left: 8px; top: 7px; width: 13px; height: 13px; color: var(--text-3); }
+/* search lives at the top of the source list */
+.search { position: relative; margin: 6px 4px 4px; } .search svg { position: absolute; left: 8px; top: 7px; width: 13px; height: 13px; color: var(--text-3); }
 .search .input { height: 26px; padding-left: 26px; border: 0; background: rgba(120,120,128,.14); border-radius: 7px; font-size: 12px; }
 .search .input:focus { background: var(--surface); box-shadow: 0 0 0 3px var(--focus); }
+.tbtn { height: 20px; min-width: 26px; padding: 0 5px; border: 0; border-radius: 5px; background: transparent; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: var(--text-3); font-size: 12px; cursor: default; transition: background .12s, color .12s; }
+.tbtn:hover { background: var(--hover); color: var(--text); } .tbtn svg { width: 14px; height: 14px; }
 .body { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr) var(--insp-w); }
 body.noinsp .body { grid-template-columns: var(--side-w) minmax(0, 1fr); } body.noinsp .insp { display: none; }
 body.noside .body { grid-template-columns: minmax(0, 1fr) var(--insp-w); } body.noside .source { display: none; } body.noside.noinsp .body { grid-template-columns: 1fr; }
-.source { background: var(--side); border-right: .5px solid var(--sep); padding: 8px 8px; overflow-y: auto; font-size: 13px; }
+.source { background: var(--side); border-right: .5px solid var(--sep); padding: 6px 8px 12px; overflow-y: auto; font-size: 13px; }
+.source .item .glyph { width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; flex: none; } .source .item .glyph svg { width: 12px; height: 12px; color: #fff; stroke-width: 1.9; }
 .source .sec { font-size: 11px; font-weight: 600; color: var(--text-3); padding: 10px 10px 3px; }
 .source .item { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 6px; color: var(--text); text-decoration: none; white-space: nowrap; cursor: default; }
 .source .item svg { width: 14px; height: 14px; flex: none; color: var(--sel); } .source .item:hover { background: var(--hover); }
@@ -87,15 +82,15 @@ body.noside .body { grid-template-columns: minmax(0, 1fr) var(--insp-w); } body.
 .insp .bars { display: flex; align-items: flex-end; gap: 3px; height: 54px; } .insp .bars i { flex: 1; background: var(--series); border-radius: 2px 2px 0 0; opacity: .8; display: block; min-height: 2px; } .insp .bars i.last { background: var(--sel); opacity: 1; }
 .insp .acts { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
 .insp .empty { padding: 40px 8px; }
-.status { height: 24px; flex: none; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; color: var(--text-3); border-top: .5px solid var(--sep); background: var(--side); white-space: nowrap; overflow: hidden; padding: 0 12px; }
+.status { height: 24px; flex: none; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-3); border-top: .5px solid var(--sep); background: var(--side); white-space: nowrap; overflow: hidden; padding: 0 6px; }
+.status > span { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; overflow: hidden; }
 .status b { width: 6px; height: 6px; border-radius: 50%; background: var(--dot-ok); display: inline-block; margin-right: 2px; }
-.status .sp { flex: 1; } .status button { border: 0; background: none; color: var(--text-3); padding: 0 6px; height: 20px; border-radius: 4px; cursor: default; } .status button:hover { background: var(--hover); color: var(--text); }
+.status .sp { flex: 1; }
 @media (max-width: 1100px) { .body { grid-template-columns: var(--side-w) minmax(0, 1fr); } .insp { display: none; } body.showinsp .body { grid-template-columns: var(--side-w) minmax(0, 1fr) var(--insp-w); } body.showinsp .insp { display: block; } }
 @media (max-width: 760px) {
   body { overflow: auto; } .app { height: auto; min-height: 100vh; }
   .body { display: block; } .source { display: none; } body.showside .source { display: block; border-right: 0; border-bottom: .5px solid var(--sep); }
   .insp { display: none; border-left: 0; border-top: .5px solid var(--sep); } body.showinsp .insp { display: block; }
-  .toolbar { height: auto; flex-wrap: wrap; padding: 8px 10px; gap: 6px; } .toolbar .tsub, .toolbar .title { display: none; } .search { width: 100%; order: 9; }
   .content { padding: 12px 12px 40px; } .status { position: sticky; bottom: 0; }
 }
 

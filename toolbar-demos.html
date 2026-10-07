@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Dashboard — top chrome options</title>
+<style>
+  html { background: #e9e9ec; }
+  body { margin: 0; padding: 32px 24px 90px; max-width: 1220px; margin-inline: auto; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif; color: #1d1d1f; -webkit-font-smoothing: antialiased; }
+  h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.01em; }
+  .lead { color: #555; margin: 0 0 18px; max-width: 80ch; } .lead b { color: #1d1d1f; }
+  .bar-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 30px; }
+  .bar-top a, .bar-top button { padding: 4px 12px; border: 1px solid #c8c8cd; border-radius: 999px; color: #222; text-decoration: none; font: inherit; font-size: 13px; background: #fff; cursor: pointer; }
+  .bar-top button.on { background: #1d1d1f; color: #fff; border-color: #1d1d1f; } .bar-top .sp { flex: 1; }
+  .opt { margin-bottom: 70px; } .opt > h2 { margin: 0; font-size: 18px; } .opt > .sub { color: #555; margin: 2px 0 12px; max-width: 90ch; }
+  .rec { display: inline-block; font-size: 10.5px; font-weight: 700; color: #1c7d50; background: #e6f6ee; border-radius: 6px; padding: 2px 7px; margin-left: 8px; vertical-align: 2px; }
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; font-size: 13px; }
+  .notes div { background: #fff; padding: 10px 14px; border-radius: 8px; } .notes .g { border-left: 3px solid #16a34a; } .notes .b { border-left: 3px solid #dc2626; } .notes b { display: block; margin-bottom: 2px; }
+  @media (max-width: 700px) { .notes { grid-template-columns: 1fr; } }
+
+  /* ── the chosen B look, shared by every option; only the top chrome differs ── */
+  .win { --bg:#fff; --side:#f0f0f3; --text:#1d1d1f; --sub:#6e6e73; --sep:rgba(0,0,0,.1); --alt:#f6f6f8; --hover:rgba(0,0,0,.04); --sel:#f9674e; --selSoft:rgba(249,103,78,.14); --insp:#f7f7f9; --line:#0a6cdf; --ok:#34c759; --warn:#ff9f0a; --bad:#ff3b30;
+    border-radius: 11px; overflow: hidden; box-shadow: 0 22px 70px rgba(0,0,0,.22), 0 0 0 .5px rgba(0,0,0,.18); font-size: 13px; background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 520px; }
+  .dark .win { --bg:#1e1e20; --side:#242427; --text:#f5f5f7; --sub:#98989d; --sep:rgba(255,255,255,.1); --alt:#252528; --hover:rgba(255,255,255,.05); --selSoft:rgba(249,103,78,.26); --insp:#232326; --line:#4ea1ff; }
+  .ic { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; display: block; flex: none; }
+  .lights { display: flex; gap: 8px; padding: 0 4px; } .lights i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  .lights i:nth-child(1){background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+  .num { font-variant-numeric: tabular-nums; } .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .sp { flex: 1; }
+  .tbtn { height: 26px; min-width: 30px; padding: 0 7px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: var(--sub); font-size: 12px; } .tbtn:hover { background: var(--hover); color: var(--text); } .tbtn .ic { width: 15px; height: 15px; } .tbtn.on { background: rgba(120,120,128,.18); color: var(--text); }
+  .search { height: 26px; width: 180px; border-radius: 7px; background: rgba(120,120,128,.14); display: flex; align-items: center; gap: 6px; padding: 0 8px; color: var(--sub); font-size: 12px; } .search .ic { width: 13px; height: 13px; }
+  .bodyw { display: grid; grid-template-columns: 196px 1fr 250px; flex: 1; min-height: 0; }
+  .side { background: var(--side); border-right: .5px solid var(--sep); padding: 8px 8px; overflow: auto; }
+  .sec { font-size: 11px; font-weight: 600; color: var(--sub); padding: 10px 10px 3px; }
+  .item { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 6px; font-size: 13px; } .item .ic { width: 14px; height: 14px; color: var(--sel); } .item.sel { background: var(--selSoft); font-weight: 500; } .item .cnt { margin-left: auto; font-size: 11px; color: var(--sub); } .item.dim { color: var(--sub); } .item.dim .ic { color: var(--sub); }
+  .item .glyph { width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; color: #fff; flex: none; } .item .glyph .ic { width: 12px; height: 12px; color: #fff; stroke-width: 1.9; }
+  .pane { overflow: auto; min-width: 0; display: flex; flex-direction: column; }
+  .phead { display: flex; align-items: center; gap: 10px; padding: 12px 16px 8px; } .phead h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.01em; } .phead .psub { font-size: 11px; color: var(--sub); margin-left: 2px; }
+  table { width: 100%; border-collapse: collapse; } th { position: sticky; top: 0; text-align: left; font-size: 11px; font-weight: 500; color: var(--sub); padding: 5px 10px; border-bottom: .5px solid var(--sep); background: var(--bg); border-right: .5px solid var(--sep); } th:last-child { border-right: 0; }
+  td { padding: 4px 10px; font-size: 12.5px; line-height: 20px; white-space: nowrap; } tr:nth-child(even) td { background: var(--alt); } tr.sel td { background: var(--sel); color: #fff; } tr.sel .sub { color: #fff; } .r { text-align: right; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; } .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.off { background: rgba(120,120,128,.5); }
+  .insp { background: var(--insp); border-left: .5px solid var(--sep); padding: 14px; font-size: 12px; overflow: auto; } .insp h3 { margin: 0; font-size: 14px; } .insp .sub { color: var(--sub); } .insp .big { font-size: 28px; font-weight: 600; letter-spacing: -.02em; margin: 10px 0 0; } .insp .big small { font-size: 11px; font-weight: 500; color: var(--sub); margin-left: 6px; }
+  .insp hr { border: 0; border-top: .5px solid var(--sep); margin: 12px 0; } .kv { display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; } .kv dt { color: var(--sub); } .kv dd { margin: 0; text-align: right; }
+  .status { height: 24px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--sub); border-top: .5px solid var(--sep); background: var(--side); flex: none; }
+
+  /* A · sidebar-only: no toolbar at all; search and everything else live in the source list */
+  .a .bodyw { grid-template-columns: 206px 1fr 250px; }
+  .a .side { padding-top: 12px; } .a .side .top { height: 28px; display: flex; align-items: center; margin-bottom: 8px; padding: 0 4px; }
+  .a .side .search { width: 100%; margin: 0 0 6px; }
+  .a .phead { padding: 14px 16px 8px; border-bottom: 0; }
+  .a .pane .tools { display: flex; align-items: center; gap: 6px; padding: 0 12px 8px; }
+  .a .seg { display: inline-flex; background: rgba(120,120,128,.14); border-radius: 7px; padding: 2px; gap: 2px; } .a .seg span { font-size: 12px; padding: 2px 10px; border-radius: 5px; color: var(--sub); } .a .seg span.on { background: var(--bg); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.18); font-weight: 500; }
+
+  /* B · Finder titlebar: 38px, centered window title = current view, icon buttons only */
+  .b .tb { height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: var(--side); border-bottom: .5px solid var(--sep); flex: none; position: relative; }
+  .b .tb .ttl { position: absolute; left: 50%; transform: translateX(-50%); font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; } .b .tb .ttl .ic { width: 14px; height: 14px; color: var(--sub); } .b .tb .ttl small { font-weight: 400; color: var(--sub); }
+  .b .tb .search { width: 150px; height: 24px; }
+
+  /* C · split toolbar: sidebar has its own titlebar column (lights + section), pane has a toolbar with
+     the view segmented control as the ONLY element, no title text anywhere */
+  .c .tb { display: grid; grid-template-columns: 196px 1fr 250px; height: 46px; flex: none; }
+  .c .tb > div { display: flex; align-items: center; gap: 6px; padding: 0 10px; background: var(--side); border-bottom: .5px solid var(--sep); }
+  .c .tb .l { border-right: .5px solid var(--sep); } .c .tb .m { background: var(--bg); justify-content: center; } .c .tb .rr { background: var(--insp); border-left: .5px solid var(--sep); justify-content: flex-end; }
+  .c .seg { display: inline-flex; border-radius: 7px; background: rgba(120,120,128,.14); padding: 2px; gap: 2px; }
+  .c .seg span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 11px; border-radius: 5px; color: var(--sub); } .c .seg span .ic { width: 13px; height: 13px; } .c .seg span.on { background: var(--bg); color: var(--text); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.06); }
+  .dark .c .seg span.on { background: #636366; }
+  .c .bodyw { grid-template-columns: 196px 1fr 250px; }
+</style>
+</head>
+<body>
+<h1>Test Dashboard — top chrome options</h1>
+<p class="lead">Same Finder shell (chosen), three ways to do the top of the window. None of them show an app name — the window <b>is</b> the app. Views (Overview, Devices, Test cycles, Health, Charging, Thermal) move around; the source list, table and inspector stay as they are. Toggle dark to compare.</p>
+<div class="bar-top"><a href="#a">A · No toolbar</a><a href="#b">B · Finder titlebar</a><a href="#c">C · Split toolbar</a><span class="sp"></span><button id="light" class="on">Light</button><button id="dark">Dark</button></div>
+
+<section class="opt" id="a">
+  <h2>A · No toolbar <span class="rec">simplest</span></h2>
+  <p class="sub">Nothing above the content. The source list starts with the search field and a <b>Views</b> section with colored glyphs (System Settings style); fleet filters and smart lists sit below it. The pane carries its own one-line header (title · count) and any page controls. Inspector toggle lives in the status bar.</p>
+  <div class="win a">
+    <div class="bodyw">
+      <div class="side">
+        <div class="top"><div class="lights"><i></i><i></i><i></i></div></div>
+        <div class="search"><svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Search</div>
+        <div class="sec">Views</div>
+        <div class="item"><span class="glyph" style="background:#f9674e"><svg class="ic" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg></span>Overview</div>
+        <div class="item sel"><span class="glyph" style="background:#5e5ce6"><svg class="ic" viewBox="0 0 16 16"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/></svg></span>Devices<span class="cnt">26</span></div>
+        <div class="item"><span class="glyph" style="background:#34c759"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6.5"/></svg></span>Test cycles<span class="cnt">12</span></div>
+        <div class="item"><span class="glyph" style="background:#ff9f0a"><svg class="ic" viewBox="0 0 16 16"><path d="M2 12l4-5 3 3 5-7"/></svg></span>Health</div>
+        <div class="item"><span class="glyph" style="background:#0a84ff"><svg class="ic" viewBox="0 0 16 16"><path d="M9 1.5 4 9h4l-1 5.5L13 7H9z"/></svg></span>Charging</div>
+        <div class="item"><span class="glyph" style="background:#ff375f"><svg class="ic" viewBox="0 0 16 16"><path d="M6 2v7.5a2.5 2.5 0 1 0 4 0V2z"/></svg></span>Thermal</div>
+        <div class="sec">Fleet</div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/></svg>Online<span class="cnt">24</span></div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><path d="M9 1.5 4 9h4l-1 5.5L13 7H9z"/></svg>Charging<span class="cnt">9</span></div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"/></svg>Offline<span class="cnt">2</span></div>
+        <div class="sec">Smart lists</div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><path d="M6 2v7.5a2.5 2.5 0 1 0 4 0V2z"/></svg>Over 45 °C<span class="cnt">1</span></div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><path d="M2 12l4-5 3 3 5-7"/></svg>Health under 85%<span class="cnt">4</span></div>
+        <div class="sec" style="margin-top:8px">System</div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2"/></svg>Settings</div>
+      </div>
+      <div class="pane">
+        <div class="phead"><h2>Devices</h2><span class="psub">26 in Test Cycles</span><span class="sp"></span><span class="seg"><span class="on">All</span><span>Online</span><span>Charging</span><span>Offline</span></span></div>
+        <table><thead><tr><th>Device</th><th>Status</th><th class="r">Battery</th><th class="r">Temp</th><th class="r">Cycles</th><th class="r">Median</th><th class="r">Seen</th></tr></thead><tbody class="rows"></tbody></table>
+      </div>
+      <div class="insp"><h3 class="mono">AT070AABU00231</h3><div class="sub">T7 · on battery · seen just now</div><div class="big num">41%<small>on battery</small></div><hr><dl class="kv"><dt>Temperature</dt><dd>38.4 °C</dd><dt>Counted cycles</dt><dd>14</dd><dt>Median runtime</dt><dd>23h 30m</dd><dt>Health</dt><dd>91%</dd></dl></div>
+    </div>
+    <div class="status">26 devices · 24 online · 11 on battery · 9 charging<span class="sp"></span><span class="tbtn"><svg class="ic" viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M10 3v10"/></svg></span></div>
+  </div>
+  <div class="notes">
+    <div class="g"><b>Pros</b>No chrome above the content at all; the view list and the filter list are one column, so nothing is in two places. Most vertical room for the table. Matches the Enroll app's sidebar exactly.</div>
+    <div class="b"><b>Cons</b>Longest sidebar (Views + Fleet + Smart lists + Test cycles + System) — on short screens it scrolls. Search is narrower. Views and filters look alike unless the glyphs stay colored.</div>
+  </div>
+</section>
+
+<section class="opt" id="b">
+  <h2>B · Finder titlebar</h2>
+  <p class="sub">A slim 38 px titlebar like Finder: the centered title is the <b>current view and its count</b> ("Devices — 26"), nothing else is text. Left: sidebar toggle. Right: search, inspector toggle. Views are a section in the source list, as in A, but the sidebar needs no search field.</p>
+  <div class="win b">
+    <div class="tb"><div class="lights"><i></i><i></i><i></i></div><span class="tbtn"><svg class="ic" viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M6 3v10"/></svg></span>
+      <span class="ttl"><svg class="ic" viewBox="0 0 16 16"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/></svg>Devices <small>— 26 items</small></span>
+      <span class="sp"></span><div class="search"><svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Search</div><span class="tbtn"><svg class="ic" viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M10 3v10"/></svg></span></div>
+    <div class="bodyw">
+      <div class="side">
+        <div class="sec">Views</div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Overview</div>
+        <div class="item sel"><svg class="ic" viewBox="0 0 16 16"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/></svg>Devices<span class="cnt">26</span></div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6.5"/></svg>Test cycles<span class="cnt">12</span></div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M2 12l4-5 3 3 5-7"/></svg>Health</div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M9 1.5 4 9h4l-1 5.5L13 7H9z"/></svg>Charging</div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M6 2v7.5a2.5 2.5 0 1 0 4 0V2z"/></svg>Thermal</div>
+        <div class="sec">Fleet</div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/></svg>Online<span class="cnt">24</span></div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><path d="M9 1.5 4 9h4l-1 5.5L13 7H9z"/></svg>Charging<span class="cnt">9</span></div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"/></svg>Offline<span class="cnt">2</span></div>
+        <div class="sec">Smart lists</div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><path d="M6 2v7.5a2.5 2.5 0 1 0 4 0V2z"/></svg>Over 45 °C<span class="cnt">1</span></div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><path d="M2 12l4-5 3 3 5-7"/></svg>Health under 85%<span class="cnt">4</span></div>
+      </div>
+      <div class="pane"><table><thead><tr><th>Device</th><th>Status</th><th class="r">Battery</th><th class="r">Temp</th><th class="r">Cycles</th><th class="r">Median</th><th class="r">Seen</th></tr></thead><tbody class="rows"></tbody></table></div>
+      <div class="insp"><h3 class="mono">AT070AABU00231</h3><div class="sub">T7 · on battery · seen just now</div><div class="big num">41%<small>on battery</small></div><hr><dl class="kv"><dt>Temperature</dt><dd>38.4 °C</dd><dt>Counted cycles</dt><dd>14</dd><dt>Median runtime</dt><dd>23h 30m</dd><dt>Health</dt><dd>91%</dd></dl></div>
+    </div>
+    <div class="status">26 devices · 24 online · 11 on battery · 9 charging</div>
+  </div>
+  <div class="notes">
+    <div class="g"><b>Pros</b>Reads exactly like a Finder window: the title tells you where you are, the sidebar tells you where you can go. Table starts right under the header. Search keeps its full width.</div>
+    <div class="b"><b>Cons</b>One more bar than A, even if slim. The centered title is decorative on wide windows and can collide with the search field on narrow ones.</div>
+  </div>
+</section>
+
+<section class="opt" id="c">
+  <h2>C · Split toolbar</h2>
+  <p class="sub">The toolbar is split in three columns aligned with the body, like Mail or Notes: traffic lights over the sidebar, a <b>segmented control with icons</b> as the only thing over the pane, search + inspector toggle over the inspector. Views stay in the toolbar but with no title text or app name; the sidebar is filters only.</p>
+  <div class="win c">
+    <div class="tb">
+      <div class="l"><div class="lights"><i></i><i></i><i></i></div><span class="sp"></span><span class="tbtn"><svg class="ic" viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M6 3v10"/></svg></span></div>
+      <div class="m"><span class="seg">
+        <span><svg class="ic" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Overview</span>
+        <span class="on"><svg class="ic" viewBox="0 0 16 16"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/></svg>Devices</span>
+        <span><svg class="ic" viewBox="0 0 16 16"><path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6.5"/></svg>Test cycles</span>
+        <span><svg class="ic" viewBox="0 0 16 16"><path d="M2 12l4-5 3 3 5-7"/></svg>Health</span>
+        <span><svg class="ic" viewBox="0 0 16 16"><path d="M9 1.5 4 9h4l-1 5.5L13 7H9z"/></svg>Charging</span>
+        <span><svg class="ic" viewBox="0 0 16 16"><path d="M6 2v7.5a2.5 2.5 0 1 0 4 0V2z"/></svg>Thermal</span></span></div>
+      <div class="rr"><div class="search" style="width:150px;height:24px"><svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Search</div><span class="tbtn"><svg class="ic" viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M10 3v10"/></svg></span></div>
+    </div>
+    <div class="bodyw">
+      <div class="side">
+        <div class="sec">Fleet</div>
+        <div class="item sel"><svg class="ic" viewBox="0 0 16 16"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/></svg>All devices<span class="cnt">26</span></div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/></svg>Online<span class="cnt">24</span></div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M9 1.5 4 9h4l-1 5.5L13 7H9z"/></svg>Charging<span class="cnt">9</span></div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"/></svg>Offline<span class="cnt">2</span></div>
+        <div class="sec">Smart lists</div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6.5"/></svg>On battery<span class="cnt">11</span></div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M6 2v7.5a2.5 2.5 0 1 0 4 0V2z"/></svg>Over 45 °C<span class="cnt">1</span></div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M2 12l4-5 3 3 5-7"/></svg>Health under 85%<span class="cnt">4</span></div>
+        <div class="sec">Test cycles</div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2l9 6-9 6z"/></svg>Test cycle · Oct 6<span class="cnt">11/14</span></div>
+        <div class="item dim"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2l9 6-9 6z"/></svg>Test cycle · Sep 29</div>
+      </div>
+      <div class="pane"><table><thead><tr><th>Device</th><th>Status</th><th class="r">Battery</th><th class="r">Temp</th><th class="r">Cycles</th><th class="r">Median</th><th class="r">Seen</th></tr></thead><tbody class="rows"></tbody></table></div>
+      <div class="insp"><h3 class="mono">AT070AABU00231</h3><div class="sub">T7 · on battery · seen just now</div><div class="big num">41%<small>on battery</small></div><hr><dl class="kv"><dt>Temperature</dt><dd>38.4 °C</dd><dt>Counted cycles</dt><dd>14</dd><dt>Median runtime</dt><dd>23h 30m</dd><dt>Health</dt><dd>91%</dd></dl></div>
+    </div>
+    <div class="status">26 devices · 24 online · 11 on battery · 9 charging</div>
+  </div>
+  <div class="notes">
+    <div class="g"><b>Pros</b>Views stay one click away in a control that looks like a Mac control, with icons so it isn't a row of words. Sidebar stays short (filters + test cycles only). Columns line up with the body, which reads as one window, not a web header.</div>
+    <div class="b"><b>Cons</b>Still a toolbar. The segmented control runs out of room under ~1000 px and has to drop labels to icons. Six segments is the upper limit of what a segmented control should hold.</div>
+  </div>
+</section>
+
+<script>
+const devs = [['AT070AABU00231','ok','On battery',41,38.4,14,'23h 30m','just now',1],['AT070AABU00188','ok','On battery',67,51.2,17,'22h 48m','just now'],['AT070AABU00044','off','Offline',null,null,22,'24h 02m','3d ago'],['AT070AABU00102','warn','Charging',88,36.0,15,'23h 11m','1m ago'],['AT070AABU00117','ok','On battery',12,41.9,13,'22h 05m','just now'],['AT070AABU00120','ok','On battery',55,39.1,16,'23h 55m','just now'],['AT070AABU00133','warn','Charged',100,33.2,12,'24h 10m','2m ago'],['AT070AABU00151','ok','On battery',29,40.2,11,'21h 40m','just now'],['AT070AABU00164','ok','On battery',74,37.8,19,'23h 02m','just now'],['AT070AABU00177','warn','Charging',62,35.5,14,'22h 59m','1m ago'],['AT070AABU00190','ok','On battery',8,42.5,18,'23h 20m','just now'],['AT070AABU00205','off','Offline',null,null,9,'23h 44m','2d ago']];
+document.querySelectorAll('.rows').forEach(tb => tb.innerHTML = devs.map(d => `<tr class="${d[8] ? 'sel' : ''}"><td class="mono">${d[0]}</td><td><span class="dot ${d[1]}"></span>${d[2]}</td><td class="r num">${d[3] == null ? '—' : d[3] + '%'}</td><td class="r num">${d[4] == null ? '—' : d[4].toFixed(1) + ' °C'}</td><td class="r num">${d[5]}</td><td class="r num">${d[6]}</td><td class="r num sub">${d[7]}</td></tr>`).join(''));
+const set = dark => { document.body.classList.toggle('dark', dark); document.getElementById('dark').classList.toggle('on', dark); document.getElementById('light').classList.toggle('on', !dark); };
+document.getElementById('dark').onclick = () => set(true); document.getElementById('light').onclick = () => set(false);
+if (matchMedia('(prefers-color-scheme: dark)').matches) set(true);
+</script>
+</body>
+</html>

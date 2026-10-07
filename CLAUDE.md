@@ -149,10 +149,12 @@ oversight; don't add restaurant filtering back in without being asked.
   pages call the MDM directly with the key from Settings and fall back to the old in-browser
   `topUp()`. See `server/README.md`.
 - **UI shell** (`index.html` + `app.css`): the "Finder / Activity Monitor" option from
-  `mac-demos.html` — unified toolbar with the view switcher and global search, a source list
-  of fleet filters / smart lists / runs on the left, the table or charts pane, an inspector
-  on the right (single click selects a row into it, double-click or Enter opens), status bar
-  below. System font 13 px, hairlines, alternating rows, coral only for selection and the
+  `mac-demos.html` with the no-toolbar top from `toolbar-demos.html` (option A) — no app
+  name anywhere. Source list on the left: search, Views (colored glyphs), fleet filters,
+  smart lists, test cycles, Settings; the table or charts pane; an inspector on the right
+  (single click selects a row into it, double-click or Enter opens); status bar below with
+  the sidebar / theme / inspector toggles. System font 13 px, hairlines, alternating rows,
+  coral only for selection and the
   primary button. Keep new views on this grammar: a table in the pane, details in the
   inspector via `inspect(...)`, filters as source-list items.
 - `shared/profile.js` — battery health (runtime-based proxy, Apple-style 80% line), charge

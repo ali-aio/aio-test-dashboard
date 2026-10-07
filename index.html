@@ -12,30 +12,12 @@ try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') 
 </head>
 <body>
 <div class="app">
-  <header class="toolbar">
-    <button class="tbtn" id="tg-side" title="Show or hide the sidebar"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" ><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M6 3v10"/></svg></button>
-    <span class="title">AIO Test</span><span class="tsub" id="crumbs"></span>
-    <span class="sp"></span>
-    <div class="views" id="views">
-      <button data-nav="overview" data-href="#/">Overview</button>
-      <button data-nav="devices" data-href="#/devices">Devices<span class="count" id="nav-dev"></span></button>
-      <button data-nav="runs" data-href="#/runs">Test cycles<span class="count" id="nav-run"></span></button>
-      <button data-nav="health" data-href="#/health">Health</button>
-      <button data-nav="charging" data-href="#/charging">Charging</button>
-      <button data-nav="thermal" data-href="#/thermal">Thermal</button>
-    </div>
-    <span class="sp"></span>
-    <div class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" ><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="input" id="q" placeholder="Search serial" autocomplete="off"></div>
-    <button class="tbtn" id="theme"></button>
-    <button class="tbtn" id="tg-settings" title="Settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" ><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg></button>
-    <button class="tbtn" id="tg-insp" title="Show or hide the inspector"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" ><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M10 3v10"/></svg></button>
-  </header>
   <div class="body">
-    <aside class="source" id="source"></aside>
+    <aside class="source"><div class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="input" id="q" placeholder="Search" autocomplete="off"></div><div id="source"></div></aside>
     <main class="pane" id="pane"><div class="content" id="view"></div></main>
     <aside class="insp" id="insp"></aside>
   </div>
-  <footer class="status" id="status"></footer>
+  <footer class="status"><button class="tbtn" id="tg-side" title="Show or hide the sidebar"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M6 3v10"/></svg></button><span id="status"></span><button class="tbtn" id="theme"></button><button class="tbtn" id="tg-insp" title="Show or hide the inspector"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M10 3v10"/></svg></button></footer>
 </div>
 
 <div class="scrim" data-close></div>
@@ -78,8 +60,6 @@ const insp = $('#insp'), pane = $('#pane');
 try { if (localStorage.getItem('ui:noinsp') === '1') document.body.classList.add('noinsp'); if (localStorage.getItem('ui:noside') === '1') document.body.classList.add('noside'); } catch (e) {}
 $('#tg-insp').onclick = () => { if (innerWidth <= 1100) document.body.classList.toggle('showinsp'); else { const v = document.body.classList.toggle('noinsp'); try { localStorage.setItem('ui:noinsp', v ? '1' : '0'); } catch (e) {} } };
 $('#tg-side').onclick = () => { if (innerWidth <= 760) document.body.classList.toggle('showside'); else { const v = document.body.classList.toggle('noside'); try { localStorage.setItem('ui:noside', v ? '1' : '0'); } catch (e) {} } };
-$('#tg-settings').onclick = () => go('#/settings');
-$('#views').onclick = e => { const b = e.target.closest('button[data-href]'); if (b) go(b.dataset.href); };
 $('#q').oninput = e => { devState.q = e.target.value; pages.devices = 0; if (current && current.fn === devicesView) devDraw && devDraw(); else go('#/devices'); };
 document.addEventListener('keydown', e => { if (e.key === '/' && !e.target.matches('input, select, textarea')) { e.preventDefault(); $('#q').focus(); } });
 
@@ -253,7 +233,7 @@ const routes = [
 let current = null, onData = null, enterTimer = 0, curNav = '', inspSel = null, devDraw = null;
 function render(fresh = true) {
   const h = location.hash || '#/'; onData = null; view.onkeydown = null;
-  for (const [re, fn, nav] of routes) { const m = h.match(re); if (m) { current = { fn, arg: m[1] && decodeURIComponent(m[1]) }; curNav = nav; $$('#views button').forEach(b => b.classList.toggle('on', b.dataset.nav === nav)); break; } }
+  for (const [re, fn, nav] of routes) { const m = h.match(re); if (m) { current = { fn, arg: m[1] && decodeURIComponent(m[1]) }; curNav = nav; break; } }
   if (fresh) { clearTimeout(enterTimer); view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); pane.scrollTo(0, 0); document.body.classList.remove('showside'); }
   if (current.fn !== settingsView && !ready) { loadError ? errorView() : skeleton(); }
   else current.fn(current.arg, fresh);
@@ -280,11 +260,14 @@ const SMART = [['run', 'On battery', '<path d="M8 2v6l4 2"/><circle cx="8" cy="8
 const filterFn = f => (FILTERS.find(x => x[0] === f) || SMART.find(x => x[0] === f) || FILTERS[0])[3];
 const filterLabel = f => (FILTERS.find(x => x[0] === f) || SMART.find(x => x[0] === f) || FILTERS[0])[1];
 const SICON = d => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">${d}</svg>`;
+const VIEWS = [['overview', '#/', 'Overview', '#f9674e', '<rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/>'], ['devices', '#/devices', 'Devices', '#5e5ce6', '<rect x="4" y="1.5" width="8" height="13" rx="1.5"/><path d="M7 12h2"/>'], ['runs', '#/runs', 'Test cycles', '#34c759', '<path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6.5"/>'], ['health', '#/health', 'Health', '#ff9f0a', '<path d="M2 9.5h2.5l1.5-4 2 6 1.5-3H14"/>'], ['charging', '#/charging', 'Charging', '#0a84ff', '<path d="M9 1.5 4 9h4l-1 5.5L13 7H9z" stroke-linejoin="round"/>'], ['thermal', '#/thermal', 'Thermal', '#ff375f', '<path d="M6.5 9.5V3a1.5 1.5 0 0 1 3 0v6.5a2.5 2.5 0 1 1-3 0z"/>']];
 function chrome() {
-  $('#nav-dev').textContent = DEV.length || ''; const live = runs.filter(r => r.status === 'running').length; $('#nav-run').textContent = live ? `${live} live` : '';
+  const live = runs.filter(r => r.status === 'running').length;
   const onDev = curNav === 'devices' && !current.arg, item = ([f, l, i, fn]) => `<a class="item ${onDev && devState.filter === f ? 'on' : ''}" href="#/devices" data-f="${f}">${SICON(i)}<span class="nm">${l}</span><span class="cnt num">${DEV.filter(fn).length}</span></a>`;
   const rid = curNav === 'runs' && current.arg;
-  setH($('#source'), `<div class="sec">Fleet</div>${FILTERS.map(item).join('')}<div class="sec">Smart lists</div>${SMART.map(item).join('')}
+  const vcount = v => v === 'devices' ? DEV.length || '' : v === 'runs' ? (live ? `${live} live` : runs.length || '') : '';
+  setH($('#source'), `<div class="sec">Views</div>${VIEWS.map(([v, href, l, col, i]) => `<a class="item ${curNav === v && !(v === 'devices' && onDev && devState.filter !== 'all') ? 'on' : ''}" href="${href}" ${v === 'devices' ? 'data-f="all"' : ''}><span class="glyph" style="background:${col}">${SICON(i)}</span><span class="nm">${l}</span><span class="cnt num">${vcount(v)}</span></a>`).join('')}
+    <div class="sec">Fleet</div>${FILTERS.slice(1).map(item).join('')}<div class="sec">Smart lists</div>${SMART.map(item).join('')}
     <div class="sec">Test cycles</div>${runs.slice(0, 8).map(r => `<a class="item ${rid === r.id ? 'on' : ''} ${r.status === 'running' ? '' : 'dim'}" href="#/runs/${r.id}">${r.status === 'running' ? '<i class="live"></i>' : SICON('<path d="M4 2l9 6-9 6z" stroke-linejoin="round"/>')}<span class="nm">${esc(r.name)}</span><span class="cnt num">${r.status === 'running' ? `${counted(r).filter(x => x.state === 'done').length}/${counted(r).length || r.devices.length}` : day(r.startedAt)}</span></a>`).join('')}
     ${runs.length > 8 ? `<a class="item dim" href="#/runs">${SICON('<path d="M2 8h12M9 4l4 4-4 4"/>')}<span class="nm">All ${runs.length} test cycles</span></a>` : runs.length ? '' : '<a class="item dim" href="#/runs"><span class="nm">No test cycles yet</span></a>'}
     <div class="sec">System</div><a class="item ${curNav === 'settings' ? 'on' : ''}" href="#/settings">${SICON('<circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/>')}<span class="nm">Settings</span></a>`);
@@ -295,7 +278,7 @@ function chrome() {
 $('#source').onclick = e => { const a = e.target.closest('a[data-f]'); if (!a) return; e.preventDefault(); devState.filter = a.dataset.f; pages.devices = 0; if (current.fn === devicesView) { render(false); } else go('#/devices'); };
 window.addEventListener('hashchange', () => render(true));
 let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => render(false), 150); });
-const crumbs = (...parts) => $('#crumbs').textContent = [GROUP, ...parts.map(p => p[0])].join(' › ');
+const crumbs = (...parts) => document.title = `${parts.map(p => p[0]).join(' › ')} — ${GROUP}`;
 const go = h => location.hash = h;
 // Pagination: DOM-level, so every table gets it the same way — call paginate(tbody, key)
 // after (re)filling a tbody. Rows outside the current page are hidden, a footer with the

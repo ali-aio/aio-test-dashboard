@@ -19,7 +19,7 @@ try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') 
     <div class="views" id="views">
       <button data-nav="overview" data-href="#/">Overview</button>
       <button data-nav="devices" data-href="#/devices">Devices<span class="count" id="nav-dev"></span></button>
-      <button data-nav="runs" data-href="#/runs">Runs<span class="count" id="nav-run"></span></button>
+      <button data-nav="runs" data-href="#/runs">Test cycles<span class="count" id="nav-run"></span></button>
       <button data-nav="health" data-href="#/health">Health</button>
       <button data-nav="charging" data-href="#/charging">Charging</button>
       <button data-nav="thermal" data-href="#/thermal">Thermal</button>
@@ -40,18 +40,18 @@ try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') 
 
 <div class="scrim" data-close></div>
 <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="dtitle">
-  <header><h2 id="dtitle">New cycle run</h2><button class="btn" data-close>Close</button></header>
+  <header><h2 id="dtitle">New test cycle</h2><button class="btn" data-close>Close</button></header>
   <div class="body">
-    <div class="field"><label for="f-name">Run name</label><input class="input" id="f-name"><div class="errmsg">Give the run a name.</div></div>
+    <div class="field"><label for="f-name">Test cycle name</label><input class="input" id="f-name"><div class="errmsg">Give the test cycle a name.</div></div>
     <div class="field"><label>Devices</label>
       <div style="display:flex;justify-content:space-between;margin-bottom:6px" class="muted"><span id="f-count"></span><span><a href="#" class="link" id="f-all">All online</a> · <a href="#" class="link" id="f-ready">Ready only</a></span></div>
       <div class="devlist" id="f-devs"></div><div class="errmsg" id="f-deverr">Select at least one device.</div>
-      <div class="help">Start the run when devices are fully charged and come off the charger. A device that was unplugged up to an hour before you press Start is still picked up.</div></div>
+      <div class="help">Start the test cycle when devices are fully charged and come off the charger. A device that was unplugged up to an hour before you press Start is still picked up.</div></div>
     <div class="field"><label>How a cycle is counted</label>
       <div class="callout" style="background:var(--surface-2);box-shadow:none"><div>Starts when the device is <b>≥95%</b> and off the charger. Ends when it drops <b>below 5%</b> and then <b>stops checking in for 30 min</b>. Losing contact above 5%, or going back on charge early, is recorded as <i>interrupted</i> and not counted.</div></div></div>
-    <div class="help">Runs are saved in this browser only — teammates won't see them on their machines.</div>
+    <div class="help">Test cycles are saved in this browser only — teammates won't see them on their machines.</div>
   </div>
-  <footer><button class="btn" data-close>Cancel</button><button class="btn primary" id="f-submit">Start run</button></footer>
+  <footer><button class="btn" data-close>Cancel</button><button class="btn primary" id="f-submit">Start test cycle</button></footer>
 </div>
 <div class="toasts" id="toasts"></div>
 
@@ -117,7 +117,7 @@ function derive() {
     const mine = local.find(r => Math.abs(r.startedAt - c.t0) < 3 * H);
     if (mine) { c.items.forEach(x => cycleRun.set(x.c, mine.id)); continue; }
     const id = 'R-' + String(++n).padStart(3, '0');
-    recovered.push({ id, name: 'Bench run · ' + day(c.t0), startedAt: c.t0, endedAt: Math.max(...c.items.map(x => x.c.end)), status: 'complete', historical: true,
+    recovered.push({ id, name: 'Test cycle · ' + day(c.t0), startedAt: c.t0, endedAt: Math.max(...c.items.map(x => x.c.end)), status: 'complete', historical: true,
       devices: c.items.map(({ d, c }) => ({ serial: d.serial, state: 'done', cycle: c })).sort((a, b) => a.serial < b.serial ? -1 : 1) });
     c.items.forEach(x => cycleRun.set(x.c, id));
   }
@@ -285,8 +285,8 @@ function chrome() {
   const onDev = curNav === 'devices' && !current.arg, item = ([f, l, i, fn]) => `<a class="item ${onDev && devState.filter === f ? 'on' : ''}" href="#/devices" data-f="${f}">${SICON(i)}<span class="nm">${l}</span><span class="cnt num">${DEV.filter(fn).length}</span></a>`;
   const rid = curNav === 'runs' && current.arg;
   setH($('#source'), `<div class="sec">Fleet</div>${FILTERS.map(item).join('')}<div class="sec">Smart lists</div>${SMART.map(item).join('')}
-    <div class="sec">Runs</div>${runs.slice(0, 8).map(r => `<a class="item ${rid === r.id ? 'on' : ''} ${r.status === 'running' ? '' : 'dim'}" href="#/runs/${r.id}">${r.status === 'running' ? '<i class="live"></i>' : SICON('<path d="M4 2l9 6-9 6z" stroke-linejoin="round"/>')}<span class="nm">${esc(r.name)}</span><span class="cnt num">${r.status === 'running' ? `${counted(r).filter(x => x.state === 'done').length}/${counted(r).length || r.devices.length}` : day(r.startedAt)}</span></a>`).join('')}
-    ${runs.length > 8 ? `<a class="item dim" href="#/runs">${SICON('<path d="M2 8h12M9 4l4 4-4 4"/>')}<span class="nm">All ${runs.length} runs</span></a>` : runs.length ? '' : '<a class="item dim" href="#/runs"><span class="nm">No runs yet</span></a>'}
+    <div class="sec">Test cycles</div>${runs.slice(0, 8).map(r => `<a class="item ${rid === r.id ? 'on' : ''} ${r.status === 'running' ? '' : 'dim'}" href="#/runs/${r.id}">${r.status === 'running' ? '<i class="live"></i>' : SICON('<path d="M4 2l9 6-9 6z" stroke-linejoin="round"/>')}<span class="nm">${esc(r.name)}</span><span class="cnt num">${r.status === 'running' ? `${counted(r).filter(x => x.state === 'done').length}/${counted(r).length || r.devices.length}` : day(r.startedAt)}</span></a>`).join('')}
+    ${runs.length > 8 ? `<a class="item dim" href="#/runs">${SICON('<path d="M2 8h12M9 4l4 4-4 4"/>')}<span class="nm">All ${runs.length} test cycles</span></a>` : runs.length ? '' : '<a class="item dim" href="#/runs"><span class="nm">No test cycles yet</span></a>'}
     <div class="sec">System</div><a class="item ${curNav === 'settings' ? 'on' : ''}" href="#/settings">${SICON('<circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/>')}<span class="nm">Settings</span></a>`);
   const n = DEV.length, on = DEV.filter(online).length, bat = DEV.filter(d => status(d).k === 'run').length, chg = DEV.filter(d => online(d) && d.snap.charging).length, hot = DEV.filter(SMART[1][3]).length;
   setH($('#status'), `<span>${n ? `${n} devices · ${on} online · ${bat} on battery · ${chg} charging${hot ? ` · <span style="color:var(--bad)">${hot} over ${TEMP_LIMIT} °C</span>` : ''}` : ''}</span><span class="sp"></span>
@@ -329,7 +329,7 @@ function inspect(html) { if (insp.matches(':hover') && insp._h) return; insp.inn
 function deviceInspector(d) {
   if (!d.snap) return `<h3 class="mono">${d.serial}</h3><div class="isub">Not in the current fleet snapshot.</div>`;
   const s = status(d), last = d.lastCycle, cs = d.cycles.slice(-12), mx = Math.max(1, ...cs.map(c => c.durationMs)), x = d.snap.extra ? (typeof d.snap.extra === 'string' ? (() => { try { return JSON.parse(d.snap.extra); } catch (e) { return {}; } })() : d.snap.extra) : {};
-  return `<h3 class="mono">${d.serial}</h3><div class="isub">${esc((d.snap.device_class || 'device').toUpperCase())} · ${s.label}${s.live ? ' · in a run' : ''} · seen ${ago(Date.parse(d.snap.last_seen_at))}</div>
+  return `<h3 class="mono">${d.serial}</h3><div class="isub">${esc((d.snap.device_class || 'device').toUpperCase())} · ${s.label}${s.live ? ' · in a test cycle' : ''} · seen ${ago(Date.parse(d.snap.last_seen_at))}</div>
     <div class="big num">${s.pct != null ? s.pct + '%' : '—'}<small>${s.pct != null ? (d.snap.charging ? 'charging' : 'on battery') : s.label.toLowerCase()}</small></div>
     <hr><h4>Battery</h4><dl class="kv">
       <dt>Temperature</dt><dd class="num" style="color:${online(d) && d.snap.battery_temp_c >= TEMP_LIMIT ? 'var(--bad)' : online(d) && d.snap.battery_temp_c >= TEMP_WARN ? 'var(--warn)' : 'inherit'}">${online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : '—'}</dd>
@@ -350,7 +350,7 @@ function runInspector(r) {
     <div class="big num">${n} / ${c.length || r.devices.length}<small>complete</small></div>
     <hr><h4>Run</h4><dl class="kv"><dt>Status</dt><dd>${runBadge(r)}</dd><dt>Started</dt><dd>${dt(r.startedAt)}</dd><dt>${r.endedAt ? 'Ended' : 'Elapsed'}</dt><dd class="num">${r.endedAt ? dt(r.endedAt) : fmtDur(Date.now() - r.startedAt)}</dd><dt>Devices</dt><dd class="num">${r.devices.length}</dd>
       <dt>Median runtime</dt><dd class="num">${st.count ? fmtDur(st.medianDurationMs) : '—'}</dd><dt>Range</dt><dd class="num">${st.count > 1 ? `${fmtDur(st.minDurationMs)} – ${fmtDur(st.maxDurationMs)}` : '—'}</dd><dt>Peak temp</dt><dd class="num">${st.maxTemp != null ? st.maxTemp.toFixed(1) + ' °C' : '—'}</dd></dl>
-    <div class="acts"><a class="btn" href="#/runs/${r.id}">Open run</a></div>`;
+    <div class="acts"><a class="btn" href="#/runs/${r.id}">Open test cycle</a></div>`;
 }
 function fleetInspector() {
   const live = liveRun(), now = Date.now(), c30 = allCycles.filter(c => c.start > now - 30 * DAY);
@@ -358,7 +358,7 @@ function fleetInspector() {
     <div class="big num">${DEV.filter(online).length}<small>online of ${DEV.length}</small></div>
     <hr><h4>Fleet</h4><dl class="kv"><dt>On battery</dt><dd class="num">${DEV.filter(d => status(d).k === 'run').length}</dd><dt>Charging</dt><dd class="num">${DEV.filter(d => online(d) && d.snap.charging).length}</dd><dt>Ready (≥95%, unplugged)</dt><dd class="num">${DEV.filter(isReady).length}</dd><dt>Offline</dt><dd class="num">${DEV.filter(d => !online(d)).length}</dd></dl>
     <hr><h4>Cycles</h4><dl class="kv"><dt>All time</dt><dd class="num">${allCycles.length}</dd><dt>Last 30 days</dt><dd class="num">${c30.length}</dd><dt>Median · 30d</dt><dd class="num">${c30.length ? fmtDur(median(c30.map(c => c.durationMs))) : '—'}</dd><dt>Detected by</dt><dd>${SERVER ? `backend${SERVER.lastSweepAt ? ` · ${ago(SERVER.lastSweepAt)}` : ''}` : 'this browser'}</dd></dl>
-    ${live ? `<hr><h4>Live run</h4><dl class="kv"><dt>${esc(live.name)}</dt><dd class="num">${counted(live).filter(x => x.state === 'done').length} / ${counted(live).length || live.devices.length}</dd><dt>Elapsed</dt><dd class="num">${fmtDur(now - live.startedAt)}</dd></dl><div class="acts"><a class="btn" href="#/runs/${live.id}">Open run</a></div>` : '<div class="acts"><button class="btn primary" id="insp-new">New run</button></div>'}`;
+    ${live ? `<hr><h4>Live test cycle</h4><dl class="kv"><dt>${esc(live.name)}</dt><dd class="num">${counted(live).filter(x => x.state === 'done').length} / ${counted(live).length || live.devices.length}</dd><dt>Elapsed</dt><dd class="num">${fmtDur(now - live.startedAt)}</dd></dl><div class="acts"><a class="btn" href="#/runs/${live.id}">Open test cycle</a></div>` : '<div class="acts"><button class="btn primary" id="insp-new">New test cycle</button></div>'}`;
 }
 function skeleton() { crumbs(['Loading']); inspect('<div class="empty">Loading…</div>'); view.innerHTML = `<div class="skel" style="height:28px;width:180px;margin-bottom:24px"></div><div class="stack"><div class="skel" style="height:92px"></div><div class="skel" style="height:260px"></div><div class="skel" style="height:220px"></div></div>`; }
 function errorView() {
@@ -380,7 +380,7 @@ function overviewView() {
   const short = m30 ? DEV.filter(d => d.lastCycle && d.lastCycle.start > now - 14 * DAY && d.lastCycle.durationMs < m30 * .9).map(d => ({ d, pct: pctOf(d.lastCycle.durationMs, m30) })).sort((a, b) => a.pct - b.pct) : [];
   const off = DEV.filter(d => d.snap && now - Date.parse(d.snap.last_seen_at) > 2 * DAY).sort((a, b) => Date.parse(b.snap.last_seen_at) - Date.parse(a.snap.last_seen_at));
   view.innerHTML = `<div class="page-head"><div><h1>Overview</h1><div class="sub">${esc(GROUP)} · ${DEV.length} devices${allCycles.length ? ` · history since ${day(Math.min(...allCycles.map(c => c.start)))}` : ''}</div></div>
-      <button class="btn primary" id="ov-new">${PLUS}New run</button></div>
+      <button class="btn primary" id="ov-new">${PLUS}New test cycle</button></div>
     <div class="stack">
     ${live ? `<a class="callout live-strip" href="#/runs/${live.id}" style="text-decoration:none;align-items:center;flex-wrap:wrap">${badge('b-run', 'Running', 1)}<div style="flex:1;min-width:0"><b style="color:var(--text)">${esc(live.name)}</b> · <span id="ov-live"></span></div><div class="prog" style="width:220px"><div class="bar run"><i id="ov-bar"></i></div></div><span class="muted">View →</span></a>` : ''}
     ${!allCycles.length ? `<div class="callout">${INFO}<div>No cycle history for this group yet. Counted cycles appear here as devices complete a full discharge.</div></div>` : ''}
@@ -422,7 +422,7 @@ const devState = { q: '', sort: 'serial', dir: 1, filter: 'all' };
 function devicesView() {
   crumbs(['Devices']);
   const cols = [['serial', 'Device'], ['status', 'Status'], ['battery', 'Battery', 1], ['temp', 'Temp', 1], ['cycles', 'Cycles', 1], ['median', 'Median runtime', 1], ['last', 'Last runtime', 1], ['health', 'Health', 1], ['', 'Last 12 cycles', 1], ['seen', 'Last seen', 1]];
-  view.innerHTML = `<div class="page-head"><div><h1>${filterLabel(devState.filter)}</h1><div class="sub" id="dev-sub"></div></div><button class="btn primary" id="dev-new">${PLUS}New run</button></div>
+  view.innerHTML = `<div class="page-head"><div><h1>${filterLabel(devState.filter)}</h1><div class="sub" id="dev-sub"></div></div><button class="btn primary" id="dev-new">${PLUS}New test cycle</button></div>
     <div class="stack"><div class="panel">
       <div class="scroll-x"><table><thead><tr>${cols.map(([k, l, r]) => `<th ${k ? `data-sort="${k}"` : ''} class="${r ? 'r' : ''}">${l}<span class="arr">${k && devState.sort === k ? (devState.dir > 0 ? '↑' : '↓') : ''}</span></th>`).join('')}</tr></thead><tbody id="dev-body"></tbody></table></div></div></div>`;
   const draw = () => {
@@ -498,11 +498,11 @@ function deviceView(serial) {
 
 // ── Runs ──────────────────────────────────────────────────────────────────────
 function runsView() {
-  crumbs(['Cycle runs']);
-  view.innerHTML = `<div class="page-head"><div><h1>Cycle runs</h1><div class="sub">Start a run when the bench test begins. Each device finishes when it shuts down; the run finishes when all have.</div></div>
-    <button class="btn primary" id="new">${PLUS}New run</button></div>
-    <div class="stack"><div class="panel"><div class="scroll-x"><table><thead><tr><th>Run</th><th>Status</th><th>Devices</th><th>Started</th><th class="r">Elapsed</th><th class="r">Median runtime</th><th class="r">Range</th></tr></thead><tbody id="runs-body"></tbody></table></div></div>
-    ${runs.some(r => r.historical) ? `<div class="callout">${INFO}<div>Runs marked <span class="mono">R-</span> were recovered from device history: 6 or more devices that started a counted cycle within the same 2 hours. Runs started here are marked <span class="mono">L-</span> and are saved in this browser only.</div></div>` : ''}</div>`;
+  crumbs(['Test cycles']);
+  view.innerHTML = `<div class="page-head"><div><h1>Test cycles</h1><div class="sub">Start a test cycle when the bench test begins. Each device finishes when it shuts down; the test cycle finishes when all have.</div></div>
+    <button class="btn primary" id="new">${PLUS}New test cycle</button></div>
+    <div class="stack"><div class="panel"><div class="scroll-x"><table><thead><tr><th>Test cycle</th><th>Status</th><th>Devices</th><th>Started</th><th class="r">Elapsed</th><th class="r">Median runtime</th><th class="r">Range</th></tr></thead><tbody id="runs-body"></tbody></table></div></div>
+    ${runs.some(r => r.historical) ? `<div class="callout">${INFO}<div>Test cycles marked <span class="mono">R-</span> were recovered from device history: 6 or more devices that started a counted cycle within the same 2 hours. Test cycles started here are marked <span class="mono">L-</span> and are saved in this browser only.</div></div>` : ''}</div>`;
   $('#new').onclick = openDrawer;
   const draw = () => {
     setH($('#runs-body'), runs.length ? runs.map(r => { const c = r.status === 'running' ? counted(r) : r.devices.filter(x => x.cycle), n = c.filter(x => x.state === 'done').length, st = runStats(r), tot = c.length || r.devices.length;
@@ -510,7 +510,7 @@ function runsView() {
         <td><div class="prog"><div class="bar ${r.status === 'running' ? 'run' : 'ok'}"><i style="width:${n / tot * 100}%"></i></div><span class="num muted">${n}/${tot}</span></div></td>
         <td class="muted">${dt(r.startedAt)}</td><td class="r num">${fmtDur((r.endedAt || Date.now()) - r.startedAt)}</td>
         <td class="r num">${st.count ? fmtDur(st.medianDurationMs) : '—'}</td><td class="r num muted">${st.count > 1 ? `${fmtDur(st.minDurationMs)} – ${fmtDur(st.maxDurationMs)}` : '—'}</td></tr>`; }).join('')
-      : '<tr><td colspan="7" class="empty">No runs yet. Start one when the next bench test begins.</td></tr>');
+      : '<tr><td colspan="7" class="empty">No test cycles yet. Start one when the next bench test begins.</td></tr>');
     rowsClickable($('#runs-body'), 'data-r', id => `#/runs/${id}`, id => inspect(runInspector(runs.find(r => r.id === id)))); paginate($('#runs-body'), 'runs');
     const r = runs.find(r => r.id === inspSel); inspect(r ? runInspector(r) : fleetInspector()); const nb = $('#insp-new'); if (nb) nb.onclick = openDrawer;
   };
@@ -519,14 +519,14 @@ function runsView() {
 
 function runView(id) {
   const run = runs.find(r => r.id === id); if (!run) return go('#/runs');
-  crumbs(['Cycle runs', '#/runs'], [run.name]);
+  crumbs(['Test cycles', '#/runs'], [run.name]);
   const live = run.status === 'running', C = 2 * Math.PI * 16, status0 = run.status;
   if (!run.sel || !run.devices.some(x => x.serial === run.sel)) run.sel = run.devices[0].serial;
   view.innerHTML = `<div class="page-head"><div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h1>${esc(run.name)}</h1>${runBadge(run)}</div>
       <div class="sub"><span class="mono">${run.id}</span> · started ${dt(run.startedAt)} · ${run.devices.length} devices${run.historical ? ' · recovered from history' : ''}</div></div>
-      <div style="display:flex;gap:8px"><button class="btn" id="export">Export CSV</button>${live ? '<button class="btn" id="stop">Stop run</button>' : ''}${!run.historical && !live ? '<button class="btn" id="del">Delete</button>' : ''}</div></div>
+      <div style="display:flex;gap:8px"><button class="btn" id="export">Export CSV</button>${live ? '<button class="btn" id="stop">Stop test cycle</button>' : ''}${!run.historical && !live ? '<button class="btn" id="del">Delete</button>' : ''}</div></div>
     <div class="stack">
-    ${live ? `<div class="callout">${INFO}<div>Watching telemetry — checked every 2 minutes. A device is complete once it drops below 5% and stays silent for 30 min. The run completes when every discharging device has. <span class="muted" id="run-checked"></span></div></div>` : ''}
+    ${live ? `<div class="callout">${INFO}<div>Watching telemetry — checked every 2 minutes. A device is complete once it drops below 5% and stays silent for 30 min. The test cycle completes when every discharging device has. <span class="muted" id="run-checked"></span></div></div>` : ''}
     <div class="panel"><div class="metrics">
       <div class="metric"><div class="with-ring"><svg class="ring" id="m-ring" viewBox="0 0 40 40"><circle class="bg" cx="20" cy="20" r="16"/><circle class="fg" cx="20" cy="20" r="16" stroke-dasharray="${C}" stroke-dashoffset="${C}"/></svg><div><small>Complete</small><b class="num" id="m-done"></b></div></div></div>
       <div class="metric"><small>Elapsed</small><b class="num" id="m-el"></b><span class="delta" id="m-el2"></span></div>
@@ -567,13 +567,13 @@ function runView(id) {
         ${x.cycle?.gaps ? `<dt>Check-in gaps</dt><dd class="num">${x.cycle.gaps} · ${fmtDur(x.cycle.gapMs)}</dd>` : ''}
         ${x.state === 'interrupted' ? `<dt>Note</dt><dd style="color:var(--bad)">${x.intr?.reason === 'offline' ? `Lost contact at ${x.intr.endPct}%` : 'Went back on charge early'} — not counted</dd>` : ''}
         ${x.state === 'waiting' ? `<dt>Note</dt><dd>Not counted until it discharges from ≥95%</dd>` : ''}
-        ${x.state === 'nodata' ? `<dt>Note</dt><dd>No check-ins since the run started</dd>` : ''}
+        ${x.state === 'nodata' ? `<dt>Note</dt><dd>No check-ins since the test cycle started</dd>` : ''}
       </dl><div class="acts"><a class="btn" href="#/devices/${x.serial}">Device history</a></div>`;
     const pts = (rows || []).filter(r => Date.parse(r.timestamp) >= run.startedAt - 10 * MIN).map(r => ({ x: Date.parse(r.timestamp), y: r.battery_pct, r }));
     if (pts.length > 1) lineChart($('#run-chart'), pts, { h: 130, smooth: true, xFmt: t => (t < run.startedAt ? '−' : '+') + (Math.abs(t - run.startedAt) / H).toFixed(0) + 'h', yFmt: v => v + '%', refs: [{ v: 5, label: '5%' }],
       tip: p => `<b>${p.y}%</b> · ${dt(p.x)}${p.r.extra.battery_temp_c ? `<br>${p.r.extra.battery_temp_c.toFixed(1)} °C` : ''}` });
     else if (d.cycles.length) { const cs = d.cycles.slice(-16); barChart($('#run-chart'), cs.map(c => ({ v: c.durationMs / H, c })), { h: 130, yMax: hoursAxis(Math.max(...cs.map(c => c.durationMs / H))), yFmt: v => Math.round(v) + 'h', label: it => day(it.c.start),
-      color: it => it.c === x.cycle ? 'var(--series)' : 'var(--series-2)', tip: it => `<b>${fmtDur(it.c.durationMs)}</b>${it.c === x.cycle ? ' · this run' : ''}<br>${dt(it.c.start)}` }); }
+      color: it => it.c === x.cycle ? 'var(--series)' : 'var(--series-2)', tip: it => `<b>${fmtDur(it.c.durationMs)}</b>${it.c === x.cycle ? ' · this test cycle' : ''}<br>${dt(it.c.start)}` }); }
     else $('#run-chart').innerHTML = `<div class="empty">${live ? 'Waiting for the first check-in…' : 'No data.'}</div>`;
   }
   function update() {
@@ -746,7 +746,7 @@ function settingsView() {
       <dt>Imported from history</dt><dd>${META ? `${dt(Date.parse(META.generatedAt))} · ${Object.values(HIST).reduce((a, d) => a + d.cycles.length, 0)} cycles` : 'none for this group'}</dd>
       <dt>Detected since</dt><dd class="num">${Object.values(TOP).reduce((a, d) => a + d.cycles.length, 0)} cycles</dd>
       <dt>Detected by</dt><dd>${SERVER ? `Backend sweep · ${SERVER.lastSweepAt ? `last ${ago(SERVER.lastSweepAt)}` : 'not yet run'}${SERVER.lastError ? ` · <span style="color:var(--bad)">${esc(SERVER.lastError)}</span>` : ''}` : 'This browser (no backend — results are per browser, refreshed every 6h)'}</dd>
-      <dt>Runs started here</dt><dd class="num">${local.length}</dd>
+      <dt>Test cycles started here</dt><dd class="num">${local.length}</dd>
       <dt>Rule</dt><dd>≥95% off charger → &lt;5% → silent 30 min</dd></dl></div></div>` : ''}</div>`;
   const cfg = () => ({ base: MDM, key: $('#s-key').value.trim() }), msg = (t, bad) => { const m = $('#s-msg'); m.textContent = t; m.style.color = bad ? 'var(--bad)' : ''; };
   async function loadGroups() {
@@ -766,8 +766,8 @@ function settingsView() {
 
 // ── New-run drawer ───────────────────────────────────────────────────────────
 function openDrawer() {
-  $('#f-name').value = 'Bench run · ' + day(Date.now()); $('#f-name').classList.remove('err'); $('#f-deverr').classList.remove('show');
-  $('#f-devs').innerHTML = DEV.map(d => { const s = status(d), r = isReady(d); return `<label><input type="checkbox" value="${d.serial}" ${r ? 'checked' : ''}><span class="mono">${d.serial}</span>${r ? badge('b-ok', `Ready · ${s.pct}%`) : inLive(d) ? badge('b-run', 'In a run') : badge(s.cls, s.pct != null ? `${s.label} · ${s.pct}%` : s.label)}</label>`; }).join('');
+  $('#f-name').value = 'Test cycle · ' + day(Date.now()); $('#f-name').classList.remove('err'); $('#f-deverr').classList.remove('show');
+  $('#f-devs').innerHTML = DEV.map(d => { const s = status(d), r = isReady(d); return `<label><input type="checkbox" value="${d.serial}" ${r ? 'checked' : ''}><span class="mono">${d.serial}</span>${r ? badge('b-ok', `Ready · ${s.pct}%`) : inLive(d) ? badge('b-run', 'In a test cycle') : badge(s.cls, s.pct != null ? `${s.label} · ${s.pct}%` : s.label)}</label>`; }).join('');
   countSel(); document.body.classList.add('open'); setTimeout(() => $('#f-name').select(), 250);
 }
 const closeDrawer = () => document.body.classList.remove('open');

@@ -126,7 +126,7 @@ oversight; don't add restaurant filtering back in without being asked.
 
 - `index.html` + (inline module script) — **the whole app, one page, hash-routed**:
   Overview (KPIs, weekly runtime trend, needs-attention, bench grid) · Devices (sortable
-  table + inspector → device detail with runtime-per-cycle + cycle history) · Cycle runs
+  table + inspector → device detail with runtime-per-cycle + cycle history) · Test cycles (UI label; code and routes still say "runs")
   (list → run detail) · Settings. Mac document-window shell; styles live in `app.css`
   (not `style.css`). Favicon is `assets/favicon.svg`.
 - **Cycle definition** (the team's, see `shared/cycles.js`): device starts ≥95% off the
@@ -159,7 +159,7 @@ oversight; don't add restaurant filtering back in without being asked.
   segments (time to 50/80/95%, wired vs wireless pad via `wlc_status`) and per-cycle thermal
   stats (minutes ≥40/45 °C, temp per 10% charge bucket). Fed by the same 14-day history
   top-up as cycles; the pages are `#/health`, `#/charging`, `#/thermal`.
-- `shared/runs.js` — cycle runs started from the UI. **Stored in localStorage only**
+- `shared/runs.js` — test cycles ("runs" in code) started from the UI. **Stored in localStorage only**
   (the API is read-only), so runs are per-browser, not shared. Past runs shown as `R-…`
   are recovered from history by clustering cycle starts; UI-started runs are `L-…`.
 - Settings (in-app, `#/settings`): API key + **cycles group** (the one group every page

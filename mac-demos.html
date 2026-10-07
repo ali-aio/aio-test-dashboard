@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Dashboard — macOS-style design options</title>
+<style>
+  /* Page chrome only. Each option is fully scoped under .a / .b / .c so they can't bleed. */
+  html { background: #e9e9ec; }
+  body { margin: 0; padding: 32px 24px 90px; max-width: 1220px; margin-inline: auto; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif; color: #1d1d1f; -webkit-font-smoothing: antialiased; }
+  h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.01em; }
+  .lead { color: #555; margin: 0 0 18px; max-width: 76ch; }
+  .lead b { color: #1d1d1f; }
+  .bar-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 30px; }
+  .bar-top a, .bar-top button { padding: 4px 12px; border: 1px solid #c8c8cd; border-radius: 999px; color: #222; text-decoration: none; font: inherit; font-size: 13px; background: #fff; cursor: pointer; }
+  .bar-top button.on { background: #1d1d1f; color: #fff; border-color: #1d1d1f; }
+  .bar-top .sp { flex: 1; }
+  .opt { margin-bottom: 70px; }
+  .opt > h2 { margin: 0; font-size: 18px; }
+  .opt > .sub { color: #555; margin: 2px 0 12px; max-width: 90ch; }
+  .rec { display: inline-block; font-size: 10.5px; font-weight: 700; color: #1c7d50; background: #e6f6ee; border-radius: 6px; padding: 2px 7px; margin-left: 8px; vertical-align: 2px; }
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; font-size: 13px; }
+  .notes div { background: #fff; padding: 10px 14px; border-radius: 8px; }
+  .notes .g { border-left: 3px solid #16a34a; } .notes .b { border-left: 3px solid #dc2626; }
+  .notes b { display: block; margin-bottom: 2px; }
+  .screens { display: grid; gap: 18px; }
+  .cap { font-size: 12px; color: #666; margin: 0 0 6px; }
+  @media (max-width: 700px) { .notes { grid-template-columns: 1fr; } }
+
+  /* ── shared primitives: window frame, svg icons, sparkline, mock bits ── */
+  .win { border-radius: 11px; overflow: hidden; box-shadow: 0 22px 70px rgba(0,0,0,.22), 0 0 0 .5px rgba(0,0,0,.18); font-size: 13px; }
+  .ic { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; display: block; flex: none; }
+  .lights { display: flex; gap: 8px; padding: 0 4px; } .lights i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  .lights i:nth-child(1){background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+  .num { font-variant-numeric: tabular-nums; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .spark { width: 72px; height: 18px; display: block; } .spark path { fill: none; stroke-width: 1.5; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .pill i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; display: block; }
+  .batt { display: inline-flex; align-items: center; gap: 6px; } .batt b { width: 46px; height: 6px; border-radius: 3px; background: rgba(120,120,128,.22); overflow: hidden; display: block; } .batt b i { display: block; height: 100%; border-radius: 3px; }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     A · "System Settings" — the Enroll app's language, applied to a dashboard.
+     Translucent source list, grouped inset lists, 13px SF, coral only for selection.
+     ══════════════════════════════════════════════════════════════════════ */
+  .a { --bg:#fff; --side:rgba(236,236,240,.8); --text:#1d1d1f; --sub:#6e6e73; --sep:rgba(0,0,0,.09); --group:#f5f5f7; --row:#fff; --hover:rgba(0,0,0,.045);
+       --sel:rgba(249,103,78,.16); --selText:#c4432a; --accent:#f9674e; --ok:#248a3d; --warn:#b25000; --bad:#d70015; --okbg:rgba(52,199,89,.14); --warnbg:rgba(255,159,10,.15); --badbg:rgba(255,59,48,.12); --line:#0a6cdf; }
+  .dark .a { --bg:#1e1e20; --side:rgba(40,40,44,.85); --text:#f5f5f7; --sub:#98989d; --sep:rgba(255,255,255,.09); --group:#2a2a2d; --row:#323236; --hover:rgba(255,255,255,.06);
+       --sel:rgba(249,103,78,.26); --selText:#ff9a83; --ok:#30d158; --warn:#ffb340; --bad:#ff6961; --okbg:rgba(48,209,88,.16); --warnbg:rgba(255,159,10,.16); --badbg:rgba(255,69,58,.16); --line:#4ea1ff; }
+  .a { background: var(--bg); color: var(--text); display: grid; grid-template-columns: 214px 1fr; height: 560px; }
+  .a .side { background: var(--side); backdrop-filter: saturate(180%) blur(30px); border-right: .5px solid var(--sep); padding: 12px 10px; display: flex; flex-direction: column; gap: 1px; }
+  .a .side .top { height: 28px; display: flex; align-items: center; margin-bottom: 8px; }
+  .a .search { height: 26px; border-radius: 7px; background: rgba(120,120,128,.14); display: flex; align-items: center; gap: 6px; padding: 0 8px; color: var(--sub); font-size: 12px; margin: 0 0 10px; }
+  .a .sec { font-size: 11px; font-weight: 600; color: var(--sub); padding: 10px 10px 4px; }
+  .a .item { display: flex; align-items: center; gap: 9px; padding: 5px 10px; border-radius: 7px; font-size: 13px; line-height: 18px; }
+  .a .item:hover { background: var(--hover); } .a .item.sel { background: var(--sel); color: var(--selText); font-weight: 500; }
+  .a .item .glyph { width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; flex: none; } .a .item .glyph .ic { width: 13px; height: 13px; stroke-width: 1.9; }
+  .a .item .nm { flex: 1; } .a .item .cnt { font-size: 11px; color: var(--sub); } .a .item.sel .cnt { color: var(--selText); }
+  .a .main { display: flex; flex-direction: column; min-width: 0; }
+  .a .tb { height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: .5px solid var(--sep); flex: none; }
+  .a .tb .title { font-weight: 700; } .a .tb .sub { font-size: 11px; color: var(--sub); } .a .sp { flex: 1; }
+  .a .seg { display: inline-flex; background: rgba(120,120,128,.14); border-radius: 7px; padding: 2px; gap: 2px; }
+  .a .seg span { font-size: 12px; padding: 3px 12px; border-radius: 5px; } .a .seg span.on { background: var(--row); box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.06); font-weight: 500; }
+  .a .btn { font-size: 13px; font-weight: 500; border-radius: 7px; padding: 4px 14px; background: var(--row); box-shadow: 0 0 0 .5px rgba(0,0,0,.18), 0 1px 1px rgba(0,0,0,.06); } .a .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 1px 1px rgba(0,0,0,.12); }
+  .a .content { flex: 1; overflow: auto; padding: 20px 24px 24px; }
+  .a .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+  .a .kpi { background: var(--group); border: .5px solid var(--sep); border-radius: 10px; padding: 10px 12px; }
+  .a .kpi small { display: block; font-size: 11px; color: var(--sub); font-weight: 500; } .a .kpi b { display: block; font-size: 22px; font-weight: 600; letter-spacing: -.02em; margin-top: 2px; } .a .kpi em { font-style: normal; font-size: 11px; color: var(--sub); }
+  .a .ghead { font-size: 11px; font-weight: 600; color: var(--sub); margin: 0 0 6px 10px; display: flex; align-items: center; } .a .ghead .sp { flex: 1; } .a .ghead a { color: var(--line); font-weight: 500; text-decoration: none; }
+  .a .group { background: var(--group); border-radius: 10px; margin-bottom: 18px; overflow: hidden; border: .5px solid var(--sep); }
+  .a .row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; min-height: 36px; background: var(--row); } .a .row + .row { border-top: .5px solid var(--sep); } .a .row:hover { background: var(--hover); }
+  .a .row .k { flex: 1; min-width: 0; } .a .row .k small { display: block; font-size: 11px; color: var(--sub); } .a .row .v { color: var(--sub); } .a .row .chev { color: var(--sub); opacity: .6; }
+  .a .pill.ok { color: var(--ok); background: var(--okbg); } .a .pill.warn { color: var(--warn); background: var(--warnbg); } .a .pill.bad { color: var(--bad); background: var(--badbg); }
+  .a .spark path { stroke: var(--line); }
+  .a table { width: 100%; border-collapse: collapse; } .a th { text-align: left; font-size: 11px; font-weight: 600; color: var(--sub); padding: 6px 12px; border-bottom: .5px solid var(--sep); background: var(--group); }
+  .a td { padding: 7px 12px; border-top: .5px solid var(--sep); background: var(--row); } .a tr:hover td { background: var(--hover); } .a .r { text-align: right; }
+  .a .batt b i { background: var(--ok); } .a .batt.low b i { background: var(--bad); }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     B · "Finder / Activity Monitor" — document window, unified toolbar, source list,
+     alternating-row NSTableView, inspector on the right. Dense, tabular, the Mac way.
+     ══════════════════════════════════════════════════════════════════════ */
+  .b { --bg:#fff; --side:#f0f0f3; --text:#1d1d1f; --sub:#6e6e73; --sep:rgba(0,0,0,.1); --alt:#f6f6f8; --hover:rgba(0,0,0,.04); --sel:#f9674e; --selSoft:rgba(249,103,78,.14);
+       --ok:#34c759; --warn:#ff9f0a; --bad:#ff3b30; --insp:#f7f7f9; --line:#0a6cdf; }
+  .dark .b { --bg:#1e1e20; --side:#242427; --text:#f5f5f7; --sub:#98989d; --sep:rgba(255,255,255,.1); --alt:#252528; --hover:rgba(255,255,255,.05); --selSoft:rgba(249,103,78,.26); --insp:#232326; --line:#4ea1ff; }
+  .b { background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 560px; }
+  .b .tb { height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: .5px solid var(--sep); background: var(--side); flex: none; }
+  .b .tb .title { font-weight: 600; margin-left: 10px; } .b .tb .sub { color: var(--sub); font-size: 11px; margin-left: 4px; } .b .sp { flex: 1; }
+  .b .tbtn { height: 26px; min-width: 30px; padding: 0 8px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: var(--sub); font-size: 12px; font-weight: 500; } .b .tbtn:hover { background: var(--hover); color: var(--text); } .b .tbtn .ic { width: 15px; height: 15px; }
+  .b .tbtn.on { background: rgba(120,120,128,.18); color: var(--text); }
+  .b .seg { display: inline-flex; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 .5px rgba(0,0,0,.18); } .b .seg span { padding: 4px 11px; font-size: 12px; color: var(--sub); } .b .seg span.on { background: rgba(120,120,128,.2); color: var(--text); font-weight: 500; }
+  .b .search { height: 26px; width: 180px; border-radius: 7px; background: rgba(120,120,128,.14); display: flex; align-items: center; gap: 6px; padding: 0 8px; color: var(--sub); font-size: 12px; }
+  .b .body { display: grid; grid-template-columns: 180px 1fr 260px; flex: 1; min-height: 0; }
+  .b .side { background: var(--side); border-right: .5px solid var(--sep); padding: 10px 8px; overflow: auto; }
+  .b .sec { font-size: 11px; font-weight: 600; color: var(--sub); padding: 8px 10px 3px; }
+  .b .item { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 6px; font-size: 13px; } .b .item .ic { width: 14px; height: 14px; color: var(--sel); } .b .item.sel { background: var(--selSoft); font-weight: 500; } .b .item .cnt { margin-left: auto; font-size: 11px; color: var(--sub); }
+  .b .table { overflow: auto; min-width: 0; }
+  .b table { width: 100%; border-collapse: collapse; } .b th { position: sticky; top: 0; text-align: left; font-size: 11px; font-weight: 500; color: var(--sub); padding: 5px 10px; border-bottom: .5px solid var(--sep); background: var(--bg); border-right: .5px solid var(--sep); } .b th:last-child { border-right: 0; }
+  .b td { padding: 4px 10px; font-size: 12.5px; line-height: 20px; white-space: nowrap; } .b tr:nth-child(even) td { background: var(--alt); } .b tr:hover td { background: var(--hover); } .b tr.sel td { background: var(--sel); color: #fff; } .b tr.sel .sub, .b tr.sel .pill { color: #fff; }
+  .b .r { text-align: right; } .b .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: 0; }
+  .b .dot.ok { background: var(--ok); } .b .dot.warn { background: var(--warn); } .b .dot.bad { background: var(--bad); } .b .dot.off { background: rgba(120,120,128,.5); }
+  .b .spark path { stroke: var(--line); } .b tr.sel .spark path { stroke: #fff; }
+  .b .insp { background: var(--insp); border-left: .5px solid var(--sep); padding: 14px 14px; overflow: auto; font-size: 12px; }
+  .b .insp h3 { margin: 0; font-size: 14px; font-weight: 600; } .b .insp .sub { color: var(--sub); } .b .insp .big { font-size: 28px; font-weight: 600; letter-spacing: -.02em; margin: 10px 0 0; } .b .insp .big small { font-size: 11px; font-weight: 500; color: var(--sub); margin-left: 6px; }
+  .b .insp hr { border: 0; border-top: .5px solid var(--sep); margin: 12px 0; }
+  .b .kv { display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; } .b .kv dt { color: var(--sub); } .b .kv dd { margin: 0; text-align: right; }
+  .b .insp h4 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: var(--sub); text-transform: uppercase; letter-spacing: .04em; }
+  .b .bars { display: flex; align-items: flex-end; gap: 3px; height: 54px; } .b .bars i { flex: 1; background: var(--line); border-radius: 2px 2px 0 0; opacity: .85; display: block; } .b .bars i.last { background: var(--sel); opacity: 1; }
+  .b .btn { font-size: 12px; font-weight: 500; border-radius: 6px; padding: 4px 12px; background: var(--bg); box-shadow: 0 0 0 .5px rgba(0,0,0,.2), 0 1px 1px rgba(0,0,0,.06); display: inline-block; }
+  .b .status { height: 24px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--sub); border-top: .5px solid var(--sep); background: var(--side); flex: none; }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     C · "MDM × Mac" — the MDM web's tokens (Poppins display, airy bg, white cards,
+     brand gradient hairline) with macOS controls. Closest to the MDM dashboard proper.
+     ══════════════════════════════════════════════════════════════════════ */
+  .c { --bg:#f7f7f7; --surface:#fff; --surface2:#f1f1f3; --text:#1a1a1a; --sub:#5f5f66; --faint:#74747c; --border:#e9e9ed; --rule:#dcdce1; --hover:rgba(16,24,40,.04);
+       --accent:#f9674e; --accentText:#cf4529; --accent2:#7a80f6; --ok:#0f6d33; --warn:#8f4209; --bad:#b42318; --okbg:rgba(21,127,60,.1); --warnbg:rgba(180,83,9,.1); --badbg:rgba(180,35,24,.1); --line:#2563eb; --shadow:0 2px 10px rgba(0,0,0,.04); }
+  .dark .c { --bg:#0b0d10; --surface:#14171b; --surface2:#1b1f24; --text:#e7ebf0; --sub:#a3abb5; --faint:#7f8894; --border:#232830; --rule:#2c333c; --hover:rgba(255,255,255,.05);
+       --accentText:#ff9a83; --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; --okbg:rgba(74,222,128,.12); --warnbg:rgba(251,191,36,.12); --badbg:rgba(248,113,113,.12); --line:#60a5fa; --shadow:none; }
+  .c { background: var(--bg); color: var(--text); display: grid; grid-template-columns: 200px 1fr; height: 560px; font-family: Inter, -apple-system, system-ui, sans-serif; }
+  .c .side { background: var(--surface); border-right: 1px solid var(--border); padding: 12px 10px; display: flex; flex-direction: column; }
+  .c .side .top { height: 28px; display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .c .brand { font: 600 13px Poppins, Inter, system-ui, sans-serif; letter-spacing: -.01em; margin-left: 6px; } .c .brand i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: linear-gradient(135deg, #f9674e, #7a80f6); margin-right: 7px; }
+  .c .sec { font-size: 10.5px; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; padding: 12px 10px 4px; }
+  .c .item { display: flex; align-items: center; gap: 9px; padding: 6px 10px; border-radius: 7px; font-size: 13px; color: var(--sub); } .c .item .ic { width: 15px; height: 15px; } .c .item.sel { background: var(--surface2); color: var(--text); font-weight: 500; } .c .item.sel .ic { color: var(--accentText); }
+  .c .item .cnt { margin-left: auto; font-size: 11px; color: var(--faint); }
+  .c .side .foot { margin-top: auto; font-size: 11px; color: var(--faint); padding: 8px 10px; display: flex; align-items: center; gap: 6px; } .c .foot i { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block; }
+  .c .main { display: flex; flex-direction: column; min-width: 0; position: relative; }
+  .c .main::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: linear-gradient(90deg, #f9674e, #7a80f6); }
+  .c .tb { height: 54px; display: flex; align-items: center; gap: 10px; padding: 0 22px; flex: none; }
+  .c .tb h2 { margin: 0; font: 600 16px Poppins, Inter, system-ui, sans-serif; letter-spacing: -.01em; } .c .tb .sub { font-size: 12px; color: var(--sub); } .c .sp { flex: 1; }
+  .c .seg { display: inline-flex; background: var(--surface2); border-radius: 7px; padding: 2px; gap: 2px; border: 1px solid var(--border); } .c .seg span { font-size: 12px; padding: 3px 11px; border-radius: 5px; color: var(--sub); } .c .seg span.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-weight: 500; }
+  .c .btn { font-size: 12.5px; font-weight: 500; border-radius: 7px; padding: 5px 13px; background: var(--surface); border: 1px solid var(--rule); } .c .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .c .content { flex: 1; overflow: auto; padding: 6px 22px 22px; display: grid; gap: 14px; align-content: start; }
+  .c .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .c .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+  .c .kpi { padding: 12px 14px; } .c .kpi small { display: block; font-size: 11px; color: var(--sub); font-weight: 500; } .c .kpi b { display: block; font: 600 24px Poppins, Inter, system-ui, sans-serif; letter-spacing: -.02em; margin-top: 3px; } .c .kpi em { font-style: normal; font-size: 11px; color: var(--faint); }
+  .c .kpi em.up { color: var(--ok); } .c .kpi em.down { color: var(--bad); }
+  .c .two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; }
+  .c .ch { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid var(--border); } .c .ch h3 { margin: 0; font-size: 13px; font-weight: 600; } .c .ch a { font-size: 12px; color: var(--accentText); text-decoration: none; font-weight: 500; }
+  .c .cb { padding: 12px 14px; }
+  .c .trend { height: 110px; width: 100%; display: block; } .c .trend path.l { fill: none; stroke: var(--line); stroke-width: 2; } .c .trend path.a { fill: var(--line); opacity: .08; } .c .trend line { stroke: var(--border); } .c .trend text { font-size: 10px; fill: var(--faint); }
+  .c .att { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 12.5px; } .c .att:last-child { border-bottom: 0; } .c .att .k { flex: 1; } .c .att .k small { display: block; color: var(--faint); font-size: 11px; }
+  .c .pill.ok { color: var(--ok); background: var(--okbg); } .c .pill.warn { color: var(--warn); background: var(--warnbg); } .c .pill.bad { color: var(--bad); background: var(--badbg); }
+  .c table { width: 100%; border-collapse: collapse; } .c th { text-align: left; font-size: 11px; font-weight: 500; color: var(--sub); padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .c td { padding: 9px 14px; border-bottom: 1px solid var(--border); font-size: 12.5px; } .c tr:last-child td { border-bottom: 0; } .c tr:hover td { background: var(--hover); } .c .r { text-align: right; }
+  .c .spark path { stroke: var(--line); } .c .batt b i { background: #22c55e; } .c .batt.low b i { background: #ef4444; }
+</style>
+</head>
+<body>
+<h1>Test Dashboard — macOS-style design options</h1>
+<p class="lead">Three directions for the same two screens (<b>Overview</b> and <b>Devices</b>), on mock data. References: the <b>AIO Enroll</b> app (macOS System Settings look, coral selection only), the <b>MDM web</b> dashboard (Poppins, airy grey bg, white cards, coral→periwinkle hairline), and native macOS windows (Finder, Activity Monitor). Toggle dark to compare. Pick one and the real app gets rebuilt on its tokens.</p>
+<div class="bar-top"><a href="#a">A · System Settings</a><a href="#b">B · Finder / Activity Monitor</a><a href="#c">C · MDM × Mac</a><span class="sp"></span><button id="light" class="on">Light</button><button id="dark">Dark</button></div>
+
+<!-- ───────────────────────────── A ───────────────────────────── -->
+<section class="opt" id="a">
+  <h2>A · System Settings <span class="rec">closest to Enroll</span></h2>
+  <p class="sub">The Enroll app's language, one to one: translucent source list with glyph icons, grouped inset lists instead of tables where the data is a list, SF 13px, coral used only for the selected item and the one primary button. Everything else is grey and type weight. Feels like a pane of System Settings.</p>
+  <div class="screens">
+    <div><p class="cap">Overview</p>
+    <div class="win a">
+      <div class="side">
+        <div class="top"><div class="lights"><i></i><i></i><i></i></div></div>
+        <div class="search"><svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Search</div>
+        <div class="sec">Test Cycles</div>
+        <div class="item sel"><span class="glyph" style="background:#f9674e"><svg class="ic" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg></span><span class="nm">Overview</span></div>
+        <div class="item"><span class="glyph" style="background:#5e5ce6"><svg class="ic" viewBox="0 0 16 16"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/><path d="M7 12.5h2"/></svg></span><span class="nm">Devices</span><span class="cnt">26</span></div>
+        <div class="item"><span class="glyph" style="background:#34c759"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6.5"/></svg></span><span class="nm">Cycle runs</span><span class="cnt">1</span></div>
+        <div class="sec">Battery</div>
+        <div class="item"><span class="glyph" style="background:#ff9f0a"><svg class="ic" viewBox="0 0 16 16"><path d="M2 12l4-5 3 3 5-7"/></svg></span><span class="nm">Health</span></div>
+        <div class="item"><span class="glyph" style="background:#0a84ff"><svg class="ic" viewBox="0 0 16 16"><path d="M9 1.5 4 9h4l-1 5.5L13 7H9z"/></svg></span><span class="nm">Charging</span></div>
+        <div class="item"><span class="glyph" style="background:#ff375f"><svg class="ic" viewBox="0 0 16 16"><path d="M6 2v7.5a2.5 2.5 0 1 0 4 0V2z"/></svg></span><span class="nm">Thermal</span></div>
+        <div class="sec" style="margin-top:auto">Settings</div>
+        <div class="item"><span class="glyph" style="background:#8e8e93"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5 13 13M3 13l1.5-1.5M11.5 4.5 13 3"/></svg></span><span class="nm">Settings</span></div>
+      </div>
+      <div class="main">
+        <div class="tb"><div><div class="title">Overview</div><div class="sub">Test Cycles · 26 devices · updated 20 s ago</div></div><span class="sp"></span><span class="seg"><span class="on">7 days</span><span>30 days</span><span>All</span></span><span class="btn primary">New run</span></div>
+        <div class="content">
+          <div class="kpis">
+            <div class="kpi"><small>Devices online</small><b class="num">24 <em>/ 26</em></b><em>2 not seen for 2+ days</em></div>
+            <div class="kpi"><small>Counted cycles</small><b class="num">364</b><em>+6 this week</em></div>
+            <div class="kpi"><small>Median runtime</small><b class="num">23h 30m</b><em>last 30 cycles</em></div>
+            <div class="kpi"><small>Running now</small><b class="num">11</b><em>bench run · Oct 6</em></div>
+          </div>
+          <div class="ghead">Needs attention <span class="sp"></span><a>See all</a></div>
+          <div class="group">
+            <div class="row"><div class="k">AT070AABU00231<small>Last cycle 16h 05m — 32% under its median</small></div><span class="pill warn"><i></i>Short cycle</span><span class="chev">›</span></div>
+            <div class="row"><div class="k">AT070AABU00188<small>Peaked at 51.2 °C during the last cycle</small></div><span class="pill bad"><i></i>Over 45 °C</span><span class="chev">›</span></div>
+            <div class="row"><div class="k">AT070AABU00044<small>Not seen since Oct 4, 09:11</small></div><span class="pill bad"><i></i>Offline</span><span class="chev">›</span></div>
+          </div>
+          <div class="ghead">Bench · running</div>
+          <div class="group" id="a-bench"></div>
+        </div>
+      </div>
+    </div></div>
+    <div><p class="cap">Devices</p>
+    <div class="win a" style="height:420px">
+      <div class="side"><div class="top"><div class="lights"><i></i><i></i><i></i></div></div>
+        <div class="search"><svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Search</div>
+        <div class="sec">Test Cycles</div>
+        <div class="item"><span class="glyph" style="background:#f9674e"><svg class="ic" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg></span><span class="nm">Overview</span></div>
+        <div class="item sel"><span class="glyph" style="background:#5e5ce6"><svg class="ic" viewBox="0 0 16 16"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/><path d="M7 12.5h2"/></svg></span><span class="nm">Devices</span><span class="cnt">26</span></div>
+        <div class="item"><span class="glyph" style="background:#34c759"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6.5"/></svg></span><span class="nm">Cycle runs</span><span class="cnt">1</span></div>
+      </div>
+      <div class="main">
+        <div class="tb"><div><div class="title">Devices</div><div class="sub">26 in Test Cycles</div></div><span class="sp"></span><span class="seg"><span class="on">All</span><span>Online</span><span>Charging</span><span>Offline</span></span></div>
+        <div class="content" style="padding:0"><table><thead><tr><th>Device</th><th>Status</th><th>Battery</th><th class="r">Temp</th><th class="r">Cycles</th><th class="r">Median</th><th class="r">Last 12</th><th class="r">Seen</th></tr></thead><tbody id="a-dev"></tbody></table></div>
+      </div>
+    </div></div>
+  </div>
+  <div class="notes">
+    <div class="g"><b>Pros</b>Same muscle memory as Enroll; grouped lists make "needs attention" and bench status read like a settings pane, not a spreadsheet. Very little chrome, nothing competes with the data. Dark mode is already proven in Enroll.</div>
+    <div class="b"><b>Cons</b>Grouped lists waste vertical space once a list is long; the devices table still has to be a table, so two list styles coexist. The translucent sidebar is a flat tint in a browser (no real vibrancy). Least "dashboard" of the three — fewer charts above the fold.</div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── B ───────────────────────────── -->
+<section class="opt" id="b">
+  <h2>B · Finder / Activity Monitor</h2>
+  <p class="sub">A document window, not a settings pane: unified toolbar with the view switcher, a source list of groups/filters, an alternating-row table that holds the whole fleet, and an inspector on the right for the selected device. Selection is the coral row, like Finder. Most data per pixel.</p>
+  <div class="screens"><div><p class="cap">Devices with inspector (Overview becomes a "Summary" source-list item with the same layout)</p>
+    <div class="win b">
+      <div class="tb"><div class="lights"><i></i><i></i><i></i></div><span class="title">Test Cycles</span><span class="sub">26 devices</span><span class="sp"></span>
+        <span class="seg"><span class="on">Devices</span><span>Runs</span><span>Health</span><span>Charging</span><span>Thermal</span></span>
+        <span class="tbtn on"><svg class="ic" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></svg></span><span class="tbtn"><svg class="ic" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/></svg></span>
+        <div class="search"><svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>Search</div>
+        <span class="tbtn"><svg class="ic" viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M10 3v10"/></svg></span></div>
+      <div class="body">
+        <div class="side">
+          <div class="sec">Fleet</div>
+          <div class="item sel"><svg class="ic" viewBox="0 0 16 16"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/></svg>All devices<span class="cnt">26</span></div>
+          <div class="item"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/></svg>Online<span class="cnt">24</span></div>
+          <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M9 1.5 4 9h4l-1 5.5L13 7H9z"/></svg>Charging<span class="cnt">9</span></div>
+          <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"/></svg>Offline<span class="cnt">2</span></div>
+          <div class="sec">Smart lists</div>
+          <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6.5"/></svg>Running a cycle<span class="cnt">11</span></div>
+          <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M6 2v7.5a2.5 2.5 0 1 0 4 0V2z"/></svg>Over 45 °C<span class="cnt">1</span></div>
+          <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M2 12l4-5 3 3 5-7"/></svg>Health under 85%<span class="cnt">4</span></div>
+          <div class="sec">Runs</div>
+          <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2l9 6-9 6z"/></svg>Bench · Oct 6<span class="cnt">11/14</span></div>
+          <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2l9 6-9 6z"/></svg>Bench · Sep 29</div>
+        </div>
+        <div class="table"><table><thead><tr><th>Device</th><th>Status</th><th class="r">Battery</th><th class="r">Temp</th><th class="r">Cycles</th><th class="r">Median</th><th class="r">Last</th><th class="r">Health</th><th class="r">Trend</th><th class="r">Seen</th></tr></thead><tbody id="b-dev"></tbody></table></div>
+        <div class="insp">
+          <h3 class="mono">AT070AABU00231</h3><div class="sub">T7 · Test Cycles · running since Oct 6, 08:10</div>
+          <div class="big num">41%<small>discharging</small></div>
+          <hr><h4>Battery</h4>
+          <dl class="kv"><dt>Temperature</dt><dd class="num">38.4 °C</dd><dt>Counted cycles</dt><dd class="num">14</dd><dt>Median runtime</dt><dd class="num">23h 30m</dd><dt>Last runtime</dt><dd class="num">16h 05m</dd><dt>Health</dt><dd class="num">91%</dd><dt>Equivalent full cycles</dt><dd class="num">31.0</dd></dl>
+          <hr><h4>Runtime per cycle</h4>
+          <div class="bars"><i style="height:92%"></i><i style="height:88%"></i><i style="height:95%"></i><i style="height:90%"></i><i style="height:86%"></i><i style="height:93%"></i><i style="height:89%"></i><i style="height:91%"></i><i style="height:84%"></i><i style="height:88%"></i><i style="height:90%"></i><i class="last" style="height:62%"></i></div>
+          <hr><h4>Last seen</h4><div>Just now · build 2026.09.30-1</div>
+          <div style="margin-top:14px;display:flex;gap:8px"><span class="btn">History</span><span class="btn">Open in MDM</span></div>
+        </div>
+      </div>
+      <div class="status">26 devices · 24 online · 11 discharging · 9 charging · 1 over 45 °C</div>
+    </div></div></div>
+  <div class="notes">
+    <div class="g"><b>Pros</b>Whole fleet on one screen, sortable, with the detail beside it instead of a page away. Smart lists in the sidebar replace the filter segment and the "needs attention" panel at once. Reads as a real Mac app; densest and fastest for a daily check.</div>
+    <div class="b"><b>Cons</b>Needs ≥ 1200px to breathe — on a laptop the inspector collapses to a sheet. No charts above the fold; the Overview page loses its KPI row unless "Summary" is its own view. The coral selected row is loud if the brand coral must stay a hairline.</div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── C ───────────────────────────── -->
+<section class="opt" id="c">
+  <h2>C · MDM × Mac <span class="rec">closest to MDM web</span></h2>
+  <p class="sub">The MDM dashboard's own tokens — light grey page, white cards with a 1px border, Poppins for headings and big numbers, the coral→periwinkle hairline at the top — with Mac controls (segmented control, grouped sidebar, pills). Someone moving between the MDM and this dashboard sees one family.</p>
+  <div class="screens"><div><p class="cap">Overview</p>
+    <div class="win c">
+      <div class="side">
+        <div class="top"><div class="lights"><i></i><i></i><i></i></div><span class="brand"><i></i>Test Lab</span></div>
+        <div class="sec">Test Cycles</div>
+        <div class="item sel"><svg class="ic" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Overview</div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/><path d="M7 12.5h2"/></svg>Devices<span class="cnt">26</span></div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6.5"/></svg>Cycle runs<span class="cnt">1</span></div>
+        <div class="sec">Battery</div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M2 12l4-5 3 3 5-7"/></svg>Health</div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M9 1.5 4 9h4l-1 5.5L13 7H9z"/></svg>Charging</div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><path d="M6 2v7.5a2.5 2.5 0 1 0 4 0V2z"/></svg>Thermal</div>
+        <div class="sec">System</div>
+        <div class="item"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2"/></svg>Settings</div>
+        <div class="foot"><i></i>mdm.dev.aioapp.com · 20 s</div>
+      </div>
+      <div class="main">
+        <div class="tb"><div><h2>Overview</h2><div class="sub">Test Cycles · 26 devices</div></div><span class="sp"></span><span class="seg"><span class="on">7 days</span><span>30 days</span><span>All</span></span><span class="btn primary">New run</span></div>
+        <div class="content">
+          <div class="kpis">
+            <div class="card kpi"><small>Devices online</small><b class="num">24 / 26</b><em>2 offline</em></div>
+            <div class="card kpi"><small>Counted cycles</small><b class="num">364</b><em class="up">▲ 6 this week</em></div>
+            <div class="card kpi"><small>Median runtime</small><b class="num">23h 30m</b><em class="down">▼ 1.2% vs last month</em></div>
+            <div class="card kpi"><small>Running now</small><b class="num">11</b><em>bench run · Oct 6</em></div>
+          </div>
+          <div class="two">
+            <div class="card"><div class="ch"><h3>Weekly runtime</h3><span class="mono" style="color:var(--faint)">median, hours</span></div><div class="cb"><svg class="trend" id="c-trend" viewBox="0 0 400 110" preserveAspectRatio="none"></svg></div></div>
+            <div class="card"><div class="ch"><h3>Needs attention</h3><a>See all</a></div>
+              <div class="att"><div class="k">AT070AABU00231<small>16h 05m · 32% under median</small></div><span class="pill warn"><i></i>Short</span></div>
+              <div class="att"><div class="k">AT070AABU00188<small>51.2 °C peak</small></div><span class="pill bad"><i></i>Hot</span></div>
+              <div class="att"><div class="k">AT070AABU00044<small>since Oct 4</small></div><span class="pill bad"><i></i>Offline</span></div>
+            </div>
+          </div>
+          <div class="card"><div class="ch"><h3>Bench · running</h3><a>Open run</a></div><table><thead><tr><th>Device</th><th>State</th><th>Battery</th><th class="r">Temp</th><th class="r">Elapsed</th><th class="r">Last 12</th></tr></thead><tbody id="c-bench"></tbody></table></div>
+        </div>
+      </div>
+    </div></div></div>
+  <div class="notes">
+    <div class="g"><b>Pros</b>Visually continuous with the MDM dashboard (same bg, cards, type, brand hairline), so the two tools feel like one product. Keeps the KPI row and a chart above the fold. Mac controls without pretending to be a native window.</div>
+    <div class="b"><b>Cons</b>Needs the Poppins/Inter webfonts (or falls back to system). Cards-on-grey is the most generic of the three and the least "Mac". More borders and shadows to keep consistent in dark mode.</div>
+  </div>
+</section>
+
+<script>
+// mock data, shared by all three
+const devs = [
+  ['AT070AABU00231','run',41,38.4,14,'23h 30m','16h 05m',91,'now'],['AT070AABU00188','run',67,51.2,17,'22h 48m','21h 10m',88,'now'],['AT070AABU00044','off',0,null,22,'24h 02m','23h 40m',94,'3d'],
+  ['AT070AABU00102','chg',88,36.0,15,'23h 11m','22h 58m',90,'1m'],['AT070AABU00117','run',12,41.9,13,'22h 05m','21h 40m',86,'now'],['AT070AABU00120','run',55,39.1,16,'23h 55m','23h 20m',93,'now'],
+  ['AT070AABU00133','chg',100,33.2,12,'24h 10m','24h 01m',97,'2m'],['AT070AABU00151','run',29,40.2,11,'21h 40m','19h 30m',82,'now'],['AT070AABU00164','run',74,37.8,19,'23h 02m','22h 51m',89,'now'],
+  ['AT070AABU00177','chg',62,35.5,14,'22h 59m','22h 30m',90,'1m'],['AT070AABU00190','run',8,42.5,18,'23h 20m','23h 05m',92,'now'],['AT070AABU00205','off',0,null,9,'23h 44m','23h 10m',95,'2d'],
+];
+const rnd = (s => () => (s = (s * 16807) % 2147483647) / 2147483647)(42);
+const spark = () => { const pts = Array.from({ length: 12 }, (_, i) => 16 - (8 + rnd() * 8) * .9 - (i === 11 ? -4 : 0)); return `<svg class="spark" viewBox="0 0 72 18"><path d="M${pts.map((y, i) => `${i * 6.5 + 1},${y.toFixed(1)}`).join(' L')}"/></svg>`; };
+const seen = s => s === 'now' ? 'just now' : s === '1m' || s === '2m' ? s + ' ago' : s + ' ago';
+const st = { run: ['ok', 'Discharging'], chg: ['ok', 'Charging'], off: ['bad', 'Offline'] };
+// A — grouped bench list + table
+document.getElementById('a-bench').innerHTML = devs.filter(d => d[1] === 'run').slice(0, 5).map(d => `<div class="row"><div class="k mono">${d[0]}</div><span class="batt ${d[2] < 20 ? 'low' : ''}"><b><i style="width:${d[2]}%"></i></b><span class="num">${d[2]}%</span></span><span class="v num">${d[3]} °C</span><span class="v num">${(Math.round(rnd() * 900) / 60).toFixed(0)}h elapsed</span><span class="chev">›</span></div>`).join('');
+document.getElementById('a-dev').innerHTML = devs.map(d => `<tr><td class="mono">${d[0]}</td><td><span class="pill ${st[d[1]][0]}"><i></i>${st[d[1]][1]}</span></td><td>${d[1] === 'off' ? '<span style="color:var(--sub)">—</span>' : `<span class="batt ${d[2] < 20 ? 'low' : ''}"><b><i style="width:${d[2]}%"></i></b><span class="num">${d[2]}%</span></span>`}</td><td class="r num">${d[3] == null ? '—' : d[3].toFixed(1) + ' °C'}</td><td class="r num">${d[4]}</td><td class="r num">${d[5]}</td><td class="r">${spark()}</td><td class="r num" style="color:var(--sub)">${seen(d[8])}</td></tr>`).join('');
+// B — dense table, first row selected
+const dotB = { run: 'ok', chg: 'warn', off: 'off' };
+document.getElementById('b-dev').innerHTML = devs.map((d, i) => `<tr class="${i === 0 ? 'sel' : ''}"><td class="mono">${d[0]}</td><td><span class="dot ${dotB[d[1]]}"></span>${st[d[1]][1]}</td><td class="r num">${d[1] === 'off' ? '—' : d[2] + '%'}</td><td class="r num">${d[3] == null ? '—' : d[3].toFixed(1) + ' °C'}</td><td class="r num">${d[4]}</td><td class="r num">${d[5]}</td><td class="r num">${d[6]}</td><td class="r num">${d[7]}%</td><td class="r">${spark()}</td><td class="r num sub">${seen(d[8])}</td></tr>`).join('');
+// C — trend + bench table
+{ const w = 400, h = 110, ys = [23.1, 23.4, 23.0, 23.6, 23.5, 23.2, 22.9, 23.3, 23.5, 23.4, 23.1, 22.8], min = 22.4, max = 24, X = i => 10 + i * (w - 20) / 11, Y = v => h - 18 - (v - min) / (max - min) * (h - 30);
+  const d = ys.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+  document.getElementById('c-trend').innerHTML = [23, 23.5].map(v => `<line x1="10" x2="${w - 10}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${w - 8}" y="${Y(v) - 3}" text-anchor="end">${v}h</text>`).join('') + `<path class="a" d="${d} L${X(11).toFixed(1)},${h - 18} L10,${h - 18}Z"/><path class="l" d="${d}"/>` + ['Jul', 'Aug', 'Sep', 'Oct'].map((m, i) => `<text x="${X(i * 3.67)}" y="${h - 4}">${m}</text>`).join(''); }
+document.getElementById('c-bench').innerHTML = devs.filter(d => d[1] === 'run').slice(0, 5).map(d => `<tr><td class="mono">${d[0]}</td><td><span class="pill ok"><i></i>Discharging</span></td><td><span class="batt ${d[2] < 20 ? 'low' : ''}"><b><i style="width:${d[2]}%"></i></b><span class="num">${d[2]}%</span></span></td><td class="r num">${d[3]} °C</td><td class="r num">${(Math.round(rnd() * 900) / 60).toFixed(0)}h 12m</td><td class="r">${spark()}</td></tr>`).join('');
+// theme toggle
+const set = dark => { document.body.classList.toggle('dark', dark); document.getElementById('dark').classList.toggle('on', dark); document.getElementById('light').classList.toggle('on', !dark); };
+document.getElementById('dark').onclick = () => set(true); document.getElementById('light').onclick = () => set(false);
+if (matchMedia('(prefers-color-scheme: dark)').matches) set(true);
+</script>
+</body>
+</html>

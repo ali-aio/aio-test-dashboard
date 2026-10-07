@@ -4,34 +4,38 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AIO Test</title>
-<link rel="icon" href="data:,">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="stylesheet" href="app.css">
 <script>/* THEME_STAMP: apply a stored light/dark choice before first paint (see shared/theme.js) */
 try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
 </script>
 </head>
 <body>
-<div class="shell">
-  <nav class="side">
-    <div class="logo"><i></i><span>AIO Test</span></div>
-    <div class="navs" id="navs"><span class="nav-ind" id="navInd"></span>
-      <a class="nav" data-nav="overview" href="#/"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Overview</a>
-      <a class="nav" data-nav="devices" href="#/devices"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/><path d="M7 12h2"/></svg>Devices<span class="count" id="nav-dev"></span></a>
-      <a class="nav" data-nav="runs" href="#/runs"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="4.5" width="11" height="7" rx="1.5"/><path d="M14.5 7v2"/><path d="M4 7h3.5v2H4z" fill="currentColor"/></svg>Cycle runs<span class="count" id="nav-run"></span></a>
-      <div class="nav-sep">Analysis</div>
-      <a class="nav" data-nav="health" href="#/health"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 9.5h2.5l1.5-4 2 6 1.5-3H14"/></svg>Battery health</a>
-      <a class="nav" data-nav="charging" href="#/charging"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 1.5 4 9h4l-1 5.5L13 7H9z" stroke-linejoin="round"/></svg>Charging</a>
-      <a class="nav" data-nav="thermal" href="#/thermal"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.5 9.5V3a1.5 1.5 0 0 1 3 0v6.5a2.5 2.5 0 1 1-3 0z"/></svg>Thermal</a>
-      <div class="nav-sep">Admin</div>
-      <a class="nav" data-nav="settings" href="#/settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>Settings</a>
+<div class="app">
+  <header class="toolbar">
+    <button class="tbtn" id="tg-side" title="Show or hide the sidebar"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" ><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M6 3v10"/></svg></button>
+    <span class="title">AIO Test</span><span class="tsub" id="crumbs"></span>
+    <span class="sp"></span>
+    <div class="views" id="views">
+      <button data-nav="overview" data-href="#/">Overview</button>
+      <button data-nav="devices" data-href="#/devices">Devices<span class="count" id="nav-dev"></span></button>
+      <button data-nav="runs" data-href="#/runs">Runs<span class="count" id="nav-run"></span></button>
+      <button data-nav="health" data-href="#/health">Health</button>
+      <button data-nav="charging" data-href="#/charging">Charging</button>
+      <button data-nav="thermal" data-href="#/thermal">Thermal</button>
     </div>
-    <div class="foot"><span id="conn"><b></b>—</span><button class="icon-btn" id="theme"></button></div>
-  </nav>
-  <main>
-    <div class="topbar"><div class="crumbs" id="crumbs"></div>
-      <a class="scope" href="#/settings" title="Cycles group — change in Settings">Group <b id="scope-name"></b></a></div>
-    <div class="content" id="view"></div>
-  </main>
+    <span class="sp"></span>
+    <div class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" ><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="input" id="q" placeholder="Search serial" autocomplete="off"></div>
+    <button class="tbtn" id="theme"></button>
+    <button class="tbtn" id="tg-settings" title="Settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" ><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg></button>
+    <button class="tbtn" id="tg-insp" title="Show or hide the inspector"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" ><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M10 3v10"/></svg></button>
+  </header>
+  <div class="body">
+    <aside class="source" id="source"></aside>
+    <main class="pane" id="pane"><div class="content" id="view"></div></main>
+    <aside class="insp" id="insp"></aside>
+  </div>
+  <footer class="status" id="status"></footer>
 </div>
 
 <div class="scrim" data-close></div>
@@ -52,7 +56,7 @@ try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') 
 <div class="toasts" id="toasts"></div>
 
 <script type="module">
-import { apiBase, apiKey, hasConfig, saveConfig, scopeGroup, setScopeGroup, fetchFilters, fetchDevices, fetchHistory, fetchHistoryRange, mapLimit } from './shared/data.js';
+import { apiBase, apiKey, hasConfig, saveConfig, scopeGroup, setScopeGroup, fetchFilters, fetchDevices, fetchHistory, fetchHistoryRange, mapLimit, detectBackend, BACKEND } from './shared/data.js';
 import { detectCycles, aggregate, fmtDur } from './shared/cycles.js';
 import { loadRuns, saveRuns, newRun, evaluateRun, runRows, normalize } from './shared/runs.js';
 import { initThemeToggle } from './shared/theme.js';
@@ -68,10 +72,16 @@ const MDM = 'https://mdm.dev.aioapp.com'; // live only — this dashboard has no
 if (apiKey() && apiBase() !== MDM) saveConfig(MDM, apiKey());
 if (!scopeGroup()) setScopeGroup('Test Cycles');
 const GROUP = scopeGroup();
-$('#scope-name').textContent = GROUP;
 initThemeToggle($('#theme'));
-const setLayout = () => root.dataset.layout = innerWidth < 760 ? 'top' : 'side';
-setLayout();
+const insp = $('#insp'), pane = $('#pane');
+// window chrome: sidebar / inspector toggles (remembered), view switcher, settings gear, global search
+try { if (localStorage.getItem('ui:noinsp') === '1') document.body.classList.add('noinsp'); if (localStorage.getItem('ui:noside') === '1') document.body.classList.add('noside'); } catch (e) {}
+$('#tg-insp').onclick = () => { if (innerWidth <= 1100) document.body.classList.toggle('showinsp'); else { const v = document.body.classList.toggle('noinsp'); try { localStorage.setItem('ui:noinsp', v ? '1' : '0'); } catch (e) {} } };
+$('#tg-side').onclick = () => { if (innerWidth <= 760) document.body.classList.toggle('showside'); else { const v = document.body.classList.toggle('noside'); try { localStorage.setItem('ui:noside', v ? '1' : '0'); } catch (e) {} } };
+$('#tg-settings').onclick = () => go('#/settings');
+$('#views').onclick = e => { const b = e.target.closest('button[data-href]'); if (b) go(b.dataset.href); };
+$('#q').oninput = e => { devState.q = e.target.value; pages.devices = 0; if (current && current.fn === devicesView) devDraw && devDraw(); else go('#/devices'); };
+document.addEventListener('keydown', e => { if (e.key === '/' && !e.target.matches('input, select, textarea')) { e.preventDefault(); $('#q').focus(); } });
 
 // ── State ─────────────────────────────────────────────────────────────────────
 // History = data/cycles.json (one-off import, static file) + a top-up of everything since,
@@ -240,11 +250,11 @@ const routes = [
   [/^#\/health$/, healthView, 'health'], [/^#\/charging$/, chargingView, 'charging'], [/^#\/thermal$/, thermalView, 'thermal'],
   [/^#\/settings$/, settingsView, 'settings'], [/^.*$/, overviewView, 'overview'],
 ];
-let current = null, onData = null, enterTimer = 0;
+let current = null, onData = null, enterTimer = 0, curNav = '', inspSel = null, devDraw = null;
 function render(fresh = true) {
   const h = location.hash || '#/'; onData = null; view.onkeydown = null;
-  for (const [re, fn, nav] of routes) { const m = h.match(re); if (m) { current = { fn, arg: m[1] && decodeURIComponent(m[1]) }; $$('.nav').forEach(a => a.classList.toggle('on', a.dataset.nav === nav)); break; } }
-  if (fresh) { clearTimeout(enterTimer); view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); window.scrollTo(0, 0); }
+  for (const [re, fn, nav] of routes) { const m = h.match(re); if (m) { current = { fn, arg: m[1] && decodeURIComponent(m[1]) }; curNav = nav; $$('#views button').forEach(b => b.classList.toggle('on', b.dataset.nav === nav)); break; } }
+  if (fresh) { clearTimeout(enterTimer); view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter'); pane.scrollTo(0, 0); document.body.classList.remove('showside'); }
   if (current.fn !== settingsView && !ready) { loadError ? errorView() : skeleton(); }
   else current.fn(current.arg, fresh);
   if (fresh) {
@@ -255,7 +265,7 @@ function render(fresh = true) {
     $$('[data-n]', view).forEach(countUp);
     enterTimer = setTimeout(() => view.classList.remove('enter'), 1500);
   }
-  moveInd(); chrome();
+  chrome();
 }
 function countUp(el) {
   const to = +el.dataset.n, f = FMT[el.dataset.f], s = performance.now(), T = 700;
@@ -263,14 +273,29 @@ function countUp(el) {
   const step = t => { const k = Math.min(1, (t - s) / T); el.textContent = f(to * (1 - Math.pow(1 - k, 3))); if (k < 1 && el.isConnected) requestAnimationFrame(step); };
   requestAnimationFrame(step);
 }
-function moveInd() { const a = $('.nav.on'), i = $('#navInd'); if (!a) return; i.style.transform = `translate(${a.offsetLeft}px, ${a.offsetTop}px)`; i.style.width = a.offsetWidth + 'px'; i.style.height = a.offsetHeight + 'px'; }
+// Source list (fleet filters, smart lists, runs), status bar and view counts. Re-rendered on every
+// route change and data poll — it's cheap, and the counts live here.
+const FILTERS = [['all', 'All devices', '<rect x="4" y="1.5" width="8" height="13" rx="1.5"/><path d="M7 12h2"/>', () => true], ['on', 'Online', '<circle cx="8" cy="8" r="6"/>', online], ['chg', 'Charging', '<path d="M9 1.5 4 9h4l-1 5.5L13 7H9z" stroke-linejoin="round"/>', d => online(d) && d.snap.charging], ['off', 'Offline', '<path d="M3 3l10 10M13 3 3 13"/>', d => !online(d)]];
+const SMART = [['run', 'On battery', '<path d="M8 2v6l4 2"/><circle cx="8" cy="8" r="6.5"/>', d => status(d).k === 'run'], ['hot', `Over ${TEMP_LIMIT} °C`, '<path d="M6.5 9.5V3a1.5 1.5 0 0 1 3 0v6.5a2.5 2.5 0 1 1-3 0z"/>', d => (online(d) && d.snap.battery_temp_c >= TEMP_LIMIT) || (d.lastCycle && d.lastCycle.maxTemp >= TEMP_LIMIT)], ['low', 'Health under 85%', '<path d="M2 9.5h2.5l1.5-4 2 6 1.5-3H14"/>', d => d.health && d.health.health < 85], ['short', 'Short last cycle', '<path d="M2 12l4-5 3 3 5-7"/>', d => d.lastCycle && d.cycles.length >= 3 && d.lastCycle.durationMs < d.agg.medianDurationMs * .9]];
+const filterFn = f => (FILTERS.find(x => x[0] === f) || SMART.find(x => x[0] === f) || FILTERS[0])[3];
+const filterLabel = f => (FILTERS.find(x => x[0] === f) || SMART.find(x => x[0] === f) || FILTERS[0])[1];
+const SICON = d => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">${d}</svg>`;
 function chrome() {
-  $('#nav-dev').textContent = DEV.length || ''; const n = runs.filter(r => r.status === 'running').length; $('#nav-run').textContent = n ? `${n} live` : '';
-  $('#conn').innerHTML = `<b style="background:var(--${loadError ? 'bad' : ready ? 'ok' : 'off'})"></b>${loadError ? 'Disconnected' : ready ? 'Live' : 'Connecting'}`;
+  $('#nav-dev').textContent = DEV.length || ''; const live = runs.filter(r => r.status === 'running').length; $('#nav-run').textContent = live ? `${live} live` : '';
+  const onDev = curNav === 'devices' && !current.arg, item = ([f, l, i, fn]) => `<a class="item ${onDev && devState.filter === f ? 'on' : ''}" href="#/devices" data-f="${f}">${SICON(i)}<span class="nm">${l}</span><span class="cnt num">${DEV.filter(fn).length}</span></a>`;
+  const rid = curNav === 'runs' && current.arg;
+  setH($('#source'), `<div class="sec">Fleet</div>${FILTERS.map(item).join('')}<div class="sec">Smart lists</div>${SMART.map(item).join('')}
+    <div class="sec">Runs</div>${runs.slice(0, 8).map(r => `<a class="item ${rid === r.id ? 'on' : ''} ${r.status === 'running' ? '' : 'dim'}" href="#/runs/${r.id}">${r.status === 'running' ? '<i class="live"></i>' : SICON('<path d="M4 2l9 6-9 6z" stroke-linejoin="round"/>')}<span class="nm">${esc(r.name)}</span><span class="cnt num">${r.status === 'running' ? `${counted(r).filter(x => x.state === 'done').length}/${counted(r).length || r.devices.length}` : day(r.startedAt)}</span></a>`).join('')}
+    ${runs.length > 8 ? `<a class="item dim" href="#/runs">${SICON('<path d="M2 8h12M9 4l4 4-4 4"/>')}<span class="nm">All ${runs.length} runs</span></a>` : runs.length ? '' : '<a class="item dim" href="#/runs"><span class="nm">No runs yet</span></a>'}
+    <div class="sec">System</div><a class="item ${curNav === 'settings' ? 'on' : ''}" href="#/settings">${SICON('<circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/>')}<span class="nm">Settings</span></a>`);
+  const n = DEV.length, on = DEV.filter(online).length, bat = DEV.filter(d => status(d).k === 'run').length, chg = DEV.filter(d => online(d) && d.snap.charging).length, hot = DEV.filter(SMART[1][3]).length;
+  setH($('#status'), `<span>${n ? `${n} devices · ${on} online · ${bat} on battery · ${chg} charging${hot ? ` · <span style="color:var(--bad)">${hot} over ${TEMP_LIMIT} °C</span>` : ''}` : ''}</span><span class="sp"></span>
+    <span><b style="background:var(--${loadError ? 'dot-bad' : ready ? 'dot-ok' : 'dot-off'})"></b>${loadError ? 'Disconnected' : ready ? 'Live' : 'Connecting'}</span>${SERVER && SERVER.lastSweepAt ? `<span>· sweep ${ago(SERVER.lastSweepAt)}</span>` : ''}`);
 }
+$('#source').onclick = e => { const a = e.target.closest('a[data-f]'); if (!a) return; e.preventDefault(); devState.filter = a.dataset.f; pages.devices = 0; if (current.fn === devicesView) { render(false); } else go('#/devices'); };
 window.addEventListener('hashchange', () => render(true));
-let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { setLayout(); render(false); }, 150); });
-const crumbs = (...parts) => $('#crumbs').innerHTML = parts.map((p, i) => i < parts.length - 1 ? `<a href="${p[1]}">${esc(p[0])}</a><span>/</span>` : `<b>${esc(p[0])}</b>`).join('');
+let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => render(false), 150); });
+const crumbs = (...parts) => $('#crumbs').textContent = [GROUP, ...parts.map(p => p[0])].join(' › ');
 const go = h => location.hash = h;
 // Pagination: DOM-level, so every table gets it the same way — call paginate(tbody, key)
 // after (re)filling a tbody. Rows outside the current page are hidden, a footer with the
@@ -291,8 +316,51 @@ function paginate(tbody, key, size = PAGE) {
     <button data-p="${p + 1}" ${p === last ? 'disabled' : ''} aria-label="Next page">›</button></div>`;
   foot.onclick = e => { const b = e.target.closest('button[data-p]'); if (!b || b.disabled) return; pages[key] = +b.dataset.p; paginate(tbody, key, size); wrap.scrollIntoView({ block: 'nearest' }); };
 }
-function rowsClickable(el, attr, to) { $$(`tr[${attr}]`, el).forEach(tr => { tr.tabIndex = 0; tr.onclick = () => go(to(tr.getAttribute(attr))); tr.onkeydown = e => e.key === 'Enter' && tr.onclick(); }); }
-function skeleton() { crumbs(['Loading']); view.innerHTML = `<div class="skel" style="height:28px;width:180px;margin-bottom:24px"></div><div class="stack"><div class="skel" style="height:92px"></div><div class="skel" style="height:260px"></div><div class="skel" style="height:220px"></div></div>`; }
+// Rows: with `pick`, a click selects the row and fills the inspector (Finder-style); double-click or
+// Enter opens it. Without `pick`, a click navigates.
+function rowsClickable(el, attr, to, pick) {
+  $$(`tr[${attr}]`, el).forEach(tr => { const id = tr.getAttribute(attr); tr.tabIndex = 0;
+    tr.onclick = () => { if (!pick) return go(to(id)); $$('tr.sel', el).forEach(x => x.classList.remove('sel')); tr.classList.add('sel'); inspSel = id; pick(id); };
+    tr.ondblclick = () => go(to(id)); tr.onkeydown = e => { if (e.key === 'Enter') go(to(id)); }; });
+  if (pick && inspSel) { const tr = el.querySelector(`tr[${attr}="${CSS.escape(inspSel)}"]`); if (tr) tr.classList.add('sel'); }
+}
+// ── Inspector ────────────────────────────────────────────────────────────────
+function inspect(html) { if (insp.matches(':hover') && insp._h) return; insp.innerHTML = html; insp._h = html; }
+function deviceInspector(d) {
+  if (!d.snap) return `<h3 class="mono">${d.serial}</h3><div class="isub">Not in the current fleet snapshot.</div>`;
+  const s = status(d), last = d.lastCycle, cs = d.cycles.slice(-12), mx = Math.max(1, ...cs.map(c => c.durationMs)), x = d.snap.extra ? (typeof d.snap.extra === 'string' ? (() => { try { return JSON.parse(d.snap.extra); } catch (e) { return {}; } })() : d.snap.extra) : {};
+  return `<h3 class="mono">${d.serial}</h3><div class="isub">${esc((d.snap.device_class || 'device').toUpperCase())} · ${s.label}${s.live ? ' · in a run' : ''} · seen ${ago(Date.parse(d.snap.last_seen_at))}</div>
+    <div class="big num">${s.pct != null ? s.pct + '%' : '—'}<small>${s.pct != null ? (d.snap.charging ? 'charging' : 'on battery') : s.label.toLowerCase()}</small></div>
+    <hr><h4>Battery</h4><dl class="kv">
+      <dt>Temperature</dt><dd class="num" style="color:${online(d) && d.snap.battery_temp_c >= TEMP_LIMIT ? 'var(--bad)' : online(d) && d.snap.battery_temp_c >= TEMP_WARN ? 'var(--warn)' : 'inherit'}">${online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : '—'}</dd>
+      <dt>Counted cycles</dt><dd class="num">${d.cycles.length}${d.interrupted.length ? `<span class="muted"> · ${d.interrupted.length} partial</span>` : ''}</dd>
+      <dt>Median runtime</dt><dd class="num">${d.cycles.length ? fmtDur(d.agg.medianDurationMs) : '—'}</dd>
+      <dt>Last runtime</dt><dd class="num">${last ? `${fmtDur(last.durationMs)}<span class="muted"> · ${day(last.start)}</span>` : '—'}</dd>
+      <dt>Health</dt><dd class="num" style="color:${d.health && d.health.health < 80 ? 'var(--bad)' : 'inherit'}">${d.health ? d.health.health.toFixed(0) + '%' : '<span class="muted">needs 6+ cycles</span>'}</dd>
+      ${d.health ? `<dt>Fade per cycle</dt><dd class="num">${signed(d.health.slope)}</dd>` : ''}
+      <dt>Equivalent full cycles</dt><dd class="num">${d.snap.discharge_total_pct != null ? (d.snap.discharge_total_pct / 100).toFixed(1) : '—'}</dd>
+      <dt>Peak temperature</dt><dd class="num">${d.agg.maxTemp != null ? d.agg.maxTemp.toFixed(1) + ' °C' : '—'}</dd></dl>
+    ${cs.length > 1 ? `<hr><h4>Runtime · last ${cs.length} cycles</h4><div class="bars">${cs.map((c, i) => `<i style="height:${Math.round(c.durationMs / mx * 100)}%" class="${i === cs.length - 1 ? 'last' : ''}" title="${fmtDur(c.durationMs)} · ${day(c.start)}"></i>`).join('')}</div>` : ''}
+    <hr><h4>Device</h4><dl class="kv"><dt>Last seen</dt><dd>${dt(Date.parse(d.snap.last_seen_at))}</dd>${x.build_id || d.snap.build_id ? `<dt>Build</dt><dd class="mono">${esc(x.build_id || d.snap.build_id)}</dd>` : ''}${d.snap.restaurant_name ? `<dt>Restaurant</dt><dd>${esc(d.snap.restaurant_name)}</dd>` : ''}<dt>Groups</dt><dd>${esc((d.snap.groups || []).join(', ') || '—')}</dd></dl>
+    <div class="acts"><a class="btn" href="#/devices/${d.serial}">Open history</a></div>`;
+}
+function runInspector(r) {
+  const c = r.status === 'running' ? counted(r) : r.devices.filter(x => x.cycle), n = c.filter(x => x.state === 'done').length, st = runStats(r);
+  return `<h3>${esc(r.name)}</h3><div class="isub"><span class="mono">${r.id}</span> · ${r.historical ? 'recovered from history' : 'started here'}</div>
+    <div class="big num">${n} / ${c.length || r.devices.length}<small>complete</small></div>
+    <hr><h4>Run</h4><dl class="kv"><dt>Status</dt><dd>${runBadge(r)}</dd><dt>Started</dt><dd>${dt(r.startedAt)}</dd><dt>${r.endedAt ? 'Ended' : 'Elapsed'}</dt><dd class="num">${r.endedAt ? dt(r.endedAt) : fmtDur(Date.now() - r.startedAt)}</dd><dt>Devices</dt><dd class="num">${r.devices.length}</dd>
+      <dt>Median runtime</dt><dd class="num">${st.count ? fmtDur(st.medianDurationMs) : '—'}</dd><dt>Range</dt><dd class="num">${st.count > 1 ? `${fmtDur(st.minDurationMs)} – ${fmtDur(st.maxDurationMs)}` : '—'}</dd><dt>Peak temp</dt><dd class="num">${st.maxTemp != null ? st.maxTemp.toFixed(1) + ' °C' : '—'}</dd></dl>
+    <div class="acts"><a class="btn" href="#/runs/${r.id}">Open run</a></div>`;
+}
+function fleetInspector() {
+  const live = liveRun(), now = Date.now(), c30 = allCycles.filter(c => c.start > now - 30 * DAY);
+  return `<h3>${esc(GROUP)}</h3><div class="isub">${DEV.length} devices · live MDM</div>
+    <div class="big num">${DEV.filter(online).length}<small>online of ${DEV.length}</small></div>
+    <hr><h4>Fleet</h4><dl class="kv"><dt>On battery</dt><dd class="num">${DEV.filter(d => status(d).k === 'run').length}</dd><dt>Charging</dt><dd class="num">${DEV.filter(d => online(d) && d.snap.charging).length}</dd><dt>Ready (≥95%, unplugged)</dt><dd class="num">${DEV.filter(isReady).length}</dd><dt>Offline</dt><dd class="num">${DEV.filter(d => !online(d)).length}</dd></dl>
+    <hr><h4>Cycles</h4><dl class="kv"><dt>All time</dt><dd class="num">${allCycles.length}</dd><dt>Last 30 days</dt><dd class="num">${c30.length}</dd><dt>Median · 30d</dt><dd class="num">${c30.length ? fmtDur(median(c30.map(c => c.durationMs))) : '—'}</dd><dt>Detected by</dt><dd>${SERVER ? `backend${SERVER.lastSweepAt ? ` · ${ago(SERVER.lastSweepAt)}` : ''}` : 'this browser'}</dd></dl>
+    ${live ? `<hr><h4>Live run</h4><dl class="kv"><dt>${esc(live.name)}</dt><dd class="num">${counted(live).filter(x => x.state === 'done').length} / ${counted(live).length || live.devices.length}</dd><dt>Elapsed</dt><dd class="num">${fmtDur(now - live.startedAt)}</dd></dl><div class="acts"><a class="btn" href="#/runs/${live.id}">Open run</a></div>` : '<div class="acts"><button class="btn primary" id="insp-new">New run</button></div>'}`;
+}
+function skeleton() { crumbs(['Loading']); inspect('<div class="empty">Loading…</div>'); view.innerHTML = `<div class="skel" style="height:28px;width:180px;margin-bottom:24px"></div><div class="stack"><div class="skel" style="height:92px"></div><div class="skel" style="height:260px"></div><div class="skel" style="height:220px"></div></div>`; }
 function errorView() {
   crumbs(['Overview']);
   view.innerHTML = `<div class="page-head"><div><h1>Can't load devices</h1><div class="sub">${esc(loadError)}</div></div></div>
@@ -338,7 +406,8 @@ function overviewView() {
   lineChart($('#ov-trend'), weeks, { h: 210, yMax: hoursAxis(Math.max(...weeks.map(w => w.y))), yFmt: v => v + 'h', xFmt: day, area: true,
     tip: p => `<b>${fmtDur(p.y * H)}</b> median<br>week ending ${day(p.x)} · ${p.n} cycles` });
   $('#ov-new').onclick = openDrawer;
-  onData = () => {
+  const fi = () => { inspect(fleetInspector()); const nb = $('#insp-new'); if (nb) nb.onclick = openDrawer; }; fi();
+  onData = () => { fi();
     $$('#ov-bench .cell').forEach(el => { const d = D(el.dataset.s), s = status(d); patchCell(el, s.k, s.pct, s.val, `${d.serial} · ${s.label}`); });
     if (!view.classList.contains('enter')) $('#ov-on').textContent = DEV.filter(online).length;
     const l = liveRun(), el = $('#ov-live'); if (!l || !el) return;
@@ -353,15 +422,13 @@ const devState = { q: '', sort: 'serial', dir: 1, filter: 'all' };
 function devicesView() {
   crumbs(['Devices']);
   const cols = [['serial', 'Device'], ['status', 'Status'], ['battery', 'Battery', 1], ['temp', 'Temp', 1], ['cycles', 'Cycles', 1], ['median', 'Median runtime', 1], ['last', 'Last runtime', 1], ['health', 'Health', 1], ['', 'Last 12 cycles', 1], ['seen', 'Last seen', 1]];
-  view.innerHTML = `<div class="page-head"><div><h1>Devices</h1><div class="sub">${DEV.length} devices in ${esc(GROUP)}</div></div></div>
-    <div class="stack"><div class="panel"><div class="panel-head">
-      <div class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="input" id="q" placeholder="Search serial" value="${esc(devState.q)}"></div>
-      <div class="seg" id="flt">${[['all', 'All'], ['on', 'Online'], ['chg', 'Charging'], ['off', 'Offline']].map(([f, l]) => `<button data-f="${f}" class="${devState.filter === f ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+  view.innerHTML = `<div class="page-head"><div><h1>${filterLabel(devState.filter)}</h1><div class="sub" id="dev-sub"></div></div><button class="btn primary" id="dev-new">${PLUS}New run</button></div>
+    <div class="stack"><div class="panel">
       <div class="scroll-x"><table><thead><tr>${cols.map(([k, l, r]) => `<th ${k ? `data-sort="${k}"` : ''} class="${r ? 'r' : ''}">${l}<span class="arr">${k && devState.sort === k ? (devState.dir > 0 ? '↑' : '↓') : ''}</span></th>`).join('')}</tr></thead><tbody id="dev-body"></tbody></table></div></div></div>`;
   const draw = () => {
     const key = { serial: d => d.serial, status: d => status(d).label, battery: d => status(d).pct ?? -1, temp: d => online(d) ? d.snap.battery_temp_c : -1, cycles: d => d.cycles.length, median: d => d.agg.medianDurationMs, last: d => d.lastCycle?.durationMs || 0, health: d => d.health?.health ?? -1, seen: d => -Date.parse(d.snap.last_seen_at) }[devState.sort];
     const list = DEV.filter(d => d.serial.toLowerCase().includes(devState.q.toLowerCase()))
-      .filter(d => devState.filter === 'all' || (devState.filter === 'on' && online(d)) || (devState.filter === 'chg' && online(d) && d.snap.charging) || (devState.filter === 'off' && !online(d)))
+      .filter(filterFn(devState.filter))
       .sort((a, b) => (key(a) > key(b) ? 1 : key(a) < key(b) ? -1 : 0) * devState.dir);
     setH($('#dev-body'), list.length ? list.map(d => { const s = status(d); return `<tr class="row" data-s="${d.serial}">
       <td class="mono">${d.serial}</td><td>${badge(s.cls, s.label, s.live)}</td>
@@ -369,11 +436,14 @@ function devicesView() {
       <td class="r num">${online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : '<span class="muted">—</span>'}</td>
       <td class="r num">${d.cycles.length}</td><td class="r num">${d.cycles.length ? fmtDur(d.agg.medianDurationMs) : '—'}</td><td class="r num">${d.lastCycle ? fmtDur(d.lastCycle.durationMs) : '—'}</td><td class="r num">${healthCell(d)}</td>
       <td class="r">${spark(d.cycles.slice(-12).map(c => c.durationMs))}</td><td class="r muted">${ago(Date.parse(d.snap.last_seen_at))}</td></tr>`; }).join('')
-      : `<tr><td colspan="10" class="empty">No devices match.</td></tr>`);
-    rowsClickable($('#dev-body'), 'data-s', s => `#/devices/${s}`); paginate($('#dev-body'), 'devices');
+      : `<tr><td colspan="10" class="empty">No devices match${devState.q ? ` “${esc(devState.q)}”` : ''}.</td></tr>`);
+    $('#dev-sub').textContent = `${list.length} of ${DEV.length} devices in ${GROUP}${devState.q ? ` · matching “${devState.q}”` : ''} · click to inspect, double-click to open`;
+    rowsClickable($('#dev-body'), 'data-s', s => `#/devices/${s}`, s => inspect(deviceInspector(D(s)))); paginate($('#dev-body'), 'devices');
+    if (inspSel && DMAP.has(inspSel)) inspect(deviceInspector(D(inspSel))); else inspect(fleetInspector());
+    const nb = $('#insp-new'); if (nb) nb.onclick = openDrawer;
   };
-  $('#q').oninput = e => { devState.q = e.target.value; pages.devices = 0; draw(); };
-  $('#flt').onclick = e => { const b = e.target.closest('button'); if (!b) return; devState.filter = b.dataset.f; pages.devices = 0; $$('#flt button').forEach(x => x.classList.toggle('on', x === b)); draw(); };
+  devDraw = draw;
+  $('#dev-new').onclick = openDrawer;
   $$('th[data-sort]').forEach(th => th.onclick = () => { const k = th.dataset.sort; devState.dir = devState.sort === k ? -devState.dir : 1; devState.sort = k; render(false); });
   draw(); onData = () => { if (!view.classList.contains('enter')) draw(); };
 }
@@ -385,14 +455,6 @@ function deviceView(serial) {
   view.innerHTML = `<div class="page-head"><div><div style="display:flex;align-items:center;gap:10px"><h1 class="mono">${serial}</h1><span id="d-badge">${badge(s.cls, s.label, s.live)}</span></div>
       <div class="sub">${esc((d.snap.device_class || '').toUpperCase())} · last seen <span id="d-seen">${ago(Date.parse(d.snap.last_seen_at))}</span>${s.pct != null ? ` · ${s.pct}%` : ''}</div></div></div>
     <div class="stack">
-    <div class="panel"><div class="metrics">
-      <div class="metric"><small>Cycles counted</small><b class="num">${N(d.cycles.length)}</b><span class="delta">${d.interrupted.length} partial</span></div>
-      <div class="metric"><small>Median runtime</small><b class="num">${d.cycles.length ? N(d.agg.medianDurationMs, 'dur') : '—'}</b><span class="delta">${d.cycles.length ? `${fmtDur(d.agg.minDurationMs)} – ${fmtDur(d.agg.maxDurationMs)}` : ''}</span></div>
-      <div class="metric"><small>Last runtime</small><b class="num">${last ? N(last.durationMs, 'dur') : '—'}</b><span class="delta">${last ? day(last.start) : ''}</span></div>
-      <div class="metric"><small>Battery health</small><b class="num" style="color:${d.health && d.health.health < 80 ? 'var(--bad)' : 'inherit'}">${d.health ? N(d.health.health) + '%' : '—'}</b><span class="delta">${d.health ? `vs best ${fmtDur(d.health.baseMs)}` : 'needs 6+ cycles'}</span></div>
-      <div class="metric"><small>Fade per cycle</small><b class="num">${d.health ? signed(d.health.slope) : '—'}</b><span class="delta">${d.health ? (d.health.at80 ? (d.health.at80 <= d.health.n ? 'below 80% line' : `80% at ~cycle ${d.health.at80}`) : 'no measurable fade') : ''}</span></div>
-      <div class="metric"><small>Peak temperature</small><b class="num">${d.agg.maxTemp != null ? N(d.agg.maxTemp, 'temp') : '—'}</b><span class="delta">across counted cycles</span></div>
-    </div></div>
     <div class="cols-2">
       <div class="panel"><div class="panel-head"><h2>Latest charge</h2><span class="muted">${d.charges.length ? `${dt(d.charges[d.charges.length - 1].start)} · ${d.charges[d.charges.length - 1].wireless ? 'wireless pad' : 'wired'}` : ''}</span></div><div class="panel-body"><div class="chart" id="d-chg"></div></div></div>
       <div class="panel"><div class="panel-head"><h2>Temperature by charge level</h2><span class="muted">${(() => { const c = [...d.cycles].reverse().find(c => c.thermal); return c ? `cycle of ${day(c.start)}` : ''; })()}</span></div><div class="panel-body"><div class="chart" id="d-th"></div></div></div>
@@ -419,6 +481,7 @@ function deviceView(serial) {
     lineChart(el, pts, { h: 190, smooth: true, xFmt: t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), yFmt: v => v + '%', refs: [{ v: 5, label: 'Shutdown 5%' }],
       tip: q => `<b>${q.y}%</b>${q.r.extra.charging ? ' · charging' : ''}<br>${dt(q.x)}${q.r.extra.battery_temp_c ? ` · ${q.r.extra.battery_temp_c.toFixed(1)} °C` : ''}` });
   }).catch(e => { const el = $('#d-now'); if (el) el.innerHTML = `<div class="empty">Couldn't load history (${esc(e.message)}).</div>`; });
+  inspSel = serial; inspect(deviceInspector(d));
   const hist = mode => {
     const list = [...d.cycles.map((c, i) => ({ ...c, n: i + 1, src: c })), ...(mode === 'a' ? d.interrupted : [])].sort((a, b) => b.start - a.start);
     $('#d-hist').innerHTML = (list.map(c => { const r = c.src && cycleRun.get(c.src); return `<tr><td class="num muted">${c.n || '—'}</td><td class="num">${dt(c.start)}</td>
@@ -430,7 +493,7 @@ function deviceView(serial) {
   };
   $('#d-seg').onclick = e => { const b = e.target.closest('button'); if (!b) return; $$('#d-seg button').forEach(x => x.classList.toggle('on', x === b)); hist(b.dataset.m); };
   hist('c');
-  onData = () => { const s = status(d); setH($('#d-badge'), badge(s.cls, s.label, s.live)); $('#d-seen').textContent = ago(Date.parse(d.snap.last_seen_at)); };
+  onData = () => { const s = status(d); setH($('#d-badge'), badge(s.cls, s.label, s.live)); $('#d-seen').textContent = ago(Date.parse(d.snap.last_seen_at)); inspect(deviceInspector(d)); };
 }
 
 // ── Runs ──────────────────────────────────────────────────────────────────────
@@ -448,7 +511,8 @@ function runsView() {
         <td class="muted">${dt(r.startedAt)}</td><td class="r num">${fmtDur((r.endedAt || Date.now()) - r.startedAt)}</td>
         <td class="r num">${st.count ? fmtDur(st.medianDurationMs) : '—'}</td><td class="r num muted">${st.count > 1 ? `${fmtDur(st.minDurationMs)} – ${fmtDur(st.maxDurationMs)}` : '—'}</td></tr>`; }).join('')
       : '<tr><td colspan="7" class="empty">No runs yet. Start one when the next bench test begins.</td></tr>');
-    rowsClickable($('#runs-body'), 'data-r', id => `#/runs/${id}`); paginate($('#runs-body'), 'runs');
+    rowsClickable($('#runs-body'), 'data-r', id => `#/runs/${id}`, id => inspect(runInspector(runs.find(r => r.id === id)))); paginate($('#runs-body'), 'runs');
+    const r = runs.find(r => r.id === inspSel); inspect(r ? runInspector(r) : fleetInspector()); const nb = $('#insp-new'); if (nb) nb.onclick = openDrawer;
   };
   draw(); onData = () => { if (!view.classList.contains('enter')) draw(); };
 }
@@ -470,10 +534,9 @@ function runView(id) {
       <div class="metric"><small>Range</small><b class="num" id="m-range" style="font-size:18px;line-height:calc(var(--metric) * 1.35)"></b><span class="delta" id="m-spread"></span></div>
       <div class="metric"><small>Peak temperature</small><b class="num" id="m-temp"></b></div>
     </div></div>
-    <div class="cols-main">
-      <div class="stack"><div class="panel"><div class="panel-head"><h2>Bench</h2><span class="muted">Select a device</span></div><div class="panel-body"><div class="bench" id="run-bench">${run.devices.map(x => cellHTML(D(x.serial))).join('')}</div></div></div>
-      <div class="panel${run.justDone ? ' anim' : ''}"><div class="panel-head"><h2>Runtime by device</h2><span class="muted">shortest → longest</span></div><div class="panel-body"><div class="chart" id="run-dist"></div></div></div></div>
-      <div class="panel" id="run-side"></div>
+    <div class="cols-2">
+      <div class="panel"><div class="panel-head"><h2>Bench</h2><span class="muted">Select a device</span></div><div class="panel-body"><div class="bench" id="run-bench">${run.devices.map(x => cellHTML(D(x.serial))).join('')}</div></div></div>
+      <div class="panel${run.justDone ? ' anim' : ''}"><div class="panel-head"><h2>Runtime by device</h2><span class="muted">shortest → longest</span></div><div class="panel-body"><div class="chart" id="run-dist"></div></div></div>
     </div>
     <div class="panel"><div class="scroll-x"><table><thead><tr><th>Device</th><th>State</th><th class="r">Battery</th><th class="r">${live ? 'Temp' : 'Max temp'}</th><th class="r">Runtime</th><th class="r">vs own median</th><th class="r">${live ? 'Last check-in' : 'Shut down'}</th></tr></thead>
       <tbody id="run-body">${run.devices.map(x => `<tr class="row" data-s="${x.serial}" tabindex="0"><td class="mono">${x.serial}</td><td class="c-state"></td><td class="r c-batt"></td><td class="r num c-temp"></td><td class="r num c-rt"></td><td class="r num c-vs"></td><td class="r muted num c-seen"></td></tr>`).join('')}</tbody></table></div></div>
@@ -491,9 +554,9 @@ function runView(id) {
 
   let distSig = '';
   function side(force) {
-    const el = $('#run-side'), x = run.devices.find(y => y.serial === run.sel), d = D(x.serial), [cls, l, lv] = RSTATE[x.state], vs = vsOwn(x), rows = runRows(run, x.serial);
+    const el = insp, x = run.devices.find(y => y.serial === run.sel), d = D(x.serial), [cls, l, lv] = RSTATE[x.state], vs = vsOwn(x), rows = runRows(run, x.serial);
     if (!force && el.matches(':hover')) return;
-    el.innerHTML = `<div class="panel-head"><h2 class="mono" style="font-weight:500">${x.serial}</h2>${badge(cls, l, lv)}</div><div class="panel-body">
+    el.innerHTML = `<h3 class="mono">${x.serial}</h3><div class="isub">${badge(cls, l, lv)}</div><hr>
       <div class="chart" id="run-chart"></div>
       <dl class="kv" style="margin-top:14px">
         <dt>Runtime</dt><dd class="num">${x.cycle ? fmtDur(x.cycle.durationMs) : '—'}</dd>
@@ -505,11 +568,11 @@ function runView(id) {
         ${x.state === 'interrupted' ? `<dt>Note</dt><dd style="color:var(--bad)">${x.intr?.reason === 'offline' ? `Lost contact at ${x.intr.endPct}%` : 'Went back on charge early'} — not counted</dd>` : ''}
         ${x.state === 'waiting' ? `<dt>Note</dt><dd>Not counted until it discharges from ≥95%</dd>` : ''}
         ${x.state === 'nodata' ? `<dt>Note</dt><dd>No check-ins since the run started</dd>` : ''}
-      </dl><div style="margin-top:14px"><a class="link" href="#/devices/${x.serial}">Device history →</a></div></div>`;
+      </dl><div class="acts"><a class="btn" href="#/devices/${x.serial}">Device history</a></div>`;
     const pts = (rows || []).filter(r => Date.parse(r.timestamp) >= run.startedAt - 10 * MIN).map(r => ({ x: Date.parse(r.timestamp), y: r.battery_pct, r }));
-    if (pts.length > 1) lineChart($('#run-chart'), pts, { h: 150, smooth: true, xFmt: t => (t < run.startedAt ? '−' : '+') + (Math.abs(t - run.startedAt) / H).toFixed(0) + 'h', yFmt: v => v + '%', refs: [{ v: 5, label: '5%' }],
+    if (pts.length > 1) lineChart($('#run-chart'), pts, { h: 130, smooth: true, xFmt: t => (t < run.startedAt ? '−' : '+') + (Math.abs(t - run.startedAt) / H).toFixed(0) + 'h', yFmt: v => v + '%', refs: [{ v: 5, label: '5%' }],
       tip: p => `<b>${p.y}%</b> · ${dt(p.x)}${p.r.extra.battery_temp_c ? `<br>${p.r.extra.battery_temp_c.toFixed(1)} °C` : ''}` });
-    else if (d.cycles.length) { const cs = d.cycles.slice(-16); barChart($('#run-chart'), cs.map(c => ({ v: c.durationMs / H, c })), { h: 150, yMax: hoursAxis(Math.max(...cs.map(c => c.durationMs / H))), yFmt: v => Math.round(v) + 'h', label: it => day(it.c.start),
+    else if (d.cycles.length) { const cs = d.cycles.slice(-16); barChart($('#run-chart'), cs.map(c => ({ v: c.durationMs / H, c })), { h: 130, yMax: hoursAxis(Math.max(...cs.map(c => c.durationMs / H))), yFmt: v => Math.round(v) + 'h', label: it => day(it.c.start),
       color: it => it.c === x.cycle ? 'var(--series)' : 'var(--series-2)', tip: it => `<b>${fmtDur(it.c.durationMs)}</b>${it.c === x.cycle ? ' · this run' : ''}<br>${dt(it.c.start)}` }); }
     else $('#run-chart').innerHTML = `<div class="empty">${live ? 'Waiting for the first check-in…' : 'No data.'}</div>`;
   }
@@ -589,7 +652,7 @@ function healthView() {
         <td class="r num">${h.at80 ? (h.at80 <= h.n ? 'passed' : `~cycle ${h.at80}`) : '<span class="muted">no fade</span>'}</td><td>${healthBadge(h.health)}</td></tr>`; }).join('')}
       ${DEV.filter(d => !d.health).map(d => `<tr class="row" data-s="${d.serial}"><td class="mono">${d.serial}</td><td class="r muted">—</td><td class="r num">${d.cycles.length}</td><td colspan="4" class="muted">needs 6 counted cycles</td><td>${badge('b-off', 'No data')}</td></tr>`).join('')}
     </tbody></table></div></div></div>`;
-  sohChart($('#soh'), DEV); rowsClickable(view, 'data-s', s => `#/devices/${s}`); paginate($('tbody', view), 'health');
+  sohChart($('#soh'), DEV); rowsClickable(view, 'data-s', s => `#/devices/${s}`, s => inspect(deviceInspector(D(s)))); paginate($('tbody', view), 'health'); inspect(inspSel && DMAP.has(inspSel) ? deviceInspector(D(inspSel)) : fleetInspector());
 }
 
 // ── Charging ─────────────────────────────────────────────────────────────────
@@ -616,7 +679,7 @@ function chargingView() {
       ${DEV.filter(d => !d.charges.length).map(d => `<tr class="row" data-s="${d.serial}"><td class="mono">${d.serial}</td><td colspan="8" class="muted">no full charge in the last 14 days</td><td>${badge('b-off', 'No data')}</td></tr>`).join('')}
     </tbody></table></div></div></div>`;
   multiLine($('#chg'), last.map(({ d, c }) => ({ name: d.serial, color: c.wireless ? 'var(--warn)' : 'var(--series)', pts: c.curve.map(([m, v]) => ({ x: m, y: v })) })), { h: 230, yMax: 100, yFmt: v => v + '%', xFmt: m => (m / 60).toFixed(0) + 'h', refs: [{ v: 80, label: '80%' }] });
-  rowsClickable(view, 'data-s', s => `#/devices/${s}`); paginate($('tbody', view), 'charging');
+  rowsClickable(view, 'data-s', s => `#/devices/${s}`, s => inspect(deviceInspector(D(s)))); paginate($('tbody', view), 'charging'); inspect(inspSel && DMAP.has(inspSel) ? deviceInspector(D(inspSel)) : fleetInspector());
 }
 function multiLine(el, series, { h = 200, yMax = 100, yFmt, xFmt, refs = [] }) {
   if (!series.length) { el.innerHTML = '<div class="empty">No charges seen yet.</div>'; return; }
@@ -663,18 +726,18 @@ function thermalView() {
           <td>${t?.minAbove45 ? badge('b-bad', 'Over limit') : n45 ? badge('b-warn', 'Over limit before') : t ? badge('b-ok', 'OK') : badge('b-off', 'No data')}</td></tr>`; }).join('')}
     </tbody></table></div></div></div>`;
   barChart($('#th-tl'), timeline.map(c => ({ v: c.maxTemp, c })), { h: 230, yMax: 60, yFmt: v => v + '°', label: it => day(it.c.start), tip: it => `<b>${it.c.maxTemp.toFixed(1)} °C</b> peak<br>${dt(it.c.start)} · ${fmtDur(it.c.durationMs)}`, color: it => tempColor(it.v) });
-  rowsClickable(view, 'data-s', s => `#/devices/${s}`); paginate($('tbody', view), 'thermal');
+  rowsClickable(view, 'data-s', s => `#/devices/${s}`, s => inspect(deviceInspector(D(s)))); paginate($('tbody', view), 'thermal'); inspect(inspSel && DMAP.has(inspSel) ? deviceInspector(D(inspSel)) : fleetInspector());
 }
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 function settingsView() {
-  crumbs(['Settings']);
+  crumbs(['Settings']); inspect(ready ? fleetInspector() : '<div class="empty">Not connected.</div>');
   view.innerHTML = `<div class="page-head"><div><h1>Settings</h1><div class="sub">Stored in this browser only.</div></div></div>
     <div class="stack" style="max-width:640px">
     ${!hasConfig() ? `<div class="callout">${INFO}<div>Add the QA API key to connect. Ask whoever administers the MDM for one.</div></div>` : ''}
     <div class="panel"><div class="panel-head"><h2>Connection</h2><span id="s-state">${ready ? badge('b-ok', 'Connected') : loadError ? badge('b-bad', 'Not connected') : ''}</span></div><div class="panel-body">
       <div class="field"><label>Server</label><div class="mono">${esc(MDM.replace('https://', ''))}</div></div>
-      <div class="field"><label for="s-key">API key</label><input class="input mono" id="s-key" type="password" autocomplete="off" value="${esc(apiKey())}" placeholder="QA API key"><div class="errmsg">Enter the API key.</div><div class="help">QA-scoped and read-only: it can read telemetry but can't command a device.</div></div>
+      <div class="field"><label for="s-key">API key</label><input class="input mono" id="s-key" type="password" autocomplete="off" value="${esc(apiKey())}" placeholder="QA API key"><div class="errmsg">Enter the API key.</div><div class="help">${BACKEND ? 'Optional here — this page is served by the backend, which holds the key and proxies every call. Only needed to load the group list below.' : 'QA-scoped and read-only: it can read telemetry but can\'t command a device.'}</div></div>
       <div class="field" style="margin-bottom:0"><label for="s-group">Cycles group</label><select class="input" id="s-group"><option>${esc(GROUP)}</option></select>
         <div class="help" id="s-ghelp">The device group whose battery cycles this dashboard tracks. Every page uses it.</div></div>
     </div><div class="panel-head" style="border-top:1px solid var(--border);border-bottom:0;justify-content:flex-end"><span class="muted" id="s-msg" style="margin-right:auto"></span><button class="btn" id="s-test">Test connection</button><button class="btn primary" id="s-save">Save</button></div></div>
@@ -696,7 +759,7 @@ function settingsView() {
   }
   $('#s-key').onchange = () => loadGroups().catch(() => {});
   $('#s-test').onclick = async () => { if (!cfg().key) return $('#s-key').classList.add('err'); msg('Testing…'); try { const n = await loadGroups(); msg(`Connected — ${n} groups available.`); } catch (e) { msg(`Failed: ${e.message}`, true); } };
-  $('#s-save').onclick = () => { const { base, key } = cfg(); $('#s-key').classList.toggle('err', !key); if (!key) return; saveConfig(base, key); setScopeGroup($('#s-group').value); location.hash = '#/'; location.reload(); };
+  $('#s-save').onclick = () => { const { base, key } = cfg(); $('#s-key').classList.toggle('err', !key && !BACKEND); if (!key && !BACKEND) return; saveConfig(base, key); setScopeGroup($('#s-group').value); location.hash = '#/'; location.reload(); };
   if ($('#s-top')) $('#s-top').onclick = async () => { const b = $('#s-top'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Checking…'; try { await topUp(true); toast('Cycle history is up to date.'); } catch (e) { toast(`Sweep failed: ${e.message}`); } if (current.fn === settingsView) render(false); };
   loadGroups().catch(() => {});
 }
@@ -744,6 +807,7 @@ async function pollDevices() {
 }
 async function boot() {
   ready = false; loadError = null; render(true);
+  await detectBackend();
   if (!hasConfig()) { loadError = 'No API key configured.'; if (current.fn !== settingsView) go('#/settings'); return render(true); }
   try {
     const [rows, hist] = await Promise.all([fetchDevices({ fresh: true }), fetch('data/cycles.json').then(r => r.ok ? r.json() : null).catch(() => null)]);

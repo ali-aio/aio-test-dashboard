@@ -18,16 +18,11 @@ const OPTS = { offlineMin: 45, intervalSec: 600 }; // matches the import and the
 function readJson(file) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { return null; } }
 export function loadTopup(root, group) { const t = readJson(path.join(root, 'data', 'topup.json')); return t && t.group === group ? t : null; }
 
-async function get(base, key, url) {
-  const res = await fetch(base + url, { headers: { 'X-API-Key': key } });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
-  return res.json();
-}
-async function history(base, key, serial, from, to) {
+async function history(get, serial, from, to) {
   const out = [];
   for (let s = from; s < to; s += CHUNK) {
     const e = Math.min(s + CHUNK, to);
-    out.push(...await get(base, key, `/api/v1/testdata/devices/${encodeURIComponent(serial)}/history?start=${new Date(s).toISOString()}&end=${new Date(e).toISOString()}&interval_sec=${OPTS.intervalSec}`));
+    out.push(...await get(`/api/v1/testdata/devices/${encodeURIComponent(serial)}/history?start=${new Date(s).toISOString()}&end=${new Date(e).toISOString()}&interval_sec=${OPTS.intervalSec}`));
   }
   return out;
 }
@@ -37,19 +32,20 @@ async function mapLimit(items, limit, fn) {
   return results;
 }
 
-export async function sweep({ base, key, group, root, log = () => {} }) {
+// `get(url)` is the shared MDM client (server/mdm.mjs) — limiter + cache live there, not here.
+export async function sweep({ base, group, root, get, log = () => {} }) {
   const now = Date.now();
   const seed = readJson(path.join(root, 'data', 'cycles.json')), HIST = seed && seed.group === group ? seed.devices : {};
   const prev = loadTopup(root, group), PREV = prev ? prev.devices : {};
   const anchor = prev ? prev.at : seed && seed.group === group ? Date.parse(seed.generatedAt) : now;
   const from = Math.min(anchor - 3 * DAY, now - 14 * DAY);
-  const devices = await get(base, key, `/api/v1/testdata/devices?group=${encodeURIComponent(group)}`);
+  const devices = await get(`/api/v1/testdata/devices?group=${encodeURIComponent(group)}`);
   log(`${devices.length} devices in "${group}", history since ${new Date(from).toISOString()}`);
 
   const out = {}, failed = [];
   const results = await mapLimit(devices, 3, async d => {
     const serial = d.serial_number;
-    const rows = normalize(await history(base, key, serial, from, now)), res = detectCycles(rows, { nowMs: now, offlineMin: OPTS.offlineMin });
+    const rows = normalize(await history(get, serial, from, now)), res = detectCycles(rows, { nowMs: now, offlineMin: OPTS.offlineMin });
     const h = HIST[serial] || {}, p = PREV[serial] || {};
     const lastC = h.cycles?.length ? h.cycles[h.cycles.length - 1].end : from, lastI = h.interrupted?.length ? h.interrupted[h.interrupted.length - 1].end : from;
     const keep = list => (list || []).filter(x => x.start < from);

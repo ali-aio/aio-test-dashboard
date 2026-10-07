@@ -1,7 +1,30 @@
-// Shared API wiring for all four demo pages — config storage, fetchDevices/fetchHistory.
+// Shared API wiring — config storage, fetchDevices/fetchHistory, the sessionStorage cache.
+//
+// Two ways to reach the MDM, picked once at boot by detectBackend():
+//   · served by server/ (the normal deployment): every call goes to the backend's /api/devices
+//     and /api/history proxies — no key in the browser, one upstream request per TTL shared by
+//     every open tab on every machine, rate-limited per client.
+//   · opened as plain files / another static host: direct calls to the MDM with the QA key
+//     from Settings, as before.
 export function apiBase() { return (localStorage.getItem('apiBase') || '').replace(/\/$/, ''); }
 export function apiKey() { return localStorage.getItem('apiKey') || ''; }
-export function hasConfig() { return !!(apiBase() && apiKey()); }
+export function hasConfig() { return BACKEND || !!(apiBase() && apiKey()); }
+export let BACKEND = false, BACKEND_STATUS = null;
+export async function detectBackend() {
+  try {
+    const r = await fetch('api/status', { cache: 'no-store' }); if (!r.ok) return false;
+    BACKEND_STATUS = await r.json(); BACKEND = !!BACKEND_STATUS.configured; return BACKEND;
+  } catch (e) { return false; }
+}
+// With the backend, one slow or failing call must not hammer it: a 429 is honoured for Retry-After.
+let pausedUntil = 0;
+async function call(url, headers) {
+  if (Date.now() < pausedUntil) throw new Error(`rate limited — retry in ${Math.ceil((pausedUntil - Date.now()) / 1000)}s`);
+  const res = await fetch(url, { headers });
+  if (res.status === 429) { pausedUntil = Date.now() + (+res.headers.get('retry-after') || 10) * 1000; }
+  if (!res.ok) { let m = `${res.status} ${res.statusText}`; try { m = (await res.json()).error || m; } catch (e) {} throw new Error(m); }
+  return res.json();
+}
 
 // Scope (group) is a setting, not a per-page filter — the testing team works within
 // one lab group, so it's set once (via the scope badge's dropdown) and every page
@@ -27,9 +50,11 @@ export function saveConfig(base, key) {
 }
 
 export async function fetchFilters() {
-  const res = await fetch(`${apiBase()}/api/v1/testdata/filters`, { headers: { 'X-API-Key': apiKey() } });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.json();
+  return call(`${apiBase()}/api/v1/testdata/filters`, { 'X-API-Key': apiKey() });
+}
+function historyCall(serial, start, end, intervalSec, cycles = false) {
+  const q = `start=${start.toISOString()}&end=${end.toISOString()}&interval_sec=${intervalSec}${cycles ? '&cycles=true' : ''}`;
+  return BACKEND ? call(`api/history/${encodeURIComponent(serial)}?${q}`) : call(`${apiBase()}/api/v1/testdata/devices/${encodeURIComponent(serial)}/history?${q}`, { 'X-API-Key': apiKey() });
 }
 
 // ── Persistent cache (sessionStorage) ──────────────────────────────────────────
@@ -62,9 +87,7 @@ export async function fetchDevices(opts = {}) {
     if (cached) return cached;
   }
   const qs = group ? `?group=${encodeURIComponent(group)}` : '';
-  const res = await fetch(`${apiBase()}/api/v1/testdata/devices${qs}`, { headers: { 'X-API-Key': apiKey() } });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  const data = await res.json();
+  const data = BACKEND ? await call(`api/devices${qs}`) : await call(`${apiBase()}/api/v1/testdata/devices${qs}`, { 'X-API-Key': apiKey() });
   cacheSet(key, data);
   return data;
 }
@@ -77,11 +100,7 @@ export async function fetchHistory(serial, hours, opts = {}) {
   }
   const end = new Date();
   const start = new Date(end.getTime() - hours * 3600 * 1000);
-  const url = `${apiBase()}/api/v1/testdata/devices/${encodeURIComponent(serial)}/history`
-    + `?start=${start.toISOString()}&end=${end.toISOString()}&interval_sec=${hours <= 24 ? 300 : 1800}&cycles=true`;
-  const res = await fetch(url, { headers: { 'X-API-Key': apiKey() } });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  const rows = await res.json();
+  const rows = await historyCall(serial, start, end, hours <= 24 ? 300 : 1800, true);
   cacheSet(key, rows);
   return rows;
 }
@@ -189,11 +208,7 @@ export async function fetchHistoryRange(serial, startMs, endMs, intervalSec = 60
   const out = [];
   for (let s = startMs; s < endMs; s += CHUNK) {
     const e = Math.min(s + CHUNK, endMs);
-    const url = `${apiBase()}/api/v1/testdata/devices/${encodeURIComponent(serial)}/history`
-      + `?start=${new Date(s).toISOString()}&end=${new Date(e).toISOString()}&interval_sec=${intervalSec}`;
-    const res = await fetch(url, { headers: { 'X-API-Key': apiKey() } });
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    out.push(...await res.json());
+    out.push(...await historyCall(serial, new Date(s), new Date(e), intervalSec));
   }
   return out;
 }

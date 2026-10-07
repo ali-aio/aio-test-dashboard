@@ -126,8 +126,9 @@ oversight; don't add restaurant filtering back in without being asked.
 
 - `index.html` + (inline module script) — **the whole app, one page, hash-routed**:
   Overview (KPIs, weekly runtime trend, needs-attention, bench grid) · Devices (sortable
-  table → device detail with runtime-per-cycle + cycle history) · Cycle runs (list → run
-  detail) · Settings. Sidebar shell; styles live in `app.css` (not `style.css`).
+  table + inspector → device detail with runtime-per-cycle + cycle history) · Cycle runs
+  (list → run detail) · Settings. Mac document-window shell; styles live in `app.css`
+  (not `style.css`). Favicon is `assets/favicon.svg`.
 - **Cycle definition** (the team's, see `shared/cycles.js`): device starts ≥95% off the
   charger, discharges, drops below 5%, then stops checking in for 30 min. Losing contact
   above 5% or recharging early = "interrupted", never counted. Check-in gaps where the
@@ -137,11 +138,23 @@ oversight; don't add restaurant filtering back in without being asked.
   `data/topup.json`, written by the backend sweep (below) — don't re-import just to pick
   up new cycles.
 - `server/` — the backend: one dependency-free Node process that serves the static files
-  and sweeps the MDM every 30 min with the same `shared/cycles.js` detector, writing
-  `data/topup.json` (gitignored, as is `server/config.json` holding the QA key). Still
-  read-only against the MDM. `index.html` reads that file first; if the page is served
-  without the backend it falls back to the old in-browser `topUp()` (per-browser,
-  cached 6h). See `server/README.md`.
+  (gzip, ETag/304) and sweeps the MDM every 30 min with the same `shared/cycles.js`
+  detector, writing `data/topup.json` (gitignored, as is `server/config.json` holding the
+  QA key). It also proxies the two read endpoints as `/api/devices` and
+  `/api/history/:serial` with a 20 s / 60 s server-side cache and one shared in-flight
+  fetch, so N browsers cost the MDM one request per TTL. Every upstream call goes through
+  `server/mdm.mjs` (3 in flight, 120 ms apart); browsers are rate-limited per IP on
+  `/api/*` (120/min, 429 + Retry-After). Still read-only against the MDM. `shared/data.js`
+  picks proxy vs direct once at boot (`detectBackend()`); served without the backend, the
+  pages call the MDM directly with the key from Settings and fall back to the old in-browser
+  `topUp()`. See `server/README.md`.
+- **UI shell** (`index.html` + `app.css`): the "Finder / Activity Monitor" option from
+  `mac-demos.html` — unified toolbar with the view switcher and global search, a source list
+  of fleet filters / smart lists / runs on the left, the table or charts pane, an inspector
+  on the right (single click selects a row into it, double-click or Enter opens), status bar
+  below. System font 13 px, hairlines, alternating rows, coral only for selection and the
+  primary button. Keep new views on this grammar: a table in the pane, details in the
+  inspector via `inspect(...)`, filters as source-list items.
 - `shared/profile.js` — battery health (runtime-based proxy, Apple-style 80% line), charge
   segments (time to 50/80/95%, wired vs wireless pad via `wlc_status`) and per-cycle thermal
   stats (minutes ≥40/45 °C, temp per 10% charge bucket). Fed by the same 14-day history
@@ -162,7 +175,8 @@ oversight; don't add restaurant filtering back in without being asked.
   readings are jittery enough to look broken otherwise.
 - `assets/t7-icon.png` — the T7 device glyph, from the old shelf view in
   `cycles.html` (now removed, see git history). No page uses it currently.
-- `demos.html`, `demos2.html`, `icon-demos.html`, `rack-demos.html` — point-in-time
+- `mac-demos.html` (the three macOS-style directions, B chosen), `design-demos.html`,
+  `app-demo*.html`, `features-demo.html` — point-in-time
   design exploration, not linked from the real nav, safe to ignore or delete when
   stale. Follow the same pattern (named options, mock data, a pros/cons note each)
   if you add a new one for a UI decision.

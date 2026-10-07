@@ -358,7 +358,7 @@ function fleetInspector() {
     <div class="big num">${DEV.filter(online).length}<small>online of ${DEV.length}</small></div>
     <hr><h4>Fleet</h4><dl class="kv"><dt>On battery</dt><dd class="num">${DEV.filter(d => status(d).k === 'run').length}</dd><dt>Charging</dt><dd class="num">${DEV.filter(d => online(d) && d.snap.charging).length}</dd><dt>Ready (≥95%, unplugged)</dt><dd class="num">${DEV.filter(isReady).length}</dd><dt>Offline</dt><dd class="num">${DEV.filter(d => !online(d)).length}</dd></dl>
     <hr><h4>Cycles</h4><dl class="kv"><dt>All time</dt><dd class="num">${allCycles.length}</dd><dt>Last 30 days</dt><dd class="num">${c30.length}</dd><dt>Median · 30d</dt><dd class="num">${c30.length ? fmtDur(median(c30.map(c => c.durationMs))) : '—'}</dd><dt>Detected by</dt><dd>${SERVER ? `backend${SERVER.lastSweepAt ? ` · ${ago(SERVER.lastSweepAt)}` : ''}` : 'this browser'}</dd></dl>
-    ${live ? `<hr><h4>Live test cycle</h4><dl class="kv"><dt>${esc(live.name)}</dt><dd class="num">${counted(live).filter(x => x.state === 'done').length} / ${counted(live).length || live.devices.length}</dd><dt>Elapsed</dt><dd class="num">${fmtDur(now - live.startedAt)}</dd></dl><div class="acts"><a class="btn" href="#/runs/${live.id}">Open test cycle</a></div>` : '<div class="acts"><button class="btn primary" id="insp-new">New test cycle</button></div>'}`;
+    ${live ? `<hr><h4>Live test cycle</h4><dl class="kv"><dt>${esc(live.name)}</dt><dd class="num">${counted(live).filter(x => x.state === 'done').length} / ${counted(live).length || live.devices.length}</dd><dt>Elapsed</dt><dd class="num">${fmtDur(now - live.startedAt)}</dd></dl><div class="acts"><a class="btn" href="#/runs/${live.id}">Open test cycle</a></div>` : ''}`;
 }
 function skeleton() { crumbs(['Loading']); inspect('<div class="empty">Loading…</div>'); view.innerHTML = `<div class="skel" style="height:28px;width:180px;margin-bottom:24px"></div><div class="stack"><div class="skel" style="height:92px"></div><div class="skel" style="height:260px"></div><div class="skel" style="height:220px"></div></div>`; }
 function errorView() {
@@ -379,8 +379,7 @@ function overviewView() {
   const weeks = []; for (let w = 26; w >= 0; w--) { const b = now - w * 7 * DAY, c = allCycles.filter(x => x.start >= b - 7 * DAY && x.start < b); if (c.length >= 3) weeks.push({ x: b, y: median(c.map(x => x.durationMs)) / H, n: c.length }); }
   const short = m30 ? DEV.filter(d => d.lastCycle && d.lastCycle.start > now - 14 * DAY && d.lastCycle.durationMs < m30 * .9).map(d => ({ d, pct: pctOf(d.lastCycle.durationMs, m30) })).sort((a, b) => a.pct - b.pct) : [];
   const off = DEV.filter(d => d.snap && now - Date.parse(d.snap.last_seen_at) > 2 * DAY).sort((a, b) => Date.parse(b.snap.last_seen_at) - Date.parse(a.snap.last_seen_at));
-  view.innerHTML = `<div class="page-head"><div><h1>Overview</h1><div class="sub">${esc(GROUP)} · ${DEV.length} devices${allCycles.length ? ` · history since ${day(Math.min(...allCycles.map(c => c.start)))}` : ''}</div></div>
-      <button class="btn primary" id="ov-new">${PLUS}New test cycle</button></div>
+  view.innerHTML = `<div class="page-head"><div><h1>Overview</h1><div class="sub">${esc(GROUP)} · ${DEV.length} devices${allCycles.length ? ` · history since ${day(Math.min(...allCycles.map(c => c.start)))}` : ''}</div></div></div>
     <div class="stack">
     ${live ? `<a class="callout live-strip" href="#/runs/${live.id}" style="text-decoration:none;align-items:center;flex-wrap:wrap">${badge('b-run', 'Running', 1)}<div style="flex:1;min-width:0"><b style="color:var(--text)">${esc(live.name)}</b> · <span id="ov-live"></span></div><div class="prog" style="width:220px"><div class="bar run"><i id="ov-bar"></i></div></div><span class="muted">View →</span></a>` : ''}
     ${!allCycles.length ? `<div class="callout">${INFO}<div>No cycle history for this group yet. Counted cycles appear here as devices complete a full discharge.</div></div>` : ''}
@@ -405,8 +404,7 @@ function overviewView() {
     </div>`;
   lineChart($('#ov-trend'), weeks, { h: 210, yMax: hoursAxis(Math.max(...weeks.map(w => w.y))), yFmt: v => v + 'h', xFmt: day, area: true,
     tip: p => `<b>${fmtDur(p.y * H)}</b> median<br>week ending ${day(p.x)} · ${p.n} cycles` });
-  $('#ov-new').onclick = openDrawer;
-  const fi = () => { inspect(fleetInspector()); const nb = $('#insp-new'); if (nb) nb.onclick = openDrawer; }; fi();
+  const fi = () => inspect(fleetInspector()); fi();
   onData = () => { fi();
     $$('#ov-bench .cell').forEach(el => { const d = D(el.dataset.s), s = status(d); patchCell(el, s.k, s.pct, s.val, `${d.serial} · ${s.label}`); });
     if (!view.classList.contains('enter')) $('#ov-on').textContent = DEV.filter(online).length;
@@ -422,7 +420,7 @@ const devState = { q: '', sort: 'serial', dir: 1, filter: 'all' };
 function devicesView() {
   crumbs(['Devices']);
   const cols = [['serial', 'Device'], ['status', 'Status'], ['battery', 'Battery', 1], ['temp', 'Temp', 1], ['cycles', 'Cycles', 1], ['median', 'Median runtime', 1], ['last', 'Last runtime', 1], ['health', 'Health', 1], ['', 'Last 12 cycles', 1], ['seen', 'Last seen', 1]];
-  view.innerHTML = `<div class="page-head"><div><h1>${filterLabel(devState.filter)}</h1><div class="sub" id="dev-sub"></div></div><button class="btn primary" id="dev-new">${PLUS}New test cycle</button></div>
+  view.innerHTML = `<div class="page-head"><div><h1>${filterLabel(devState.filter)}</h1><div class="sub" id="dev-sub"></div></div></div>
     <div class="stack"><div class="panel">
       <div class="scroll-x"><table><thead><tr>${cols.map(([k, l, r]) => `<th ${k ? `data-sort="${k}"` : ''} class="${r ? 'r' : ''}">${l}<span class="arr">${k && devState.sort === k ? (devState.dir > 0 ? '↑' : '↓') : ''}</span></th>`).join('')}</tr></thead><tbody id="dev-body"></tbody></table></div></div></div>`;
   const draw = () => {
@@ -440,10 +438,8 @@ function devicesView() {
     $('#dev-sub').textContent = `${list.length} of ${DEV.length} devices in ${GROUP}${devState.q ? ` · matching “${devState.q}”` : ''} · click to inspect, double-click to open`;
     rowsClickable($('#dev-body'), 'data-s', s => `#/devices/${s}`, s => inspect(deviceInspector(D(s)))); paginate($('#dev-body'), 'devices');
     if (inspSel && DMAP.has(inspSel)) inspect(deviceInspector(D(inspSel))); else inspect(fleetInspector());
-    const nb = $('#insp-new'); if (nb) nb.onclick = openDrawer;
   };
   devDraw = draw;
-  $('#dev-new').onclick = openDrawer;
   $$('th[data-sort]').forEach(th => th.onclick = () => { const k = th.dataset.sort; devState.dir = devState.sort === k ? -devState.dir : 1; devState.sort = k; render(false); });
   draw(); onData = () => { if (!view.classList.contains('enter')) draw(); };
 }
@@ -499,20 +495,18 @@ function deviceView(serial) {
 // ── Runs ──────────────────────────────────────────────────────────────────────
 function runsView() {
   crumbs(['Test cycles']);
-  view.innerHTML = `<div class="page-head"><div><h1>Test cycles</h1><div class="sub">Start a test cycle when the bench test begins. Each device finishes when it shuts down; the test cycle finishes when all have.</div></div>
-    <button class="btn primary" id="new">${PLUS}New test cycle</button></div>
+  view.innerHTML = `<div class="page-head"><div><h1>Test cycles</h1><div class="sub">Detected automatically from device history: 6 or more devices starting a counted cycle within the same 2 hours.</div></div></div>
     <div class="stack"><div class="panel"><div class="scroll-x"><table><thead><tr><th>Test cycle</th><th>Status</th><th>Devices</th><th>Started</th><th class="r">Elapsed</th><th class="r">Median runtime</th><th class="r">Range</th></tr></thead><tbody id="runs-body"></tbody></table></div></div>
     ${runs.some(r => r.historical) ? `<div class="callout">${INFO}<div>Test cycles marked <span class="mono">R-</span> were recovered from device history: 6 or more devices that started a counted cycle within the same 2 hours. Test cycles started here are marked <span class="mono">L-</span> and are saved in this browser only.</div></div>` : ''}</div>`;
-  $('#new').onclick = openDrawer;
   const draw = () => {
     setH($('#runs-body'), runs.length ? runs.map(r => { const c = r.status === 'running' ? counted(r) : r.devices.filter(x => x.cycle), n = c.filter(x => x.state === 'done').length, st = runStats(r), tot = c.length || r.devices.length;
       return `<tr class="row" data-r="${r.id}"><td><div style="font-weight:500">${esc(r.name)}</div><div class="muted mono" style="font-size:12px">${r.id}</div></td><td>${runBadge(r)}</td>
         <td><div class="prog"><div class="bar ${r.status === 'running' ? 'run' : 'ok'}"><i style="width:${n / tot * 100}%"></i></div><span class="num muted">${n}/${tot}</span></div></td>
         <td class="muted">${dt(r.startedAt)}</td><td class="r num">${fmtDur((r.endedAt || Date.now()) - r.startedAt)}</td>
         <td class="r num">${st.count ? fmtDur(st.medianDurationMs) : '—'}</td><td class="r num muted">${st.count > 1 ? `${fmtDur(st.minDurationMs)} – ${fmtDur(st.maxDurationMs)}` : '—'}</td></tr>`; }).join('')
-      : '<tr><td colspan="7" class="empty">No test cycles yet. Start one when the next bench test begins.</td></tr>');
+      : '<tr><td colspan="7" class="empty">No test cycles detected yet.</td></tr>');
     rowsClickable($('#runs-body'), 'data-r', id => `#/runs/${id}`, id => inspect(runInspector(runs.find(r => r.id === id)))); paginate($('#runs-body'), 'runs');
-    const r = runs.find(r => r.id === inspSel); inspect(r ? runInspector(r) : fleetInspector()); const nb = $('#insp-new'); if (nb) nb.onclick = openDrawer;
+    const r = runs.find(r => r.id === inspSel); inspect(r ? runInspector(r) : fleetInspector());
   };
   draw(); onData = () => { if (!view.classList.contains('enter')) draw(); };
 }

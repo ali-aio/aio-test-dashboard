@@ -181,3 +181,19 @@ export function showBanner(el, msg) {
   el.textContent = msg;
   el.classList.remove('in'); void el.offsetWidth; el.classList.add('in');
 }
+
+// Arbitrary-range history for the cycle backsweep. Fetched in 7-day chunks (the API's
+// default window) so a long lookback never depends on an unverified server-side limit.
+export async function fetchHistoryRange(serial, startMs, endMs, intervalSec = 600) {
+  const CHUNK = 7 * 86400 * 1000;
+  const out = [];
+  for (let s = startMs; s < endMs; s += CHUNK) {
+    const e = Math.min(s + CHUNK, endMs);
+    const url = `${apiBase()}/api/v1/testdata/devices/${encodeURIComponent(serial)}/history`
+      + `?start=${new Date(s).toISOString()}&end=${new Date(e).toISOString()}&interval_sec=${intervalSec}`;
+    const res = await fetch(url, { headers: { 'X-API-Key': apiKey() } });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    out.push(...await res.json());
+  }
+  return out;
+}

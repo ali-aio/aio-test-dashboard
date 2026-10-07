@@ -1,1 +1,4 @@
 .DS_Store
+server/config.json
+data/topup.json
+data/topup.json.tmp

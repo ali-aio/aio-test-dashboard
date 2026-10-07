@@ -14,12 +14,14 @@ API contract, file structure, and the ground rules for working in this repo
 ./deploy.sh
 ```
 
-Serves the folder on `:8090`. Open `index.html` (or `http://100.113.189.96:8090/`
-if working over the tailnet), go to Settings, and set the API base + a QA API key.
+Starts the Node backend on `:8090` (static files + a 30-min cycle sweep that writes
+`data/topup.json`; see `server/README.md` — it wants `server/config.json` with the
+QA key). Open `http://100.113.189.96:8090/`, go to Settings, and set the QA API key.
 
 ## Pages
 
-- `index.html` — home: sortable table, inline sparklines, per-row history
-- `console.html` — dark list + detail split view
-- `cycles.html` — device shelf + battery-cycle detail (click a device to inspect it)
+- `index.html` — the dashboard, one page: KPI row (devices, total cycles, avg per
+  device, online, hottest), cycles-per-device and temperature charts, a sortable
+  device table with sparklines, and a detail panel (cycles, charge + temp history)
+  for the selected device
 - `settings.html` — API base/key; group scope is the dropdown badge in every page's topbar

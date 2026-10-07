@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Dashboard — design language options</title>
+<style>
+  /* page chrome only; each option is fully scoped under .t-x */
+  html { background: #e8e8ea; }
+  body { margin: 0; padding: 32px 24px 80px; max-width: 1180px; margin-inline: auto; font: 14px/1.5 system-ui, sans-serif; color: #1a1a1a; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .lead { color: #555; margin: 0 0 28px; max-width: 70ch; }
+  nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 36px; }
+  nav a { padding: 4px 12px; border: 1px solid #bbb; border-radius: 999px; color: #222; text-decoration: none; font-size: 13px; background: #fff; }
+  .opt { margin-bottom: 64px; }
+  .opt > h2 { margin: 0; font-size: 18px; }
+  .opt > .sub { color: #555; margin: 2px 0 12px; }
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; font-size: 13px; }
+  .notes div { background: #fff; padding: 10px 14px; border-radius: 6px; }
+  .notes .g { border-left: 3px solid #16a34a; } .notes .b { border-left: 3px solid #dc2626; }
+  @media (max-width: 700px) { .notes { grid-template-columns: 1fr; } }
+
+  /* ---------- shared skeleton (structure only, no look) ---------- */
+  .dash { padding: 24px; display: grid; gap: 20px; overflow: hidden; }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .row2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
+  .bar { display: grid; grid-template-columns: 90px 1fr 46px; align-items: center; gap: 8px; }
+  .bar i { display: block; height: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; white-space: nowrap; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .spark { width: 90px; height: 22px; vertical-align: middle; }
+  @media (max-width: 800px) { .kpis { grid-template-columns: repeat(2, 1fr); } .row2 { grid-template-columns: 1fr; } }
+
+  /* ============ A — Editorial / Swiss ============ */
+  .t-a { background: #fbfaf7; color: #111; font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; border-top: 4px solid #111; }
+  .t-a .top h3 { margin: 0; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
+  .t-a .top span { color: #777; font-size: 12px; }
+  .t-a .kpis { gap: 0; border-top: 1px solid #111; border-bottom: 1px solid #111; }
+  .t-a .kpi { padding: 14px 16px 14px 0; border-right: 1px solid #ddd; margin-right: 16px; }
+  .t-a .kpi:last-child { border: 0; }
+  .t-a .kpi small { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #777; }
+  .t-a .kpi b { font-size: 38px; font-weight: 300; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .t-a .kpi em { font-style: normal; font-size: 12px; color: #c1121f; }
+  .t-a h4 { margin: 0 0 8px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #777; font-weight: 600; }
+  .t-a .bar i { background: #111; height: 6px; } .t-a .bar span { font-size: 12px; } .t-a .bar b { font-size: 12px; text-align: right; font-weight: 500; }
+  .t-a .bar.hot i { background: #c1121f; }
+  .t-a th { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #777; font-weight: 600; border-bottom: 1px solid #111; }
+  .t-a td { border-bottom: 1px solid #e6e3dc; font-size: 13px; }
+  .t-a tr:hover td { background: #f3f1ea; }
+  .t-a .spark { stroke: #111; } .t-a .hot { color: #c1121f; font-weight: 600; }
+
+  /* ============ B — Instrument panel (dark, mono) ============ */
+  .t-b { background: #0b0f0e; color: #b7e4c7; font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; border: 1px solid #1f2d29; }
+  .t-b .top h3 { margin: 0; color: #5eead4; font-size: 13px; letter-spacing: .08em; }
+  .t-b .top h3::before { content: '▌'; color: #f59e0b; margin-right: 6px; }
+  .t-b .top span { color: #4b6b62; }
+  .t-b .kpi { border: 1px solid #1f2d29; background: #0e1514; padding: 10px 12px; position: relative; }
+  .t-b .kpi::after { content: ''; position: absolute; left: 0; top: 0; width: 6px; height: 6px; background: #5eead4; }
+  .t-b .kpi small { display: block; color: #4b6b62; text-transform: uppercase; font-size: 10px; letter-spacing: .1em; }
+  .t-b .kpi b { font-size: 26px; font-weight: 500; color: #ecfdf5; } .t-b .kpi em { font-style: normal; color: #f59e0b; font-size: 11px; }
+  .t-b h4 { margin: 0 0 8px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #4b6b62; font-weight: 500; }
+  .t-b h4::before { content: '// '; }
+  .t-b .bar i { background: repeating-linear-gradient(90deg, #5eead4 0 4px, transparent 4px 6px); height: 10px; }
+  .t-b .bar.hot i { background: repeating-linear-gradient(90deg, #f59e0b 0 4px, transparent 4px 6px); }
+  .t-b .bar b { text-align: right; color: #ecfdf5; font-weight: 400; }
+  .t-b th { color: #4b6b62; font-weight: 400; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; border-bottom: 1px solid #1f2d29; }
+  .t-b td { border-bottom: 1px dashed #162320; padding: 5px 10px; }
+  .t-b tr:hover td { background: #0e1d1a; color: #ecfdf5; }
+  .t-b .spark { stroke: #5eead4; } .t-b .hot { color: #f59e0b; }
+
+  /* ============ C — Quiet SaaS (Linear-ish) ============ */
+  .t-c { background: #0f1011; color: #d0d6e0; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; border: 1px solid #23252a; border-radius: 10px; }
+  .t-c .top h3 { margin: 0; font-size: 14px; font-weight: 500; color: #f7f8f8; }
+  .t-c .top span { color: #62666d; font-size: 12px; }
+  .t-c .kpi { border: 1px solid #23252a; border-radius: 8px; padding: 12px 14px; background: #141516; }
+  .t-c .kpi small { display: block; color: #8a8f98; font-size: 12px; }
+  .t-c .kpi b { font-size: 24px; font-weight: 500; color: #f7f8f8; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .t-c .kpi em { font-style: normal; font-size: 12px; color: #8a8f98; margin-left: 6px; }
+  .t-c h4 { margin: 0 0 8px; font-size: 12px; font-weight: 500; color: #8a8f98; }
+  .t-c .bar i { background: #5e6ad2; border-radius: 2px; } .t-c .bar.hot i { background: #e5534b; }
+  .t-c .bar b { text-align: right; font-weight: 400; color: #f7f8f8; font-variant-numeric: tabular-nums; }
+  .t-c th { color: #62666d; font-weight: 500; font-size: 12px; border-bottom: 1px solid #23252a; }
+  .t-c td { border-bottom: 1px solid #1b1c1f; }
+  .t-c tr:hover td { background: #17181a; }
+  .t-c .spark { stroke: #8a8f98; } .t-c .hot { color: #e5534b; }
+  .t-c .pill { display: inline-block; padding: 0 8px; border-radius: 999px; border: 1px solid #23252a; font-size: 11px; color: #8a8f98; }
+
+  /* ============ D — Soft bento ============ */
+  .t-d { background: #f2efe9; color: #26231f; font-family: 'DM Sans', 'Poppins', system-ui, sans-serif; border-radius: 28px; }
+  .t-d .top h3 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+  .t-d .top span { color: #8a8478; }
+  .t-d .kpi { border-radius: 22px; padding: 16px 18px; }
+  .t-d .kpi:nth-child(1) { background: #ffd9cc; } .t-d .kpi:nth-child(2) { background: #dcd9ff; } .t-d .kpi:nth-child(3) { background: #d3ecd7; }
+  .t-d .kpi:nth-child(4) { background: #fff0b8; } .t-d .kpi:nth-child(5) { background: #26231f; color: #f2efe9; }
+  .t-d .kpi small { display: block; font-size: 12px; opacity: .7; }
+  .t-d .kpi b { font-size: 34px; font-weight: 700; letter-spacing: -.03em; } .t-d .kpi em { font-style: normal; font-size: 12px; opacity: .7; display: block; }
+  .t-d .panel { background: #fff; border-radius: 22px; padding: 18px; }
+  .t-d h4 { margin: 0 0 10px; font-size: 14px; font-weight: 700; }
+  .t-d .bar i { background: #7a80f6; border-radius: 99px; height: 12px; } .t-d .bar.hot i { background: #f9674e; }
+  .t-d .bar b { text-align: right; font-weight: 600; }
+  .t-d th { color: #8a8478; font-weight: 500; font-size: 12px; }
+  .t-d td { border-top: 1px solid #f0ece4; }
+  .t-d tr:hover td { background: #faf8f4; }
+  .t-d .spark { stroke: #7a80f6; stroke-width: 2.5; } .t-d .hot { color: #e2492f; font-weight: 700; }
+
+  /* ============ E — Neo-brutalist / blueprint ============ */
+  .t-e { background: #fffbe6; color: #000; font-family: 'Space Grotesk', 'Archivo', system-ui, sans-serif; border: 3px solid #000; box-shadow: 8px 8px 0 #000; }
+  .t-e .top h3 { margin: 0; font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: -.01em; background: #000; color: #fffbe6; padding: 2px 10px; }
+  .t-e .top span { font-family: ui-monospace, monospace; font-size: 12px; }
+  .t-e .kpi { border: 3px solid #000; background: #fff; padding: 10px 12px; box-shadow: 4px 4px 0 #000; }
+  .t-e .kpi:nth-child(odd) { background: #ffe14d; } .t-e .kpi:nth-child(3) { background: #8ee0c0; }
+  .t-e .kpi small { display: block; font-family: ui-monospace, monospace; font-size: 11px; text-transform: uppercase; font-weight: 700; }
+  .t-e .kpi b { font-size: 36px; font-weight: 800; letter-spacing: -.04em; } .t-e .kpi em { font-style: normal; font-size: 12px; font-weight: 700; }
+  .t-e h4 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; font-weight: 800; border-bottom: 3px solid #000; display: inline-block; }
+  .t-e .bar i { background: #000; height: 14px; } .t-e .bar.hot i { background: #ff4d2e; outline: 2px solid #000; }
+  .t-e .bar b { text-align: right; font-family: ui-monospace, monospace; }
+  .t-e table { border: 3px solid #000; background: #fff; }
+  .t-e th { background: #000; color: #fffbe6; font-size: 12px; text-transform: uppercase; }
+  .t-e td { border-bottom: 2px solid #000; font-family: ui-monospace, monospace; font-size: 12px; }
+  .t-e tr:hover td { background: #ffe14d; }
+  .t-e .spark { stroke: #000; stroke-width: 2.5; } .t-e .hot { background: #ff4d2e; padding: 0 4px; font-weight: 800; }
+</style>
+</head>
+<body>
+<h1>Test Dashboard — design language options</h1>
+<p class="lead">Same mock data and same layout (KPI row → bars → sortable table with sparklines) in five different design languages. Only the visual language changes — information structure is identical to <code>index.html</code>. Hover table rows. Pick one (or mix: e.g. A's typography with C's density) and I'll port it into <code>style.css</code> tokens.</p>
+<nav>
+  <a href="#a">A Editorial</a><a href="#b">B Instrument panel</a><a href="#c">C Quiet SaaS</a><a href="#d">D Soft bento</a><a href="#e">E Brutalist</a>
+</nav>
+
+<div id="mount"></div>
+
+<script>
+// ---- mock data, shaped like GET /api/v1/testdata/devices (discharge_total_pct/100 = cycles) ----
+const rnd = (seed => () => (seed = (seed * 16807) % 2147483647) / 2147483647)(42);
+const devices = [
+  ['AT070AABU00231', 'Test Cycles', 84, 37.1, 3097], ['AT070AABU00187', 'Test Cycles', 61, 41.8, 2884],
+  ['AT070AABU00402', 'Test Lab units', 92, 33.4, 2410], ['AT070AABU00119', 'Test Cycles', 17, 44.9, 2210],
+  ['AT070AABU00366', 'Test Lab units', 73, 35.0, 1760], ['AT070AABU00054', 'Test Cycles', 48, 39.2, 1422],
+  ['AT070AABU00290', 'Test Lab units', 100, 31.6, 905],  ['AT070AABU00318', 'Test Cycles', 55, 36.4, 411],
+].map(([serial, group, batt, temp, dis], i) => ({
+  serial, group, batt, temp, cycles: dis / 100, online: i !== 5 && i !== 3,
+  spark: Array.from({ length: 24 }, (_, k) => Math.max(5, Math.min(100, batt + Math.sin(k / 2.2 + i) * 28 + (rnd() - .5) * 8))),
+}));
+const HOT = 40;
+const online = devices.filter(d => d.online).length;
+const totalCycles = devices.reduce((s, d) => s + d.cycles, 0);
+const hottest = devices.reduce((a, b) => (b.temp > a.temp ? b : a));
+const short = s => s.slice(-5);
+const spark = a => {
+  const pts = a.map((v, i) => `${(i / (a.length - 1) * 88 + 1).toFixed(1)},${(21 - v / 100 * 20).toFixed(1)}`).join(' ');
+  return `<svg class="spark" viewBox="0 0 90 22" fill="none" stroke-linejoin="round" stroke-linecap="round"><polyline points="${pts}" stroke-width="1.4"/></svg>`;
+};
+const maxC = Math.max(...devices.map(d => d.cycles));
+const byCycles = [...devices].sort((a, b) => b.cycles - a.cycles);
+const byTemp = [...devices].sort((a, b) => b.temp - a.temp).slice(0, 5);
+
+function render(cls, title, hasPanels) {
+  const panel = (inner) => hasPanels ? `<div class="panel">${inner}</div>` : `<div>${inner}</div>`;
+  return `
+  <div class="dash t-${cls}">
+    <div class="top"><h3>${title}</h3><span>scope: Test Cycles · 8 devices · updated 12:10:34</span></div>
+    <div class="kpis">
+      <div class="kpi"><small>Devices</small><b>${devices.length}</b><em>2 groups</em></div>
+      <div class="kpi"><small>Total cycles</small><b>${totalCycles.toFixed(0)}</b><em>equiv. full</em></div>
+      <div class="kpi"><small>Avg / device</small><b>${(totalCycles / devices.length).toFixed(1)}</b><em>cycles</em></div>
+      <div class="kpi"><small>Online</small><b>${online}/${devices.length}</b><em>${devices.length - online} offline</em></div>
+      <div class="kpi"><small>Hottest</small><b>${hottest.temp}°</b><em>${short(hottest.serial)}</em></div>
+    </div>
+    <div class="row2">
+      ${panel(`<h4>Cycles per device</h4>` + byCycles.map(d => `<div class="bar"><span>${short(d.serial)}</span><i style="width:${d.cycles / maxC * 100}%"></i><b>${d.cycles.toFixed(0)}</b></div>`).join(''))}
+      ${panel(`<h4>Hottest devices</h4>` + byTemp.map(d => `<div class="bar ${d.temp > HOT ? 'hot' : ''}"><span>${short(d.serial)}</span><i style="width:${(d.temp - 25) / 25 * 100}%"></i><b>${d.temp}°C</b></div>`).join(''))}
+    </div>
+    ${panel(`<table>
+      <thead><tr><th>Serial</th><th>Group</th><th class="n">Battery</th><th class="n">Temp</th><th class="n">Cycles</th><th>Last 24h</th><th>${cls === 'c' ? 'Status' : 'State'}</th></tr></thead>
+      <tbody>${devices.map(d => `<tr>
+        <td>${d.serial}</td><td>${d.group}</td><td class="n">${d.batt}%</td>
+        <td class="n ${d.temp > HOT ? 'hot' : ''}">${d.temp}°C</td><td class="n">${d.cycles.toFixed(1)}</td>
+        <td>${spark(d.spark)}</td><td>${cls === 'c' ? `<span class="pill">${d.online ? 'online' : 'offline'}</span>` : (d.online ? 'online' : 'offline')}</td></tr>`).join('')}
+      </tbody></table>`)}
+  </div>`;
+}
+
+const options = [
+  ['a', 'A — Editorial / Swiss', 'Print-like. Type and whitespace do the work; hairline rules instead of boxes; one red accent used only for “this is wrong/hot”.', 'Test Dashboard',
+   'Reads as a deliberate, calm report — the opposite of “AI app” (no cards, gradients, shadows or emoji). Cheapest to build: just CSS. Prints well. Prioritises numbers.',
+   'Light-only feel; less “live ops console” energy. Needs a good font (Inter / Söhne-like) to land — system fonts look plain. Brand coral/periwinkle gets demoted to a single accent.', false],
+  ['b', 'B — Instrument panel', 'Test-lab oscilloscope / terminal. Monospace everywhere, segmented bars, amber for alarms.', 'TEST·DASH',
+   'Fits the audience (hardware QA) and the content (serials, temps, cycles). Very dense, scannable, distinctive. Hard to mistake for a template.',
+   'Dark-only unless we build a light variant. Mono-heavy UI tires over long sessions; less approachable for non-engineers. Replaces the brand palette entirely.', false],
+  ['c', 'C — Quiet SaaS (Linear-style)', 'Neutral greys, 1px borders, 13px type, single indigo accent, tiny status pills. Restraint is the design.', 'Test Dashboard',
+   'Most “professional product” feel; easy to keep consistent as pages are added; dark/light pair maps directly onto current prefers-color-scheme setup.',
+   'Now a very common look — can feel generic. Subtle: relies on precise spacing and type, so sloppy tweaks show quickly.', true],
+  ['d', 'D — Soft bento', 'Rounded tiles, pastel KPI blocks, big friendly numerals, white panels on warm paper.', 'Test Dashboard',
+   'Closest to current brand (coral/periwinkle fit as tile colours). Approachable, good for a wall-display / TV. KPIs are glanceable from across the room.',
+   'Lowest density — 8 devices fit, 200 won’t. Pastel + rounded is the current “trendy AI dashboard” look, i.e. may still read as vibecoded.', true],
+  ['e', 'E — Neo-brutalist', 'Thick black borders, hard offset shadows, flat saturated colour, uppercase headings.', 'TEST DASHBOARD',
+   'Unmistakably intentional and memorable; excellent contrast/accessibility; zero reliance on gradients or blur.',
+   'Polarising — loud for a daily tool and can look gimmicky or unserious to management. Dense data tables get heavy with 2–3px rules.', false],
+];
+document.getElementById('mount').innerHTML = options.map(([k, name, sub, title, good, bad, panels]) => `
+  <section class="opt" id="${k}">
+    <h2>${name}</h2><p class="sub">${sub}</p>
+    ${render(k, title, panels)}
+    <div class="notes"><div class="g"><strong>Good:</strong> ${good}</div><div class="b"><strong>Bad:</strong> ${bad}</div></div>
+  </section>`).join('');
+</script>
+</body>
+</html>

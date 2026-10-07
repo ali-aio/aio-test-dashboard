@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<script>/* THEME_STAMP: apply a stored light/dark choice before first paint (see shared/theme.js) */
+try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
+<style>
+  .section-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-3); padding: 16px 18px; box-shadow: var(--shadow-sm); animation: slidein .35s var(--ease) both; }
+  .card h3 { font-size: 0.95rem; margin-bottom: 2px; }
+  .card .sub { color: var(--muted); font-size: 0.75rem; margin-bottom: 12px; }
+  .stat-tile .foot { font-size: 0.7rem; color: var(--text-faint); margin-top: 4px; }
+
+  /* horizontal bar rows (cycles per device, latest temp per device) */
+  .bar-row { display: grid; grid-template-columns: 118px 1fr 64px; align-items: center; gap: 10px; padding: 3px 0; font-size: 0.75rem; cursor: pointer; border-radius: 6px; }
+  .bar-row:hover { background: var(--accent-soft); }
+  .bar-row .name { font-family: var(--mono); font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-row .track { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+  .bar-row .fill { height: 100%; border-radius: 4px; transition: width .4s var(--ease); }
+  .bar-row .val { font-family: var(--mono); text-align: right; }
+
+  /* temperature histogram */
+  .hist { display: flex; align-items: flex-end; gap: 3px; height: 130px; border-bottom: 1px solid var(--border); }
+  .hist .col { flex: 1; min-width: 0; background: var(--chart-temp); border-radius: 3px 3px 0 0; opacity: .85; transition: height .4s var(--ease); position: relative; }
+  .hist .col:hover { opacity: 1; }
+  .hist-axis { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.65rem; color: var(--text-faint); margin-top: 4px; }
+
+  .sp-table th.num, .sp-table td.num { text-align: right; }
+  .sp-table tr.data-row { cursor: pointer; animation: slidein .25s var(--ease) both; }
+  .sp-table tr.data-row:hover { background: var(--accent-soft); }
+  .sp-table tr.data-row.sel { background: var(--accent-soft); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 7px; }
+  .batt { display: inline-flex; align-items: center; gap: 8px; }
+  .batt .track { width: 46px; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+  .batt .fill { height: 100%; }
+
+  .detail-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .detail-head h2 { font-size: 1.05rem; font-family: var(--mono); }
+  .hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .chart-title { font-size: 0.85rem; font-weight: 600; margin: 14px 0 4px; }
+  .empty-detail { color: var(--text-faint); text-align: center; padding: 40px 20px; }
+  .note { font-size: 0.72rem; color: var(--text-faint); padding: 8px 0; }
+  #detail { margin-top: 18px; scroll-margin-top: 12px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-dot"></span><h1>Test Dashboard</h1></div>
+  <div class="topbar-actions">
+    <span id="scope-badge"></span>
+    <span id="last-sync" class="muted"><span class="live-dot"></span></span>
+    <button id="theme-toggle" type="button" class="btn-ghost theme-toggle"></button>
+    <button id="refresh" type="button" class="btn-primary">Refresh</button>
+    <a href="settings.html" class="btn-ghost" style="text-decoration:none">Settings</a>
+  </div>
+</header>
+
+<div id="banner" class="banner" hidden></div>
+
+<div class="stats" id="stats"></div>
+
+<div class="section-grid">
+  <div class="card">
+    <h3>Cycles per device</h3>
+    <div class="sub">Equivalent full cycles (discharge_total_pct ÷ 100), most-worked first. Click a bar to open the device.</div>
+    <div id="cycles-bars"></div>
+  </div>
+  <div class="card">
+    <h3>Battery temperature</h3>
+    <div class="sub">Latest reading per device, distribution across the fleet.</div>
+    <div class="hist" id="temp-hist"></div>
+    <div class="hist-axis" id="temp-axis"></div>
+  </div>
+  <div class="card">
+    <h3>Hottest devices</h3>
+    <div class="sub">Latest battery temp, warmest first. Click a bar to open the device.</div>
+    <div id="temp-bars"></div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <input id="search" type="search" placeholder="Search serial, class, group…">
+  <span class="cc-tag" id="count-tag" style="padding:6px 12px;font-size:11px">0 devices</span>
+</div>
+
+<div class="table-wrap sp-table-wrap">
+  <table class="sp-table">
+    <thead><tr id="head-row"></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+
+<div class="card" id="detail">
+  <div class="empty-detail">Click a device to see its cycle, charge and temperature history.</div>
+</div>
+
+<script type="module">
+import { fetchDevices, fetchHistory, requireConfig, showBanner, mapLimit, initScopeBadge } from './shared/data.js';
+import { renderHistoryChart, sparkline } from './shared/chart.js';
+import { initThemeToggle } from './shared/theme.js';
+
+const banner = document.getElementById('banner');
+const statsEl = document.getElementById('stats');
+const rowsEl = document.getElementById('rows');
+const headRow = document.getElementById('head-row');
+const searchEl = document.getElementById('search');
+const countTag = document.getElementById('count-tag');
+const detail = document.getElementById('detail');
+const lastSync = document.getElementById('last-sync');
+const refreshBtn = document.getElementById('refresh');
+
+const TEMP_BIN = 2.5;
+const TOP_N = 10;
+const COLUMNS = [
+  { key: 'serial_number', label: 'Serial' },
+  { key: 'device_class', label: 'Class' },
+  { key: 'groups', label: 'Group' },
+  { key: 'battery_pct', label: 'Battery', num: true },
+  { key: 'charging', label: 'State' },
+  { key: 'battery_temp_c', label: 'Temp °C', num: true },
+  { key: 'cycles', label: 'Cycles', num: true },
+  { key: 'trend', label: '24h trend' },
+  { key: 'last_seen_at', label: 'Last seen' },
+];
+
+let allRows = [];
+let sortKey = null, sortDir = 1;
+let selected = null;
+let detailHours = 24;
+const sparkCache = {};
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const cyclesOf = d => (d.discharge_total_pct || 0) / 100;
+const hasTemp = d => typeof d.battery_temp_c === 'number';
+const groupsOf = d => (d.groups || []).join(', ');
+
+function statusColor(d) {
+  if (!d.last_seen_at) return 'var(--muted)';
+  const mins = (Date.now() - new Date(d.last_seen_at)) / 60000;
+  return mins < 15 ? 'var(--ok)' : mins < 60 ? 'var(--warn)' : 'var(--danger)';
+}
+function tempColor(c) { return c >= 45 ? 'var(--danger)' : c >= 40 ? 'var(--warn)' : 'var(--chart-temp)'; }
+
+async function load(fresh = false) {
+  refreshBtn.classList.add('loading');
+  refreshBtn.innerHTML = '<span class="spinner"></span> Refreshing';
+  try {
+    allRows = await fetchDevices({ fresh });
+    showBanner(banner, null);
+    lastSync.innerHTML = `<span class="live-dot"></span>synced ${new Date().toLocaleTimeString()}`;
+    renderAll();
+  } catch (err) {
+    showBanner(banner, `Error: ${err.message}`);
+  } finally {
+    refreshBtn.classList.remove('loading');
+    refreshBtn.textContent = 'Refresh';
+  }
+}
+
+function filtered() {
+  const q = searchEl.value.trim().toLowerCase();
+  return allRows.filter(r => !q || [r.serial_number, r.device_class, groupsOf(r), r.restaurant_name].some(v => String(v ?? '').toLowerCase().includes(q)));
+}
+
+function sorted(rows) {
+  if (!sortKey) return rows;
+  const val = r => sortKey === 'cycles' ? cyclesOf(r) : sortKey === 'groups' ? groupsOf(r) : r[sortKey];
+  return [...rows].sort((a, b) => {
+    const av = val(a), bv = val(b);
+    if (av == null) return 1; if (bv == null) return -1;
+    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * sortDir;
+    if (typeof av === 'boolean') return (Number(av) - Number(bv)) * sortDir;
+    return String(av).localeCompare(String(bv)) * sortDir;
+  });
+}
+
+// Everything above the table summarises the *scoped + searched* set, so the numbers
+// always match the rows below them.
+function renderAll() {
+  const rows = filtered();
+  renderStats(rows);
+  renderCycleBars(rows);
+  renderTempCharts(rows);
+  renderTable(rows);
+}
+
+function renderStats(rows) {
+  const n = rows.length;
+  const cyc = rows.map(cyclesOf);
+  const total = cyc.reduce((a, b) => a + b, 0);
+  const online = rows.filter(d => d.last_seen_at && (Date.now() - new Date(d.last_seen_at)) < 15 * 60000).length;
+  const charging = rows.filter(d => d.charging).length;
+  const temps = rows.filter(hasTemp);
+  const hottest = temps.reduce((m, d) => (!m || d.battery_temp_c > m.battery_temp_c ? d : m), null);
+  const avg = n ? total / n : 0;
+  const tiles = [
+    { n: n, l: 'Devices', foot: `${charging} charging` },
+    { n: total.toFixed(1), l: 'Total cycles', foot: 'equivalent full cycles' },
+    { n: avg.toFixed(1), l: 'Avg per device', foot: n ? `${Math.min(...cyc).toFixed(1)} – ${Math.max(...cyc).toFixed(1)}` : '' },
+    { n: online, l: 'Online now', foot: 'seen in last 15 min' },
+    { n: hottest ? `${hottest.battery_temp_c.toFixed(1)}°` : '—', l: 'Hottest now', foot: hottest ? esc(hottest.serial_number) : 'no temp data' },
+  ];
+  statsEl.innerHTML = tiles.map((t, i) => `
+    <div class="stat-tile" style="animation-delay:${i * 40}ms"><div class="n">${t.n}</div><div class="l">${t.l}</div><div class="foot">${t.foot}</div></div>`).join('');
+}
+
+function barRows(el, items, fmt, colorFn) {
+  if (!items.length) { el.innerHTML = '<div class="note">No data in scope.</div>'; return; }
+  const max = Math.max(...items.map(i => i.value)) || 1;
+  el.innerHTML = items.map(i => `
+    <div class="bar-row" data-serial="${esc(i.serial)}">
+      <span class="name" title="${esc(i.serial)}">${esc(i.serial)}</span>
+      <span class="track"><span class="fill" style="width:${(i.value / max * 100).toFixed(1)}%;background:${colorFn(i.value)}"></span></span>
+      <span class="val">${fmt(i.value)}</span>
+    </div>`).join('');
+  el.querySelectorAll('.bar-row').forEach(r => r.addEventListener('click', () => selectRow(r.dataset.serial, true)));
+}
+
+function renderCycleBars(rows) {
+  const items = rows.map(d => ({ serial: d.serial_number, value: cyclesOf(d) }))
+    .sort((a, b) => b.value - a.value).slice(0, TOP_N);
+  barRows(document.getElementById('cycles-bars'), items, v => v.toFixed(1), () => 'var(--accent-2)');
+}
+
+function renderTempCharts(rows) {
+  const temps = rows.filter(hasTemp);
+  const items = temps.map(d => ({ serial: d.serial_number, value: d.battery_temp_c }))
+    .sort((a, b) => b.value - a.value).slice(0, TOP_N);
+  barRows(document.getElementById('temp-bars'), items, v => `${v.toFixed(1)}°C`, tempColor);
+
+  const hist = document.getElementById('temp-hist');
+  const axis = document.getElementById('temp-axis');
+  if (!temps.length) { hist.innerHTML = '<div class="note">No temperature readings in scope.</div>'; axis.innerHTML = ''; return; }
+  const vals = temps.map(d => d.battery_temp_c);
+  const lo = Math.floor(Math.min(...vals) / TEMP_BIN) * TEMP_BIN;
+  const hi = Math.ceil((Math.max(...vals) + 0.001) / TEMP_BIN) * TEMP_BIN;
+  const bins = new Array(Math.max(1, Math.round((hi - lo) / TEMP_BIN))).fill(0);
+  vals.forEach(v => { bins[Math.min(bins.length - 1, Math.floor((v - lo) / TEMP_BIN))]++; });
+  const peak = Math.max(...bins);
+  hist.innerHTML = bins.map((c, i) => `<div class="col" style="height:${c / peak * 100}%" title="${(lo + i * TEMP_BIN).toFixed(1)}–${(lo + (i + 1) * TEMP_BIN).toFixed(1)}°C: ${c} device${c === 1 ? '' : 's'}"></div>`).join('');
+  axis.innerHTML = `<span>${lo}°C</span><span>${temps.length} devices</span><span>${hi}°C</span>`;
+}
+
+function renderTable(rows) {
+  rows = sorted(rows);
+  countTag.textContent = `${rows.length} device${rows.length === 1 ? '' : 's'}`;
+  headRow.innerHTML = COLUMNS.map(c => `<th data-col="${c.key}"${c.num ? ' class="num"' : ''}>${c.label}${sortKey === c.key ? (sortDir === 1 ? ' ▲' : ' ▼') : ''}</th>`).join('');
+  headRow.querySelectorAll('th').forEach(th => th.addEventListener('click', () => {
+    const c = th.dataset.col;
+    if (c === 'trend') return;
+    if (sortKey === c) sortDir *= -1; else { sortKey = c; sortDir = 1; }
+    renderTable(filtered());
+  }));
+
+  rowsEl.innerHTML = rows.map((r, i) => {
+    const color = statusColor(r);
+    const pct = r.battery_pct;
+    return `
+    <tr class="data-row ${selected === r.serial_number ? 'sel' : ''}" data-serial="${esc(r.serial_number)}" style="animation-delay:${Math.min(i, 20) * 15}ms">
+      <td style="font-family:var(--mono)"><span class="status-dot" style="background:${color}"></span>${esc(r.serial_number)}</td>
+      <td><span class="cc-tag">${esc(r.device_class || '—')}</span></td>
+      <td style="color:var(--muted)">${esc(groupsOf(r) || '—')}</td>
+      <td class="num">${pct != null ? `<span class="batt"><span class="track"><span class="fill" style="width:${pct}%;background:${pct < 20 ? 'var(--danger)' : 'var(--chart-battery)'}"></span></span>${pct}%</span>` : '—'}</td>
+      <td>${r.charging ? '<span class="cc-tag ok">charging</span>' : '<span class="cc-tag">discharging</span>'}</td>
+      <td class="num" style="color:${hasTemp(r) ? tempColor(r.battery_temp_c) : 'var(--muted)'}">${hasTemp(r) ? r.battery_temp_c.toFixed(1) : '—'}</td>
+      <td class="num">${cyclesOf(r).toFixed(1)}</td>
+      <td><span class="spark-slot" data-serial="${esc(r.serial_number)}"></span></td>
+      <td style="color:var(--muted)">${r.last_seen_at ? new Date(r.last_seen_at).toLocaleString() : '—'}</td>
+    </tr>`;
+  }).join('');
+  rowsEl.querySelectorAll('tr').forEach(tr => tr.addEventListener('click', () => selectRow(tr.dataset.serial)));
+  fillSparklines(rows);
+}
+
+async function fillSparklines(rows) {
+  await mapLimit(rows, 6, async r => {
+    try {
+      const hist = sparkCache[r.serial_number] || (sparkCache[r.serial_number] = await fetchHistory(r.serial_number, 24));
+      const slot = rowsEl.querySelector(`.spark-slot[data-serial="${CSS.escape(r.serial_number)}"]`);
+      if (slot) slot.innerHTML = sparkline(hist, 'battery_pct', 'var(--chart-battery)', 90, 22);
+    } catch (e) { /* leave blank */ }
+  });
+}
+
+function selectRow(serial, scroll = false) {
+  selected = serial;
+  rowsEl.querySelectorAll('tr.data-row').forEach(tr => tr.classList.toggle('sel', tr.dataset.serial === serial));
+  const d = allRows.find(x => x.serial_number === serial);
+  if (!d) return;
+  detail.innerHTML = `
+    <div class="detail-head">
+      <h2>${esc(serial)}</h2>
+      <div class="range-btns">${[[24, '24h'], [168, '7d'], [720, '30d']].map(([h, l]) => `<button data-h="${h}"${h === detailHours ? ' class="active"' : ''}>${l}</button>`).join('')}</div>
+    </div>
+    <div class="hero">
+      <div class="stat-tile"><div class="n">${cyclesOf(d).toFixed(1)}</div><div class="l">Cycles</div><div class="foot">discharge_total_pct ÷ 100</div></div>
+      <div class="stat-tile"><div class="n">${d.battery_pct ?? '—'}${d.battery_pct != null ? '%' : ''}</div><div class="l">Charge</div><div class="foot">${d.charging ? 'charging' : 'discharging'}</div></div>
+      <div class="stat-tile"><div class="n">${hasTemp(d) ? d.battery_temp_c.toFixed(1) + '°C' : '—'}</div><div class="l">Battery temp</div><div class="foot">latest reading</div></div>
+      <div class="stat-tile"><div class="n" style="font-size:1rem;padding-top:8px">${d.last_seen_at ? new Date(d.last_seen_at).toLocaleString() : '—'}</div><div class="l">Last seen</div><div class="foot">${esc(groupsOf(d) || d.device_class || '')}</div></div>
+    </div>
+    <div class="chart-title">Charge / discharge timeline</div>
+    <div class="chart-host" id="chart-batt"></div>
+    <div class="chart-title">Battery temperature</div>
+    <div class="chart-host" id="chart-temp"></div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--chart-battery)"></span>battery_pct</span>
+      <span><span class="sw" style="background:var(--chart-temp)"></span>battery_temp_c</span>
+      <span><span class="sw" style="background:var(--accent-soft);border:1px solid var(--accent-edge)"></span>charging</span>
+    </div>`;
+  detail.querySelectorAll('.range-btns button').forEach(b => b.addEventListener('click', () => {
+    detailHours = +b.dataset.h;
+    detail.querySelectorAll('.range-btns button').forEach(x => x.classList.toggle('active', x === b));
+    loadCharts(serial, detailHours);
+  }));
+  loadCharts(serial, detailHours);
+  if (scroll) detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Temperature isn't a top-level field on history rows — it rides in `extra` (the
+// device's raw check-in payload). Lift it out so the shared chart can plot it by key.
+function withTemp(rows) {
+  return rows.map(r => {
+    let extra = {};
+    try { extra = typeof r.extra === 'string' ? JSON.parse(r.extra) : (r.extra || {}); } catch (e) {}
+    return { ...r, battery_temp_c: typeof extra.battery_temp_c === 'number' ? extra.battery_temp_c : null };
+  });
+}
+
+async function loadCharts(serial, hours) {
+  const hostB = document.getElementById('chart-batt');
+  const hostT = document.getElementById('chart-temp');
+  if (!hostB || !hostT) return;
+  hostB.innerHTML = hostT.innerHTML = '<div class="drawer-loading"><span class="spinner"></span>Loading…</div>';
+  try {
+    const rows = await fetchHistory(serial, hours);
+    if (selected !== serial) return;
+    renderHistoryChart(hostB, rows, { key: 'battery_pct', color: 'var(--chart-battery)', label: 'battery', unit: '%', h: 220 });
+    // `empty` rows are filtered inside renderHistoryChart too, but filter here as well
+    // so the "has any temp" check below isn't fooled by placeholder rows.
+    const tRows = withTemp(rows).filter(r => !r.empty && r.battery_temp_c != null);
+    if (tRows.length) {
+      const top = Math.max(60, Math.ceil(Math.max(...tRows.map(r => r.battery_temp_c)) / 10) * 10);
+      renderHistoryChart(hostT, tRows, { key: 'battery_temp_c', color: 'var(--chart-temp)', label: 'temp', unit: '°C', h: 180, yMin: 10, yMax: top });
+    } else {
+      hostT.innerHTML = '<div class="note">No temperature in this device\'s history samples (battery_temp_c not present in <code>extra</code>).</div>';
+    }
+  } catch (err) {
+    hostB.innerHTML = hostT.innerHTML = `<div class="drawer-loading">Error: ${esc(err.message)}</div>`;
+  }
+}
+
+searchEl.addEventListener('input', renderAll);
+refreshBtn.addEventListener('click', () => load(true));
+initScopeBadge(document.getElementById('scope-badge'));
+initThemeToggle(document.getElementById('theme-toggle'));
+requireConfig(banner, load);
+</script>
+</body>
+</html>

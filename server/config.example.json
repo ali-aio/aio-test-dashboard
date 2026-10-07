@@ -1,0 +1,7 @@
+{
+  "apiKey": "paste the QA read-only key here",
+  "base": "https://mdm.dev.aioapp.com",
+  "group": "Test Cycles",
+  "port": 8090,
+  "sweepMin": 30
+}

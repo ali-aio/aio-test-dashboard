@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Settings — Test Dashboard</title>
 <link rel="stylesheet" href="style.css">
+<script>/* THEME_STAMP: apply a stored light/dark choice before first paint (see shared/theme.js) */
+try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
 <style>
   .settings-card { max-width: 480px; margin: 10vh auto 0; animation: slidein .4s var(--ease) both; }
   .settings-card h1 { font-size: 1.2rem; margin-bottom: 4px; }

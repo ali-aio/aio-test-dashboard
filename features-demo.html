@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIO Test — what else to add</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="app.css">
+<script>try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+<style>
+  .content { max-width: 1180px; }
+  .feat { scroll-margin-top: 70px; }
+  .feat .panel-head h2 { display: flex; align-items: center; gap: 10px; }
+  .feat .k { font-size: 11px; font-weight: 600; color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; letter-spacing: .03em; }
+  .why { padding: 12px var(--pad); border-bottom: 1px solid var(--border); color: var(--text-2); font-size: 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+  .why b { color: var(--text); font-weight: 500; }
+  .why .std { color: var(--text-3); }
+  .heat { display: grid; gap: 2px; }
+  .heat i { display: block; height: 11px; border-radius: 2px; }
+  .box { position: relative; height: 22px; }
+  .box .w { position: absolute; top: 10px; height: 2px; background: var(--border-strong); }
+  .box .q { position: absolute; top: 4px; height: 14px; background: var(--series-soft); border: 1px solid var(--series); border-radius: 3px; }
+  .box .m { position: absolute; top: 2px; width: 2px; height: 18px; background: var(--series); }
+  .gate td:first-child { font-weight: 500; }
+  .toc a { margin-right: 14px; }
+  @media (max-width: 760px) { .why { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="shell" style="grid-template-columns:1fr">
+  <main>
+    <div class="topbar"><div class="crumbs"><a href="index.html">AIO Test</a><span>/</span><b>What else to add</b></div><span class="scope">Demo · mock + real data</span></div>
+    <div class="content">
+      <div class="page-head"><div><h1>What else the test team could get</h1>
+        <div class="sub">Eight additions, each modelled on how Apple / Samsung / standards bodies test batteries. Panels marked <span class="k">REAL</span> run on the imported history; <span class="k">MOCK</span> is shaped like the real thing but invented. Each says whether today's API already has the data.</div></div></div>
+      <div class="stack" id="root"></div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+import { aggregate, fmtDur } from './shared/cycles.js';
+const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const H = 3600e3, DAY = 24 * H;
+const median = a => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const J = await (await fetch('data/cycles.json')).json();
+const DEV = Object.entries(J.devices).map(([serial, d]) => ({ serial, tag: serial.slice(-5), cycles: d.cycles, agg: aggregate([d.cycles]) })).filter(d => d.cycles.length >= 8);
+const badge = (cls, l) => `<span class="badge ${cls}">${l}</span>`;
+
+// ── Charts (one series, one axis, recessive grid, crosshair/hover tooltip) ───
+function lineChart(el, pts, { h = 180, yMax = 100, yFmt = v => v, xFmt, tip, refs = [], area = false, smooth = false }) {
+  if (!pts.length) { el.innerHTML = '<div class="empty">No samples yet.</div>'; return; }
+  const W = Math.max(260, el.clientWidth || 640), pl = 38, pr = 8, pt = 8, pb = 22, x0 = pts[0].x, dx = (pts[pts.length - 1].x - x0) || 1;
+  const X = x => pl + (x - x0) / dx * (W - pl - pr), Y = v => pt + (1 - Math.min(v, yMax) / yMax) * (h - pt - pb);
+  const ys = smooth ? pts.map((p, i) => { const w = pts.slice(Math.max(0, i - 1), i + 2); return w.reduce((a, q) => a + q.y, 0) / w.length; }) : pts.map(p => p.y);
+  const d = ys.map((v, i) => `${i ? 'L' : 'M'}${X(pts[i].x).toFixed(1)},${Y(v).toFixed(1)}`).join('');
+  const xt = (W < 420 ? [0, .5, 1] : [0, .25, .5, .75, 1]).map(f => x0 + f * dx);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${h}" style="height:${h}px">
+    ${[0, .5, 1].map(f => `<line x1="${pl}" x2="${W - pr}" y1="${Y(yMax * f)}" y2="${Y(yMax * f)}" stroke="var(--grid)"/><text x="${pl - 6}" y="${Y(yMax * f) + 3}" text-anchor="end">${yFmt(yMax * f)}</text>`).join('')}
+    ${xt.map((x, i) => `<text x="${X(x)}" y="${h - 4}" text-anchor="${i === 0 ? 'start' : i === xt.length - 1 ? 'end' : 'middle'}">${xFmt(x)}</text>`).join('')}
+    ${refs.map(r => `<line x1="${pl}" x2="${W - pr}" y1="${Y(r.v)}" y2="${Y(r.v)}" stroke="var(--text-3)" stroke-dasharray="3 3"/><text x="${W - pr}" y="${Y(r.v) - 4}" text-anchor="end">${r.label}</text>`).join('')}
+    ${area ? `<path class="area" d="${d}L${X(x0 + dx)},${Y(0)}L${X(x0)},${Y(0)}Z" fill="var(--series-soft)"/>` : ''}
+    <path class="draw" pathLength="1" d="${d}" fill="none" stroke="var(--series)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <line class="xh" y1="${pt}" y2="${h - pb}" stroke="var(--border-strong)" opacity="0"/>
+    <rect x="${pl}" y="0" width="${W - pl - pr}" height="${h}" fill="transparent" class="hit"/></svg><div class="hdot"></div><div class="tip"></div>`;
+  hover(el, i => ({ x: X(pts[i].x), y: Y(ys[i]), html: tip(pts[i]) }), px => { const xv = x0 + (px - pl) / (W - pl - pr) * dx; let b = 0, bd = Infinity; pts.forEach((p, i) => { const dd = Math.abs(p.x - xv); if (dd < bd) { bd = dd; b = i; } }); return b; });
+}
+function barChart(el, items, { h = 180, yMax, yFmt, label, tip, color = () => 'var(--series)' }) {
+  if (!items.length) { el.innerHTML = '<div class="empty">No completed cycles yet.</div>'; return; }
+  const W = Math.max(260, el.clientWidth || 640), pl = 38, pr = 8, pt = 8, pb = 22, bw = Math.min(64, (W - pl - pr) / items.length), gap = Math.min(4, bw * .25), rr = Math.min(3, (bw - gap) / 2);
+  const Y = v => pt + (1 - Math.min(v, yMax) / yMax) * (h - pt - pb), every = Math.ceil(items.length / (W < 420 ? 5 : 10));
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${h}" style="height:${h}px">
+    ${[0, .5, 1].map(f => `<line x1="${pl}" x2="${W - pr}" y1="${Y(yMax * f)}" y2="${Y(yMax * f)}" stroke="var(--grid)"/><text x="${pl - 6}" y="${Y(yMax * f) + 3}" text-anchor="end">${yFmt(yMax * f)}</text>`).join('')}
+    ${items.map((it, i) => { const x = pl + i * bw + gap / 2, y = Y(it.v), w = bw - gap; return `<path class="b grow" style="--i:${i}" d="M${x},${Y(0)}V${y + rr}q0,${-rr} ${rr},${-rr}h${w - 2 * rr}q${rr},0 ${rr},${rr}V${Y(0)}Z" fill="${color(it, i)}" ${it.v > yMax ? 'opacity=".55"' : ''}/>`; }).join('')}
+    ${items.map((it, i) => i % every === 0 ? `<text x="${pl + i * bw + bw / 2}" y="${h - 4}" text-anchor="middle">${label(it, i)}</text>` : '').join('')}
+    <rect x="${pl}" y="0" width="${W - pl - pr}" height="${h}" fill="transparent" class="hit"/></svg><div class="tip"></div>`;
+  hover(el, i => ({ x: pl + i * bw + bw / 2, y: Y(items[i].v), html: tip(items[i], i) }), px => Math.max(0, Math.min(items.length - 1, Math.floor((px - pl) / bw))),
+    i => $$('.b', el).forEach((b, j) => b.style.opacity = i == null || i === j ? '' : .4));
+}
+function hover(el, at, pick, onIdx) {
+  const svg = $('svg', el), tip = $('.tip', el), xh = $('.xh', el), dot = $('.hdot', el);
+  $('.hit', el).onmousemove = e => {
+    const r = svg.getBoundingClientRect(), i = pick(e.clientX - r.left), p = at(i);
+    tip.innerHTML = p.html; tip.style.opacity = 1; tip.style.left = Math.max(70, Math.min(r.width - 70, p.x)) + 'px'; tip.style.top = p.y + 'px';
+    if (xh) { xh.setAttribute('x1', p.x); xh.setAttribute('x2', p.x); xh.setAttribute('opacity', 1); }
+    if (dot) { dot.style.left = p.x + 'px'; dot.style.top = p.y + 'px'; dot.style.opacity = 1; }
+    onIdx && onIdx(i);
+  };
+  $('.hit', el).onmouseleave = () => { tip.style.opacity = 0; xh && xh.setAttribute('opacity', 0); if (dot) dot.style.opacity = 0; onIdx && onIdx(null); };
+}
+function spark(vals) {
+  if (vals.length < 2) return '<span class="muted">—</span>';
+  const mn = Math.min(...vals), mx = Math.max(...vals), sp = (mx - mn) || 1, P = vals.map((v, i) => [2 + i / (vals.length - 1) * 80, 19 - (v - mn) / sp * 16]);
+  return `<svg class="spark" viewBox="0 0 84 22"><polyline points="${P.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="var(--text-3)" stroke-width="1.5" stroke-linejoin="round"/><circle cx="${P[P.length - 1][0]}" cy="${P[P.length - 1][1]}" r="2.5" fill="var(--series)"/></svg>`;
+}
+const hoursAxis = max => Math.max(12, Math.ceil(max * 1.1 / 12) * 12);
+
+const feats = [
+  { id: 'soh', title: 'Battery health (state of health)', k: 'REAL', std: 'Apple "Maximum capacity" · Samsung Battery status · IEC 61960 capacity test',
+    why: 'Apple shows capacity as % of new and flags the battery at 80%; Samsung does the same in Device Care. The lab\'s equivalent: runtime per cycle as % of the device\'s first cycles, with a projection of when it crosses 80%.',
+    data: '<b>Proxy available now</b> (runtime trend from history). True capacity needs <span class="mono">charge_counter</span> / mAh in the check-in, which the client doesn\'t report yet — an MDM change.',
+    body: `<div class="cols-2"><div><h2 style="margin-bottom:8px">Runtime vs cycle number</h2><div class="chart" id="soh-chart"></div><div class="help">Each device, normalised to its first 3 cycles. Band = fleet 20–80th percentile. Dashed = 80% health line.</div></div>
+      <div><h2 style="margin-bottom:8px">Projected cycles to 80%</h2><div class="scroll-x"><table><thead><tr><th>Device</th><th class="r">Health</th><th class="r">Cycles</th><th class="r">Fade / cycle</th><th class="r">80% at</th></tr></thead><tbody id="soh-tbl"></tbody></table></div></div></div>` },
+  { id: 'charge', title: 'Charge profile', k: 'MOCK', std: 'Apple "time to 50%" · USB-PD / Qi test plans · JEITA charging temperature windows',
+    why: 'Phone makers publish time-to-50% and time-to-80% and watch the trickle phase above 80%. For T7: how long each charge takes, whether the wireless pad is slower than wired, and how hot the pack gets while charging.',
+    data: '<b>Available now.</b> <span class="mono">charging</span>, <span class="mono">charger_type</span>, <span class="mono">charger_voltage_mv</span>, <span class="mono">wlc_status</span> and <span class="mono">battery_temp_c</span> are all in <span class="mono">extra</span>; charge segments come out of /history the same way discharges do.',
+    body: `<div class="cols-2"><div><h2 style="margin-bottom:8px">Charge curve · last charge, 6 devices</h2><div class="chart" id="chg-chart"></div></div>
+      <div><div class="metrics" style="border:1px solid var(--border);border-radius:var(--r)"><div class="metric"><small>0 → 50%</small><b class="num">1h 12m</b><span class="delta">median, wired</span></div><div class="metric"><small>0 → 80%</small><b class="num">2h 05m</b><span class="delta">median, wired</span></div><div class="metric"><small>Wireless pad vs wired</small><b class="num">+38%</b><span class="delta down">slower to 80%</span></div><div class="metric"><small>Peak temp while charging</small><b class="num">41.2 °C</b><span class="delta">JEITA limit 45 °C</span></div></div></div></div>` },
+  { id: 'thermal', title: 'Thermal profile', k: 'MOCK', std: 'IEC 62133 · UL 2054 · JEITA 45 °C charge cut-off · Apple 35 °C "ideal" guidance',
+    why: 'Safety standards set temperature limits; manufacturers watch time spent above them, not just the peak. Shows minutes per cycle above 40 °C and 45 °C, and where in the discharge the heat happens.',
+    data: '<b>Available now</b> — <span class="mono">battery_temp_c</span> on every check-in. The current dashboard only keeps max/avg per cycle; this needs the per-sample series, already in /history.',
+    body: `<div class="cols-2"><div><h2 style="margin-bottom:8px">Temperature by state of charge · last 20 cycles</h2><div class="heat" id="heat" style="grid-template-columns:repeat(20,1fr)"></div><div class="help" style="display:flex;justify-content:space-between"><span>← 100%</span><span>rows: 100→0% in 5% steps · columns: cycles</span><span>0% →</span></div></div>
+      <div><h2 style="margin-bottom:8px">Minutes above limit per cycle</h2><div class="chart" id="thermal-chart"></div></div></div>` },
+  { id: 'fw', title: 'Firmware regression', k: 'MOCK', std: 'Android CTS/VTS battery tests · Apple release qualification (A/B on identical hardware)',
+    why: 'Every OS release is checked against the previous one on the same hardware. The run on 5 Oct was on v2.0.96l; the lab needs to see at a glance whether runtime, charge time or temperature moved between builds.',
+    data: '<b>Available now</b> — <span class="mono">build_id</span> is on every /history row. The import dropped it; re-running the import keeps it.',
+    body: `<div class="scroll-x"><table><thead><tr><th>Build</th><th class="r">Cycles</th><th style="width:40%">Runtime distribution</th><th class="r">Median</th><th class="r">vs previous</th><th class="r">Peak temp</th><th>Verdict</th></tr></thead><tbody id="fw-tbl"></tbody></table></div>` },
+  { id: 'standby', title: 'Standby drain', k: 'MOCK', std: 'Apple standby time spec · Android "doze" battery-historian drain rate',
+    why: 'A battery that lasts 25h under the test load but loses 30% overnight idle is a different problem. Tracks %/hour while idle (no touch, screen off), per device and per build.',
+    data: '<b>Partly.</b> Battery and <span class="mono">uptime_seconds</span> are reported; idle detection needs a screen-state or activity field from the client (MDM change). Until then: overnight windows (00:00–05:00) as a stand-in.',
+    body: `<div class="cols-2"><div><h2 style="margin-bottom:8px">Overnight drain · %/h, last 14 nights</h2><div class="chart" id="sb-chart"></div></div>
+      <div><div class="scroll-x"><table><thead><tr><th>Device</th><th class="r">Drain %/h</th><th class="r">Nights</th><th>Flag</th></tr></thead><tbody id="sb-tbl"></tbody></table></div></div></div>` },
+  { id: 'rel', title: 'Reliability counters', k: 'MOCK', std: 'Android stability (ANR/crash rate, unexpected reboots) · MTBF per 1,000 device-hours',
+    why: 'A bench device that reboots mid-run contaminates the runtime number. Counts crashes, unexpected reboots and Wi-Fi drops per 1,000 device-hours, so a bad unit or a bad build stands out.',
+    data: '<b>Available now</b> — <span class="mono">crash_events</span>, <span class="mono">boot_id</span> / <span class="mono">boot_reason</span>, <span class="mono">wifi_disconnects_1h</span>, <span class="mono">wifi_rssi</span>, <span class="mono">uptime_seconds</span> are all in the check-in.',
+    body: `<div class="metrics" style="border-bottom:1px solid var(--border);margin:0 calc(-1 * var(--pad)) 14px"><div class="metric"><small>Unexpected reboots</small><b class="num">0.8</b><span class="delta">per 1,000 device-hours</span></div><div class="metric"><small>App crashes</small><b class="num">3.1</b><span class="delta">per 1,000 device-hours</span></div><div class="metric"><small>Wi-Fi drops</small><b class="num">12.4</b><span class="delta">per 1,000 device-hours</span></div><div class="metric"><small>Worst unit</small><b class="mono">00232</b><span class="delta">4 reboots this week</span></div></div>
+      <div class="scroll-x"><table><thead><tr><th>Device</th><th class="r">Reboots · 7d</th><th>Last reason</th><th class="r">Crashes · 7d</th><th class="r">Wi-Fi drops · 7d</th><th class="r">RSSI</th><th>State</th></tr></thead><tbody id="rel-tbl"></tbody></table></div>` },
+  { id: 'gate', title: 'Acceptance gate + sign-off report', k: 'REAL', std: 'Apple/Samsung release qualification · ISO 9001 test records · pass/fail against a spec',
+    why: 'A run is not finished until someone says pass or fail against a written spec. Each run gets criteria (min runtime, max spread, max temp, min devices), a verdict, and a one-page report the team can attach to a release.',
+    data: '<b>Available now</b> — everything in it is already computed. The thresholds are a setting; the report is a printable page / PDF.',
+    body: `<div class="cols-2"><div><h2 style="margin-bottom:8px">Bench run · Oct 5 — against spec</h2><div class="scroll-x"><table class="gate"><thead><tr><th>Criterion</th><th class="r">Spec</th><th class="r">Measured</th><th>Result</th></tr></thead><tbody id="gate-tbl"></tbody></table></div></div>
+      <div><h2 style="margin-bottom:8px">Report</h2><div class="callout" style="flex-direction:column;gap:6px"><div><b style="color:var(--text)">Battery run-down report — Bench run · Oct 5</b></div><div class="muted" style="font-size:12px">16 devices · T7 · build v2.0.96l · generated by AIO Test</div><div id="gate-sum"></div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn">Download PDF</button><button class="btn">Copy summary</button><span class="muted" style="align-self:center;font-size:12px">buttons are mock</span></div></div></div></div>` },
+  { id: 'plan', title: 'Test plan & coverage', k: 'MOCK', std: 'Test matrix per hardware revision (every manufacturer\'s QA runs one)',
+    why: 'Which tests has each device been through, and which are overdue? A matrix of test types (run-down, daily 14h, charge curve, thermal soak, standby) against devices, with the last date and a due marker.',
+    data: '<b>Available now</b> for anything derived from history; the schedule itself is dashboard-side (localStorage, like runs).',
+    body: `<div class="scroll-x"><table><thead><tr><th>Device</th><th>Run-down</th><th>Daily 14h</th><th>Charge curve</th><th>Thermal soak</th><th>Standby</th><th class="r">Coverage</th></tr></thead><tbody id="plan-tbl"></tbody></table></div>` },
+];
+
+$('#root').innerHTML = `<div class="panel"><div class="panel-body toc" style="font-size:13px">${feats.map((f, i) => `<a class="link" href="#${f.id}">${i + 1}. ${f.title}</a>`).join('')}</div></div>
+  <div class="panel"><div class="scroll-x"><table><thead><tr><th>#</th><th>Addition</th><th>Modelled on</th><th>Data today</th><th>Effort</th></tr></thead><tbody>
+  ${[['Battery health', 'Apple max-capacity %', 'proxy via runtime', 'small'], ['Charge profile', 'time-to-50/80%', 'yes', 'medium'], ['Thermal profile', 'IEC 62133 / JEITA', 'yes', 'medium'], ['Firmware regression', 'release qualification', 'yes (re-import)', 'small'], ['Standby drain', 'standby spec', 'partly', 'medium'], ['Reliability counters', 'crash / reboot rate', 'yes', 'small'], ['Acceptance gate + report', 'pass/fail sign-off', 'yes', 'medium'], ['Test plan & coverage', 'test matrix', 'yes', 'small']]
+    .map((r, i) => `<tr><td class="num muted">${i + 1}</td><td style="font-weight:500">${r[0]}</td><td class="muted">${r[1]}</td><td>${r[2].startsWith('yes') ? badge('b-ok', r[2]) : r[2] === 'partly' ? badge('b-warn', 'partly — MDM change') : badge('b-warn', r[2])}</td><td class="muted">${r[3]}</td></tr>`).join('')}</tbody></table></div></div>`
+  + feats.map((f, i) => `<section class="panel feat" id="${f.id}"><div class="panel-head"><h2><span class="muted num">${i + 1}</span>${f.title}<span class="k">${f.k}</span></h2></div>
+    <div class="why"><div><b>Why</b><br>${f.why}</div><div><b>Data</b><br>${f.data}<br><span class="std">Standard / reference: ${f.std}</span></div></div><div class="panel-body">${f.body}</div></section>`).join('');
+
+// 1 · SoH — real history
+{
+  const norm = DEV.map(d => { const base = median(d.cycles.slice(0, 3).map(c => c.durationMs)); return { d, pts: d.cycles.map((c, i) => ({ x: i + 1, y: Math.min(140, c.durationMs / base * 100) })) }; });
+  const maxN = Math.max(...norm.map(n => n.pts.length)), W = Math.max(300, $('#soh-chart').clientWidth), h = 220, pl = 38, pr = 8, pt = 8, pb = 22;
+  const X = i => pl + (i - 1) / (maxN - 1) * (W - pl - pr), Y = v => pt + (1 - v / 140) * (h - pt - pb);
+  const band = []; for (let i = 1; i <= maxN; i++) { const v = norm.map(n => n.pts[i - 1]?.y).filter(x => x != null).sort((a, b) => a - b); if (v.length >= 4) band.push({ i, lo: v[Math.floor(v.length * .2)], hi: v[Math.floor(v.length * .8)], med: v[Math.floor(v.length / 2)] }); }
+  $('#soh-chart').innerHTML = `<svg viewBox="0 0 ${W} ${h}" style="height:${h}px">
+    ${[40, 80, 120].map(v => `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${pl - 6}" y="${Y(v) + 3}" text-anchor="end">${v}%</text>`).join('')}
+    <path d="M${band.map(b => `${X(b.i)},${Y(b.hi)}`).join('L')}L${[...band].reverse().map(b => `${X(b.i)},${Y(b.lo)}`).join('L')}Z" fill="var(--series-soft)"/>
+    ${norm.map(n => `<polyline points="${n.pts.map(p => `${X(p.x)},${Y(p.y)}`).join(' ')}" fill="none" stroke="var(--text-3)" stroke-width="1" opacity=".35"/>`).join('')}
+    <polyline points="${band.map(b => `${X(b.i)},${Y(b.med)}`).join(' ')}" fill="none" stroke="var(--series)" stroke-width="2"/>
+    <line x1="${pl}" x2="${W - pr}" y1="${Y(80)}" y2="${Y(80)}" stroke="var(--bad)" stroke-dasharray="4 3"/><text x="${W - pr}" y="${Y(80) - 4}" text-anchor="end" fill="var(--bad)">80% health</text>
+    ${[1, 5, 10, 15, 20].filter(i => i <= maxN).map(i => `<text x="${X(i)}" y="${h - 4}" text-anchor="middle">cycle ${i}</text>`).join('')}</svg>`;
+  $('#soh-tbl').innerHTML = norm.map(({ d, pts }) => {
+    const n = pts.length, xs = pts.map(p => p.x), ys = pts.map(p => p.y), mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n;
+    const slope = xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0) / xs.reduce((a, x) => a + (x - mx) ** 2, 0), health = median(ys.slice(-3));
+    const at = slope < -0.05 ? Math.round(n + (health - 80) / -slope) : null;
+    return { d, n, slope, health, at };
+  }).sort((a, b) => a.health - b.health).slice(0, 10).map(r => `<tr><td class="mono">${r.d.serial}</td><td class="r num" style="color:${r.health < 85 ? 'var(--bad)' : 'inherit'}">${r.health.toFixed(0)}%</td><td class="r num">${r.n}</td><td class="r num">${r.slope.toFixed(2)}%</td><td class="r num">${r.at ? (r.at < r.n ? badge('b-bad', 'passed') : `~cycle ${r.at}`) : '<span class="muted">no fade</span>'}</td></tr>`).join('');
+}
+// 2 · charge curves — mock
+{
+  const pts = []; const W = Math.max(300, $('#chg-chart').clientWidth), h = 220, pl = 38, pr = 8, pt = 8, pb = 22;
+  const curves = [0, 1, 2, 3, 4, 5].map(k => { const wl = k > 3, out = []; let v = 2; for (let m = 0; m <= 240; m += 5) { out.push({ m, v: Math.min(100, v) }); v += (v < 80 ? (wl ? .56 : .78) : (wl ? .18 : .25)) * 5 * (0.95 + rnd() * .1); } return { wl, out }; });
+  const X = m => pl + m / 240 * (W - pl - pr), Y = v => pt + (1 - v / 100) * (h - pt - pb);
+  $('#chg-chart').innerHTML = `<svg viewBox="0 0 ${W} ${h}" style="height:${h}px">${[0, 50, 80, 100].map(v => `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${pl - 6}" y="${Y(v) + 3}" text-anchor="end">${v}%</text>`).join('')}
+    ${curves.map(c => `<polyline points="${c.out.map(p => `${X(p.m)},${Y(p.v)}`).join(' ')}" fill="none" stroke="${c.wl ? 'var(--warn)' : 'var(--series)'}" stroke-width="1.8" opacity=".85"/>`).join('')}
+    ${[0, 60, 120, 180, 240].map(m => `<text x="${X(m)}" y="${h - 4}" text-anchor="${m === 0 ? 'start' : m === 240 ? 'end' : 'middle'}">${m / 60}h</text>`).join('')}</svg>
+    <div class="legend" style="margin-top:6px"><span><i style="background:var(--series);border:0;height:2px"></i>Wired</span><span><i style="background:var(--warn);border:0;height:2px"></i>Wireless pad</span></div>`;
+}
+// 3 · thermal heatmap — mock
+{
+  const cells = []; for (let r = 0; r < 20; r++) for (let c = 0; c < 20; c++) { const soc = 100 - r * 5, t = 31 + (100 - soc) / 10 + (c % 7 === 3 ? 4 : 0) + rnd() * 2 + (soc < 15 ? 3 : 0); cells.push(t); }
+  const col = t => t >= 45 ? 'var(--bad)' : t >= 40 ? 'var(--warn)' : `color-mix(in srgb, var(--series) ${Math.round((t - 30) / 10 * 60)}%, var(--surface-2))`;
+  $('#heat').innerHTML = cells.map(t => `<i title="${t.toFixed(1)} °C" style="background:${col(t)}"></i>`).join('');
+  const items = Array.from({ length: 20 }, (_, i) => ({ v: 10 + rnd() * 40 + (i % 7 === 3 ? 60 : 0), i }));
+  barChart($('#thermal-chart'), items, { h: 200, yMax: 120, yFmt: v => v + 'm', label: it => '#' + (it.i + 1), tip: it => `<b>${it.v.toFixed(0)} min</b> above 40 °C<br>cycle ${it.i + 1}`, color: it => it.v > 60 ? 'var(--warn)' : 'var(--series)' });
+}
+// 4 · firmware — mock, real-looking builds
+{
+  const builds = [['v2.0.96l', 61, 25.1, 42.0, 'current'], ['v2.0.94', 88, 25.6, 41.2, ''], ['v2.0.91', 74, 24.2, 43.8, ''], ['v2.0.88', 102, 26.4, 40.1, '']];
+  $('#fw-tbl').innerHTML = builds.map((b, i) => { const prev = builds[i + 1], d = prev ? (b[2] - prev[2]) / prev[2] * 100 : null, lo = b[2] * .78, hi = b[2] * 1.3, q1 = b[2] * .92, q3 = b[2] * 1.08;
+    const px = v => (v - 15) / 25 * 100;
+    return `<tr><td class="mono">${b[0]} ${b[4] ? badge('b-run', 'current') : ''}</td><td class="r num">${b[1]}</td><td><div class="box"><span class="w" style="left:${px(lo)}%;width:${px(hi) - px(lo)}%"></span><span class="q" style="left:${px(q1)}%;width:${px(q3) - px(q1)}%"></span><span class="m" style="left:${px(b[2])}%"></span></div></td><td class="r num">${fmtDur(b[2] * H)}</td><td class="r num" style="color:${d != null && d < -3 ? 'var(--bad)' : 'inherit'}">${d != null ? (d >= 0 ? '+' : '') + d.toFixed(1) + '%' : '—'}</td><td class="r num">${b[3].toFixed(1)} °C</td><td>${d == null ? '<span class="muted">baseline</span>' : d < -3 ? badge('b-bad', 'Regressed') : b[3] > 43 ? badge('b-warn', 'Hotter') : badge('b-ok', 'No change')}</td></tr>`; }).join('');
+}
+// 5 · standby — mock
+{
+  const pts = Array.from({ length: 14 }, (_, i) => ({ x: Date.now() - (13 - i) * DAY, y: 1.1 + rnd() * .5 + (i === 9 ? 1.6 : 0) }));
+  lineChart($('#sb-chart'), pts, { h: 200, yMax: 4, yFmt: v => v + '%/h', xFmt: t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }), tip: p => `<b>${p.y.toFixed(2)} %/h</b> fleet median<br>${new Date(p.x).toLocaleDateString()}`, area: true, refs: [{ v: 2, label: 'spec 2 %/h' }] });
+  $('#sb-tbl').innerHTML = DEV.slice(0, 8).map((d, i) => { const v = 1 + rnd() * .8 + (i === 2 ? 1.9 : 0); return `<tr><td class="mono">${d.serial}</td><td class="r num" style="color:${v > 2 ? 'var(--bad)' : 'inherit'}">${v.toFixed(2)}</td><td class="r num">${10 + Math.floor(rnd() * 4)}</td><td>${v > 2 ? badge('b-warn', 'Above spec') : badge('b-ok', 'OK')}</td></tr>`; }).join('');
+}
+// 6 · reliability — mock
+$('#rel-tbl').innerHTML = DEV.slice(0, 8).map((d, i) => { const rb = i === 4 ? 4 : Math.floor(rnd() * 2), cr = Math.floor(rnd() * 3), wd = Math.floor(rnd() * 14), rssi = -48 - Math.floor(rnd() * 25);
+  return `<tr><td class="mono">${d.serial}</td><td class="r num">${rb}</td><td class="muted">${rb ? (i === 4 ? 'kernel_panic' : 'watchdog') : '—'}</td><td class="r num">${cr}</td><td class="r num">${wd}</td><td class="r num">${rssi} dBm</td><td>${rb >= 3 ? badge('b-bad', 'Investigate') : rssi < -68 ? badge('b-warn', 'Weak Wi-Fi') : badge('b-ok', 'OK')}</td></tr>`; }).join('');
+// 7 · acceptance gate — real Oct 5 run
+{
+  const t0 = Date.parse('2026-10-05T07:00:00Z'), t1 = t0 + 3 * H, cyc = DEV.flatMap(d => d.cycles.filter(c => c.start >= t0 && c.start <= t1).map(c => ({ d, c })));
+  const st = aggregate([cyc.map(x => x.c)]), rows = [
+    ['Devices completed', '≥ 12', `${cyc.length}`, cyc.length >= 12],
+    ['Median runtime', '≥ 22h', fmtDur(st.medianDurationMs), st.medianDurationMs >= 22 * H],
+    ['Shortest runtime', '≥ 20h', fmtDur(st.minDurationMs), st.minDurationMs >= 20 * H],
+    ['Spread (max − min)', '≤ 4h', fmtDur(st.maxDurationMs - st.minDurationMs), st.maxDurationMs - st.minDurationMs <= 4 * H],
+    ['Peak temperature', '≤ 45 °C', st.maxTemp ? st.maxTemp.toFixed(1) + ' °C' : '—', !st.maxTemp || st.maxTemp <= 45],
+    ['Check-in gaps', '0 cycles', `${cyc.filter(x => x.c.gaps).length} cycles`, cyc.every(x => !x.c.gaps)],
+  ];
+  const pass = rows.every(r => r[3]);
+  $('#gate-tbl').innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td class="r muted">${r[1]}</td><td class="r num">${r[2]}</td><td>${r[3] ? badge('b-ok', 'Pass') : badge('b-bad', 'Fail')}</td></tr>`).join('');
+  const worst = cyc.sort((a, b) => a.c.durationMs - b.c.durationMs)[0];
+  $('#gate-sum').innerHTML = `<div style="margin:6px 0">${pass ? badge('b-ok', 'PASS') : badge('b-bad', 'FAIL')} ${rows.filter(r => !r[3]).length} of ${rows.length} criteria failed</div>
+    <div style="font-size:13px">${cyc.length} devices ran from full to shutdown. Median ${fmtDur(st.medianDurationMs)}, range ${fmtDur(st.minDurationMs)} – ${fmtDur(st.maxDurationMs)}. Shortest: <span class="mono">${worst.d.serial}</span> at ${fmtDur(worst.c.durationMs)} (${((worst.c.durationMs - st.medianDurationMs) / st.medianDurationMs * 100).toFixed(0)}% vs median). Peak pack temperature ${st.maxTemp?.toFixed(1)} °C.</div>`;
+}
+// 8 · test plan — mock
+$('#plan-tbl').innerHTML = DEV.slice(0, 10).map((d, i) => { const cells = [[d.cycles.length ? new Date(d.cycles[d.cycles.length - 1].start) : null, 14], [new Date(Date.now() - rnd() * 3 * DAY), 2], [rnd() < .6 ? new Date(Date.now() - rnd() * 20 * DAY) : null, 30], [rnd() < .4 ? new Date(Date.now() - rnd() * 40 * DAY) : null, 60], [rnd() < .5 ? new Date(Date.now() - rnd() * 10 * DAY) : null, 14]];
+  const cov = cells.filter(([dt, due]) => dt && Date.now() - dt < due * DAY).length;
+  return `<tr><td class="mono">${d.serial}</td>${cells.map(([dt, due]) => dt ? (Date.now() - dt > due * DAY ? badge('b-warn', `${Math.round((Date.now() - dt) / DAY)}d · due`) : `<span class="muted">${dt.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>`) : badge('b-off', 'never')).map(x => `<td>${x}</td>`).join('')}<td class="r num">${cov}/5</td></tr>`; }).join('');
+</script>
+</body>
+</html>

@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIO Test — dashboard demo</title>
+<link rel="icon" href="data:,">
+<script>try { const t = localStorage.getItem('demoTheme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<style>
+  /* Production direction, whole dashboard. Neutral surfaces, brand coral only on the
+     logo/primary action, status colors only for state and always with a text label,
+     4px grid, motion only to explain a change (≤220ms, no bounce). Mock data. */
+  :root {
+    --bg: #f6f6f7; --surface: #fff; --surface-2: #fafafa; --hover: #f3f3f5;
+    --border: #e4e4e7; --border-strong: #d4d4d8;
+    --text: #18181b; --text-2: #52525b; --text-3: #71717a;
+    --brand: #f9674e; --primary: #cf4529; --primary-h: #b83b21; --focus: rgba(37,99,235,.35);
+    --ok: #15803d; --ok-bg: #f0fdf4; --run: #1d4ed8; --run-bg: #eff6ff; --warn: #a16207; --warn-bg: #fefce8; --bad: #b91c1c; --bad-bg: #fef2f2; --off: #71717a; --off-bg: #f4f4f5;
+    --series: #2563eb; --series-2: #93c5fd; --grid: #ededf0; --tip-bg: #18181b; --tip-fg: #fafafa;
+    --font: Inter, -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --r: 6px; --ease: cubic-bezier(.2,0,0,1);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d0d0f; --surface: #151517; --surface-2: #19191c; --hover: #202024;
+    --border: #28282c; --border-strong: #38383e;
+    --text: #ededef; --text-2: #b4b4bb; --text-3: #8b8b93;
+    --primary: #e5583c; --primary-h: #f06b50; --focus: rgba(122,162,255,.45);
+    --ok: #4ade80; --ok-bg: rgba(74,222,128,.10); --run: #7aa2ff; --run-bg: rgba(122,162,255,.12); --warn: #facc15; --warn-bg: rgba(250,204,21,.10); --bad: #f87171; --bad-bg: rgba(248,113,113,.10); --off: #8b8b93; --off-bg: rgba(139,139,147,.12);
+    --series: #7aa2ff; --series-2: #3b5bab; --grid: #232327; --tip-bg: #ededef; --tip-fg: #18181b;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #0d0d0f; --surface: #151517; --surface-2: #19191c; --hover: #202024;
+    --border: #28282c; --border-strong: #38383e;
+    --text: #ededef; --text-2: #b4b4bb; --text-3: #8b8b93;
+    --primary: #e5583c; --primary-h: #f06b50; --focus: rgba(122,162,255,.45);
+    --ok: #4ade80; --ok-bg: rgba(74,222,128,.10); --run: #7aa2ff; --run-bg: rgba(122,162,255,.12); --warn: #facc15; --warn-bg: rgba(250,204,21,.10); --bad: #f87171; --bad-bg: rgba(248,113,113,.10); --off: #8b8b93; --off-bg: rgba(139,139,147,.12);
+    --series: #7aa2ff; --series-2: #3b5bab; --grid: #232327; --tip-bg: #ededef; --tip-fg: #18181b;
+  } }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
+  body { background: var(--bg); color: var(--text); font: 14px/20px var(--font); -webkit-font-smoothing: antialiased; }
+  button, input, select { font: inherit; color: inherit; }
+  .num { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+  .muted { color: var(--text-3); }
+  a.link { color: var(--text); text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 3px; }
+  a.link:hover { text-decoration-color: var(--text); }
+
+  .shell { display: grid; grid-template-columns: 224px 1fr; min-height: 100vh; }
+  aside { border-right: 1px solid var(--border); background: var(--surface); padding: 14px 12px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; }
+  .logo { display: flex; align-items: center; gap: 8px; font-weight: 600; padding: 4px 8px 18px; }
+  .logo i { width: 18px; height: 18px; border-radius: 5px; background: var(--brand); }
+  .nav { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: var(--r); color: var(--text-2); text-decoration: none; transition: background .12s; }
+  .nav:hover { background: var(--hover); color: var(--text); }
+  .nav.on { background: var(--hover); color: var(--text); font-weight: 500; }
+  .nav svg { width: 16px; height: 16px; flex: none; }
+  .nav .count { margin-left: auto; font-size: 12px; color: var(--text-3); }
+  .nav-sep { margin: 14px 8px 4px; font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
+  .foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; padding: 8px; font-size: 12px; color: var(--text-3); }
+  .foot span { display: flex; align-items: center; gap: 6px; } .foot b { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .icon-btn { width: 28px; height: 28px; border-radius: var(--r); border: 1px solid transparent; background: none; cursor: pointer; display: grid; place-items: center; color: var(--text-3); }
+  .icon-btn:hover { background: var(--hover); color: var(--text); }
+  main { min-width: 0; }
+  .topbar { height: 52px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; gap: 12px; position: sticky; top: 0; z-index: 5; }
+  .crumbs { display: flex; align-items: center; gap: 6px; color: var(--text-3); min-width: 0; }
+  .crumbs a { text-decoration: none; color: inherit; } .crumbs a:hover { color: var(--text); }
+  .crumbs b { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .scope { display: inline-flex; align-items: center; gap: 6px; height: 30px; border: 1px solid var(--border); border-radius: var(--r); padding: 0 10px; background: var(--surface); color: var(--text-2); font-size: 13px; cursor: pointer; }
+  .scope b { color: var(--text); font-weight: 500; }
+  .content { padding: 24px; max-width: 1240px; }
+  .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  h1 { font-size: 20px; line-height: 28px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+  .sub { color: var(--text-3); margin-top: 2px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 0; }
+  .stack { display: grid; gap: 16px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: var(--r); border: 1px solid var(--border-strong); background: var(--surface); cursor: pointer; font-weight: 500; transition: background .12s, border-color .12s; white-space: nowrap; text-decoration: none; }
+  .btn:hover { background: var(--hover); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn.primary:hover { background: var(--primary-h); }
+  .btn:focus-visible, input:focus-visible, select:focus-visible, .row:focus-visible, .nav:focus-visible, .seg button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus); }
+  .btn svg { width: 14px; height: 14px; }
+  .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r); overflow: hidden; }
+  .seg button { border: 0; background: var(--surface); padding: 0 10px; height: 30px; cursor: pointer; color: var(--text-2); font-size: 13px; }
+  .seg button + button { border-left: 1px solid var(--border-strong); }
+  .seg button.on { background: var(--hover); color: var(--text); font-weight: 500; }
+  .input { height: 32px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--r); background: var(--surface); width: 100%; }
+  .search { position: relative; width: 260px; } .search svg { position: absolute; left: 10px; top: 9px; width: 14px; height: 14px; color: var(--text-3); } .search .input { padding-left: 30px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); gap: 12px; min-height: 48px; }
+  .panel-head .muted { font-size: 12px; }
+  .panel-body { padding: 16px; }
+  .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .cols-main { display: grid; grid-template-columns: 1fr 360px; gap: 16px; align-items: start; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-weight: 500; font-size: 12px; color: var(--text-3); padding: 8px 16px; border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap; user-select: none; }
+  th[data-sort] { cursor: pointer; } th[data-sort]:hover { color: var(--text); }
+  th .arr { display: inline-block; width: 10px; margin-left: 2px; }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  th.r, td.r { text-align: right; }
+  .row { cursor: pointer; transition: background .12s; }
+  .row:hover { background: var(--hover); }
+  .row.sel { background: var(--hover); box-shadow: inset 2px 0 0 var(--primary); }
+  .scroll-x { overflow-x: auto; }
+
+  .badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .b-run { color: var(--run); background: var(--run-bg); } .b-run.live::before { animation: blink 1.6s ease-in-out infinite; }
+  .b-ok { color: var(--ok); background: var(--ok-bg); }
+  .b-warn { color: var(--warn); background: var(--warn-bg); }
+  .b-bad { color: var(--bad); background: var(--bad-bg); }
+  .b-off { color: var(--off); background: var(--off-bg); }
+  @keyframes blink { 50% { opacity: .3; } }
+
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .metric { padding: 14px 16px; border-right: 1px solid var(--border); }
+  .metric:last-child { border-right: 0; }
+  .metric small { display: block; color: var(--text-3); font-size: 12px; }
+  .metric b { display: block; white-space: nowrap; font-size: 22px; line-height: 30px; font-weight: 600; letter-spacing: -.01em; }
+  .metric .delta { font-size: 12px; color: var(--text-3); }
+  .metric .delta.down { color: var(--bad); } .metric .delta.up { color: var(--ok); }
+
+  .bar { height: 4px; border-radius: 2px; background: var(--grid); overflow: hidden; width: 100%; }
+  .bar i { display: block; height: 100%; background: var(--text-3); border-radius: 2px; transition: width .6s var(--ease); }
+  .bar.run i { background: var(--run); } .bar.ok i { background: var(--ok); } .bar.warn i { background: var(--warn); }
+  .prog { display: flex; align-items: center; gap: 10px; min-width: 150px; } .prog .bar { flex: 1; }
+  .batt { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .batt .bar { width: 44px; }
+
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 13px; margin: 0; }
+  .kv dt { color: var(--text-3); } .kv dd { margin: 0; text-align: right; }
+  .callout { display: flex; gap: 10px; padding: 10px 12px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--border); color: var(--text-2); font-size: 13px; }
+  .callout svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--text-3); }
+  .list-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .list-item:last-child { border-bottom: 0; }
+  .list-item .grow { flex: 1; min-width: 0; }
+  .empty { padding: 40px 16px; text-align: center; color: var(--text-3); }
+
+  .chart { position: relative; }
+  .chart svg { width: 100%; display: block; overflow: visible; }
+  .chart text { font: 10px var(--font); fill: var(--text-3); }
+  .tip { position: absolute; pointer-events: none; background: var(--tip-bg); color: var(--tip-fg); font-size: 12px; line-height: 16px; padding: 6px 8px; border-radius: 4px; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); opacity: 0; transition: opacity .1s; z-index: 2; }
+  .tip b { font-weight: 600; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 2px; background: var(--series); } .legend i.dash { background: none; border-top: 1px dashed var(--text-3); }
+
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.28); opacity: 0; pointer-events: none; transition: opacity .2s var(--ease); z-index: 20; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 440px; max-width: 100%; background: var(--surface); border-left: 1px solid var(--border); transform: translateX(100%); visibility: hidden; transition: transform .22s var(--ease), visibility 0s .22s; z-index: 21; display: flex; flex-direction: column; }
+  body.open .scrim { opacity: 1; pointer-events: auto; } body.open .drawer { transform: none; visibility: visible; transition: transform .22s var(--ease); }
+  .drawer header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .drawer .body { padding: 20px; overflow-y: auto; flex: 1; }
+  .drawer footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+  .field { margin-bottom: 18px; }
+  .field > label { display: block; font-weight: 500; margin-bottom: 6px; }
+  .help { color: var(--text-3); font-size: 12px; margin-top: 4px; }
+  .input.err { border-color: var(--bad); } .errmsg { color: var(--bad); font-size: 12px; margin-top: 4px; display: none; }
+  .input.err + .errmsg, .errmsg.show { display: block; }
+  .devlist { border: 1px solid var(--border); border-radius: var(--r); max-height: 280px; overflow-y: auto; }
+  .devlist label { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .devlist label:last-child { border-bottom: 0; } .devlist label:hover { background: var(--hover); }
+  .devlist .badge { margin-left: auto; }
+
+  .toasts { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 30; }
+  .toast { background: var(--tip-bg); color: var(--tip-fg); padding: 10px 14px; border-radius: var(--r); font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.18); animation: toastIn .22s var(--ease) both; max-width: 380px; }
+  .toast.out { animation: toastOut .18s var(--ease) both; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes toastOut { to { opacity: 0; transform: translateY(8px); } }
+  .view { animation: viewIn .16s var(--ease) both; }
+  @keyframes viewIn { from { opacity: 0; } }
+  .skel { background: linear-gradient(90deg, var(--hover), var(--surface-2), var(--hover)); background-size: 200% 100%; animation: sh 1.2s linear infinite; border-radius: 4px; height: 12px; }
+  @keyframes sh { to { background-position: -200% 0; } }
+
+  @media (max-width: 1080px) { .cols-main, .cols-2 { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .live-strip .prog, .live-strip > .muted { display: none; } .shell { grid-template-columns: 1fr; } aside { display: none; } .content { padding: 16px; } .topbar { padding: 0 16px; } .search { width: 100%; } .metric { border-right: 0; border-bottom: 1px solid var(--border); } }
+  @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside>
+    <div class="logo"><i></i>AIO Test</div>
+    <a class="nav" data-nav="overview" href="#/"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Overview</a>
+    <a class="nav" data-nav="devices" href="#/devices"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/><path d="M7 12h2"/></svg>Devices<span class="count" id="nav-dev"></span></a>
+    <a class="nav" data-nav="runs" href="#/runs"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="4.5" width="11" height="7" rx="1.5"/><path d="M14.5 7v2"/><path d="M4 7h3.5v2H4z" fill="currentColor"/></svg>Cycle runs<span class="count" id="nav-run"></span></a>
+    <div class="nav-sep">Admin</div>
+    <a class="nav" data-nav="settings" href="#/settings"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>Settings</a>
+    <div class="foot"><span><b></b>Live</span><button class="icon-btn" id="theme" title="Toggle theme" aria-label="Toggle theme"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z"/></svg></button></div>
+  </aside>
+  <main>
+    <div class="topbar"><div class="crumbs" id="crumbs"></div>
+      <span class="scope" title="Group scope">Group <b>Test Cycles</b><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5 6 7.5 9 4.5"/></svg></span></div>
+    <div class="content" id="view"></div>
+  </main>
+</div>
+
+<div class="scrim" data-close></div>
+<div class="drawer" role="dialog" aria-modal="true" aria-labelledby="dtitle">
+  <header><h2 id="dtitle">New cycle run</h2><button class="btn" data-close>Close</button></header>
+  <div class="body">
+    <div class="field"><label for="f-name">Run name</label><input class="input" id="f-name"><div class="errmsg">Give the run a name.</div></div>
+    <div class="field"><label>Devices</label>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px" class="muted"><span id="f-count"></span><a href="#" class="link" id="f-all">Select all ready</a></div>
+      <div class="devlist" id="f-devs"></div><div class="errmsg" id="f-deverr">Select at least one device.</div>
+      <div class="help">Devices should be fully charged and off the charger when you start.</div></div>
+    <div class="field"><label>How a cycle is counted</label>
+      <div class="callout" style="background:var(--surface-2)"><div>Starts when the device is <b>≥95%</b> and off the charger. Ends when it drops <b>below 5%</b> and then <b>stops checking in for 30 min</b> (it has shut down). Going offline above 5%, or going back on charge, is recorded as <i>interrupted</i> and not counted.</div></div></div>
+  </div>
+  <footer><button class="btn" data-close>Cancel</button><button class="btn primary" id="f-submit">Start run</button></footer>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script type="module">
+import { detectCycles, aggregate, fmtDur } from './shared/cycles.js';
+
+const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const H = 3600e3, MIN = 60e3, DAY = 24 * H;
+let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const NOW = Date.now();
+
+// ── Mock fleet: "Test Cycles", 25 T7s. Each has a nominal runtime that slowly degrades
+// per cycle; imported history = the cycles a one-off backsweep would have found. ───────
+const DEV = Array.from({ length: 25 }, (_, i) => {
+  const base = 7.4 + rnd() * 2.6, n = 6 + Math.floor(rnd() * 14), fade = .004 + rnd() * .006;
+  const cycles = [], interrupted = [];
+  let t = NOW - 58 * DAY + rnd() * 2 * DAY;
+  for (let k = 0; k < n; k++) {
+    const rt = base * (1 - fade * k) * (0.97 + rnd() * .06) * H;
+    if (rnd() < .1) interrupted.push({ start: t - 1.3 * DAY, durationMs: rt * (.3 + rnd() * .4), endPct: 20 + Math.round(rnd() * 40), reason: rnd() < .5 ? 'offline' : 'recharged' });
+    cycles.push({ start: t, end: t + rt, durationMs: rt, startPct: 100, endPct: 1 + Math.round(rnd() * 3), maxTemp: +(37 + rnd() * 6 + (i % 7 === 3 ? 3 : 0)).toFixed(1), reason: 'died' });
+    t += rt + (2.5 + rnd() * 4) * DAY / 1.6;
+  }
+  return {
+    serial: 'AT070AABU' + String(117 + i * 13).padStart(5, '0'), base, fade, cycles, interrupted,
+    lastSeen: [4, 13, 21].includes(i) ? NOW - (3 + i) * H : NOW - rnd() * 4 * MIN,
+    battery: Math.round(15 + rnd() * 85), temp: +(31 + rnd() * 9 + (i % 7 === 3 ? 4 : 0)).toFixed(1), charging: rnd() < .3, build: rnd() < .7 ? '2.4.1' : '2.3.9',
+  };
+});
+DEV.forEach(d => { d.online = NOW - d.lastSeen < 15 * MIN; d.agg = aggregate([d.cycles]); d.lastCycle = d.cycles[d.cycles.length - 1]; });
+
+// Synthetic 24h battery history for one device (rows shaped like /history).
+function dayHistory(d) {
+  seed = d.serial.length * 97 + parseInt(d.serial.slice(-3)); const rows = []; let v = 100, dir = -1;
+  for (let t = NOW - 24 * H; t <= (d.online ? NOW : d.lastSeen); t += 10 * MIN) {
+    rows.push({ timestamp: new Date(t).toISOString(), battery_pct: Math.round(Math.max(0, v)), empty: false, extra: { charging: dir > 0, battery_temp_c: +(31 + (100 - v) / 10 + rnd()).toFixed(1) } });
+    v += dir * (dir < 0 ? 100 / (d.base * 6) : 3.2); if (v <= 3) dir = 1; if (v >= 100) { v = 100; dir = -1; }
+  }
+  return rows;
+}
+
+// ── Runs. A live run generates /history-shaped rows per device up to the sim clock and
+// runs the real detector on them each tick — exactly what the live page does per poll. ─
+const SIM = 20 * MIN; // sim time per real second → a 9h run finishes in ~30s
+const runs = [];
+function makeRun({ id, name, serials, ageMs = 0, done = false }) {
+  const run = { id, name, startedAt: NOW - ageMs, sim: ageMs, status: 'running', sel: null, devices: serials.map(s => {
+    const d = DEV.find(x => x.serial === s), i = DEV.indexOf(d);
+    seed = 500 + i * 31 + id.length;
+    return { d, runtime: d.base * (1 - d.fade * d.cycles.length) * (0.96 + rnd() * .08) * H,
+      dropAt: i === 9 ? .55 : null, noData: !d.online, state: 'waiting', res: null, rows: [] };
+  }) };
+  if (done) run.sim = Math.max(...run.devices.map(x => x.runtime)) + 40 * MIN;
+  evaluate(run, true); runs.unshift(run); return run;
+}
+function rowsFor(run, x) {
+  const rows = [], STEP = 10 * MIN, end = Math.min(run.sim, x.dropAt ? x.runtime * x.dropAt : x.runtime);
+  if (x.noData) return rows;
+  for (let t = 0; t <= end; t += STEP) {
+    const f = t / x.runtime, pct = Math.max(1, Math.round(100 * (1 - Math.pow(f, 1.15)) - (f > .93 ? 3 : 0)));
+    rows.push({ timestamp: new Date(run.startedAt + t).toISOString(), battery_pct: pct, empty: false, extra: { charging: false, battery_temp_c: +(32 + f * 8 + (x.d.temp - 31) / 3).toFixed(1) } });
+  }
+  return rows;
+}
+function evaluate(run, silent) {
+  if (run.status !== 'running') return;
+  const now = run.startedAt + run.sim;
+  for (const x of run.devices) {
+    x.rows = rowsFor(run, x); x.res = detectCycles(x.rows, { nowMs: now });
+    const last = x.rows[x.rows.length - 1], quiet = last ? now - new Date(last.timestamp).getTime() : 0;
+    x.cycle = x.res.cycles[0] || null; x.intr = x.res.interrupted[0] || null; x.last = last; x.quiet = quiet;
+    x.state = x.noData ? 'nodata' : x.cycle ? 'done' : x.intr ? 'interrupted' : last && last.battery_pct < 5 ? 'confirming' : 'discharging';
+  }
+  const counted = run.devices.filter(x => !['nodata', 'interrupted'].includes(x.state));
+  if (counted.length && counted.every(x => x.state === 'done')) {
+    run.status = 'complete'; run.endedAt = Math.max(...counted.map(x => x.cycle.end));
+    if (!silent) toast(`${run.name} complete — median runtime ${fmtDur(runStats(run).medianDurationMs)} across ${counted.length} devices.`);
+  }
+}
+const runStats = run => aggregate(run.devices.filter(x => x.cycle).map(x => [x.cycle]));
+const S = DEV.map(d => d.serial);
+makeRun({ id: 'R-012', name: 'Batch 12 — fw 2.3.9', serials: S.slice(0, 20), ageMs: 9 * DAY, done: true });
+makeRun({ id: 'R-013', name: 'Batch 13 — thermal pad rev B', serials: S.slice(6), ageMs: 4 * DAY, done: true });
+makeRun({ id: 'R-014', name: 'Batch 14 — fw 2.4.1', serials: S, ageMs: 2.5 * H });
+let nextId = 15;
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+const ago = t => { const m = Math.round((NOW - t) / MIN); return m < 2 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
+const dt = t => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const badge = (cls, label, live) => `<span class="badge ${cls}${live ? ' live' : ''}">${label}</span>`;
+const devStatus = d => !d.online ? badge('b-off', 'Offline') : d.charging ? badge('b-run', 'Charging') : badge('b-ok', 'Online');
+const RSTATE = { waiting: ['b-off', 'Waiting'], discharging: ['b-run', 'Discharging', 1], confirming: ['b-warn', 'Shutting down'], done: ['b-ok', 'Complete'], interrupted: ['b-bad', 'Interrupted'], nodata: ['b-off', 'No data'] };
+const runBadge = r => r.status === 'running' ? badge('b-run', 'Running', 1) : r.status === 'complete' ? badge('b-ok', 'Complete') : badge('b-off', 'Stopped');
+const allCycles = DEV.flatMap(d => d.cycles), fleetAgg = aggregate([allCycles]);
+const median = a => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+const icon = { info: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 7v4M8 5h.01"/></svg>' };
+
+// ── Charts: single-series line/bar with crosshair + tooltip. One axis, recessive grid. ─
+function lineChart(el, pts, { h = 180, yMax = 100, yFmt = v => v, xFmt, tip, refs = [], area = false } = {}) {
+  if (!pts.length) { el.innerHTML = '<div class="empty">No samples in this range.</div>'; return; }
+  const W = Math.max(280, el.clientWidth || 640), pl = 34, pr = 8, pt = 8, pb = 22, x0 = pts[0].x, x1 = pts[pts.length - 1].x || x0 + 1;
+  const X = x => pl + (x - x0) / (x1 - x0 || 1) * (W - pl - pr), Y = v => pt + (1 - v / yMax) * (h - pt - pb);
+  const sm = pts.map((p, i) => { const w = pts.slice(Math.max(0, i - 1), i + 2); return w.reduce((a, q) => a + q.y, 0) / w.length; });
+  const d = sm.map((v, i) => `${i ? 'L' : 'M'}${X(pts[i].x).toFixed(1)},${Y(v).toFixed(1)}`).join('');
+  const ticks = [0, .5, 1].map(f => yMax * f), xt = [0, .25, .5, .75, 1].map(f => x0 + f * (x1 - x0));
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${h}" style="height:${h}px">
+    ${ticks.map(v => `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${pl - 6}" y="${Y(v) + 3}" text-anchor="end">${yFmt(v)}</text>`).join('')}
+    ${xt.map((x, i) => `<text x="${X(x)}" y="${h - 4}" text-anchor="${i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}">${xFmt(x)}</text>`).join('')}
+    ${refs.map(r => `<line x1="${pl}" x2="${W - pr}" y1="${Y(r.v)}" y2="${Y(r.v)}" stroke="var(--text-3)" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/><text x="${W - pr}" y="${Y(r.v) - 4}" text-anchor="end">${r.label}</text>`).join('')}
+    ${area ? `<path d="${d}L${X(x1)},${Y(0)}L${X(x0)},${Y(0)}Z" fill="var(--series)" opacity=".08"/>` : ''}
+    <path d="${d}" fill="none" stroke="var(--series)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    <line class="xh" y1="${pt}" y2="${h - pb}" stroke="var(--border-strong)" vector-effect="non-scaling-stroke" opacity="0"/>
+    <rect x="${pl}" y="0" width="${W - pl - pr}" height="${h}" fill="transparent" class="hit"/></svg>
+    <div class="dot" style="position:absolute;width:10px;height:10px;border-radius:50%;background:var(--series);border:2px solid var(--surface);transform:translate(-50%,-50%);opacity:0;pointer-events:none"></div><div class="tip"></div>`;
+  hover(el, W, pts.length, i => ({ x: X(pts[i].x), y: Y(sm[i]), html: tip(pts[i]) }), (fx) => { let b = 0, bd = Infinity; const xv = x0 + (fx * W - pl) / (W - pl - pr) * (x1 - x0); pts.forEach((p, i) => { const dd = Math.abs(p.x - xv); if (dd < bd) { bd = dd; b = i; } }); return b; }, h);
+}
+function barChart(el, items, { h = 180, yMax, yFmt, label, tip, color = () => 'var(--series)' }) {
+  if (!items.length) { el.innerHTML = '<div class="empty">No cycles yet.</div>'; return; }
+  const W = Math.max(280, el.clientWidth || 640), pl = 34, pr = 8, pt = 8, pb = 22, bw = (W - pl - pr) / items.length, gap = Math.min(4, bw * .25);
+  const Y = v => pt + (1 - v / yMax) * (h - pt - pb);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${h}" style="height:${h}px">
+    ${[0, .5, 1].map(f => `<line x1="${pl}" x2="${W - pr}" y1="${Y(yMax * f)}" y2="${Y(yMax * f)}" stroke="var(--grid)"/><text x="${pl - 6}" y="${Y(yMax * f) + 3}" text-anchor="end">${yFmt(yMax * f)}</text>`).join('')}
+    ${items.map((it, i) => { const x = pl + i * bw + gap / 2, y = Y(it.v), hh = Y(0) - y; return `<path d="M${x},${Y(0)}V${y + 3}q0,-3 3,-3h${bw - gap - 6}q3,0 3,3V${Y(0)}Z" fill="${color(it, i)}" class="b" data-i="${i}"/>`; }).join('')}
+    ${items.length <= 24 ? items.map((it, i) => i % Math.ceil(items.length / 8) === 0 ? `<text x="${pl + i * bw + bw / 2}" y="${h - 4}" text-anchor="middle">${label(it, i)}</text>` : '').join('') : ''}
+    <rect x="${pl}" y="0" width="${W - pl - pr}" height="${h}" fill="transparent" class="hit"/></svg><div class="dot" style="display:none"></div><div class="tip"></div>`;
+  hover(el, W, items.length, i => ({ x: pl + i * bw + bw / 2, y: Y(items[i].v), html: tip(items[i], i) }), fx => Math.max(0, Math.min(items.length - 1, Math.floor((fx * W - pl) / bw))), h,
+    i => $$('.b', el).forEach((b, j) => b.style.opacity = i == null || i === j ? 1 : .45));
+}
+function hover(el, W, n, at, pick, h, onIdx) {
+  const svg = $('svg', el), tip = $('.tip', el), xh = $('.xh', el), dot = $('.dot', el);
+  $('.hit', el).onmousemove = e => {
+    const r = svg.getBoundingClientRect(), i = pick((e.clientX - r.left) / r.width), p = at(i), sx = r.width / W, sy = r.height / h;
+    tip.innerHTML = p.html; tip.style.opacity = 1; tip.style.left = p.x * sx + 'px'; tip.style.top = p.y * sy + 'px';
+    if (xh) { xh.setAttribute('x1', p.x); xh.setAttribute('x2', p.x); xh.setAttribute('opacity', 1); }
+    if (dot) { dot.style.left = p.x * sx + 'px'; dot.style.top = p.y * sy + 'px'; dot.style.opacity = 1; }
+    onIdx && onIdx(i);
+  };
+  $('.hit', el).onmouseleave = () => { tip.style.opacity = 0; xh && xh.setAttribute('opacity', 0); if (dot) dot.style.opacity = 0; onIdx && onIdx(null); };
+}
+
+// ── Router ────────────────────────────────────────────────────────────────────
+const routes = [
+  [/^#\/devices\/(.+)$/, deviceView, 'devices'], [/^#\/devices$/, devicesView, 'devices'],
+  [/^#\/runs\/(.+)$/, runView, 'runs'], [/^#\/runs$/, runsView, 'runs'],
+  [/^#\/settings$/, settingsView, 'settings'], [/^.*$/, overviewView, 'overview'],
+];
+let current = null;
+function render(fresh = true) {
+  const h = location.hash || '#/';
+  for (const [re, fn, nav] of routes) { const m = h.match(re); if (m) { current = { fn, arg: m[1] && decodeURIComponent(m[1]) }; $$('.nav').forEach(a => a.classList.toggle('on', a.dataset.nav === nav)); break; } }
+  current.fn(current.arg, fresh);
+  const v = $('#view'); if (fresh) { v.classList.remove('view'); void v.offsetWidth; v.classList.add('view'); window.scrollTo(0, 0); }
+  $('#nav-dev').textContent = DEV.length; const live = runs.filter(r => r.status === 'running').length; $('#nav-run').textContent = live ? `${live} live` : '';
+}
+window.addEventListener('hashchange', () => render(true));
+const crumbs = (...parts) => $('#crumbs').innerHTML = parts.map((p, i) => i < parts.length - 1 ? `<a href="${p[1]}">${p[0]}</a><span>/</span>` : `<b>${p[0]}</b>`).join('');
+const setView = html => $('#view').innerHTML = html;
+const go = h => location.hash = h;
+function rowsClickable(root, attr, to) { $$(`tr[${attr}]`, root).forEach(tr => { tr.tabIndex = 0; tr.onclick = () => go(to(tr.getAttribute(attr))); tr.onkeydown = e => e.key === 'Enter' && tr.onclick(); }); }
+
+// ── Overview ──────────────────────────────────────────────────────────────────
+function overviewView() {
+  crumbs(['Overview']);
+  const online = DEV.filter(d => d.online).length, live = runs.find(r => r.status === 'running');
+  const last30 = allCycles.filter(c => c.start > NOW - 30 * DAY), prev30 = allCycles.filter(c => c.start <= NOW - 30 * DAY);
+  const m30 = median(last30.map(c => c.durationMs)), mp = median(prev30.map(c => c.durationMs)), delta = mp ? (m30 - mp) / mp * 100 : 0;
+  const hot = [...DEV].sort((a, b) => b.temp - a.temp).filter(d => d.online).slice(0, 3);
+  const weak = [...DEV].filter(d => d.cycles.length >= 3).sort((a, b) => a.agg.medianDurationMs - b.agg.medianDurationMs).slice(0, 5);
+  const off = DEV.filter(d => !d.online);
+  // weekly median runtime
+  const weeks = []; for (let w = 8; w >= 0; w--) { const a = NOW - (w + 1) * 7 * DAY, b = NOW - w * 7 * DAY; const c = allCycles.filter(x => x.start >= a && x.start < b); if (c.length) weeks.push({ x: b, y: median(c.map(x => x.durationMs)) / H, n: c.length }); }
+  setView(`<div class="page-head"><div><h1>Overview</h1><div class="sub">Test Cycles · ${DEV.length} devices · updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></div>
+      <a class="btn primary" href="#/runs" id="ov-new"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 2v10M2 7h10"/></svg>New run</a></div>
+    <div class="stack">
+    ${live ? `<a class="callout live-strip" href="#/runs/${live.id}" style="text-decoration:none;align-items:center;flex-wrap:wrap">${badge('b-run', 'Running', 1)}<div style="flex:1"><b style="color:var(--text)">${live.name}</b> · <span id="ov-live"></span></div><div class="prog" style="width:220px"><div class="bar run"><i id="ov-bar"></i></div></div><span class="muted">View →</span></a>` : ''}
+    <div class="panel"><div class="metrics">
+      <div class="metric"><small>Devices online</small><b class="num">${online} / ${DEV.length}</b><span class="delta">${DEV.length - online} offline</span></div>
+      <div class="metric"><small>Median runtime · 30d</small><b class="num">${fmtDur(m30)}</b><span class="delta ${delta < -1 ? 'down' : ''}">${delta >= 0 ? '+' : ''}${delta.toFixed(1)}% vs prior 30d</span></div>
+      <div class="metric"><small>Cycles counted · 30d</small><b class="num">${last30.length}</b><span class="delta">${allCycles.length} all time</span></div>
+      <div class="metric"><small>Interrupted · 30d</small><b class="num">${DEV.flatMap(d => d.interrupted).filter(c => c.start > NOW - 30 * DAY).length}</b><span class="delta">not counted</span></div>
+      <div class="metric"><small>Hottest now</small><b class="num">${hot[0].temp.toFixed(1)} °C</b><span class="delta mono">${hot[0].serial.slice(-6)}</span></div>
+    </div></div>
+    <div class="cols-main">
+      <div class="panel"><div class="panel-head"><h2>Median runtime per week</h2><span class="muted">full → shutdown, all devices</span></div><div class="panel-body"><div class="chart" id="ov-trend"></div></div></div>
+      <div class="panel"><div class="panel-head"><h2>Needs attention</h2><span class="muted">${off.length + hot.filter(d => d.temp >= 40).length}</span></div>
+        ${off.map(d => `<a class="list-item" href="#/devices/${d.serial}" style="text-decoration:none;color:inherit">${badge('b-off', 'Offline')}<span class="grow mono">${d.serial}</span><span class="muted">${ago(d.lastSeen)}</span></a>`).join('')}
+        ${hot.filter(d => d.temp >= 40).map(d => `<a class="list-item" href="#/devices/${d.serial}" style="text-decoration:none;color:inherit">${badge('b-warn', 'Hot')}<span class="grow mono">${d.serial}</span><span class="num">${d.temp.toFixed(1)} °C</span></a>`).join('') || ''}
+      </div>
+    </div>
+    <div class="panel"><div class="panel-head"><h2>Shortest median runtime</h2><a class="link" href="#/devices">All devices</a></div>
+      <div class="scroll-x"><table><thead><tr><th>Device</th><th class="r">Cycles</th><th class="r">Median runtime</th><th class="r">Last cycle</th><th class="r">Change since first</th></tr></thead><tbody>
+      ${weak.map(d => { const ch = (d.lastCycle.durationMs - d.cycles[0].durationMs) / d.cycles[0].durationMs * 100; return `<tr class="row" data-s="${d.serial}"><td class="mono">${d.serial}</td><td class="r num">${d.cycles.length}</td><td class="r num">${fmtDur(d.agg.medianDurationMs)}</td><td class="r num">${fmtDur(d.lastCycle.durationMs)}</td><td class="r num" style="color:${ch < -5 ? 'var(--bad)' : 'inherit'}">${ch.toFixed(1)}%</td></tr>`; }).join('')}
+      </tbody></table></div></div>
+    </div>`);
+  lineChart($('#ov-trend'), weeks, { h: 200, yMax: 10, yFmt: v => v + 'h', xFmt: x => new Date(x).toLocaleDateString([], { month: 'short', day: 'numeric' }), tip: p => `<b>${fmtDur(p.y * H)}</b> median<br>week ending ${new Date(p.x).toLocaleDateString([], { month: 'short', day: 'numeric' })} · ${p.n} cycles`, area: true });
+  rowsClickable($('#view'), 'data-s', s => `#/devices/${s}`);
+  $('#ov-new').onclick = e => { e.preventDefault(); openDrawer(); };
+  tickOverview();
+}
+function tickOverview() {
+  const live = runs.find(r => r.status === 'running'); if (!live || !$('#ov-live')) return;
+  const c = live.devices.filter(x => !['nodata', 'interrupted'].includes(x.state)), d = c.filter(x => x.state === 'done').length;
+  $('#ov-live').textContent = `${d} of ${c.length} devices complete · ${fmtDur(live.sim)} elapsed`; $('#ov-bar').style.width = (d / c.length * 100) + '%';
+}
+
+// ── Devices ───────────────────────────────────────────────────────────────────
+const devState = { q: '', sort: 'serial', dir: 1, filter: 'all' };
+function devicesView() {
+  crumbs(['Devices']);
+  setView(`<div class="page-head"><div><h1>Devices</h1><div class="sub">${DEV.length} T7 devices in Test Cycles</div></div></div>
+    <div class="panel"><div class="panel-head">
+      <div class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="input" id="q" placeholder="Search serial" value="${devState.q}"></div>
+      <div class="seg" id="flt">${['all', 'online', 'offline', 'charging'].map(f => `<button data-f="${f}" class="${devState.filter === f ? 'on' : ''}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('')}</div></div>
+      <div class="scroll-x"><table><thead><tr>
+        ${[['serial', 'Device'], ['status', 'Status'], ['battery', 'Battery', 1], ['temp', 'Temp', 1], ['cycles', 'Cycles', 1], ['median', 'Median runtime', 1], ['last', 'Last cycle', 1], ['seen', 'Last seen', 1], ['build', 'Build']].map(([k, l, r]) => `<th data-sort="${k}" class="${r ? 'r' : ''}">${l}<span class="arr">${devState.sort === k ? (devState.dir > 0 ? '↑' : '↓') : ''}</span></th>`).join('')}
+      </tr></thead><tbody id="dev-body"></tbody></table></div></div>`);
+  const draw = () => {
+    const key = { serial: d => d.serial, status: d => (d.online ? 0 : 2) + (d.charging ? 1 : 0), battery: d => d.battery, temp: d => d.temp, cycles: d => d.cycles.length, median: d => d.agg.medianDurationMs, last: d => d.lastCycle?.start || 0, seen: d => -d.lastSeen, build: d => d.build }[devState.sort];
+    const list = DEV.filter(d => d.serial.toLowerCase().includes(devState.q.toLowerCase()))
+      .filter(d => devState.filter === 'all' || (devState.filter === 'online' && d.online) || (devState.filter === 'offline' && !d.online) || (devState.filter === 'charging' && d.online && d.charging))
+      .sort((a, b) => (key(a) > key(b) ? 1 : key(a) < key(b) ? -1 : 0) * devState.dir);
+    $('#dev-body').innerHTML = list.length ? list.map(d => `<tr class="row" data-s="${d.serial}">
+      <td class="mono">${d.serial}</td><td>${devStatus(d)}</td>
+      <td class="r">${d.online ? `<span class="batt num">${d.battery}%<span class="bar ${d.battery < 20 ? 'warn' : ''}"><i style="width:${d.battery}%"></i></span></span>` : '<span class="muted">—</span>'}</td>
+      <td class="r num" style="${d.temp >= 40 && d.online ? 'color:var(--warn)' : ''}">${d.online ? d.temp.toFixed(1) + ' °C' : '—'}</td>
+      <td class="r num">${d.cycles.length}</td><td class="r num">${fmtDur(d.agg.medianDurationMs)}</td>
+      <td class="r muted">${ago(d.lastCycle.start)}</td><td class="r muted">${ago(d.lastSeen)}</td><td class="mono muted">${d.build}</td></tr>`).join('')
+      : `<tr><td colspan="9" class="empty">No devices match “${devState.q}”.</td></tr>`;
+    rowsClickable($('#dev-body'), 'data-s', s => `#/devices/${s}`);
+  };
+  $('#q').oninput = e => { devState.q = e.target.value; draw(); };
+  $('#flt').onclick = e => { const b = e.target.closest('button'); if (!b) return; devState.filter = b.dataset.f; $$('#flt button').forEach(x => x.classList.toggle('on', x === b)); draw(); };
+  $$('th[data-sort]').forEach(th => th.onclick = () => { const k = th.dataset.sort; devState.dir = devState.sort === k ? -devState.dir : 1; devState.sort = k; devicesView(); $('#q').focus(); });
+  draw();
+}
+
+function deviceView(serial) {
+  const d = DEV.find(x => x.serial === serial); if (!d) return go('#/devices');
+  crumbs(['Devices', '#/devices'], [serial]);
+  const first = d.cycles[0], last = d.lastCycle, ch = (last.durationMs - first.durationMs) / first.durationMs * 100;
+  const runsIn = runs.filter(r => r.devices.some(x => x.d === d));
+  setView(`<div class="page-head"><div><div style="display:flex;align-items:center;gap:10px"><h1 class="mono" style="font-size:18px">${serial}</h1>${devStatus(d)}</div>
+      <div class="sub">T7 · build ${d.build} · last seen ${ago(d.lastSeen)}</div></div></div>
+    <div class="stack">
+    <div class="panel"><div class="metrics">
+      <div class="metric"><small>Battery</small><b class="num">${d.online ? d.battery + '%' : '—'}</b><span class="delta">${d.online ? (d.charging ? 'charging' : 'on battery') : 'offline'}</span></div>
+      <div class="metric"><small>Temperature</small><b class="num">${d.online ? d.temp.toFixed(1) + ' °C' : '—'}</b></div>
+      <div class="metric"><small>Cycles counted</small><b class="num">${d.cycles.length}</b><span class="delta">${d.interrupted.length} interrupted</span></div>
+      <div class="metric"><small>Median runtime</small><b class="num">${fmtDur(d.agg.medianDurationMs)}</b><span class="delta">${fmtDur(d.agg.minDurationMs)} – ${fmtDur(d.agg.maxDurationMs)}</span></div>
+      <div class="metric"><small>Runtime change</small><b class="num" style="color:${ch < -5 ? 'var(--bad)' : 'inherit'}">${ch >= 0 ? '+' : ''}${ch.toFixed(1)}%</b><span class="delta">first → latest cycle</span></div>
+    </div></div>
+    <div class="cols-2">
+      <div class="panel"><div class="panel-head"><h2>Battery · last 24 h</h2><div class="legend"><span><i></i>Battery %</span></div></div><div class="panel-body"><div class="chart" id="d-batt"></div></div></div>
+      <div class="panel"><div class="panel-head"><h2>Runtime per cycle</h2><span class="muted">full → shutdown</span></div><div class="panel-body"><div class="chart" id="d-rt"></div></div></div>
+    </div>
+    <div class="panel"><div class="panel-head"><h2>Cycle history</h2><span class="muted">${d.cycles.length + d.interrupted.length} discharges</span></div>
+      <div class="scroll-x"><table><thead><tr><th>#</th><th>Started</th><th>Result</th><th class="r">Runtime</th><th class="r">Ended at</th><th class="r">Max temp</th><th>Run</th></tr></thead><tbody>
+      ${[...d.cycles.map((c, i) => ({ ...c, n: i + 1 })), ...d.interrupted].sort((a, b) => b.start - a.start).map(c => {
+        const r = runsIn.find(r => c.start >= r.startedAt - H && c.start <= r.startedAt + H);
+        return `<tr><td class="num muted">${c.n || '—'}</td><td class="num">${dt(c.start)}</td>
+        <td>${c.reason === 'died' ? badge('b-ok', 'Counted') : badge('b-bad', c.reason === 'offline' ? 'Went offline' : 'Recharged early')}</td>
+        <td class="r num">${fmtDur(c.durationMs)}</td><td class="r num">${c.endPct}%</td><td class="r num">${c.maxTemp ? c.maxTemp.toFixed(1) + ' °C' : '—'}</td>
+        <td>${r ? `<a class="link" href="#/runs/${r.id}">${r.id}</a>` : '<span class="muted">Imported</span>'}</td></tr>`; }).join('')}
+      </tbody></table></div></div></div>`);
+  lineChart($('#d-batt'), dayHistory(d).filter(r => !r.empty).map(r => ({ x: new Date(r.timestamp).getTime(), y: r.battery_pct, r })), { h: 180, xFmt: x => new Date(x).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), yFmt: v => v + '%',
+    tip: p => `<b>${p.y}%</b> · ${p.r.extra.charging ? 'charging' : 'on battery'}<br>${new Date(p.x).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${p.r.extra.battery_temp_c} °C`, refs: [{ v: 5, label: 'Shutdown 5%' }] });
+  const ymax = Math.ceil(Math.max(...d.cycles.map(c => c.durationMs / H)) + 1);
+  barChart($('#d-rt'), d.cycles.map((c, i) => ({ v: c.durationMs / H, c, i })), { h: 180, yMax: ymax, yFmt: v => Math.round(v) + 'h', label: (it) => '#' + (it.i + 1),
+    tip: it => `<b>Cycle ${it.i + 1}</b> · ${fmtDur(it.c.durationMs)}<br>${dt(it.c.start)} · max ${it.c.maxTemp} °C` });
+}
+
+// ── Runs ──────────────────────────────────────────────────────────────────────
+function runsView() {
+  crumbs(['Cycle runs']);
+  setView(`<div class="page-head"><div><h1>Cycle runs</h1><div class="sub">Start a run when the bench test begins. Each device finishes when it shuts down; the run finishes when all have.</div></div>
+    <button class="btn primary" id="new"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 2v10M2 7h10"/></svg>New run</button></div>
+    <div class="panel"><div class="scroll-x"><table><thead><tr><th>Run</th><th>Status</th><th>Progress</th><th>Started</th><th class="r">Elapsed</th><th class="r">Median runtime</th><th class="r">Range</th></tr></thead><tbody id="runs-body"></tbody></table></div></div>
+    <div class="callout" style="margin-top:16px">${icon.info}<div>Discharges from before runs existed were imported from device history (${allCycles.length} counted cycles). They show on each device's page.</div></div>`);
+  $('#new').onclick = openDrawer; drawRuns();
+}
+function drawRuns() {
+  const tb = $('#runs-body'); if (!tb) return;
+  tb.innerHTML = runs.map(r => {
+    const c = r.devices.filter(x => !['nodata', 'interrupted'].includes(x.state)), d = c.filter(x => x.state === 'done').length, st = runStats(r);
+    return `<tr class="row" data-r="${r.id}"><td><div style="font-weight:500">${r.name}</div><div class="muted mono" style="font-size:12px">${r.id}</div></td><td>${runBadge(r)}</td>
+      <td><div class="prog"><div class="bar ${r.status === 'complete' ? 'ok' : 'run'}"><i style="width:${c.length ? d / c.length * 100 : 0}%"></i></div><span class="num muted">${d}/${c.length}</span></div></td>
+      <td class="muted">${dt(r.startedAt)}</td><td class="r num">${fmtDur((r.endedAt || r.startedAt + r.sim) - r.startedAt)}</td>
+      <td class="r num">${st.count ? fmtDur(st.medianDurationMs) : '—'}</td><td class="r num muted">${st.count > 1 ? `${fmtDur(st.minDurationMs)} – ${fmtDur(st.maxDurationMs)}` : '—'}</td></tr>`;
+  }).join('');
+  rowsClickable(tb, 'data-r', id => `#/runs/${id}`);
+}
+function runView(id, fresh) {
+  const run = runs.find(r => r.id === id); if (!run) return go('#/runs');
+  crumbs(['Cycle runs', '#/runs'], [run.name]);
+  if (!fresh && $('#run-root')?.dataset.id === id && $('#run-root').dataset.status === run.status) return patchRun(run);
+  setView(`<div id="run-root" data-id="${id}" data-status="${run.status}"><div class="page-head"><div><div style="display:flex;align-items:center;gap:10px"><h1>${run.name}</h1>${runBadge(run)}</div>
+      <div class="sub"><span class="mono">${run.id}</span> · started ${dt(run.startedAt)} · ${run.devices.length} devices</div></div>
+      <div style="display:flex;gap:8px"><button class="btn" id="export">Export CSV</button>${run.status === 'running' ? '<button class="btn" id="stop">Stop run</button>' : ''}</div></div>
+    <div class="stack">
+    ${run.status === 'running' ? `<div class="callout">${icon.info}<div>Watching telemetry. A device is complete once it drops below 5% and stays silent for 30 min. The run completes when every reporting device has.</div></div>` : ''}
+    <div class="panel"><div class="metrics" id="run-m"></div></div>
+    <div class="cols-main">
+      <div class="panel"><div class="scroll-x"><table><thead><tr><th>Device</th><th>State</th><th class="r">Battery</th><th class="r">Temp</th><th class="r">Runtime</th><th class="r">Last check-in</th></tr></thead><tbody id="run-body"></tbody></table></div></div>
+      <div class="panel" id="run-side"></div>
+    </div>
+    <div class="panel"><div class="panel-head"><h2>Runtime by device</h2><span class="muted">sorted, completed devices only</span></div><div class="panel-body"><div class="chart" id="run-dist"></div></div></div>
+    </div></div>`);
+  $('#export').onclick = () => toast('Export is not wired up in the demo.');
+  $('#stop') && ($('#stop').onclick = () => { run.status = 'stopped'; run.endedAt = run.startedAt + run.sim; toast(`${run.name} stopped. Completed devices are kept.`); render(false); });
+  $('#run-body').onclick = e => { const tr = e.target.closest('tr[data-s]'); if (tr) { run.sel = tr.dataset.s; patchRun(run, true); } };
+  patchRun(run, true);
+}
+function patchRun(run, all) {
+  const c = run.devices.filter(x => !['nodata', 'interrupted'].includes(x.state)), done = c.filter(x => x.state === 'done'), st = runStats(run);
+  const now = run.startedAt + run.sim;
+  $('#run-m').innerHTML = `
+    <div class="metric"><small>Complete</small><b class="num">${done.length} / ${c.length}</b><span class="delta">${run.devices.length - c.length} excluded</span></div>
+    <div class="metric"><small>Elapsed</small><b class="num">${fmtDur((run.endedAt || now) - run.startedAt)}</b></div>
+    <div class="metric"><small>Median runtime</small><b class="num">${st.count ? fmtDur(st.medianDurationMs) : '—'}</b></div>
+    <div class="metric"><small>Range</small><b class="num" style="font-size:18px">${st.count ? `${fmtDur(st.minDurationMs)} – ${fmtDur(st.maxDurationMs)}` : '—'}</b></div>
+    <div class="metric"><small>Peak temperature</small><b class="num">${st.maxTemp != null ? st.maxTemp.toFixed(1) + ' °C' : '—'}</b></div>`;
+  if (!run.sel || !run.devices.some(x => x.d.serial === run.sel)) run.sel = run.devices[0].d.serial;
+  $('#run-body').innerHTML = run.devices.map(x => { const [cls, l, live] = RSTATE[x.state]; return `<tr class="row ${x.d.serial === run.sel ? 'sel' : ''}" data-s="${x.d.serial}" tabindex="0">
+    <td class="mono">${x.d.serial}</td><td>${badge(cls, l, live)}</td>
+    <td class="r">${x.last && x.state !== 'done' ? `<span class="batt num">${x.last.battery_pct}%<span class="bar ${x.last.battery_pct < 20 ? 'warn' : 'run'}"><i style="width:${x.last.battery_pct}%"></i></span></span>` : x.state === 'done' ? '<span class="muted">Shut down</span>' : '—'}</td>
+    <td class="r num">${x.last ? x.last.extra.battery_temp_c.toFixed(1) + ' °C' : '—'}</td>
+    <td class="r num">${x.cycle ? `<b>${fmtDur(x.cycle.durationMs)}</b>` : x.last && !x.intr ? `<span class="muted">${fmtDur(new Date(x.last.timestamp) - run.startedAt)}…</span>` : '—'}</td>
+    <td class="r muted num">${x.last ? (x.state === 'confirming' ? `silent ${Math.round(x.quiet / MIN)} / 30 min` : (now - new Date(x.last.timestamp).getTime() < 15 * MIN ? 'just now' : fmtDur(now - new Date(x.last.timestamp).getTime()) + ' ago')) : 'never'}</td></tr>`; }).join('');
+  $$('#run-body tr').forEach(tr => tr.onkeydown = e => e.key === 'Enter' && tr.click());
+  const x = run.devices.find(y => y.d.serial === run.sel);
+  const side = $('#run-side'), [cls, l] = RSTATE[x.state];
+  side.innerHTML = `<div class="panel-head"><h2 class="mono" style="font-weight:500">${x.d.serial}</h2>${badge(cls, l)}</div><div class="panel-body">
+    <div class="chart" id="run-chart"></div>
+    <dl class="kv" style="margin-top:14px">
+      <dt>Runtime</dt><dd class="num">${x.cycle ? fmtDur(x.cycle.durationMs) : '—'}</dd>
+      <dt>Device median (history)</dt><dd class="num">${fmtDur(x.d.agg.medianDurationMs)}</dd>
+      <dt>vs. its median</dt><dd class="num">${x.cycle ? `${((x.cycle.durationMs - x.d.agg.medianDurationMs) / x.d.agg.medianDurationMs * 100).toFixed(1)}%` : '—'}</dd>
+      <dt>Last reading</dt><dd class="num">${x.last ? x.last.battery_pct + '%' : '—'}</dd>
+      <dt>Max / avg temp</dt><dd class="num">${x.cycle ? `${x.cycle.maxTemp.toFixed(1)} / ${x.cycle.avgTemp.toFixed(1)} °C` : '—'}</dd>
+      ${x.intr ? `<dt>Note</dt><dd style="color:var(--bad)">Went offline at ${x.intr.endPct}% — not counted</dd>` : ''}
+      ${x.noData ? `<dt>Note</dt><dd>No check-ins since the run started</dd>` : ''}
+    </dl><div style="margin-top:14px"><a class="link" href="#/devices/${x.d.serial}">Device history →</a></div></div>`;
+  lineChart($('#run-chart'), x.rows.map(r => ({ x: new Date(r.timestamp).getTime(), y: r.battery_pct, r })), { h: 150, xFmt: t => '+' + ((t - run.startedAt) / H).toFixed(1) + 'h', yFmt: v => v + '%', refs: [{ v: 5, label: '5%' }],
+    tip: p => `<b>${p.y}%</b> · +${fmtDur(p.x - run.startedAt)}<br>${p.r.extra.battery_temp_c} °C` });
+  const items = done.map(y => ({ v: y.cycle.durationMs / H, y })).sort((a, b) => a.v - b.v);
+  barChart($('#run-dist'), items, { h: 160, yMax: Math.ceil(Math.max(10, ...items.map(i => i.v))), yFmt: v => Math.round(v) + 'h', label: () => '',
+    tip: it => `<b class="mono">${it.y.d.serial}</b><br>${fmtDur(it.y.cycle.durationMs)}` , color: it => it.y.d.serial === run.sel ? 'var(--series)' : 'var(--series-2)' });
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+function settingsView() {
+  crumbs(['Settings']);
+  setView(`<div class="page-head"><div><h1>Settings</h1><div class="sub">Stored in this browser only.</div></div></div>
+    <div class="panel" style="max-width:640px"><div class="panel-head"><h2>Connection</h2>${badge('b-ok', 'Connected')}</div><div class="panel-body">
+      <div class="field"><label>Environment</label><div class="seg"><button class="on">Live</button><button>Stage</button></div><div class="help">mdm.dev.aioapp.com</div></div>
+      <div class="field"><label for="s-key">API key</label><input class="input mono" id="s-key" type="password" value="••••••••••••••••"><div class="help">QA-scoped, read-only. Ask the MDM admin for one.</div></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn">Test connection</button><button class="btn primary" id="s-save">Save</button></div>
+    </div></div>`);
+  $('#s-save').onclick = () => toast('Saved.');
+}
+
+// ── New-run drawer ───────────────────────────────────────────────────────────
+function openDrawer() {
+  $('#f-name').value = `Batch ${nextId}`; $('#f-name').classList.remove('err'); $('#f-deverr').classList.remove('show');
+  $('#f-devs').innerHTML = DEV.map(d => { const ready = d.online && d.battery >= 95 && !d.charging; return `<label><input type="checkbox" value="${d.serial}" ${d.online ? 'checked' : ''}><span class="mono">${d.serial}</span>${!d.online ? badge('b-off', 'Offline') : ready ? badge('b-ok', 'Ready') : d.charging ? badge('b-run', `Charging ${d.battery}%`) : badge('b-warn', `${d.battery}%`)}</label>`; }).join('');
+  countSel(); document.body.classList.add('open'); setTimeout(() => $('#f-name').select(), 230);
+}
+const closeDrawer = () => document.body.classList.remove('open');
+const countSel = () => $('#f-count').textContent = `${$$('#f-devs input:checked').length} of ${DEV.length} selected`;
+$('#f-devs').onchange = countSel;
+$('#f-all').onclick = e => { e.preventDefault(); $$('#f-devs input').forEach((c, i) => c.checked = DEV[i].online); countSel(); };
+$$('[data-close]').forEach(b => b.onclick = closeDrawer);
+document.addEventListener('keydown', e => e.key === 'Escape' && closeDrawer());
+$('#f-submit').onclick = () => {
+  const name = $('#f-name').value.trim(), serials = $$('#f-devs input:checked').map(c => c.value);
+  $('#f-name').classList.toggle('err', !name); $('#f-deverr').classList.toggle('show', !serials.length);
+  if (!name || !serials.length) return;
+  const run = makeRun({ id: `R-0${nextId++}`, name, serials });
+  closeDrawer(); toast(`${name} started — watching ${serials.length} devices.`); go(`#/runs/${run.id}`);
+};
+
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg; $('#toasts').appendChild(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 200); }, 4500);
+}
+$('#theme').onclick = () => { const dark = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() === '#0d0d0f'; const t = dark ? 'light' : 'dark'; document.documentElement.dataset.theme = t; try { localStorage.setItem('demoTheme', t); } catch (e) {} render(false); };
+
+// Sim clock — stands in for polling /devices + /history once a minute on the real page.
+setInterval(() => {
+  runs.filter(r => r.status === 'running').forEach(r => { r.sim += SIM; evaluate(r); });
+  if (current?.fn === runView) runView(current.arg, false);
+  else if (current?.fn === runsView) drawRuns();
+  else if (current?.fn === overviewView) tickOverview();
+  const live = runs.filter(r => r.status === 'running').length; $('#nav-run').textContent = live ? `${live} live` : '';
+}, 1000);
+
+render(true);
+</script>
+</body>
+</html>

@@ -15,11 +15,27 @@
 // dropped (most "offline" gaps in real history are this). Those gaps are counted on the
 // cycle (`gaps`, `gapMs`) so a reader knows part of it wasn't observed.
 //
+// The lab's everyday test is time-boxed, not run-to-dead: devices come off the charger
+// around 10:30 and go back on around 00:30, at 15–25%. Those count too, as a `timed` cycle,
+// when the discharge ran at least `minHours` before being recharged (0 turns this off).
+// Every counted cycle carries `fullMs`, the projected runtime to empty
+// (elapsed ÷ % drained × 100; for a run-down it is simply the elapsed time) — that is the
+// number to compare across cycles, since a 14 h / 80% run and a 26 h / 98% run are the
+// same battery.
+//
 // Anything else that starts from full is reported as an `interrupted` discharge, never
 // counted: it went silent above deadPct and never came back discharging, or it was put
-// back on charge before reaching deadPct. Dips shallower than `minDepth` points are
-// noise (charger top-up flicker) and are dropped entirely.
-export const DEFAULTS = { fullPct: 95, deadPct: 5, offlineMin: 30, minDepth: 10 };
+// back on charge too early. Dips shallower than `minDepth` points are noise (charger
+// top-up flicker) and are dropped entirely.
+export const DEFAULTS = { fullPct: 95, deadPct: 5, offlineMin: 30, minDepth: 10, minHours: 8 };
+const H = 3600e3;
+// Thresholds the user set in Settings (localStorage `cycleOpts`), over the defaults.
+export function loadOpts() {
+  let o = {}; try { o = JSON.parse((typeof localStorage !== 'undefined' && localStorage.getItem('cycleOpts')) || '{}') || {}; } catch (e) {}
+  const r = { ...DEFAULTS }; for (const k of Object.keys(DEFAULTS)) if (typeof o[k] === 'number' && isFinite(o[k])) r[k] = o[k];
+  return r;
+}
+export const projected = c => { const drain = c.startPct - c.endPct; return c.reason === 'died' || drain <= 0 ? c.durationMs : Math.round(c.durationMs / drain * 100); };
 
 // History buckets carry the previous sample forward (`sample_at` older than the bucket's
 // `timestamp`), which would hide the moment a device goes silent. Key rows by the real
@@ -53,15 +69,31 @@ function summarize(pts, s, e, reason, endedBy, gapLimit) {
   const temps = seg.map(p => p.temp).filter(x => x != null && x > 0);
   let gaps = 0, gapMs = 0;
   for (let i = 1; i < seg.length; i++) { const d = seg[i].t - seg[i - 1].t; if (d >= gapLimit) { gaps++; gapMs += d; } }
-  return {
+  const c = {
     start: pts[s].t, end: pts[e].t, durationMs: pts[e].t - pts[s].t,
     startPct: pts[s].v, endPct: pts[e].v, samples: seg.length,
     maxTemp: temps.length ? Math.max(...temps) : null,
     avgTemp: temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : null,
     gaps, gapMs,
-    reason, // 'died' (a counted cycle) | 'offline' | 'recharged'
+    reason, // 'died' | 'timed' (both counted) | 'offline' | 'recharged' (interrupted)
     endedBy, // for 'died': 'shutdown' (went silent) | 'recharged' (plugged in at empty)
   };
+  c.fullMs = projected(c);
+  return c;
+}
+// Apply the thresholds to already-detected lists (the static import, the server's sweep),
+// so changing `minHours` in Settings reclassifies history without refetching anything.
+export function reclassify(cycles, interrupted, opts = {}) {
+  const o = { ...DEFAULTS, ...opts }, C = [], I = [];
+  for (const x of [...cycles, ...interrupted]) {
+    const c = { ...x }, depth = c.startPct - c.endPct;
+    if (c.reason === 'died') { c.fullMs = projected(c); C.push(c); continue; }
+    if ((c.reason === 'recharged' || c.reason === 'timed') && o.minHours > 0 && c.durationMs >= o.minHours * H && depth >= o.minDepth) { c.reason = 'timed'; c.fullMs = projected(c); C.push(c); continue; }
+    if (c.reason === 'timed') c.reason = 'recharged';
+    if (depth >= o.minDepth) I.push(c);
+  }
+  const byStart = (a, b) => a.start - b.start;
+  return { cycles: C.sort(byStart), interrupted: I.sort(byStart) };
 }
 
 // rows: history rows for one device. nowMs: "now", to decide whether a device whose data
@@ -78,6 +110,7 @@ export function detectCycles(rows, opts = {}) {
   const close = (e, reason, endedBy) => {
     const c = summarize(pts, start, e, reason, endedBy, gap);
     if (reason === 'died') cycles.push(c);
+    else if (reason === 'recharged' && o.minHours > 0 && c.durationMs >= o.minHours * H && c.startPct - c.endPct >= o.minDepth) { c.reason = 'timed'; c.fullMs = projected(c); cycles.push(c); }
     else if (c.startPct - c.endPct >= o.minDepth) interrupted.push(c);
     start = -1;
   };
@@ -108,16 +141,21 @@ export function detectCycles(rows, opts = {}) {
   return { cycles, interrupted, inProgress };
 }
 
+// Runtime statistics are over the projected full runtime (`fullMs`), so timed runs and
+// run-downs compare; `medianElapsedMs` is the raw elapsed median for display.
+export const rt = c => c.fullMs ?? projected(c);
 export function aggregate(cycleLists) {
   const all = cycleLists.flat();
-  const d = all.map(c => c.durationMs).sort((a, b) => a - b);
+  const d = all.map(rt).sort((a, b) => a - b), e = all.map(c => c.durationMs).sort((a, b) => a - b);
   const temps = all.map(c => c.maxTemp).filter(x => x != null);
   return {
     count: all.length,
     avgDurationMs: d.length ? d.reduce((a, b) => a + b, 0) / d.length : 0,
     medianDurationMs: d.length ? d[Math.floor(d.length / 2)] : 0,
+    medianElapsedMs: e.length ? e[Math.floor(e.length / 2)] : 0,
     minDurationMs: d.length ? d[0] : 0,
     maxDurationMs: d.length ? d[d.length - 1] : 0,
+    timed: all.filter(c => c.reason === 'timed').length,
     maxTemp: temps.length ? Math.max(...temps) : null,
   };
 }

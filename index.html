@@ -39,7 +39,7 @@ try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') 
 
 <script type="module">
 import { apiBase, apiKey, hasConfig, saveConfig, scopeGroup, setScopeGroup, fetchFilters, fetchDevices, fetchHistory, fetchHistoryRange, mapLimit, detectBackend, BACKEND } from './shared/data.js';
-import { detectCycles, aggregate, fmtDur } from './shared/cycles.js';
+import { detectCycles, aggregate, fmtDur, reclassify, loadOpts, DEFAULTS, rt } from './shared/cycles.js';
 import { loadRuns, saveRuns, newRun, evaluateRun, runRows, normalize } from './shared/runs.js';
 import { initThemeToggle } from './shared/theme.js';
 import { batteryHealth, chargeSegments, thermalStats, TEMP_WARN, TEMP_LIMIT } from './shared/profile.js';
@@ -67,7 +67,7 @@ document.addEventListener('keydown', e => { if (e.key === '/' && !e.target.match
 // History = data/cycles.json (one-off import, static file) + a top-up of everything since,
 // detected in the browser and cached for 6h. Live state = /testdata/devices, polled.
 let DEV = [], DMAP = new Map(), META = null, HIST = {}, TOP = {}, allCycles = [], runs = [], cycleRun = new Map(), loadError = null, ready = false;
-let local = loadRuns(GROUP);
+let local = loadRuns(GROUP), OPTS = loadOpts();
 const TOPKEY = `histTopup:v3:${GROUP}`;
 const stub = serial => ({ serial, tag: serial.slice(-5), snap: null, cycles: [], interrupted: [], charges: [], health: null, agg: aggregate([[]]), lastCycle: null });
 const D = serial => DMAP.get(serial) || stub(serial);
@@ -82,7 +82,7 @@ function setDevices(rows) {
 function derive() {
   for (const d of DEV) {
     const h = HIST[d.serial] || {}, t = TOP[d.serial] || {};
-    d.cycles = [...(h.cycles || []), ...(t.cycles || [])]; d.interrupted = [...(h.interrupted || []), ...(t.interrupted || [])];
+    ({ cycles: d.cycles, interrupted: d.interrupted } = reclassify([...(h.cycles || []), ...(t.cycles || [])], [...(h.interrupted || []), ...(t.interrupted || [])], OPTS));
     const th = t.thermal || {}; d.cycles.forEach(c => { if (th[c.start]) c.thermal = th[c.start]; });
     d.charges = t.charges || []; d.health = batteryHealth(d.cycles);
     d.agg = aggregate([d.cycles]); d.lastCycle = d.cycles[d.cycles.length - 1] || null;
@@ -128,7 +128,7 @@ async function topUp(force) {
   // per-sample thermal stats only exist for cycles inside this window (the import has only max/avg).
   const now = Date.now(), base = META ? Date.parse(META.generatedAt) : now, from = Math.min(base - 3 * DAY, now - 14 * DAY), out = {};
   await mapLimit(DEV, 3, async d => {
-    const rows = normalize(await fetchHistoryRange(d.serial, from, now, 600)), res = detectCycles(rows, { nowMs: now, offlineMin: 45 });
+    const rows = normalize(await fetchHistoryRange(d.serial, from, now, 600)), res = detectCycles(rows, { nowMs: now, ...OPTS, offlineMin: 45 });
     const h = HIST[d.serial] || {}, lastC = h.cycles?.length ? h.cycles[h.cycles.length - 1].end : from, lastI = h.interrupted?.length ? h.interrupted[h.interrupted.length - 1].end : from;
     const thermal = {}; [...res.cycles, ...(h.cycles || []).filter(c => c.start >= from)].forEach(c => { const t = thermalStats(rows, c.start, c.end); if (t) thermal[c.start] = t; });
     out[d.serial] = { cycles: res.cycles.filter(x => x.start >= lastC), interrupted: res.interrupted.filter(x => x.start >= lastI), charges: chargeSegments(rows), thermal };
@@ -311,19 +311,19 @@ function rowsClickable(el, attr, to, pick) {
 function inspect(html) { if (insp.matches(':hover') && insp._h) return; insp.innerHTML = html; insp._h = html; }
 function deviceInspector(d) {
   if (!d.snap) return `<h3 class="mono">${d.serial}</h3><div class="isub">Not in the current fleet snapshot.</div>`;
-  const s = status(d), last = d.lastCycle, cs = d.cycles.slice(-12), mx = Math.max(1, ...cs.map(c => c.durationMs)), x = d.snap.extra ? (typeof d.snap.extra === 'string' ? (() => { try { return JSON.parse(d.snap.extra); } catch (e) { return {}; } })() : d.snap.extra) : {};
+  const s = status(d), last = d.lastCycle, cs = d.cycles.slice(-12), mx = Math.max(1, ...cs.map(rt)), x = d.snap.extra ? (typeof d.snap.extra === 'string' ? (() => { try { return JSON.parse(d.snap.extra); } catch (e) { return {}; } })() : d.snap.extra) : {};
   return `<h3 class="mono">${d.serial}</h3><div class="isub">${esc((d.snap.device_class || 'device').toUpperCase())} · ${s.label}${s.live ? ' · in a test cycle' : ''} · seen ${ago(Date.parse(d.snap.last_seen_at))}</div>
     <div class="big num">${s.pct != null ? s.pct + '%' : '—'}<small>${s.pct != null ? (d.snap.charging ? 'charging' : 'on battery') : s.label.toLowerCase()}</small></div>
     <hr><h4>Battery</h4><dl class="kv">
       <dt>Temperature</dt><dd class="num" style="color:${online(d) && d.snap.battery_temp_c >= TEMP_LIMIT ? 'var(--bad)' : online(d) && d.snap.battery_temp_c >= TEMP_WARN ? 'var(--warn)' : 'inherit'}">${online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : '—'}</dd>
       <dt>Counted cycles</dt><dd class="num">${d.cycles.length}${d.interrupted.length ? `<span class="muted"> · ${d.interrupted.length} partial</span>` : ''}</dd>
-      <dt>Median runtime</dt><dd class="num">${d.cycles.length ? fmtDur(d.agg.medianDurationMs) : '—'}</dd>
-      <dt>Last runtime</dt><dd class="num">${last ? `${fmtDur(last.durationMs)}<span class="muted"> · ${day(last.start)}</span>` : '—'}</dd>
+      <dt>Runtime to empty</dt><dd class="num">${d.cycles.length ? `${fmtDur(d.agg.medianDurationMs)}<span class="muted"> median</span>` : '—'}</dd>
+      <dt>Last cycle</dt><dd class="num">${last ? `${fmtDur(rt(last))}<span class="muted"> · ${fmtDur(last.durationMs)} to ${last.endPct}% · ${day(last.start)}</span>` : '—'}</dd>
       <dt>Health</dt><dd class="num" style="color:${d.health && d.health.health < 80 ? 'var(--bad)' : 'inherit'}">${d.health ? d.health.health.toFixed(0) + '%' : '<span class="muted">needs 6+ cycles</span>'}</dd>
       ${d.health ? `<dt>Fade per cycle</dt><dd class="num">${signed(d.health.slope)}</dd>` : ''}
       <dt>Equivalent full cycles</dt><dd class="num">${d.snap.discharge_total_pct != null ? (d.snap.discharge_total_pct / 100).toFixed(1) : '—'}</dd>
       <dt>Peak temperature</dt><dd class="num">${d.agg.maxTemp != null ? d.agg.maxTemp.toFixed(1) + ' °C' : '—'}</dd></dl>
-    ${cs.length > 1 ? `<hr><h4>Runtime · last ${cs.length} cycles</h4><div class="bars">${cs.map((c, i) => `<i style="height:${Math.round(c.durationMs / mx * 100)}%" class="${i === cs.length - 1 ? 'last' : ''}" title="${fmtDur(c.durationMs)} · ${day(c.start)}"></i>`).join('')}</div>` : ''}
+    ${cs.length > 1 ? `<hr><h4>Runtime · last ${cs.length} cycles</h4><div class="bars">${cs.map((c, i) => `<i style="height:${Math.round(rt(c) / mx * 100)}%" class="${i === cs.length - 1 ? 'last' : ''}" title="${fmtDur(rt(c))} to empty · ${fmtDur(c.durationMs)} to ${c.endPct}% · ${day(c.start)}"></i>`).join('')}</div>` : ''}
     <hr><h4>Device</h4><dl class="kv"><dt>Last seen</dt><dd>${dt(Date.parse(d.snap.last_seen_at))}</dd>${x.build_id || d.snap.build_id ? `<dt>Build</dt><dd class="mono">${esc(x.build_id || d.snap.build_id)}</dd>` : ''}${d.snap.restaurant_name ? `<dt>Restaurant</dt><dd>${esc(d.snap.restaurant_name)}</dd>` : ''}<dt>Groups</dt><dd>${esc((d.snap.groups || []).join(', ') || '—')}</dd></dl>
     <div class="acts"><a class="btn" href="#/devices/${d.serial}">Open history</a></div>`;
 }
@@ -357,10 +357,10 @@ function overviewView() {
   crumbs(['Overview']);
   const now = Date.now(), live = liveRun();
   const c30 = allCycles.filter(c => c.start > now - 30 * DAY), p30 = allCycles.filter(c => c.start <= now - 30 * DAY && c.start > now - 60 * DAY);
-  const m30 = median(c30.map(c => c.durationMs)), mp = median(p30.map(c => c.durationMs)), delta = pctOf(m30, mp);
+  const m30 = median(c30.map(rt)), mp = median(p30.map(rt)), delta = pctOf(m30, mp);
   const i30 = DEV.flatMap(d => d.interrupted).filter(c => c.start > now - 30 * DAY).length;
-  const weeks = []; for (let w = 26; w >= 0; w--) { const b = now - w * 7 * DAY, c = allCycles.filter(x => x.start >= b - 7 * DAY && x.start < b); if (c.length >= 3) weeks.push({ x: b, y: median(c.map(x => x.durationMs)) / H, n: c.length }); }
-  const short = m30 ? DEV.filter(d => d.lastCycle && d.lastCycle.start > now - 14 * DAY && d.lastCycle.durationMs < m30 * .9).map(d => ({ d, pct: pctOf(d.lastCycle.durationMs, m30) })).sort((a, b) => a.pct - b.pct) : [];
+  const weeks = []; for (let w = 26; w >= 0; w--) { const b = now - w * 7 * DAY, c = allCycles.filter(x => x.start >= b - 7 * DAY && x.start < b); if (c.length >= 3) weeks.push({ x: b, y: median(c.map(rt)) / H, n: c.length }); }
+  const short = m30 ? DEV.filter(d => d.lastCycle && d.lastCycle.start > now - 14 * DAY && rt(d.lastCycle) < m30 * .9).map(d => ({ d, pct: pctOf(rt(d.lastCycle), m30) })).sort((a, b) => a.pct - b.pct) : [];
   const off = DEV.filter(d => d.snap && now - Date.parse(d.snap.last_seen_at) > 2 * DAY).sort((a, b) => Date.parse(b.snap.last_seen_at) - Date.parse(a.snap.last_seen_at));
   view.innerHTML = `<div class="page-head"><div><h1>Overview</h1><div class="sub">${esc(GROUP)} · ${DEV.length} devices${allCycles.length ? ` · history since ${day(Math.min(...allCycles.map(c => c.start)))}` : ''}</div></div></div>
     <div class="stack">
@@ -368,13 +368,13 @@ function overviewView() {
     ${!allCycles.length ? `<div class="callout">${INFO}<div>No cycle history for this group yet. Counted cycles appear here as devices complete a full discharge.</div></div>` : ''}
     <div class="panel"><div class="metrics">
       <div class="metric"><small>Devices online</small><b class="num"><span id="ov-on">${N(DEV.filter(online).length)}</span> / ${DEV.length}</b><span class="delta">${off.length} not seen for 2+ days</span></div>
-      <div class="metric"><small>Median runtime · 30d</small><b class="num">${m30 ? N(m30, 'dur') : '—'}</b><span class="delta ${delta < -2 ? 'down' : delta > 2 ? 'up' : ''}">${delta != null && m30 ? signed(delta) + ' vs prior 30d' : ''}</span></div>
+      <div class="metric"><small>Runtime to empty · 30d</small><b class="num">${m30 ? N(m30, 'dur') : '—'}</b><span class="delta ${delta < -2 ? 'down' : delta > 2 ? 'up' : ''}">${delta != null && m30 ? signed(delta) + ' vs prior 30d' : ''}</span></div>
       <div class="metric"><small>Cycles counted · 30d</small><b class="num">${N(c30.length)}</b><span class="delta">${allCycles.length} all time</span></div>
       <div class="metric"><small>Partial discharges · 30d</small><b class="num">${N(i30)}</b><span class="delta">not counted</span></div>
       <div class="metric"><small>Fleet battery health</small><b class="num">${(() => { const h = DEV.map(d => d.health?.health).filter(x => x != null); return h.length ? N(median(h)) + '%' : '—'; })()}</b><span class="delta">${DEV.filter(d => d.health && d.health.health < 80).length} below 80% · <a class="link" href="#/health">details</a></span></div>
     </div></div>
     <div class="cols-main">
-      <div class="panel"><div class="panel-head"><h2>Median runtime per week</h2><span class="muted">full → shutdown, all devices</span></div><div class="panel-body"><div class="chart" id="ov-trend"></div></div></div>
+      <div class="panel"><div class="panel-head"><h2>Runtime to empty per week</h2><span class="muted">median, projected from each cycle's drain</span></div><div class="panel-body"><div class="chart" id="ov-trend"></div></div></div>
       <div class="panel"><div class="panel-head"><h2>Needs attention</h2><span class="muted">${short.length + off.length}</span></div>
         ${short.slice(0, 3).map(({ d, pct }) => `<a class="list-item" href="#/devices/${d.serial}">${badge('b-warn', 'Short runtime')}<span class="grow mono">${d.serial}</span><span class="num">${pct.toFixed(0)}%</span></a>`).join('')}
         ${off.slice(0, 4).map(d => `<a class="list-item" href="#/devices/${d.serial}">${badge('b-off', 'Offline')}<span class="grow mono">${d.serial}</span><span class="muted">${ago(Date.parse(d.snap.last_seen_at))}</span></a>`).join('')}
@@ -386,7 +386,7 @@ function overviewView() {
       <div class="panel-body"><div class="bench" id="ov-bench">${DEV.map(d => cellHTML(d, true)).join('')}</div></div></div>
     </div>`;
   lineChart($('#ov-trend'), weeks, { h: 210, yMax: hoursAxis(Math.max(...weeks.map(w => w.y))), yFmt: v => v + 'h', xFmt: day, area: true,
-    tip: p => `<b>${fmtDur(p.y * H)}</b> median<br>week ending ${day(p.x)} · ${p.n} cycles` });
+    tip: p => `<b>${fmtDur(p.y * H)}</b> to empty, median<br>week ending ${day(p.x)} · ${p.n} cycles` });
   const fi = () => inspect(fleetInspector()); fi();
   onData = () => { fi();
     $$('#ov-bench .cell').forEach(el => { const d = D(el.dataset.s), s = status(d); patchCell(el, s.k, s.pct, s.val, `${d.serial} · ${s.label}`); });
@@ -402,12 +402,12 @@ function overviewView() {
 const devState = { q: '', sort: 'serial', dir: 1, filter: 'all' };
 function devicesView() {
   crumbs(['Devices']);
-  const cols = [['serial', 'Device'], ['status', 'Status'], ['battery', 'Battery', 1], ['temp', 'Temp', 1], ['cycles', 'Cycles', 1], ['median', 'Median runtime', 1], ['last', 'Last runtime', 1], ['health', 'Health', 1], ['', 'Last 12 cycles', 1], ['seen', 'Last seen', 1]];
+  const cols = [['serial', 'Device'], ['status', 'Status'], ['battery', 'Battery', 1], ['temp', 'Temp', 1], ['cycles', 'Cycles', 1], ['median', 'Runtime to empty', 1], ['last', 'Last cycle', 1], ['health', 'Health', 1], ['', 'Last 12 cycles', 1], ['seen', 'Last seen', 1]];
   view.innerHTML = `<div class="page-head"><div><h1>${filterLabel(devState.filter)}</h1><div class="sub" id="dev-sub"></div></div></div>
     <div class="stack"><div class="panel">
       <div class="scroll-x"><table><thead><tr>${cols.map(([k, l, r]) => `<th ${k ? `data-sort="${k}"` : ''} class="${r ? 'r' : ''}">${l}<span class="arr">${k && devState.sort === k ? (devState.dir > 0 ? '↑' : '↓') : ''}</span></th>`).join('')}</tr></thead><tbody id="dev-body"></tbody></table></div></div></div>`;
   const draw = () => {
-    const key = { serial: d => d.serial, status: d => status(d).label, battery: d => status(d).pct ?? -1, temp: d => online(d) ? d.snap.battery_temp_c : -1, cycles: d => d.cycles.length, median: d => d.agg.medianDurationMs, last: d => d.lastCycle?.durationMs || 0, health: d => d.health?.health ?? -1, seen: d => -Date.parse(d.snap.last_seen_at) }[devState.sort];
+    const key = { serial: d => d.serial, status: d => status(d).label, battery: d => status(d).pct ?? -1, temp: d => online(d) ? d.snap.battery_temp_c : -1, cycles: d => d.cycles.length, median: d => d.agg.medianDurationMs, last: d => d.lastCycle ? rt(d.lastCycle) : 0, health: d => d.health?.health ?? -1, seen: d => -Date.parse(d.snap.last_seen_at) }[devState.sort];
     const list = DEV.filter(d => d.serial.toLowerCase().includes(devState.q.toLowerCase()))
       .filter(filterFn(devState.filter))
       .sort((a, b) => (key(a) > key(b) ? 1 : key(a) < key(b) ? -1 : 0) * devState.dir);
@@ -415,8 +415,8 @@ function devicesView() {
       <td class="mono">${d.serial}</td><td>${badge(s.cls, s.label, s.live)}</td>
       <td class="r">${s.pct != null ? `<span class="batt num">${s.pct}%<span class="bar ${s.pct < 20 ? 'warn' : s.k === 'ready' ? 'ok' : 'run'}"><i style="width:${s.pct}%"></i></span></span>` : '<span class="muted">—</span>'}</td>
       <td class="r num">${online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : '<span class="muted">—</span>'}</td>
-      <td class="r num">${d.cycles.length}</td><td class="r num">${d.cycles.length ? fmtDur(d.agg.medianDurationMs) : '—'}</td><td class="r num">${d.lastCycle ? fmtDur(d.lastCycle.durationMs) : '—'}</td><td class="r num">${healthCell(d)}</td>
-      <td class="r">${spark(d.cycles.slice(-12).map(c => c.durationMs))}</td><td class="r muted">${ago(Date.parse(d.snap.last_seen_at))}</td></tr>`; }).join('')
+      <td class="r num">${d.cycles.length}</td><td class="r num">${d.cycles.length ? fmtDur(d.agg.medianDurationMs) : '—'}</td><td class="r num">${d.lastCycle ? `${fmtDur(rt(d.lastCycle))}<span class="muted"> · ${d.lastCycle.endPct}%</span>` : '—'}</td><td class="r num">${healthCell(d)}</td>
+      <td class="r">${spark(d.cycles.slice(-12).map(rt))}</td><td class="r muted">${ago(Date.parse(d.snap.last_seen_at))}</td></tr>`; }).join('')
       : `<tr><td colspan="10" class="empty">No devices match${devState.q ? ` “${esc(devState.q)}”` : ''}.</td></tr>`);
     $('#dev-sub').textContent = `${list.length} of ${DEV.length} devices in ${GROUP}${devState.q ? ` · matching “${devState.q}”` : ''} · click to inspect, double-click to open`;
     rowsClickable($('#dev-body'), 'data-s', s => `#/devices/${s}`, s => inspect(deviceInspector(D(s)))); paginate($('#dev-body'), 'devices');
@@ -443,10 +443,10 @@ function deviceView(serial) {
       <div class="panel"><div class="panel-head"><h2>Battery · last 24 h</h2><span class="muted" id="d-now-note"></span></div><div class="panel-body"><div class="chart" id="d-now"><div class="empty"><span class="spin"></span></div></div></div></div>
     </div>
     <div class="panel"><div class="panel-head"><h2>Cycle history</h2><div class="seg" id="d-seg"><button data-m="c" class="on">Counted · ${d.cycles.length}</button><button data-m="a">All discharges · ${d.cycles.length + d.interrupted.length}</button></div></div>
-      <div class="scroll-x"><table><thead><tr><th>#</th><th>Started</th><th>Result</th><th class="r">Runtime</th><th class="r">Ended at</th><th class="r">Max temp</th><th class="r">Gaps</th><th>Run</th></tr></thead><tbody id="d-hist"></tbody></table></div></div></div>`;
-  const p = d.cycles.map(c => c.durationMs / H).sort((a, b) => a - b), cap = hoursAxis(p[Math.floor(p.length * .9)] || 24);
-  barChart($('#d-rt'), d.cycles.map((c, i) => ({ v: c.durationMs / H, c, i })), { h: 190, yMax: cap, yFmt: v => Math.round(v) + 'h', label: it => '#' + (it.i + 1),
-    tip: it => `<b>Cycle ${it.i + 1}</b> · ${fmtDur(it.c.durationMs)}${it.v > cap ? ' (off scale)' : ''}<br>${dt(it.c.start)}${it.c.maxTemp ? ` · max ${it.c.maxTemp} °C` : ''}` });
+      <div class="scroll-x"><table><thead><tr><th>#</th><th>Started</th><th>Result</th><th class="r">Elapsed</th><th class="r">Ended at</th><th class="r">To empty</th><th class="r">Max temp</th><th class="r">Gaps</th><th>Test cycle</th></tr></thead><tbody id="d-hist"></tbody></table></div></div></div>`;
+  const p = d.cycles.map(c => rt(c) / H).sort((a, b) => a - b), cap = hoursAxis(p[Math.floor(p.length * .9)] || 24);
+  barChart($('#d-rt'), d.cycles.map((c, i) => ({ v: rt(c) / H, c, i })), { h: 190, yMax: cap, yFmt: v => Math.round(v) + 'h', label: it => '#' + (it.i + 1), color: it => it.c.reason === 'timed' ? 'var(--series-2)' : 'var(--series)',
+    tip: it => `<b>Cycle ${it.i + 1}</b> · ${fmtDur(rt(it.c))} to empty${it.v > cap ? ' (off scale)' : ''}<br>${it.c.reason === 'timed' ? `timed run: ${fmtDur(it.c.durationMs)} to ${it.c.endPct}%` : 'run-down to ' + it.c.endPct + '%'}<br>${dt(it.c.start)}${it.c.maxTemp ? ` · max ${it.c.maxTemp} °C` : ''}` });
   { const c = d.charges[d.charges.length - 1];
     if (c) lineChart($('#d-chg'), c.curve.map(([m, v]) => ({ x: m, y: v })), { h: 170, xFmt: m => (m / 60).toFixed(0) + 'h', yFmt: v => v + '%', refs: [{ v: 80, label: '80%' }], tip: p => `<b>${p.y}%</b> · +${fmtDur(p.x * MIN)}` });
     else $('#d-chg').innerHTML = '<div class="empty">No full charge seen in the last 14 days.</div>';
@@ -464,10 +464,10 @@ function deviceView(serial) {
   const hist = mode => {
     const list = [...d.cycles.map((c, i) => ({ ...c, n: i + 1, src: c })), ...(mode === 'a' ? d.interrupted : [])].sort((a, b) => b.start - a.start);
     $('#d-hist').innerHTML = (list.map(c => { const r = c.src && cycleRun.get(c.src); return `<tr><td class="num muted">${c.n || '—'}</td><td class="num">${dt(c.start)}</td>
-      <td>${c.reason === 'died' ? badge('b-ok', c.endedBy === 'recharged' ? 'Counted · recharged at empty' : 'Counted') : badge('b-bad', c.reason === 'offline' ? 'Lost contact' : 'Recharged early')}</td>
-      <td class="r num">${fmtDur(c.durationMs)}</td><td class="r num">${c.endPct}%</td><td class="r num">${c.maxTemp ? c.maxTemp.toFixed(1) + ' °C' : '—'}</td><td class="r num ${c.gaps ? '' : 'muted'}">${c.gaps || 0}</td>
+      <td>${c.reason === 'died' ? badge('b-ok', c.endedBy === 'recharged' ? 'Run-down · recharged at empty' : 'Run-down') : c.reason === 'timed' ? badge('b-ok', 'Timed run') : badge('b-bad', c.reason === 'offline' ? 'Lost contact' : `Recharged early`)}</td>
+      <td class="r num">${fmtDur(c.durationMs)}</td><td class="r num">${c.endPct}%</td><td class="r num">${c.reason === 'died' || c.reason === 'timed' ? fmtDur(rt(c)) : '<span class="muted">—</span>'}</td><td class="r num">${c.maxTemp ? c.maxTemp.toFixed(1) + ' °C' : '—'}</td><td class="r num ${c.gaps ? '' : 'muted'}">${c.gaps || 0}</td>
       <td>${r ? `<a class="link" href="#/runs/${r}">${r}</a>` : '<span class="muted">—</span>'}</td></tr>`; }).join(''))
-      || '<tr><td colspan="8" class="empty">No discharges recorded yet.</td></tr>';
+      || '<tr><td colspan="9" class="empty">No discharges recorded yet.</td></tr>';
     paginate($('#d-hist'), `hist:${serial}:${mode}`);
   };
   $('#d-seg').onclick = e => { const b = e.target.closest('button'); if (!b) return; $$('#d-seg button').forEach(x => x.classList.toggle('on', x === b)); hist(b.dataset.m); };
@@ -515,7 +515,7 @@ function runView(id) {
       <div class="panel"><div class="panel-head"><h2>Bench</h2><span class="muted">Select a device</span></div><div class="panel-body"><div class="bench" id="run-bench">${run.devices.map(x => cellHTML(D(x.serial))).join('')}</div></div></div>
       <div class="panel${run.justDone ? ' anim' : ''}"><div class="panel-head"><h2>Runtime by device</h2><span class="muted">shortest → longest</span></div><div class="panel-body"><div class="chart" id="run-dist"></div></div></div>
     </div>
-    <div class="panel"><div class="scroll-x"><table><thead><tr><th>Device</th><th>State</th><th class="r">Battery</th><th class="r">${live ? 'Temp' : 'Max temp'}</th><th class="r">Runtime</th><th class="r">vs own median</th><th class="r">${live ? 'Last check-in' : 'Shut down'}</th></tr></thead>
+    <div class="panel"><div class="scroll-x"><table><thead><tr><th>Device</th><th>State</th><th class="r">Battery</th><th class="r">${live ? 'Temp' : 'Max temp'}</th><th class="r">To empty</th><th class="r">vs own median</th><th class="r">${live ? 'Last check-in' : 'Shut down'}</th></tr></thead>
       <tbody id="run-body">${run.devices.map(x => `<tr class="row" data-s="${x.serial}" tabindex="0"><td class="mono">${x.serial}</td><td class="c-state"></td><td class="r c-batt"></td><td class="r num c-temp"></td><td class="r num c-rt"></td><td class="r num c-vs"></td><td class="r muted num c-seen"></td></tr>`).join('')}</tbody></table></div></div>
     </div>`;
   run.justDone = false;
@@ -526,7 +526,7 @@ function runView(id) {
   $('#export').onclick = () => exportCSV(run);
   if (live) $('#stop').onclick = () => { if (!confirm(`Stop "${run.name}"? Devices that already completed are kept.`)) return; run.status = 'stopped'; run.endedAt = Date.now(); saveRuns(GROUP, local); toast(`${run.name} stopped.`); render(false); };
   if ($('#del')) $('#del').onclick = () => { if (!confirm(`Delete "${run.name}" from this browser? This can't be undone.`)) return; local = local.filter(r => r !== run); saveRuns(GROUP, local); derive(); toast(`${run.name} deleted.`); go('#/runs'); };
-  const vsOwn = x => x.cycle ? pctOf(x.cycle.durationMs, D(x.serial).agg.medianDurationMs) : null;
+  const vsOwn = x => x.cycle ? pctOf(rt(x.cycle), D(x.serial).agg.medianDurationMs) : null;
   const intrLabel = x => x.intr ? (x.intr.reason === 'offline' ? `Lost ${x.intr.endPct}%` : 'Recharged') : 'Interrupted';
 
   let distSig = '';
@@ -536,7 +536,7 @@ function runView(id) {
     el.innerHTML = `<h3 class="mono">${x.serial}</h3><div class="isub">${badge(cls, l, lv)}</div><hr>
       <div class="chart" id="run-chart"></div>
       <dl class="kv" style="margin-top:14px">
-        <dt>Runtime</dt><dd class="num">${x.cycle ? fmtDur(x.cycle.durationMs) : '—'}</dd>
+        <dt>Runtime to empty</dt><dd class="num">${x.cycle ? `${fmtDur(rt(x.cycle))}<span class="muted"> · ${fmtDur(x.cycle.durationMs)} elapsed</span>` : '—'}</dd>
         <dt>Own median (${d.cycles.length} cycles)</dt><dd class="num">${d.cycles.length ? fmtDur(d.agg.medianDurationMs) : '—'}</dd>
         <dt>vs. own median</dt><dd class="num" style="color:${vs != null && vs < -10 ? 'var(--bad)' : 'inherit'}">${vs != null ? signed(vs) : '—'}</dd>
         <dt>${x.cycle ? 'Ended at' : 'Last reading'}</dt><dd class="num">${x.cycle ? x.cycle.endPct + '%' : x.last ? x.last.pct + '%' : '—'}</dd>
@@ -549,8 +549,8 @@ function runView(id) {
     const pts = (rows || []).filter(r => Date.parse(r.timestamp) >= run.startedAt - 10 * MIN).map(r => ({ x: Date.parse(r.timestamp), y: r.battery_pct, r }));
     if (pts.length > 1) lineChart($('#run-chart'), pts, { h: 130, smooth: true, xFmt: t => (t < run.startedAt ? '−' : '+') + (Math.abs(t - run.startedAt) / H).toFixed(0) + 'h', yFmt: v => v + '%', refs: [{ v: 5, label: '5%' }],
       tip: p => `<b>${p.y}%</b> · ${dt(p.x)}${p.r.extra.battery_temp_c ? `<br>${p.r.extra.battery_temp_c.toFixed(1)} °C` : ''}` });
-    else if (d.cycles.length) { const cs = d.cycles.slice(-16); barChart($('#run-chart'), cs.map(c => ({ v: c.durationMs / H, c })), { h: 130, yMax: hoursAxis(Math.max(...cs.map(c => c.durationMs / H))), yFmt: v => Math.round(v) + 'h', label: it => day(it.c.start),
-      color: it => it.c === x.cycle ? 'var(--series)' : 'var(--series-2)', tip: it => `<b>${fmtDur(it.c.durationMs)}</b>${it.c === x.cycle ? ' · this test cycle' : ''}<br>${dt(it.c.start)}` }); }
+    else if (d.cycles.length) { const cs = d.cycles.slice(-16); barChart($('#run-chart'), cs.map(c => ({ v: rt(c) / H, c })), { h: 130, yMax: hoursAxis(Math.max(...cs.map(c => c.durationMs / H))), yFmt: v => Math.round(v) + 'h', label: it => day(it.c.start),
+      color: it => it.c === x.cycle ? 'var(--series)' : 'var(--series-2)', tip: it => `<b>${fmtDur(rt(it.c))}</b> to empty${it.c === x.cycle ? ' · this test cycle' : ''}<br>${dt(it.c.start)}` }); }
     else $('#run-chart').innerHTML = `<div class="empty">${live ? 'Waiting for the first check-in…' : 'No data.'}</div>`;
   }
   function update() {
@@ -565,7 +565,7 @@ function runView(id) {
       const cell = $('#run-bench').children[i], tr = $('#run-body').children[i], [cls, l, lv] = RSTATE[x.state], pct = x.last?.pct, quiet = x.last ? now - x.last.t : 0;
       cell.classList.toggle('sel', x.serial === run.sel); tr.classList.toggle('sel', x.serial === run.sel);
       patchCell(cell, { discharging: 'run', confirming: 'warn', done: 'done', interrupted: 'bad', waiting: 'off', nodata: 'off' }[x.state], ['discharging', 'confirming'].includes(x.state) ? pct : null,
-        x.state === 'done' ? fmtDur(x.cycle.durationMs) : x.state === 'interrupted' ? intrLabel(x) : x.state === 'nodata' ? '—' : pct != null ? pct + '%' : '—', `${x.serial} · ${l}`);
+        x.state === 'done' ? fmtDur(rt(x.cycle)) : x.state === 'interrupted' ? intrLabel(x) : x.state === 'nodata' ? '—' : pct != null ? pct + '%' : '—', `${x.serial} · ${l}`);
       if (tr.dataset.state && tr.dataset.state !== x.state && x.state === 'done') { tr.classList.remove('flash'); void tr.offsetWidth; tr.classList.add('flash'); }
       tr.dataset.state = x.state;
       setH($('.c-state', tr), badge(cls, x.state === 'interrupted' && x.intr ? (x.intr.reason === 'offline' ? 'Lost contact' : 'Recharged early') : l, lv));
@@ -574,21 +574,21 @@ function runView(id) {
       else if (pct != null) { if (!$('.batt', b)) { b.innerHTML = '<span class="batt num"><span class="v"></span><span class="bar"><i></i></span></span>'; b._h = null; } $('.v', b).textContent = pct + '%'; $('.bar', b).className = 'bar ' + (pct < 20 ? 'warn' : 'run'); $('.bar i', b).style.width = pct + '%'; }
       else setH(b, '—');
       setH($('.c-temp', tr), x.cycle?.maxTemp ? x.cycle.maxTemp.toFixed(1) + ' °C' : x.last?.temp ? x.last.temp.toFixed(1) + ' °C' : '—');
-      setH($('.c-rt', tr), x.cycle ? `<b>${fmtDur(x.cycle.durationMs)}</b>` : ['discharging', 'confirming'].includes(x.state) ? `<span class="muted">${fmtDur(x.last.t - run.startedAt > 0 ? x.last.t - run.startedAt : 0)}…</span>` : '—');
+      setH($('.c-rt', tr), x.cycle ? `<b>${fmtDur(rt(x.cycle))}</b><span class="muted"> · ${x.cycle.endPct}%</span>` : ['discharging', 'confirming'].includes(x.state) ? `<span class="muted">${fmtDur(x.last.t - run.startedAt > 0 ? x.last.t - run.startedAt : 0)}…</span>` : '—');
       const vs = vsOwn(x);
       setH($('.c-vs', tr), vs != null ? `<span style="color:${vs < -10 ? 'var(--bad)' : 'inherit'}">${signed(vs)}</span>` : '—');
       setH($('.c-seen', tr), x.cycle ? dt(x.cycle.end) : x.state === 'confirming' ? `silent ${Math.round(quiet / MIN)} / 30 min` : x.last ? ago(x.last.t) : 'never');
     });
     const sig = done.length + '|' + run.sel + '|' + $('#run-dist').clientWidth;
-    if (sig !== distSig) { distSig = sig; const items = run.devices.filter(x => x.cycle).map(y => ({ v: y.cycle.durationMs / H, y })).sort((a, b) => a.v - b.v);
+    if (sig !== distSig) { distSig = sig; const items = run.devices.filter(x => x.cycle).map(y => ({ v: rt(y.cycle) / H, y })).sort((a, b) => a.v - b.v);
       barChart($('#run-dist'), items, { h: 170, yMax: hoursAxis(Math.max(24, ...items.map(i => i.v))), yFmt: v => Math.round(v) + 'h', label: it => it.y.serial.slice(-5),
-        tip: it => `<b class="mono">${it.y.serial}</b><br>${fmtDur(it.y.cycle.durationMs)}`, color: it => it.y.serial === run.sel ? 'var(--series)' : 'var(--series-2)' }); }
+        tip: it => `<b class="mono">${it.y.serial}</b><br>${fmtDur(rt(it.y.cycle))} to empty · ${fmtDur(it.y.cycle.durationMs)} to ${it.y.cycle.endPct}%`, color: it => it.y.serial === run.sel ? 'var(--series)' : 'var(--series-2)' }); }
   }
   side(true); update();
   if (live) onData = () => { if (run.status !== status0) return render(false); update(); side(false); };
 }
 function exportCSV(run) {
-  const rows = [['serial', 'state', 'runtime_min', 'ended_at_pct', 'max_temp_c', 'gaps', 'started', 'ended']].concat(run.devices.map(x => [x.serial, x.state, x.cycle ? Math.round(x.cycle.durationMs / MIN) : '', x.cycle ? x.cycle.endPct : '', x.cycle?.maxTemp ?? '', x.cycle?.gaps ?? '', x.cycle ? new Date(x.cycle.start).toISOString() : '', x.cycle ? new Date(x.cycle.end).toISOString() : '']));
+  const rows = [['serial', 'state', 'kind', 'elapsed_min', 'to_empty_min', 'ended_at_pct', 'max_temp_c', 'gaps', 'started', 'ended']].concat(run.devices.map(x => [x.serial, x.state, x.cycle?.reason ?? '', x.cycle ? Math.round(x.cycle.durationMs / MIN) : '', x.cycle ? Math.round(rt(x.cycle) / MIN) : '', x.cycle ? x.cycle.endPct : '', x.cycle?.maxTemp ?? '', x.cycle?.gaps ?? '', x.cycle ? new Date(x.cycle.start).toISOString() : '', x.cycle ? new Date(x.cycle.end).toISOString() : '']));
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' })); a.download = `${run.id}-${run.name.replace(/[^\w]+/g, '-')}.csv`; a.click(); URL.revokeObjectURL(a.href);
   toast(`Exported ${a.download}`);
 }
@@ -724,7 +724,16 @@ function settingsView() {
       <dt>Detected since</dt><dd class="num">${Object.values(TOP).reduce((a, d) => a + d.cycles.length, 0)} cycles</dd>
       <dt>Detected by</dt><dd>${SERVER ? `Backend sweep · ${SERVER.lastSweepAt ? `last ${ago(SERVER.lastSweepAt)}` : 'not yet run'}${SERVER.lastError ? ` · <span style="color:var(--bad)">${esc(SERVER.lastError)}</span>` : ''}` : 'This browser (no backend — results are per browser, refreshed every 6h)'}</dd>
       <dt>Test cycles started here</dt><dd class="num">${local.length}</dd>
-      <dt>Rule</dt><dd>≥95% off charger → &lt;5% → silent 30 min</dd></dl></div></div>` : ''}</div>`;
+      <dt>Rule</dt><dd>≥${OPTS.fullPct}% off charger → below ${OPTS.deadPct}% and silent ${OPTS.offlineMin} min (run-down), or recharged after ≥${OPTS.minHours} h (timed run)</dd></dl></div></div>
+    <div class="panel"><div class="panel-head"><h2>Thresholds</h2><span class="muted">applied to all history instantly, this browser only</span></div><div class="panel-body">
+      <div class="cols-2">
+        <div class="field"><label for="t-full">Starts full at</label><div style="display:flex;gap:8px;align-items:center"><input class="input num" id="t-full" type="number" min="50" max="100" value="${OPTS.fullPct}" style="width:90px"> %</div><div class="help">A discharge only counts from a reading at or above this, off the charger.</div></div>
+        <div class="field"><label for="t-dead">Run-down ends below</label><div style="display:flex;gap:8px;align-items:center"><input class="input num" id="t-dead" type="number" min="1" max="50" value="${OPTS.deadPct}" style="width:90px"> %</div><div class="help">Then silent for the offline gap = the device died.</div></div>
+        <div class="field"><label for="t-hours">Timed run counts after</label><div style="display:flex;gap:8px;align-items:center"><input class="input num" id="t-hours" type="number" min="0" max="48" step="0.5" value="${OPTS.minHours}" style="width:90px"> hours</div><div class="help">The daily bench run (10:30 → 00:30, back on charge at ~20%) is counted once it ran this long. 0 = run-downs only.</div></div>
+        <div class="field"><label for="t-off">Offline gap</label><div style="display:flex;gap:8px;align-items:center"><input class="input num" id="t-off" type="number" min="10" max="240" value="${OPTS.offlineMin}" style="width:90px"> min</div><div class="help">Silence that ends a discharge. Used by live test-cycle tracking.</div></div>
+      </div></div><div class="panel-head" style="border-top:.5px solid var(--sep);border-bottom:0;justify-content:flex-end"><span class="muted" style="margin-right:auto">Runtime is always compared as "to empty": elapsed ÷ % drained × 100.</span><button class="btn" id="t-reset">Defaults</button><button class="btn primary" id="t-save">Apply</button></div></div>` : ''}</div>`;
+  const applyOpts = o => { try { localStorage.setItem('cycleOpts', JSON.stringify(o)); } catch (e) {} OPTS = loadOpts(); derive(); render(false); toast(`Thresholds applied — ${allCycles.length} cycles counted.`); };
+  if ($('#t-save')) { $('#t-save').onclick = () => applyOpts({ fullPct: +$('#t-full').value, deadPct: +$('#t-dead').value, minHours: +$('#t-hours').value, offlineMin: +$('#t-off').value }); $('#t-reset').onclick = () => applyOpts({}); }
   const cfg = () => ({ base: MDM, key: $('#s-key').value.trim() }), msg = (t, bad) => { const m = $('#s-msg'); m.textContent = t; m.style.color = bad ? 'var(--bad)' : ''; };
   async function loadGroups() {
     const { base, key } = cfg(), sel = $('#s-group'); if (!key) return;

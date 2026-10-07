@@ -16,11 +16,12 @@ export const TEMP_WARN = 40, TEMP_LIMIT = 45;
 // the baseline is the device's best 3-cycle median, so health never exceeds ~100%.
 export function batteryHealth(allCycles) {
   const med = a => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
-  const m0 = allCycles.length ? med(allCycles.map(c => c.durationMs)) : 0;
-  const cycles = allCycles.filter(c => c.durationMs > m0 * .5 && c.durationMs < m0 * 1.5);
+  const rt = c => c.fullMs ?? c.durationMs; // projected runtime to empty — timed runs and run-downs on one scale
+  const m0 = allCycles.length ? med(allCycles.map(rt)) : 0;
+  const cycles = allCycles.filter(c => rt(c) > m0 * .5 && rt(c) < m0 * 1.5);
   if (cycles.length < 6) return null;
-  let base = 0; for (let i = 0; i + 3 <= cycles.length; i++) base = Math.max(base, med(cycles.slice(i, i + 3).map(c => c.durationMs)));
-  const ys = cycles.map(c => c.durationMs / base * 100), n = ys.length, xs = ys.map((_, i) => i + 1);
+  let base = 0; for (let i = 0; i + 3 <= cycles.length; i++) base = Math.max(base, med(cycles.slice(i, i + 3).map(rt)));
+  const ys = cycles.map(c => rt(c) / base * 100), n = ys.length, xs = ys.map((_, i) => i + 1);
   const mx = (n + 1) / 2, my = ys.reduce((a, b) => a + b) / n;
   const slope = xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0) / xs.reduce((a, x) => a + (x - mx) ** 2, 0);
   const health = med(ys.slice(-3));

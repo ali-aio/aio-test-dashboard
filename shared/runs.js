@@ -3,7 +3,7 @@
 // just { name, startedAt, serials }; everything else is re-derived from /history with the
 // same detector the historical import used (shared/cycles.js).
 import { fetchHistoryRange, mapLimit } from './data.js';
-import { detectCycles, normalize } from './cycles.js';
+import { detectCycles, normalize, loadOpts } from './cycles.js';
 
 const KEY = g => `cycleRuns:v1:${g}`;
 const MIN = 60e3;
@@ -32,7 +32,7 @@ export async function evaluateRun(run) {
     const from = rows.length ? Date.parse(rows[rows.length - 1].timestamp) - 10 * MIN : run.startedAt - 60 * MIN; // 1h lead-in to catch the full reading
     const fresh = normalize(await fetchHistoryRange(x.serial, from, now, 300));
     rows = rows.filter(r => Date.parse(r.timestamp) < from).concat(fresh); rowsMem.set(key, rows);
-    const res = detectCycles(rows, { nowMs: now, offlineMin: 30 });
+    const O = loadOpts(), res = detectCycles(rows, { nowMs: now, ...O });
     const last = rows[rows.length - 1];
     x.last = last ? { t: Date.parse(last.timestamp), pct: last.battery_pct, temp: last.extra.battery_temp_c ?? null } : null;
     const cycle = res.cycles.find(c => c.end > run.startedAt);
@@ -40,7 +40,7 @@ export async function evaluateRun(run) {
     x.intr = null;
     if (cycle) { x.state = 'done'; x.cycle = cycle; }
     else if (!last || x.last.t < run.startedAt - 30 * MIN) x.state = 'nodata'; // silent since before the run began
-    else if (res.inProgress) x.state = last.battery_pct >= 95 ? 'waiting' : last.battery_pct < 5 ? 'confirming' : 'discharging';
+    else if (res.inProgress) x.state = last.battery_pct >= O.fullPct ? 'waiting' : last.battery_pct < O.deadPct ? 'confirming' : 'discharging';
     else if (intr) { x.state = 'interrupted'; x.intr = intr; }
     else x.state = 'waiting';
   });

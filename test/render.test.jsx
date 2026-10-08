@@ -16,6 +16,8 @@ import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText } from '../src/lib/splitCycles.js'
 import RangePicker from '../src/components/RangePicker.jsx'
+import { windowOn } from '../src/lib/plan.js'
+import { testTypeFor } from '../src/lib/adapt.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 
@@ -170,6 +172,20 @@ const mdmCases = []
     want(h.includes(`Every run on ${sn}`), 'no every-run card')
     const rows = (h.split('Every run on')[1].match(/<tr/g) || []).length - 1   // minus the heading row
     want(rows === mine.length, `rows ${rows} vs runs ${mine.length}`)
+  })
+  check('overnight window: 10:00 -> 04:00 ends the next morning', () => {
+    const w = windowOn('2026-10-11', { startTime: '10:00', endTime: '04:00' })
+    want(w.overnight && w.endMs - w.startMs === 18 * 3600e3, `span ${(w.endMs - w.startMs) / 3600e3} h`)
+    const day = windowOn('2026-10-11', { startTime: '07:00', endTime: '19:00' })
+    want(!day.overnight && day.endMs - day.startMs === 12 * 3600e3, 'day window changed')
+  })
+  check('a run starting late belongs to its start day test', () => {
+    const decls = [{ id: 'd1', testType: 'wlc_load', from: '2026-10-11', to: '2026-10-11', startTime: '10:00', endTime: '04:00', group: { kind: 'all' } }]
+    const at = (d, h) => new Date(2026, 9, d, h).getTime()
+    const late = testTypeFor({ start: at(11, 23), end: at(12, 4), serial: 'A' }, { decls, rota: {}, DEV: [] })
+    want(late === 'WLC on Load', `late start -> ${late}`)
+    const early = testTypeFor({ start: at(11, 8), end: at(11, 20), serial: 'A' }, { decls, rota: {}, DEV: [] })
+    want(early !== 'WLC on Load', `before window -> ${early}`)
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

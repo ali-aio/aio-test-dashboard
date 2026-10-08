@@ -60,6 +60,17 @@ export function timeOn(key, hhmm, endOfDay = false) {
   return d.getTime();
 }
 
+// A plan's time window as real times. A run can start in the afternoon and finish after
+// midnight (10:00 → 04:00), so an end at or before the start means the next day: the run
+// still belongs to the day it started. Without times the window is the whole day.
+export function windowOn(key, src) {
+  const startMs = timeOn(key, src && src.startTime);
+  let endMs = timeOn(key, src && src.endTime, true);
+  const overnight = endMs <= startMs;
+  if (overnight) endMs += 86400e3;
+  return { startMs, endMs, overnight };
+}
+
 // ── storage ───────────────────────────────────────────────────────────────────
 const validDecl = d => d && typeof d.from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.from) && testType(d.testType);
 export function loadDecls(group) {

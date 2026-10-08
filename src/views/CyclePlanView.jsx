@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
 import {
   TEST_TYPES, testType, ttSlot, loadDecls, saveDecls, loadRota, saveRota, newDecl,
-  resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, WEEKDAYS, monthLabel, dayLabel,
+  resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, windowOn, WEEKDAYS, monthLabel, dayLabel,
 } from '../lib/plan.js'
 import { GROUP } from '../lib/fleet.js'
 import { splitText } from '../lib/splitCycles.js'
@@ -27,22 +27,23 @@ export default function CyclePlanView({ fleet }) {
   const openJump = () => { const el = jumpRef.current; if (!el) return; try { el.showPicker() } catch (e) { el.focus(); el.click() } }
   const [form, setForm] = useState(null)
 
-  const ranOn = key => allCycles.filter(c => dayKey(c.end) === key).length
+  // a run belongs to the day it started, even when it finishes after midnight
+  const ranOn = key => allCycles.filter(c => dayKey(c.start) === key).length
   // A day's amount: the MDM's recorded counter across its runs when every run is covered,
   // else the run count (src/lib/splitCycles.js). The run count above only decides
   // Confirmed / Inferred.
   const serialOf = useMemo(() => { const m = new Map(); for (const d of DEV) for (const c of d.cycles) m.set(c, d.serial); return m }, [DEV, allCycles])
-  const amountOn = key => splitText(allCycles.filter(c => dayKey(c.end) === key)
+  const amountOn = key => splitText(allCycles.filter(c => dayKey(c.start) === key)
     .map(c => ({ mdmCycles: mdmCyclesFor(fleet.readings, serialOf.get(c), c.start, c.end) })))
   const resolve = key => {
     const r = resolveDay(key, { decls, rota, ran: ranOn(key), devices: DEV.length })
     const src = r.decl || r.rota || null
     return { ...r, tt: testType(r.testType), src, serials: groupSerials(src && src.group, DEV),
-      startMs: timeOn(key, src && src.startTime), endMs: timeOn(key, src && src.endTime, true) }
+      ...windowOn(key, src) }
   }
   const cells = monthGrid(ym.y, ym.m).map(c => ({ ...c, r: resolve(c.key) }))
   const S = resolve(sel)
-  const selRan = allCycles.filter(c => dayKey(c.end) === sel)
+  const selRan = allCycles.filter(c => dayKey(c.start) === sel)
   const inMonth = cells.filter(c => c.inMonth)
   const counts = inMonth.reduce((a, c) => { a[c.r.status] = (a[c.r.status] || 0) + 1; return a }, {})
 
@@ -147,7 +148,7 @@ export default function CyclePlanView({ fleet }) {
                 <dt>Test type</dt><dd>{S.tt ? <><Chip r={S} /> {S.tt.name}</> : <span className="secondary">none set</span>}</dd>
                 <dt>Source</dt><dd>{S.source === 'declared' ? 'Explicit declaration' : S.source === 'rota' ? 'Standing weekly rota' : S.source === 'telemetry' ? 'Telemetry only' : <span className="secondary">—</span>}</dd>
                 <dt>Devices</dt><dd className="mono">{S.tt ? S.serials.length : '—'}</dd>
-                <dt>Window</dt><dd className="mono">{S.tt ? `${hm(S.startMs)}–${hm(S.endMs)}` : '—'}</dd>
+                <dt>Window</dt><dd className="mono">{S.tt ? `${hm(S.startMs)}–${hm(S.endMs)}${S.overnight ? ' next day' : ''}` : '—'}</dd>
                 <dt>Cycles (MDM) or runs</dt><dd className="mono">{selRan.length ? amountOn(sel) : '—'}</dd>
               </dl>
               <div className="acts">
@@ -197,7 +198,7 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
             </select></span></div>
         <div className="grid grid-2">
           <div className="field"><label htmlFor="f-start">Starts</label><input className="input" id="f-start" type="time" value={form.startTime || ''} onChange={e => set('startTime', e.target.value)} /></div>
-          <div className="field"><label htmlFor="f-end">Ends</label><input className="input" id="f-end" type="time" value={form.endTime || ''} onChange={e => set('endTime', e.target.value)} /></div>
+          <div className="field"><label htmlFor="f-end">Ends{form.startTime && form.endTime && form.endTime <= form.startTime ? <span className="secondary" style={{ fontWeight: 400 }}> · next day</span> : null}</label><input className="input" id="f-end" type="time" value={form.endTime || ''} onChange={e => set('endTime', e.target.value)} /></div>
         </div>
         <div className="field"><label htmlFor="f-repeat">Repeat</label>
           <span className="ver" style={{ display: 'block' }}>
@@ -205,7 +206,7 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
               <option value="none">Does not repeat</option><option value="weekly">Weekly, same weekday</option>
             </select></span></div>
         <div className="field"><label htmlFor="f-by">Set by</label><input className="input" id="f-by" value={form.by || ''} placeholder="optional" onChange={e => set('by', e.target.value)} /></div>
-        <div className="help" style={{ marginBottom: 12 }}>Readings outside the start–end window count as having no test set. Keep it generous: a run that starts late still belongs to this test.</div>
+        <div className="help" style={{ marginBottom: 12 }}>A run belongs to the day it starts. An end time earlier than the start means the next morning (e.g. 10:00 AM → 04:00 AM), so a late run that finishes after midnight still counts here. Runs starting outside the window count as having no test set.</div>
         <div className="form-actions">
           <button className="btn" onClick={onCancel}>Cancel</button>
           <button className="btn btn-primary" disabled={!form.from} onClick={() => onSave({ ...form, to: form.to || form.from })}>{editing ? 'Save changes' : 'Save test'}</button>

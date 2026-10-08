@@ -15,7 +15,7 @@ export default function OverviewView({ fleet }) {
 
   const now = Date.now(), key = todayKey()
   const T = useMemo(() => {
-    const ran = allCycles.filter(c => dayKey(c.end) === key).length
+    const ran = allCycles.filter(c => dayKey(c.start) === key).length
     const r = resolveDay(key, { decls: loadDecls(GROUP), rota: loadRota(GROUP), ran, devices: DEV.length })
     const src = r.decl || r.rota || null
     return { ...r, tt: testType(r.testType), src, serials: groupSerials(src && src.group, DEV) }

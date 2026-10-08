@@ -83,7 +83,9 @@ export function adaptCycle(d, c, rows, ctx) {
   const hourly = perHourRate(hourVals, charging ? 'gain' : 'drop');
   const built = [];
   for (const h of [...hourVals.keys()].sort((a, b) => a - b)) {
-    if (hourVals.has(h + 1)) built.push({ h, drop: hourVals.get(h) - hourVals.get(h + 1) });
+    // `wireless` is per run here (the pad state), not per hour as in a bench CSV — close
+    // enough for T7's Restaurant Case with/without-wireless split, and never invented.
+    if (hourVals.has(h + 1)) built.push({ h, drop: hourVals.get(h) - hourVals.get(h + 1), wireless });
   }
   const temps = tempSeries.map(p => p.v);
   const start = new Date(c.start);
@@ -111,6 +113,11 @@ export function adaptCycle(d, c, rows, ctx) {
     minAbove40: c.thermal?.minAbove40 ?? null,
     minAbove45: c.thermal?.minAbove45 ?? null,
     series, tempSeries, hourly: built,
+    // T7's views iterate these unconditionally, so they must be arrays even though the MDM
+    // has nothing to put in them: the load's battery is never reported, and the sweep
+    // keeps no RAM curve. Empty arrays make the charts say "nothing to plot" honestly.
+    loadSeries: [], ramSeries: [],
+    avgRam: null, maxRam: null,
     reason: c.reason,
     fullMs: c.fullMs,
     start: c.start, end: c.end,

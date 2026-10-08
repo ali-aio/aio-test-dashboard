@@ -245,8 +245,13 @@ default `node` is v10.19.0 and Vite needs >= 18. So `dist/` is **committed on pu
 build locally, commit the result, and fw2 only ever serves static files.
 
 ```bash
+npm test          # server-renders every view x every test type against real history
 npm run build     # -> dist/ (commit it)
 ```
+
+Run `npm test` before building. T7's views iterate cycle fields unconditionally, so a field
+`src/lib/adapt.js` forgets is not a blank number but a crash the moment someone opens a
+single test — that shipped once ("series is not iterable"). The test catches it in Node.
 
 "Deploy" = get the latest files onto the host that serves them and make sure the server
 process is serving the current code.

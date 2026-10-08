@@ -3,3 +3,4 @@ node_modules/
 server/config.json
 data/topup.json
 data/topup.json.tmp
+test/.out/

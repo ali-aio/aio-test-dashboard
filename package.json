@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "serve": "node server/server.mjs"
+    "serve": "node server/server.mjs",
+    "test": "node test/run.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

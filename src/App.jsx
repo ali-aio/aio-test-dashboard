@@ -96,12 +96,17 @@ export default function App() {
         <FilterBar cycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} />
         <FilterPills filters={filters} onChange={setFilters} onReset={resetFilters} count={scoped.length} allSerials={allSerials} />
         {fleet.seed && !fleet.seed.ok && (
-          <div className="banner banner-warn">
-            <span aria-hidden="true">◆</span>
+          <div className="banner banner-warn"><span aria-hidden="true">◆</span>
             <div><strong>Only the sweep's cycles are loaded — most of the history is missing.</strong>
-              <div>{fleet.seed.why}. You are seeing the last couple of weeks instead of the full campaign,
-                so every count, average and date on this page is understated. Scope group: <span className="mono">{GROUP}</span>.</div></div>
-          </div>
+              <div>{fleet.seed.why}. Every count, average and date here covers the last couple of weeks
+                rather than the full campaign. Scope group: <span className="mono">{GROUP}</span>.</div></div></div>
+        )}
+        {fleet.seed?.ok && fleet.seed.missing?.length > 0 && (
+          <div className="banner"><span aria-hidden="true">●</span>
+            <div><strong>{fleet.seed.covered} of {fleet.seed.fleet} devices have history before the sweep.</strong>
+              <div>The one-off import was generated for <span className="mono">{fleet.seed.group}</span> and covers {fleet.seed.cycles} cycles.
+                These {fleet.seed.missing.length} are only covered from when the sweep started, so their
+                totals are lower than the rest: <span className="mono">{fleet.seed.missing.join(', ')}</span>.</div></div></div>
         )}
         {!fleet.backend && (
           <div className="banner banner-warn"><span aria-hidden="true">◆</span>

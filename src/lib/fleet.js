@@ -17,7 +17,7 @@ const TOPKEY = `histTopup:v3:${GROUP}`;
 
 const state = {
   DEV: [], DMAP: new Map(), allCycles: [], runs: [], cycleRun: new Map(),
-  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null,
+  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null,
 };
 let snapshot = { ...state }, HIST = {}, TOP = {}, local = loadRuns(GROUP);
 const subs = new Set();
@@ -72,10 +72,16 @@ async function topUpFromServer(force) {
   try {
     if (force) { const r = await fetch('/api/sweep', { method: 'POST' }); state.server = await r.json(); if (!r.ok) throw new Error(state.server.lastError || r.statusText); }
     else if (!state.server) { const r = await fetch('/api/status', { cache: 'no-store' }); if (!r.ok) return false; state.server = await r.json(); }
-    if (state.server.group !== GROUP) { state.server = null; return false; }
     const r = await fetch('/data/topup.json', { cache: 'no-store' });
     if (!r.ok) { if (state.server.sweeping) { setTimeout(() => topUpFromServer(false).catch(() => {}), 30e3); return true; } return !!state.server.lastError; }
-    const t = await r.json(); if (t.group !== GROUP) return false;
+    const t = await r.json();
+    // Same rule as the static import: merge per device, not per group label. The sweep may
+    // be scoped to a different group than this browser; whatever devices it covers that are
+    // also in scope here are still this device's own history. Anything it does not cover
+    // falls through to the in-browser top-up below.
+    const covered = state.DEV.filter(d => t.devices?.[d.serial]).length;
+    state.sweep = { group: t.group, covered, fleet: state.DEV.length };
+    if (!covered) return false;
     TOP = t.devices; derive(); bump(); return true;
   } catch (e) { if (force) throw e; return false; }
 }
@@ -106,12 +112,23 @@ export async function boot() {
       fetchDevices({ fresh: true }),
       fetch('/data/cycles.json').then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
-    // The static import is most of the history (364 cycles against the sweep's ~20), so a
-    // silent miss here quietly drops two thirds of every number on the page. Record why.
-    if (!hist) state.seed = { ok: false, why: 'data/cycles.json did not load' };
-    else if (hist.group !== GROUP) state.seed = { ok: false, why: `data/cycles.json is for group "${hist.group}", this browser is scoped to "${GROUP}"` };
-    else { state.meta = hist; HIST = hist.devices; state.seed = { ok: true, cycles: Object.values(hist.devices).reduce((n, d) => n + (d.cycles?.length || 0), 0) }; }
+    // The static import is most of the history (364 cycles against the sweep's ~20). It was
+    // generated for the "Test Cycles" group, but a cycle is a fact about a DEVICE, not about
+    // a group — so it is merged per serial, for whichever of its devices are in scope now,
+    // rather than only when the file's group label matches. Devices in the current group
+    // that the import never covered simply have no history before the sweep started.
     setDevices(rows);
+    if (!hist) state.seed = { ok: false, why: 'data/cycles.json did not load' };
+    else {
+      state.meta = hist; HIST = hist.devices;
+      const mine = state.DEV.filter(d => HIST[d.serial]);
+      state.seed = {
+        ok: mine.length > 0, group: hist.group, covered: mine.length, fleet: state.DEV.length,
+        cycles: mine.reduce((n, d) => n + (HIST[d.serial].cycles?.length || 0), 0),
+        missing: state.DEV.filter(d => !HIST[d.serial]).map(d => d.serial),
+        why: mine.length ? null : `data/cycles.json covers none of the ${state.DEV.length} devices in "${GROUP}"`,
+      };
+    }
     try { TOP = JSON.parse(localStorage.getItem(TOPKEY))?.devices || {}; } catch (e) {}
     derive(); state.ready = true; bump();
     topUp().catch(e => console.warn('history top-up failed:', e));

@@ -332,7 +332,8 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
             { key: 'end', label: isCharging ? 'Charged to' : 'End' },
             { key: 'drop', label: isCharging ? 'Charge rate' : 'Drain' },
           ]}
-          tableRows={bySerial.serials.map((sn) => {
+          // only the devices ticked in the picker, so the table matches the lines drawn
+          tableRows={bySerial.serials.filter((sn) => picker !== 'devices' || selectedDevices == null || selectedDevices.has(sn)).map((sn) => {
             const c = bySerial.bySerial.get(sn)
             return {
               serial: sn, date: fmtDate(c.date), build: c.build, fw: c.firmware,

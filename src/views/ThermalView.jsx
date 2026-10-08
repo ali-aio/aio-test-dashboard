@@ -265,15 +265,16 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
           emptyState={explainEmpty(cycles, (c) => c.tempSeries.length, 'a battery temperature curve')}
           caption="battery temperature over elapsed hours, per device"
           tableColumns={[
-            { key: 'serial', label: 'Serial' },
+            { key: 'serial', label: tempMode === 'all' ? 'Serial' : 'Line' },
             { key: 'peak', label: 'Peak' },
             { key: 'avg', label: 'Mean' },
             { key: 'min', label: 'Lowest' },
           ]}
-          tableRows={curves.map((s) => {
+          // the table follows the chart: the ticked devices, or the average / highest / lowest lines
+          tableRows={(tempMode === 'all' ? curves.filter((s) => shownDevices.has(s.id)) : avgTemp).map((s) => {
             const vals = s.points.map((p) => p.v)
             return {
-              serial: s.id,
+              serial: tempMode === 'all' ? s.id : s.label,
               peak: fmtTemp(maxOf(vals)),
               avg: fmtTemp(mean(vals)),
               min: fmtTemp(minOf(vals)),

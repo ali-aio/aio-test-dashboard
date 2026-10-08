@@ -190,18 +190,23 @@ function OverviewPanel({ p, allSerials, onPickTestType }) {
         emptyState={explainEmpty(p.cycles, (c) => c.series.length, 'a battery reading')}
         caption={`Mean battery percentage over elapsed hours for ${p.testType}`}
         tableColumns={[
-          { key: 'build', label: p.groupKey === 'build' ? 'Build' : 'Pad state' },
+          mode === 'all' ? { key: 'build', label: 'Device' } : { key: 'build', label: p.groupKey === 'build' ? 'Build' : 'Pad state' },
           { key: 'n', label: 'Cycles (MDM) or runs' },
           { key: 'dur', label: 'Avg run time' },
           { key: 'drop', label: p.charging ? 'Avg charge rate' : 'Avg drain' },
           { key: 'end', label: p.charging ? 'Avg charged to' : 'Avg end battery' },
           { key: 'temp', label: 'Peak temp' },
         ]}
-        tableRows={[...new Set(p.cycles.map((c) => c[p.groupKey]))].map((b) => {
-          const own = p.cycles.filter((c) => c[p.groupKey] === b)
+        // Average: one row per build / pad state. Every device: one row per device ticked in
+        // the Devices picker, in serial order, so the table matches the lines on the chart.
+        tableRows={(mode === 'all'
+          ? perDevice.map((s) => s.id).filter((sn) => !picker.selectedSeries || picker.selectedSeries.has(sn)).sort(compareSerial)
+          : [...new Set(p.cycles.map((c) => c[p.groupKey]))]
+        ).map((b) => {
+          const own = p.cycles.filter((c) => (mode === 'all' ? c.serial : c[p.groupKey]) === b)
           const kk = kpis(own)
           return {
-            build: b,
+            build: b ?? 'Unknown',
             n: p.charging ? runsText(kk.totalCycles) : splitText(own),
             dur: fmtHours(kk.avgDuration),
             drop: fmtRate(kk.avgDropPerHr),

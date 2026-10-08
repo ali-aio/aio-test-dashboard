@@ -1717,30 +1717,30 @@ button.stat.is-open .stat-chevron {
 .tt-chip.unclassified { color: var(--text-muted); background: var(--surface-2); }
 
 /* Cycle-plan calendar */
-.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
-.cal-dow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; }
-.cal-dow span { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: .04em; padding-left: 2px; }
-.cal-day {
+.plan-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.plan-dow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px; }
+.plan-dow span { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: .04em; padding-left: 2px; }
+.plan-day {
   min-height: 96px; text-align: left; display: flex; flex-direction: column; gap: 6px; padding: 8px 9px;
   background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm);
   color: var(--text-primary); font: inherit; cursor: pointer; overflow: hidden;
   transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
-.cal-day:hover { background: var(--wash); }
-.cal-day.out { background: transparent; border-color: transparent; }
-.cal-day.out .dnum { color: var(--text-muted); }
-.cal-day.sel { border-color: var(--series-1); box-shadow: 0 0 0 1px var(--series-1); }
-.cal-day:focus-visible { outline: 2px solid var(--series-1); outline-offset: 1px; }
-.cal-day .dnum { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
-.cal-day.today .dnum { font-weight: 700; color: var(--text-primary); }
-.cal-day .tdy { background: var(--select-bg); color: var(--select-ink); border-radius: var(--radius-xs); padding: 0 5px; font-size: 9.5px; font-weight: 700; letter-spacing: .05em; }
-.cal-day .tname { font-size: 12px; line-height: 1.3; }
-.cal-day .tdev { font-size: 11px; color: var(--text-muted); margin-top: auto; }
-.cal-day .declare { font-size: 11.5px; color: var(--text-muted); }
-.cal-day:hover .declare { color: var(--series-1); }
-.cal-nav { display: flex; gap: 2px; }
-.cal-nav button { border: 0; background: transparent; color: var(--text-secondary); min-height: 28px; padding: 0 9px; border-radius: var(--radius-xs); cursor: pointer; font-size: 13px; }
-.cal-nav button:hover { background: var(--wash); color: var(--text-primary); }
+.plan-day:hover { background: var(--wash); }
+.plan-day.out { background: transparent; border-color: transparent; }
+.plan-day.out .dnum { color: var(--text-muted); }
+.plan-day.sel { border-color: var(--series-1); box-shadow: 0 0 0 1px var(--series-1); }
+.plan-day:focus-visible { outline: 2px solid var(--series-1); outline-offset: 1px; }
+.plan-day .dnum { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.plan-day.today .dnum { font-weight: 700; color: var(--text-primary); }
+.plan-day .tdy { background: var(--select-bg); color: var(--select-ink); border-radius: var(--radius-xs); padding: 0 5px; font-size: 9.5px; font-weight: 700; letter-spacing: .05em; }
+.plan-day .tname { font-size: 12px; line-height: 1.3; }
+.plan-day .tdev { font-size: 11px; color: var(--text-muted); margin-top: auto; }
+.plan-day .declare { font-size: 11.5px; color: var(--text-muted); }
+.plan-day:hover .declare { color: var(--series-1); }
+.plan-nav { display: flex; gap: 2px; }
+.plan-nav button { border: 0; background: transparent; color: var(--text-secondary); min-height: 28px; padding: 0 9px; border-radius: var(--radius-xs); cursor: pointer; font-size: 13px; }
+.plan-nav button:hover { background: var(--wash); color: var(--text-primary); }
 
 /* Standing weekly rota rows */
 .rota-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 18px; border-bottom: 1px solid var(--border); font-size: 13px; }
@@ -1858,13 +1858,13 @@ button.stat.is-open .stat-chevron {
 }
 
 /* Calendar legend swatches (status, so reserved colours + a word, never colour alone). */
-.cal-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); align-items: center; }
-.cal-legend span { display: flex; align-items: center; gap: 6px; }
-.cal-legend i { width: 10px; height: 10px; border-radius: 3px; display: block; }
-.cal-legend i.declared { background: var(--series-1); }
-.cal-legend i.confirmed { background: var(--status-good); }
-.cal-legend i.inferred { background: var(--surface-2); background-image: repeating-linear-gradient(45deg, transparent 0 2px, var(--status-warning) 2px 4px); }
-.cal-legend i.unclassified { background: var(--surface-2); border: 1px solid var(--border-strong); }
+.plan-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); align-items: center; }
+.plan-legend span { display: flex; align-items: center; gap: 6px; }
+.plan-legend i { width: 10px; height: 10px; border-radius: 3px; display: block; }
+.plan-legend i.declared { background: var(--series-1); }
+.plan-legend i.confirmed { background: var(--status-good); }
+.plan-legend i.inferred { background: var(--surface-2); background-image: repeating-linear-gradient(45deg, transparent 0 2px, var(--status-warning) 2px 4px); }
+.plan-legend i.unclassified { background: var(--surface-2); border: 1px solid var(--border-strong); }
 
 /* Chart internals (crosshair dot, hover target, tooltip). */
 .chart .hit { cursor: crosshair; }

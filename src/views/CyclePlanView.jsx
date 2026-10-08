@@ -57,23 +57,23 @@ export default function CyclePlanView({ fleet }) {
         <div className="card">
           <div className="card-head">
             <b>{monthLabel(ym.y, ym.m)}</b>
-            <div className="cal-legend">
+            <div className="plan-legend">
               <span><i className="declared" />Declared</span><span><i className="confirmed" />Confirmed</span>
               <span><i className="inferred" />Inferred</span><span><i className="unclassified" />Unclassified</span>
             </div>
-            <div className="cal-nav">
+            <div className="plan-nav">
               <button aria-label="Previous month" onClick={() => { const d = new Date(ym.y, ym.m - 1, 1); setYm({ y: d.getFullYear(), m: d.getMonth() }) }}>‹</button>
               <button onClick={() => { const d = new Date(); setYm({ y: d.getFullYear(), m: d.getMonth() }); setSel(todayKey()) }}>Today</button>
               <button aria-label="Next month" onClick={() => { const d = new Date(ym.y, ym.m + 1, 1); setYm({ y: d.getFullYear(), m: d.getMonth() }) }}>›</button>
             </div>
           </div>
           <div className="card-body">
-            <div className="cal-dow">{WEEKDAYS.map(d => <span key={d}>{d.toUpperCase()}</span>)}</div>
-            <div className="cal-grid">
+            <div className="plan-dow">{WEEKDAYS.map(d => <span key={d}>{d.toUpperCase()}</span>)}</div>
+            <div className="plan-grid">
               {cells.map(c => {
                 const r = c.r, future = c.key >= todayKey()
                 return (
-                  <button key={c.key} className={`cal-day ${c.inMonth ? '' : 'out'} ${c.isToday ? 'today' : ''} ${c.key === sel ? 'sel' : ''}`}
+                  <button key={c.key} className={`plan-day ${c.inMonth ? '' : 'out'} ${c.isToday ? 'today' : ''} ${c.key === sel ? 'sel' : ''}`}
                     title={`${dayLabel(c.key)} · ${STATUS[r.status].label}`}
                     onClick={() => { setSel(c.key); if (form) setForm(f => ({ ...f, from: c.key, to: c.key })) }}>
                     <span className="dnum">{c.dayNum}{c.isToday ? <span className="tdy">TODAY</span> : null}</span>

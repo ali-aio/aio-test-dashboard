@@ -1922,3 +1922,4 @@ tr.row-link { cursor: pointer; }
 tr.row-link:hover td { background: var(--wash); }
 .link-btn { border: 0; background: none; padding: 0; font: inherit; color: var(--series-1); cursor: pointer; text-align: left; }
 .link-btn:hover { text-decoration: underline; }
+tr.row-link.is-selected td { background: color-mix(in srgb, var(--series-1) 12%, transparent); }

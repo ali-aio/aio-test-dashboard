@@ -28,7 +28,7 @@ const fmtWhen = (ms) => {
  * is usually the explanation for whatever the numbers show.
  */
 export default function DevicesView({
-  cycles, allSerials, events, onEventsChanged, onFilter, issues = [], files = [], snapOf = () => null }) {
+  cycles, allSerials, events, onEventsChanged, onFilter, onOpenTest, issues = [], files = [], snapOf = () => null }) {
   const [editing, setEditing] = useState(null)   // an event, {} for new, or null
   const [expanded, setExpanded] = useState(() => new Set())
   /* Only the devices something has been logged against, by default. A list of
@@ -229,9 +229,16 @@ export default function DevicesView({
                               { label: 'Test', style: { textAlign: 'left' } }, { label: 'Runs' }, { label: 'Avg run time' },
                               { label: 'Avg drain' }, { label: 'Avg peak temp' }, { label: 'Hottest' }, { label: 'Last run' },
                             ]}>
+                                {/* a row opens that test's full page for just this device: every run, by day */}
                                 {r.tests.map((tst) => (
-                                  <tr key={tst.testType}>
-                                    <td style={{ textAlign: 'left' }}>{tst.testType}</td>
+                                  <tr key={tst.testType} className={onOpenTest ? 'row-link' : undefined}
+                                    onClick={onOpenTest ? () => onOpenTest(r.serial, tst.testType) : undefined}
+                                    title={onOpenTest ? `Open ${tst.testType} for ${r.serial} — every run, with its curves` : undefined}>
+                                    <td style={{ textAlign: 'left' }}>
+                                      {onOpenTest
+                                        ? <button type="button" className="link-btn" onClick={(e) => { e.stopPropagation(); onOpenTest(r.serial, tst.testType) }}>{tst.testType} ›</button>
+                                        : tst.testType}
+                                    </td>
                                     <td>{fmtInt(tst.n)}</td>
                                     <td>{fmtHours(tst.k.avgDuration)}</td>
                                     <td>{fmtRate(tst.k.avgDropPerHr)}</td>

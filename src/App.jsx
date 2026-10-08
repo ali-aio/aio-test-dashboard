@@ -98,6 +98,8 @@ export default function App() {
   const resetFilters = () => setFilters(filtersFor(allSerials))
   const applyFilter = patch => setFilters(f => (patch.date ? { ...f, ...patch, date: '', range: isoDayRange(patch.date) } : { ...f, ...patch }))
   const openTestType = tt => { setFilters(f => ({ ...f, testType: tt })); location.hash = '#/nx' }
+  // Summary -> one device's test: that test's full page with only this device selected
+  const openDeviceTest = (sn, tt) => { setFilters(f => ({ ...f, serials: [sn], testType: tt })); location.hash = '#/nx'; window.scrollTo(0, 0) }
 
   // Test types declared on the Cycle plan — single days and the weekly rota. Re-read on
   // every render (two small localStorage reads), so a declaration made on the Cycle plan
@@ -143,7 +145,7 @@ export default function App() {
           {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} testType={filters.testType} allSerials={allSerials} lifetime={lifetime} />}
           {view === 'comparison' && <ComparisonView cycles={scoped} testType={filters.testType} allSerials={allSerials} />}
           {view === 'thermal' && <ThermalView cycles={scoped} allSerials={allSerials} onFilter={applyFilter} />}
-          {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={[]} onEventsChanged={() => {}} onFilter={applyFilter} issues={[]} files={[]} snapOf={sn => fleet.DMAP.get(sn)?.snap} />}
+          {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={[]} onEventsChanged={() => {}} onFilter={applyFilter} onOpenTest={openDeviceTest} issues={[]} files={[]} snapOf={sn => fleet.DMAP.get(sn)?.snap} />}
         </ErrorBoundary>
       </div>
     )

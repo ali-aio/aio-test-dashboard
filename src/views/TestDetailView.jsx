@@ -228,6 +228,8 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
     }
   }) : []
 
+  const serialsHere = [...new Set(cycles.map((c) => c.serial))]
+
   return (
     <div className="view-stack">
       <div className="stat-row">
@@ -529,6 +531,37 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
           )}
         </Card>
       </div>
+
+      {/* Every run in scope, one row each — with one device picked (Summary → a test row),
+          this is that device's history for the test: which days it ran and how each went. */}
+      <Card expandable title={serialsHere.length === 1 ? `Every run on ${serialsHere[0]}` : 'Every run'}
+        sub={`${runsText(cycles.length)} on ${fmtInt(new Set(cycles.map((c) => c.date)).size)} days`
+          + `${serialsHere.length === 1 ? '' : ` across ${fmtInt(serialsHere.length)} devices`} · newest first · click a heading to sort`}>
+        <div className="table-wrap" style={{ maxHeight: 460 }}>
+          <SortTable caption={`Every ${testType} run`} head={[
+            { label: 'Date' }, { label: 'Started' }, ...(serialsHere.length === 1 ? [] : [{ label: 'Device', style: { textAlign: 'left' } }]),
+            { label: 'Run time' }, { label: 'Start' }, { label: isCharging ? 'Charged to' : 'End' },
+            { label: isCharging ? 'Charge rate' : 'Drain' }, { label: 'Peak temp' }, { label: 'Cycles (MDM)' },
+            { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'Charger', style: { textAlign: 'left' } }] : []),
+          ]}>
+            {[...cycles].sort((a, b) => b.start - a.start).map((c) => (
+              <tr key={c.id}>
+                <td>{c.date ? fmtDate(c.date) : '—'}</td>
+                <td>{c.start != null ? new Date(c.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                {serialsHere.length !== 1 && <td className="serial" style={{ textAlign: 'left' }}>{fmtSerial(c.serial)}</td>}
+                <td>{fmtHours(c.duration)}</td>
+                <td>{fmtPct(c.startBattery)}</td>
+                <td>{fmtPct(c.endBattery)}</td>
+                <td>{fmtRate(c.dropPerHr)}</td>
+                <td>{fmtTemp(c.maxTemp)}</td>
+                <td>{c.mdmCycles == null ? '—' : c.mdmCycles.toFixed(2)}</td>
+                <td style={{ textAlign: 'left' }}>{c.firmware ?? '—'}</td>
+                {isField && <td style={{ textAlign: 'left' }}>{c.padState ?? '—'}</td>}
+              </tr>
+            ))}
+          </SortTable>
+        </div>
+      </Card>
     </div>
   )
 }

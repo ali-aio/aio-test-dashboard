@@ -5,6 +5,7 @@ import { reclassify, DEFAULTS } from '../src/lib/cycles.js'
 import { adaptAll } from '../src/lib/adapt.js'
 import { filterCycles, filtersFor, distinct } from '../src/lib/t7cycles.js'
 import T7Overview from '../src/views/T7Overview.jsx'
+import TestDetail from '../src/views/TestDetailView.jsx'
 import Comparison from '../src/views/ComparisonView.jsx'
 import Thermal from '../src/views/ThermalView.jsx'
 import Devices from '../src/views/DevicesView.jsx'
@@ -161,6 +162,14 @@ const mdmCases = []
     const h = renderToString(<SortTable head={[{ label: 'Device' }, { label: 'Temp' }]}>
       {[['A', '40 °C'], ['B', '50 °C']].map(([a, b]) => <tr key={a}><td>{a}</td><td>{b}</td></tr>)}</SortTable>)
     want(h.includes('Click for highest first') && h.includes('50 °C'), 'no sortable heading')
+  })
+  check('one device + one test lists every run with its day', () => {
+    const sn = covered[0].serial, tt = covered[0].testType
+    const mine = covered.filter((c) => c.serial === sn && c.testType === tt)
+    const h = renderToString(<TestDetail cycles={mine} testType={tt} allSerials={all} />)
+    want(h.includes(`Every run on ${sn}`), 'no every-run card')
+    const rows = (h.split('Every run on')[1].match(/<tr/g) || []).length - 1   // minus the heading row
+    want(rows === mine.length, `rows ${rows} vs runs ${mine.length}`)
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

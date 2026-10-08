@@ -72,7 +72,8 @@ export function SortTh({ k, sort, onSort, className, style, children }) {
 /**
  * A table whose <tbody> rows are sortable by any heading. `head` is the list of headings
  * ({ label, className?, style?, sortable? }), children are the <tr> rows as usual; each
- * row is sorted by the text of its n-th cell.
+ * row is sorted by the text of its n-th cell; a row with data-attached stays under the one
+ * before it.
  */
 export function SortTable({ head, children, className = 'data', caption }) {
   const [sort, onSort] = useSort()
@@ -83,7 +84,14 @@ export function SortTable({ head, children, className = 'data', caption }) {
       const cells = React.Children.toArray(tr.props.children).filter(React.isValidElement)
       return sortValue(cellText(cells[sort.key]?.props.children))
     }
-    return rows.map((r) => ({ r, v: val(r) })).sort((a, b) => compareValues(a.v, b.v, sort.dir)).map((x) => x.r)
+    // A row marked data-attached (e.g. a form opened under a device) travels with the row
+    // above it, so sorting never separates them.
+    const groups = []
+    for (const r of rows) {
+      if (r.props['data-attached'] && groups.length) groups[groups.length - 1].push(r)
+      else groups.push([r])
+    }
+    return groups.map((g) => ({ g, v: val(g[0]) })).sort((a, b) => compareValues(a.v, b.v, sort.dir)).flatMap((x) => x.g)
   }, [children, sort])
   return (
     <table className={className}>

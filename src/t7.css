@@ -1954,3 +1954,5 @@ tr.row-link.is-selected td { background: color-mix(in srgb, var(--series-1) 12%,
 .overlap-warn > div { color: var(--text-secondary); margin-top: 2px; }
 .plan-day .overlap-flag { font-size: 11px; font-weight: 600; color: var(--status-serious); margin-top: 2px; }
 .plan-day .chips { display: flex; gap: 4px; flex-wrap: wrap; }
+tr.takeout-row > td { padding: 0; text-align: left; white-space: normal; }
+tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-warning); }

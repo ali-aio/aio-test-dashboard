@@ -280,8 +280,6 @@ export default function TodayView({ fleet }) {
             <h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{listShown ? '▾' : '▸'}</span>Devices today ({conf.filter(c => matches(c.serial)).length})</h2>
             <span className="secondary">{reporting.length} reporting · {listShown ? 'click to hide' : 'click to show every device — click one to chart it alone'}</span>
           </div>
-          {takingOut && T.decl && <TakeOutForm serial={takingOut} cycle={T} onCancel={() => setTakingOut(null)}
-            onSave={rec => { takeOut(GROUP, T.decl.id, { serial: takingOut, ...rec }); setTakingOut(null); setPlanRev(v => v + 1) }} />}
           {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' },
               { label: 'Drain', className: 'r' }, { label: 'Lifetime cycles (MDM)', className: 'r' }, { label: 'Temp now', className: 'r' },
               { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Today', className: 'r', sortable: false },
@@ -290,7 +288,7 @@ export default function TodayView({ fleet }) {
                 const r = runs.get(c.serial)
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
                 const st = status(d), s = dayStats(c.serial, T.startMs), cs = CSTATE[c.state]
-                return <tr key={c.serial} className={`row-link${only === c.serial ? ' is-selected' : ''}`} onClick={() => focusDevice(c.serial)}
+                const row = <tr key={c.serial} className={`row-link${only === c.serial ? ' is-selected' : ''}`} onClick={() => focusDevice(c.serial)}
                   title={only === c.serial ? 'Click to show every device again' : `Show only ${c.serial} in the charts above`}>
                   <td className="mono"><button type="button" className="link-btn mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button></td>
                   <td><span className={`pill ${cs[0]}`}>{cs[1]}</span></td>
@@ -303,8 +301,14 @@ export default function TodayView({ fleet }) {
                   <td className="r mono" style={{ color: s?.minAbove45 ? 'var(--bad)' : 'inherit' }}>{s?.minAbove45 ? fmtDur(s.minAbove45 * MIN) : <span className="secondary">—</span>}</td>
                   <td className="r">{s ? <Sparkline vals={s.battPts.map(p => p.y)} /> : <span className="secondary">—</span>}</td>
                   {T.decl && <td className="r"><button type="button" className="btn btn-sm" title={`Take ${c.serial} out of this cycle, with a reason`}
-                    onClick={e => { e.stopPropagation(); setTakingOut(c.serial) }}>Take out</button></td>}
+                    onClick={e => { e.stopPropagation(); setTakingOut(t => t === c.serial ? null : c.serial) }}>{takingOut === c.serial ? 'Cancel' : 'Take out'}</button></td>}
                 </tr>
+                // the take-out form opens right under its device, as part of the table
+                return takingOut === c.serial && T.decl ? [row,
+                  <tr key={c.serial + ':out'} data-attached="1" className="takeout-row"><td colSpan={11}>
+                    <TakeOutForm serial={c.serial} cycle={T} onCancel={() => setTakingOut(null)}
+                      onSave={rec => { takeOut(GROUP, T.decl.id, { serial: c.serial, ...rec }); setTakingOut(null); setPlanRev(v => v + 1) }} />
+                  </td></tr>] : row
               })}
           </SortTable></div>}
         </div>

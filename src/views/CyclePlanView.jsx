@@ -19,7 +19,6 @@ export default function CyclePlanView({ fleet }) {
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() })
   const [sel, setSel] = useState(todayKey())
   const [form, setForm] = useState(null)
-  const [bulkType, setBulkType] = useState(TEST_TYPES[0].id)
 
   const ranOn = key => allCycles.filter(c => dayKey(c.end) === key).length
   const resolve = key => {
@@ -45,7 +44,6 @@ export default function CyclePlanView({ fleet }) {
     <div className="view-stack">
       <div className="view-head">
         <div><h1>Cycle plan</h1>
-          <div className="sub" style={{ maxWidth: 620 }}>This screen <i>is</i> the test-type column. Declare once — a date, a device group, a test type — and every MDM row that arrives inside that window is stamped on the way in. No import step, no filename convention, nothing to remember at the end of a run.</div>
         </div>
         <div className="spacer" />
         <div style={{ display: 'flex', gap: 8 }}>
@@ -61,24 +59,6 @@ export default function CyclePlanView({ fleet }) {
               <b> Standing weekly rota</b> on the right: pick a test for each weekday once and every day,
               past and future, is labelled. Declare a single day to override it.</div></div>
         </div>
-      )}
-      {inMonth.filter(c => c.r.status === 'inferred').length > 0 && (
-        <div className="card"><div className="card-body" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span><b>{inMonth.filter(c => c.r.status === 'inferred').length} day{inMonth.filter(c => c.r.status === 'inferred').length === 1 ? '' : 's'}</b> in {monthLabel(ym.y, ym.m)} ran with no test type.</span>
-          <span className="secondary">Label them all as</span>
-          <span className="ver" style={{ display: 'inline-block', minWidth: 220 }}>
-            <select value={bulkType} onChange={e => setBulkType(e.target.value)}>
-              {TEST_TYPES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select></span>
-          <button className="btn btn-primary" onClick={() => {
-            const days = inMonth.filter(c => c.r.status === 'inferred')
-            if (!confirm(`Declare ${testType(bulkType).name} for ${days.length} past day${days.length === 1 ? '' : 's'}? Each becomes its own declaration you can edit or delete.`)) return
-            let next = [...decls]
-            for (const c of days) next = [...next, newDecl(next, { testType: bulkType, from: c.key, to: c.key, group: { kind: 'all' }, startTime: '', endTime: '', repeat: 'none' })]
-            commit(next)
-          }}>Apply</button>
-          <span className="help" style={{ margin: 0 }}>Turns ▨ Inferred into ● Confirmed. Use the rota instead if the same test runs every week.</span>
-        </div></div>
       )}
 
       <div className="cols-plan">

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
 import {
   TEST_TYPES, testType, ttSlot, loadDecls, saveDecls, loadRota, saveRota, newDecl,
-  resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, windowOn, WEEKDAYS, monthLabel, dayLabel,
+  resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, windowOn, cyclesOn, carriedInto, nextCycleTimes, WEEKDAYS, monthLabel, dayLabel,
 } from '../lib/plan.js'
 import { GROUP } from '../lib/fleet.js'
 import { splitText } from '../lib/splitCycles.js'
@@ -51,7 +51,7 @@ export default function CyclePlanView({ fleet }) {
   const openForm = (id, day = sel) => {
     const d = id && decls.find(x => x.id === id)
     let by = ''; try { by = localStorage.getItem('declaredBy') || '' } catch (e) {}
-    setForm(d ? { ...d } : { testType: TEST_TYPES[0].id, from: day, to: day, group: { kind: 'all' }, startTime: '07:00', endTime: '19:00', repeat: 'none', by })
+    setForm(d ? { ...d } : { testType: TEST_TYPES[0].id, from: day, to: day, group: { kind: 'all' }, ...nextCycleTimes(decls, day), repeat: 'none', by })
   }
 
   return (
@@ -99,7 +99,7 @@ export default function CyclePlanView({ fleet }) {
             <div className="plan-dow">{WEEKDAYS.map(d => <span key={d}>{d.toUpperCase()}</span>)}</div>
             <div className="plan-grid">
               {cells.map(c => {
-                const r = c.r, future = c.key >= todayKey()
+                const r = c.r, future = c.key >= todayKey(), carried = carriedInto(decls, c.key)
                 return (
                   <button key={c.key} className={`plan-day ${c.inMonth ? '' : 'out'} ${c.isToday ? 'today' : ''} ${c.key === sel ? 'sel' : ''}`}
                     title={`${dayLabel(c.key)} · ${STATUS[r.status].label}`}
@@ -107,13 +107,15 @@ export default function CyclePlanView({ fleet }) {
                     // empty day from today on (the "+ set test" cells) goes straight to the form.
                     onClick={() => {
                       setSel(c.key)
-                      if (!r.tt && future && c.inMonth) openForm(null, c.key)
+                      if (!r.tt && !carried.length && future && c.inMonth) openForm(null, c.key)
                       else setForm(null)
                     }}>
                     <span className="dnum">{c.dayNum}{c.isToday ? <span className="tdy">TODAY</span> : null}</span>
                     {r.tt ? <><Chip r={r} /><span className="tname">{r.tt.name}</span><span className="tdev">{r.serials.length} devices</span></>
                       : r.status === 'inferred' ? <><Chip r={r} /><span className="tname">No test set</span><span className="tdev">{amountOn(c.key)}</span></>
-                      : c.inMonth ? <span className="declare">{future ? '+ set test' : 'no run'}</span> : null}
+                      : c.inMonth && !carried.length ? <span className="declare">{future ? '+ set test' : 'no run'}</span> : null}
+                    {carried.length > 0 && c.inMonth && <span className="carry">↪ {testType(carried[0].decl.testType)?.code} until {hm(carried[0].endMs)}{!r.tt && future ? ' · + next cycle' : ''}</span>}
+                    {r.cycles?.length > 1 && <span className="carry">+{r.cycles.length - 1} more cycle{r.cycles.length > 2 ? 's' : ''}</span>}
                   </button>
                 )
               })}
@@ -144,19 +146,39 @@ export default function CyclePlanView({ fleet }) {
             <div className="card-head"><h2>{dayLabel(sel)}</h2>
               <span className={`pill ${{ declared: 'pill-run', confirmed: 'pill-ok', inferred: 'pill-warn', unclassified: '', none: '' }[S.status]}`}>{STATUS[S.status].label}</span></div>
             <div className="card-body">
-              <dl className="kv">
-                <dt>Test type</dt><dd>{S.tt ? <><Chip r={S} /> {S.tt.name}</> : <span className="secondary">none set</span>}</dd>
-                <dt>Source</dt><dd>{S.source === 'declared' ? 'Explicit declaration' : S.source === 'rota' ? 'Standing weekly rota' : S.source === 'telemetry' ? 'Telemetry only' : <span className="secondary">—</span>}</dd>
-                <dt>Devices</dt><dd className="mono">{S.tt ? S.serials.length : '—'}</dd>
-                <dt>Window</dt><dd className="mono">{S.tt ? `${hm(S.startMs)}–${hm(S.endMs)}${S.overnight ? ' next day' : ''}` : '—'}</dd>
-                <dt>Cycles (MDM) or runs</dt><dd className="mono">{selRan.length ? amountOn(sel) : '—'}</dd>
-              </dl>
-              <div className="acts">
-                {S.decl
-                  ? <><button className="btn" onClick={() => openForm(S.decl.id)}>Edit</button>
-                      <button className="btn" onClick={() => { if (confirm('Remove the test set for this day? It goes back to having no test set.')) commit(decls.filter(d => d.id !== S.decl.id)) }}>Delete</button></>
-                  : <button className="btn btn-primary" onClick={() => openForm(null)}>+ Set a test for this day</button>}
-              </div>
+              {(() => {
+                const own = cyclesOn(decls, sel), carried = carriedInto(decls, sel)
+                const fmtW = c => `${hm(c.startMs)} → ${hm(c.endMs)}${c.overnight ? ' next day' : ''}`
+                return <>
+                  {carried.map(c => (
+                    <div className="cyc-row carried" key={'c' + c.decl.id}>
+                      <span className="secondary" style={{ fontSize: 12 }}>From {dayLabel(c.key).split(',')[0]} ↪</span>
+                      <span><Chip r={{ tt: testType(c.decl.testType), status: 'declared' }} /> {testType(c.decl.testType)?.name}</span>
+                      <span className="mono secondary">until {hm(c.endMs)}</span>
+                    </div>
+                  ))}
+                  {own.length ? own.map((c, i) => (
+                    <div className="cyc-row" key={c.decl.id}>
+                      <span className="secondary" style={{ fontSize: 12 }}>Cycle {i + 1}</span>
+                      <span><Chip r={{ tt: testType(c.decl.testType), status: S.status }} /> {testType(c.decl.testType)?.name}</span>
+                      <span className="mono">{fmtW(c)}</span>
+                      <span className="cyc-acts">
+                        <button className="btn btn-sm" onClick={() => openForm(c.decl.id)}>Edit</button>
+                        <button className="btn btn-sm" onClick={() => { if (confirm('Remove this cycle? Its runs go back to having no test set.')) commit(decls.filter(d => d.id !== c.decl.id)) }}>Delete</button>
+                      </span>
+                    </div>
+                  )) : <p className="secondary" style={{ margin: '4px 0 10px' }}>{carried.length ? 'No new cycle starts on this day yet.' : 'No test set for this day.'}</p>}
+                  <dl className="kv" style={{ marginTop: 10 }}>
+                    <dt>Devices</dt><dd className="mono">{S.tt ? S.serials.length : '—'}</dd>
+                    <dt>Cycles (MDM) or runs</dt><dd className="mono">{selRan.length ? amountOn(sel) : '—'}</dd>
+                  </dl>
+                  <div className="acts">
+                    <button className="btn btn-primary" onClick={() => openForm(null)}>
+                      {own.length || carried.length ? '+ Start next cycle' : '+ Set a test for this day'}</button>
+                    {(own.length || carried.length) ? <span className="secondary" style={{ fontSize: 12 }}>starts {nextCycleTimes(decls, sel).startTime}, where the last one ends</span> : null}
+                  </div>
+                </>
+              })()}
             </div>
           </div>}
 
@@ -172,9 +194,15 @@ const Chip = ({ r }) => r.tt
 
 function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
   const editing = decls.some(d => d.id === form.id)
-  const groups = [...new Set(DEV.flatMap(d => d.snap?.groups || []))].sort()
-  const gv = form.group?.kind === 'group' ? `group:${form.group.name}` : 'all'
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  // Devices: every one listed with a checkbox and a search. All ticked is stored as "all"
+  // (so a device added to the group later is included); otherwise the exact serials.
+  const allSerials = DEV.map(d => d.serial).sort()
+  const ticked = new Set(groupSerials(form.group, DEV))
+  const [devQ, setDevQ] = useState('')
+  const shownDev = allSerials.filter(sn => sn.toLowerCase().includes(devQ.trim().toLowerCase()))
+  const setTicked = next => set('group', next.size === allSerials.length ? { kind: 'all' } : { kind: 'serials', serials: [...next].sort() })
+  const toggleDev = sn => { const n = new Set(ticked); n.has(sn) ? n.delete(sn) : n.add(sn); setTicked(n) }
   return (
     <div className="card">
       <div className="card-head"><div><h2>{editing ? 'Edit the test' : 'Set a test'}</h2><div className="card-sub">{form.from ? (form.to && form.to !== form.from ? `${dayLabel(form.from)} to ${dayLabel(form.to)}` : dayLabel(form.from)) : 'pick a date'}</div></div>
@@ -189,13 +217,24 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
           <div className="field"><label htmlFor="f-from">From</label><input className="input" id="f-from" type="date" value={form.from} onChange={e => set('from', e.target.value)} /></div>
           <div className="field"><label htmlFor="f-to">To</label><input className="input" id="f-to" type="date" value={form.to || form.from} onChange={e => set('to', e.target.value)} /></div>
         </div>
-        <div className="field"><label htmlFor="f-group">Device group</label>
-          <span className="ver" style={{ display: 'block' }}>
-            <select id="f-group" style={{ width: '100%' }} value={gv}
-              onChange={e => set('group', e.target.value === 'all' ? { kind: 'all' } : { kind: 'group', name: e.target.value.slice(6) })}>
-              <option value="all">All devices ({DEV.length})</option>
-              {groups.map(g => <option key={g} value={`group:${g}`}>{g} ({DEV.filter(d => (d.snap?.groups || []).includes(g)).length})</option>)}
-            </select></span></div>
+        <div className="field"><label htmlFor="f-dev-q">Devices <span className="secondary" style={{ fontWeight: 400 }}>· {ticked.size} of {allSerials.length} ticked</span></label>
+          <div className="dev-pick">
+            <div className="dev-pick-bar">
+              <input className="input" id="f-dev-q" type="search" placeholder="Search serials… (e.g. 044)" value={devQ} onChange={e => setDevQ(e.target.value)} />
+              <button type="button" className="btn btn-sm" onClick={() => setTicked(new Set([...ticked, ...shownDev]))}>Select all</button>
+              <button type="button" className="btn btn-sm" onClick={() => { const n = new Set(ticked); shownDev.forEach(sn => n.delete(sn)); setTicked(n) }}>Clear</button>
+            </div>
+            <div className="dev-pick-list">
+              {shownDev.length ? shownDev.map(sn => (
+                <label key={sn} className="dev-pick-item">
+                  <input type="checkbox" checked={ticked.has(sn)} onChange={() => toggleDev(sn)} />
+                  <span className="mono">{sn}</span>
+                </label>
+              )) : <span className="secondary" style={{ padding: 6 }}>No serial matches “{devQ}”.</span>}
+            </div>
+          </div>
+          {devQ && <div className="help" style={{ marginTop: 4 }}>Select all and Clear apply to the {shownDev.length} serials shown.</div>}
+        </div>
         <div className="grid grid-2">
           <div className="field"><label htmlFor="f-start">Starts</label><input className="input" id="f-start" type="time" value={form.startTime || ''} onChange={e => set('startTime', e.target.value)} /></div>
           <div className="field"><label htmlFor="f-end">Ends{form.startTime && form.endTime && form.endTime <= form.startTime ? <span className="secondary" style={{ fontWeight: 400 }}> · next day</span> : null}</label><input className="input" id="f-end" type="time" value={form.endTime || ''} onChange={e => set('endTime', e.target.value)} /></div>
@@ -209,7 +248,7 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
         <div className="help" style={{ marginBottom: 12 }}>A run belongs to the day it starts. An end time earlier than the start means the next morning (e.g. 10:00 AM → 04:00 AM), so a late run that finishes after midnight still counts here. Runs starting outside the window count as having no test set.</div>
         <div className="form-actions">
           <button className="btn" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-primary" disabled={!form.from} onClick={() => onSave({ ...form, to: form.to || form.from })}>{editing ? 'Save changes' : 'Save test'}</button>
+          <button className="btn btn-primary" disabled={!form.from || !ticked.size} title={!ticked.size ? 'Tick at least one device' : undefined} onClick={() => onSave({ ...form, to: form.to || form.from })}>{editing ? 'Save changes' : 'Save test'}</button>
         </div>
       </div>
     </div>

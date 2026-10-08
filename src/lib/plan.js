@@ -102,14 +102,44 @@ export function declCovers(decl, key) {
 // later correction beats an earlier standing booking.
 export const declOn = (decls, key) => decls.filter(d => declCovers(d, key)).sort((a, b) => (a.at || 0) - (b.at || 0)).pop() || null;
 
+// ── several cycles on one day ─────────────────────────────────────────────────
+// A day can hold more than one cycle: one that ran overnight from yesterday ends at 04:00
+// and the next starts at 14:00. Each declaration is one cycle with its own window.
+const prevKey = key => { const d = keyToDate(key); d.setDate(d.getDate() - 1); return dayKey(d.getTime()); };
+/** Every cycle declared on a day, earliest start first, each with its real window. */
+export function cyclesOn(decls, key) {
+  return decls.filter(d => declCovers(d, key)).map(d => ({ decl: d, key, ...windowOn(key, d) }))
+    .sort((a, b) => a.startMs - b.startMs || (a.decl.at || 0) - (b.decl.at || 0));
+}
+/** Yesterday's cycles that run past midnight into this day. */
+export const carriedInto = (decls, key) => cyclesOn(decls, prevKey(key)).filter(c => c.overnight);
+/** The cycle whose window holds time t — today's, or yesterday's still running overnight.
+ *  Overlaps go to the most recently declared, so a correction beats the earlier booking. */
+export function cycleAt(decls, t) {
+  const key = dayKey(t);
+  return [...carriedInto(decls, key), ...cyclesOn(decls, key)]
+    .filter(c => t >= c.startMs && t <= c.endMs)
+    .sort((a, b) => (a.decl.at || 0) - (b.decl.at || 0)).pop() || null;
+}
+/** Start and end times for the next cycle on a day: it starts where the last one ending on
+ *  that day stops, and runs as long as that one did. */
+export function nextCycleTimes(decls, key) {
+  const dayStart = keyToDate(key).getTime(), dayEnd = dayStart + 86400e3;
+  const ends = [...carriedInto(decls, key), ...cyclesOn(decls, key)].filter(c => c.endMs > dayStart && c.endMs < dayEnd);
+  const last = ends.sort((a, b) => a.endMs - b.endMs).pop();
+  if (!last) return { startTime: '07:00', endTime: '19:00' };
+  const hhmm = t => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  return { startTime: hhmm(last.endMs), endTime: hhmm(last.endMs + (last.endMs - last.startMs)) };
+}
+
 // ── resolving a day ───────────────────────────────────────────────────────────
 // `ran` is a count of counted cycles that ended on the day (telemetry's own evidence).
 // Status: declared (claimed, not yet past) · confirmed (claimed and telemetry agrees) ·
 // inferred (telemetry only, nobody claimed it) · unclassified (nothing) · none (no run).
 export function resolveDay(key, { decls, rota, ran = 0, devices = 0 }) {
   const past = key < todayKey();
-  const d = declOn(decls, key);
-  if (d) return { key, testType: d.testType, decl: d, devices: d.devices || devices, source: 'declared', status: past ? (ran ? 'confirmed' : 'declared') : 'declared', ran };
+  const cycles = cyclesOn(decls, key), d = cycles.length ? cycles[0].decl : null;
+  if (d) return { key, testType: d.testType, decl: d, cycles, devices: d.devices || devices, source: 'declared', status: past ? (ran ? 'confirmed' : 'declared') : 'declared', ran };
   const r = rota[dowIndex(key)];
   if (r && testType(r.testType)) return { key, testType: r.testType, decl: null, rota: r, devices: r.devices || devices, source: 'rota', status: past ? (ran ? 'confirmed' : 'unclassified') : 'declared', ran };
   if (ran) return { key, testType: null, decl: null, devices, source: 'telemetry', status: 'inferred', ran };

@@ -1931,3 +1931,14 @@ tr.row-link.is-selected td { background: color-mix(in srgb, var(--series-1) 12%,
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; }
 .form-actions .btn-primary { min-width: 120px; }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+/* Cycle plan: the cycles on one day, one row each */
+.cyc-row { display: grid; grid-template-columns: 64px 1fr auto; gap: 4px 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.cyc-row .cyc-acts { grid-column: 2 / -1; display: flex; gap: 6px; }
+.cyc-row.carried { opacity: .85; }
+/* Set a test: tick the devices */
+.dev-pick { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.dev-pick-bar { display: flex; gap: 6px; padding: 6px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.dev-pick-bar .input { flex: 1; min-width: 0; }
+.dev-pick-list { max-height: 220px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 8px; padding: 4px 6px; }
+.dev-pick-item { display: flex; align-items: center; gap: 6px; padding: 5px 2px; font-size: 12.5px; cursor: pointer; }
+.plan-day .carry { font-size: 11px; color: var(--text-muted); margin-top: 2px; }

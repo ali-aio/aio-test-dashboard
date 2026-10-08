@@ -16,7 +16,7 @@ import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText } from '../src/lib/splitCycles.js'
 import RangePicker from '../src/components/RangePicker.jsx'
-import { windowOn } from '../src/lib/plan.js'
+import { windowOn, cycleAt, nextCycleTimes, cyclesOn } from '../src/lib/plan.js'
 import { testTypeFor } from '../src/lib/adapt.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
@@ -186,6 +186,21 @@ const mdmCases = []
     want(late === 'WLC on Load', `late start -> ${late}`)
     const early = testTypeFor({ start: at(11, 8), end: at(11, 20), serial: 'A' }, { decls, rota: {}, DEV: [] })
     want(early !== 'WLC on Load', `before window -> ${early}`)
+  })
+  check('two cycles back to back: overnight, then the next one the same afternoon', () => {
+    const decls = [
+      { id: 'd1', at: 1, testType: 'wlc_load', from: '2026-10-11', to: '2026-10-11', startTime: '10:00', endTime: '04:00', group: { kind: 'all' } },
+      { id: 'd2', at: 2, testType: 'charging', from: '2026-10-12', to: '2026-10-12', startTime: '14:00', endTime: '04:00', group: { kind: 'all' } },
+    ]
+    const at = (d, h) => new Date(2026, 9, d, h).getTime()
+    want(cycleAt(decls, at(12, 1))?.decl.id === 'd1', '01:00 Oct 12 should still be the Oct 11 cycle')
+    want(cycleAt(decls, at(12, 10)) == null, '10:00 Oct 12 is between cycles')
+    want(cycleAt(decls, at(12, 15))?.decl.id === 'd2', '15:00 Oct 12 is the second cycle')
+    const n = nextCycleTimes(decls.slice(0, 1), '2026-10-12')
+    want(n.startTime === '04:00' && n.endTime === '22:00', `next cycle ${n.startTime}-${n.endTime}`)
+    want(cyclesOn(decls, '2026-10-12').length === 1, 'own cycles on Oct 12')
+    const tt = testTypeFor({ start: at(12, 1), end: at(12, 3), serial: 'A' }, { decls, rota: {}, DEV: [] })
+    want(tt === 'WLC on Load', `1am run -> ${tt}`)
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

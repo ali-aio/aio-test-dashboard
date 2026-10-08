@@ -11,7 +11,7 @@
 //   · build      — the MDM reports one device_class ("t7") for the whole fleet
 //   · android    — no OS/SDK field exists anywhere in the check-in payload
 //   · load gain  — the MDM reports the T7's own battery, never the phone/load's
-import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, windowOn, loadDecls, loadRota } from './plan.js';
+import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, windowOn, cycleAt, loadDecls, loadRota } from './plan.js';
 import { FIELD_DISCHARGE, FIELD_CHARGING } from './testtypes.js';
 import { perHourRate, HOUR_SNAP } from './t7cycles.js';
 import { mdmCyclesFor } from './mdmTrack.js';
@@ -26,12 +26,19 @@ const round = (v, n = 2) => (isNum(v) ? Math.round(v * 10 ** n) / 10 ** n : null
 // nothing declared it falls to Field Discharge / Field Charging — the same two buckets T7
 // uses for telemetry it had to cut out of a continuous stream itself.
 export function testTypeFor(cycle, { decls, rota, DEV }) {
+  // The declared cycle whose window this run started in — today's, or yesterday's still
+  // running overnight. A day can hold several cycles, each with its own window.
+  const hit = cycleAt(decls, cycle.start);
+  if (hit) {
+    const serials = groupSerials(hit.decl.group, DEV);
+    if (serials.length && !serials.includes(cycle.serial)) return FIELD_DISCHARGE;
+    return ttById(hit.decl.testType)?.name || FIELD_DISCHARGE;
+  }
   const key = dayKey(cycle.start);
-  const r = resolveDay(key, { decls, rota, ran: 1, devices: 0 });
+  const r = resolveDay(key, { decls: [], rota, ran: 1, devices: 0 });
   const tt = r.testType ? ttById(r.testType) : null;
   if (!tt) return cycle.charging ? FIELD_CHARGING : FIELD_DISCHARGE;
-  const src = r.decl || r.rota || null;
-  // A declaration only claims the devices and the window it named.
+  const src = r.rota || null;
   const serials = groupSerials(src && src.group, DEV);
   if (serials.length && !serials.includes(cycle.serial)) return FIELD_DISCHARGE;
   const { startMs: from, endMs: to } = windowOn(key, src);

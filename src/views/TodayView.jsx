@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, buckets, dayStats, conform, temp, runStartOf, drainSince, WINDOW_HOURS } from '../lib/window.js'
-import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, loadDecls, loadRota } from '../lib/plan.js'
+import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, loadDecls, loadRota } from '../lib/plan.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
 import { median, pctl, hm, dt, ago, MIN, H } from '../lib/format.js'
@@ -31,10 +31,15 @@ export default function TodayView({ fleet }) {
     return { ...r, key: k, tt: testType(r.testType), src, ran, serials: groupSerials(src && src.group, DEV), ...windowOn(k, src) }
   }
   const T = useMemo(() => {
-    const today = dayFor(todayKey())
-    const d = new Date(); d.setDate(d.getDate() - 1)
-    const prev = dayFor(dayKey(d.getTime()))
-    return prev.tt && prev.overnight && now < prev.endMs && now < today.startMs ? prev : today
+    // A day can hold several cycles. Show the one running now (including yesterday's still
+    // going past midnight), else the next one to start today, else today's last one.
+    const decls = DECLS(), todays = cyclesOn(decls, todayKey())
+    const pick = cycleAt(decls, now) || todays.find(c => c.startMs > now) || todays[todays.length - 1] || null
+    if (!pick) return dayFor(todayKey())
+    const base = dayFor(pick.key), src = pick.decl
+    return { ...base, testType: src.testType, tt: testType(src.testType), decl: src, src,
+      serials: groupSerials(src.group, DEV), startMs: pick.startMs, endMs: pick.endMs, overnight: pick.overnight,
+      cycleNo: cyclesOn(decls, pick.key).findIndex(c => c.decl.id === src.id) + 1, cycleCount: cyclesOn(decls, pick.key).length }
   }, [DEV, allCycles, win.at2, todayKey()])
   const key = T.key
 
@@ -180,7 +185,7 @@ export default function TodayView({ fleet }) {
             {dayLong(key)} {statusBadge(T.status)}
             <span className={`pill ${reporting.length ? 'pill-run pill-live' : ''}`}>Live · {reporting.length} device{reporting.length === 1 ? '' : 's'} reporting</span>
           </div>
-          <h1 style={{ margin: '6px 0 4px', fontSize: 26, lineHeight: 1.15 }}>{T.tt ? T.tt.name : 'No test declared'}</h1>
+          <h1 style={{ margin: '6px 0 4px', fontSize: 26, lineHeight: 1.15 }}>{T.tt ? T.tt.name : 'No test set'}{T.cycleCount > 1 ? <span className="secondary" style={{ fontSize: 14, fontWeight: 500 }}> · cycle {T.cycleNo} of {T.cycleCount}</span> : null}</h1>
           <div className="secondary" style={{ fontSize: 12.5 }}>
             {T.tt ? <>{T.source === 'rota' ? 'From the standing weekly rota' : <>Planned{T.src?.by ? <> by <b>{T.src.by}</b></> : null}{T.src?.at ? ` at ${hm(T.src.at)}` : ''}</>}
               {' '}· {T.serials.length} devices · window {hm(T.startMs)}–{hm(T.endMs)}{T.overnight ? ' next day' : ''} · every MDM row from these serials today is stamped with this test type.</>

@@ -250,6 +250,35 @@ tr.flash td { animation: flash 1.4s var(--ease); }
 .spin { width: 13px; height: 13px; border: 2px solid var(--border-strong); border-top-color: var(--series); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; vertical-align: -2px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+
+/* ── New dashboard: Cycle Plan calendar ───────────────────────────────────────
+   Calendar on the left, details for the selected day on the right (the inverse of
+   .cols-main). Same tokens as everywhere else: coral only for the selected day, the
+   green status dot for a day that actually ran. */
+.cols-cal { display: grid; grid-template-columns: 332px minmax(0, 1fr); gap: 14px; align-items: start; }
+.cal-nav { display: flex; align-items: center; gap: 2px; }
+.cal-nav button { border: 0; background: transparent; color: var(--text-2); width: 24px; height: 22px; border-radius: 5px; cursor: default; }
+.cal-nav button:hover { background: var(--hover); color: var(--text); }
+.cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 5px; }
+.cal-dow span { text-align: center; font-size: 10.5px; font-weight: 600; color: var(--text-3); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-day { position: relative; aspect-ratio: 1; border: .5px solid transparent; border-radius: var(--r); background: var(--surface-2); color: var(--text);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: default; font-size: 12px; font-variant-numeric: tabular-nums;
+  transition: background .12s, border-color .12s, color .12s; }
+.cal-day:hover { background: var(--hover); }
+.cal-day.out { color: var(--text-3); background: transparent; }
+.cal-day.today { border-color: var(--border-strong); font-weight: 600; }
+.cal-day.sel { background: var(--sel); color: var(--sel-ink); border-color: var(--sel); font-weight: 600; }
+.cal-day .dots { display: flex; gap: 3px; height: 5px; align-items: center; }
+.cal-day .dots i { width: 5px; height: 5px; border-radius: 50%; display: block; }
+.cal-day .dots i.plan { background: var(--sel); } .cal-day.sel .dots i.plan { background: var(--sel-ink); }
+.cal-day .dots i.ran { background: var(--dot-ok); }
+.cal-legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 10px var(--pad) 0; font-size: 11px; color: var(--text-3); }
+.cal-legend span { display: flex; align-items: center; gap: 5px; }
+.cal-legend i { width: 6px; height: 6px; border-radius: 50%; display: block; }
+.cal-legend i.plan { background: var(--sel); } .cal-legend i.ran { background: var(--dot-ok); }
+
 @media (max-width: 1280px) { .cols-main { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .cols-2 { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .cols-cal { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; } }

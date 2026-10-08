@@ -32,6 +32,9 @@ const DEVICE_VIEWS = [
   { id: 'all', label: 'Every run' },
 ]
 
+// Battery cycles: total % drained across the runs, divided by 100 (see fullDischargeCycles).
+const fmtBC = (v) => (v == null ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))
+
 export default function TestDetailView({ cycles, testType, allSerials }) {
   /* null until the reader picks one, so the default can follow the data rather
      than being baked in — a grouped mean is the first useful read, and the
@@ -218,8 +221,8 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
   return (
     <div className="view-stack">
       <div className="stat-row">
-        <Stat label="Total cycles" value={fmtInt(k.totalCycles)} hero
-          foot={!isCharging && <strong>Battery cycles: {fmtNum(fullDrain.cycles, 2)}</strong>} />
+        <Stat label="Total cycles" hero value={isCharging ? '—' : fmtBC(fullDrain.cycles)}
+          foot={isCharging ? 'charging runs drain no battery' : undefined} />
         <Stat label="Avg run time" value={fmtNum(k.avgDuration, 1)} unit="h"
           foot="per cycle" />
         {isRestaurant ? restaurantRates.map((mode) => (

@@ -7,6 +7,9 @@ import { kpis, fullDischargeCycles, compareFirmwareNewest, avgCurveBy, maxOf, ex
 import { BUILD_COLOR, SERIES_VARS, MAX_SERIES } from '../lib/palette.js'
 import { fmtInt, fmtNum, fmtHours, fmtPct, fmtTemp, fmtRate, fmtHourTick, fmtDate, compareSerial } from '../lib/fmt.js'
 
+// Battery cycles: total % drained across the runs, divided by 100 (see fullDischargeCycles).
+const fmtBC = (v) => (v == null ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))
+
 export default function OverviewView({ cycles, onPickTestType, onFilter, testType = '__all__', allSerials = [] }) {
   if (testType !== '__all__') {
     return <TestDetailView cycles={cycles} testType={testType} allSerials={allSerials} />
@@ -73,7 +76,12 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter }) {
       .sort((a, b) => String(b.label).localeCompare(String(a.label)))
 
     return {
-      testType: rows(countsBy(cycles, 'testType'), (v) => onPickTestType(v)),
+      // Battery cycles per test, so the rows add up to the tile they open from. Tests whose
+      // runs drain nothing (charging) have no battery cycles and are left out.
+      testType: [...new Set(cycles.map((c) => c.testType))]
+        .map((t) => ({ t, v: fullDischargeCycles(cycles.filter((c) => c.testType === t)).cycles }))
+        .filter((r) => r.v > 0).sort((a, b) => b.v - a.v)
+        .map((r) => ({ id: r.t, label: r.t, value: r.v, display: fmtBC(r.v), onClick: () => onPickTestType(r.t) })),
       serial: rows(countsBy(cycles, 'serial')
         .sort((a, b) => compareSerial(a.label, b.label)),
         (v) => onFilter?.({ serials: [v] })),
@@ -123,9 +131,8 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter }) {
   return (
     <div className="view-stack">
       <div className="stat-row stat-row-lg">
-            <Stat label="Total cycles" value={fmtInt(k.totalCycles)} hero
-              foot={<strong>Battery cycles: {fmtNum(fullDrain.cycles, 2)}</strong>}
-              breakdown={breakdowns.testType} breakdownLabel="Cycles per test" />
+            <Stat label="Total cycles" value={fmtBC(fullDrain.cycles)} hero
+              breakdown={breakdowns.testType} breakdownLabel="Battery cycles per test" />
             <Stat label="Total devices" value={fmtInt(k.serials)}
               breakdown={breakdowns.serial} breakdownLabel="Cycles per device" />
             <Stat label="Test days" value={fmtInt(k.dates)}

@@ -20,8 +20,20 @@ QA key). Open `http://100.113.189.96:8090/`, go to Settings, and set the QA API 
 
 ## Pages
 
-- `index.html` — the dashboard, one page: KPI row (devices, total cycles, avg per
-  device, online, hottest), cycles-per-device and temperature charts, a sortable
-  device table with sparklines, and a detail panel (cycles, charge + temp history)
-  for the selected device
-- `settings.html` — API base/key; group scope is the dropdown badge in every page's topbar
+One page, `index.html`, hash-routed inside a Mac Finder-style shell (source list, table
+or charts pane, inspector, status bar):
+
+- **Overview** — KPIs, weekly runtime trend, needs-attention list, bench grid
+- **Devices** — sortable table; open one for runtime per cycle and cycle history
+- **Test cycles** — runs detected from device history, and their detail
+- **Health / Charging / Thermal** — battery health, charge segments, thermal stats
+- **Settings** — QA API key and the cycles group (live MDM only)
+
+Other files: `settings.html` and `index.prev.html` are the old top-bar version, kept for
+reference. `plan-mockups/` is a design proposal for tagging cycles with a test type (not
+built). The remaining `*-demos.html` / `app-demo*.html` are old design exploration.
+
+## Releasing from another machine
+
+`scripts/deploy-fw2.sh` pulls `origin/main` on fw2 and restarts the app; commit and push
+first. Details in [CLAUDE.md](CLAUDE.md#deploying).

@@ -223,3 +223,26 @@ over Tailscale from other machines).
 
 There is no CI/CD here and no build artifact — committing to `main` and running
 `./deploy.sh` on the host is the entire release process.
+
+### Deploying from another machine (Tariq's PC)
+
+The app runs on **fw2** (`hwpc02@100.113.189.96`, repo at `/home/hwpc02/aio-test-dashboard`).
+A second working copy lives on Tariq's PC (`tariq@tariq-pw0bk71a`, `~/Projects/aio-test-dashboard`).
+To release from there, commit and **push to `main`**, then:
+
+```bash
+scripts/deploy-fw2.sh             # fw2: git pull --ff-only origin main, then ./deploy.sh
+scripts/deploy-fw2.sh --dry-run   # connection + "what would go out", changes nothing
+```
+
+- "Latest" = what is on `origin/main`. The script refuses to run with uncommitted or
+  unpushed local work so nothing is assumed deployed that isn't.
+- It needs passwordless SSH from that machine to fw2 (`ssh-copy-id hwpc02@100.113.189.96`,
+  already done for Tariq's PC) and a repo on fw2 whose clean state can fast-forward — if fw2
+  has uncommitted edits that clash with incoming changes the pull fails loudly and nothing
+  restarts.
+- Afterwards it checks fw2 is on the same commit as `origin/main` and that `/api/status`
+  answers on :8090. Overrides: `FW2_USER`, `FW2_HOST`, `FW2_DIR`, `FW2_PORT`.
+- `server/config.json` (the QA key) and `data/topup.json` are never copied between machines;
+  each host keeps its own. Tariq's copy has no `config.json`, so run the backend there only
+  after adding one — or just use it to edit and deploy.

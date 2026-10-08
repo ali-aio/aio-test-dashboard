@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan a day — mockup</title><link rel="stylesheet" href="plan.css"></head>
+<body>
+<script src="mock.js"></script>
+<script>
+const { TYPES, TYPE, SERIALS, chip, badge, esc, mount } = Mock;
+
+// Devices already planned today (mock) — picking them again shows a conflict instead of silently replacing.
+const PLANNED = {}; SERIALS.slice(0, 23).forEach((s, i) => PLANNED[s] = i < 10 ? 'ads' : i < 16 ? 'wlcload' : i < 20 ? 'burnin' : 'restaurant');
+
+const typeHtml = TYPES.map((t, k) => `<label class="${k === 1 ? 'on' : ''}"><input type="radio" name="t" value="${t.id}" ${k === 1 ? 'checked' : ''}><span class="dot" style="background:${t.dot}"></span><span><b>${esc(t.name)}</b><small>${esc(t.blurb)}</small></span></label>`).join('');
+const devHtml = [...SERIALS].sort((a, b) => !!PLANNED[a] - !!PLANNED[b]).map(s => `<label><input type="checkbox" value="${s}" ${SERIALS.indexOf(s) >= 23 ? 'checked' : ''}><span class="mono">${s}</span>${PLANNED[s] ? `<span class="conf" data-c="${s}">already: ${esc(TYPE[PLANNED[s]].name)}</span>` : '<span class="muted" style="margin-left:auto">free</span>'}</label>`).join('');
+
+const content = `
+<div class="page-head"><div><h1>Plan a day</h1><div class="sub">Say which test runs on which devices. It becomes the label on every cycle those devices produce that day.</div></div></div>
+<div class="cols-main">
+  <div class="stack">
+    <div class="panel"><div class="panel-head"><h2>1 · Day</h2></div><div class="panel-body" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <div class="seg"><button>Today</button><button class="on">Tomorrow</button><button>Pick a date…</button></div><span class="muted">Friday 9 October 2026</span>
+      <span style="margin-left:auto" class="muted">Start time <input class="input" style="width:84px;display:inline-block;margin-left:6px" value="10:30"></span></div></div>
+    <div class="panel"><div class="panel-head"><h2>2 · Test type</h2><span class="muted">List is editable in Settings</span></div><div class="panel-body"><div class="typelist" id="types">${typeHtml}</div></div></div>
+    <div class="panel"><div class="panel-head"><h2>3 · Devices</h2><span class="muted"><a class="link" href="#" id="b-free">Free only</a> · <a class="link" href="#" id="b-yday">Same as yesterday</a> · <a class="link" href="#" id="b-none">Clear</a></span></div>
+      <div class="panel-body"><div class="devlist" id="devs" style="max-height:300px">${devHtml}</div></div></div>
+    <div class="panel"><div class="panel-body"><div class="field" style="margin:0"><label>Note (optional)</label><input class="input" placeholder="e.g. new firmware 1.62 on these units"><div class="help">Shown in Today, History and on each device.</div></div></div></div>
+  </div>
+  <div class="stack" style="position:sticky;top:0">
+    <div class="panel"><div class="panel-head"><h2>Preview</h2></div><div class="panel-body">
+      <div id="pv-chip"></div><div class="big num" style="font-size:28px;font-weight:600;margin:8px 0 2px" id="pv-n">0</div><div class="muted" id="pv-sub"></div><hr style="border:0;border-top:.5px solid var(--sep);margin:12px 0">
+      <dl class="kv"><dt>Day</dt><dd>Fri 9 Oct</dd><dt>Appears in</dt><dd>Today · Schedule · History</dd><dt>Saved to</dt><dd>team plan (shared)</dd></dl>
+      <div class="callout err" id="pv-warn" style="margin-top:12px;display:none"><div id="pv-warn-t"></div></div>
+      <div style="display:flex;gap:8px;margin-top:14px"><a class="btn" href="01-today.html">Cancel</a><button class="btn primary" style="flex:1;justify-content:center" onclick="this.textContent='Saved ✓';this.style.filter='brightness(.9)'">Save plan</button></div>
+    </div></div>
+    <div class="callout"><div>${Mock.svg(Mock.ICON.info)}</div><div>Saving writes only to this dashboard's own plan file. <b>Nothing is sent to the MDM or to a device.</b></div></div>
+  </div>
+</div>`;
+
+mount({ active: 'today', title: 'Plan a day',
+  note: 'The only screen that <b>writes</b> anything — and only to the dashboard\'s own plan file, never the MDM. Needs a small backend endpoint (see the approach page).',
+  content, status: 'Planning Friday 9 October' });
+
+const types = document.getElementById('types'), devs = document.getElementById('devs');
+const upd = () => {
+  const t = types.querySelector('input:checked').value;
+  types.querySelectorAll('label').forEach(l => l.classList.toggle('on', l.querySelector('input').checked));
+  const sel = [...devs.querySelectorAll('input:checked')].map(i => i.value);
+  const clash = sel.filter(s => PLANNED[s] && PLANNED[s] !== t);
+  document.getElementById('pv-chip').innerHTML = chip(t);
+  document.getElementById('pv-n').textContent = sel.length;
+  document.getElementById('pv-sub').textContent = sel.length === 1 ? 'device will run this test' : 'devices will run this test';
+  const w = document.getElementById('pv-warn'); w.style.display = clash.length ? 'flex' : 'none';
+  document.getElementById('pv-warn-t').innerHTML = clash.length ? `<b>${clash.length} device${clash.length > 1 ? 's' : ''}</b> already planned for another test today. Saving replaces it for Friday only.` : '';
+};
+types.onchange = upd; devs.onchange = upd;
+const setAll = fn => { devs.querySelectorAll('input').forEach(i => i.checked = fn(i.value)); upd(); };
+document.getElementById('b-free').onclick = e => { e.preventDefault(); setAll(s => !PLANNED[s]); };
+document.getElementById('b-yday').onclick = e => { e.preventDefault(); setAll(s => SERIALS.indexOf(s) < 10); };
+document.getElementById('b-none').onclick = e => { e.preventDefault(); setAll(() => false); };
+upd();
+</script></body></html>

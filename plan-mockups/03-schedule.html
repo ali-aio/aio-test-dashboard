@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schedule — mockup</title><link rel="stylesheet" href="plan.css"></head>
+<body>
+<script src="mock.js"></script>
+<script>
+const { TYPES, TYPE, SERIALS, chip, badge, esc, mount } = Mock;
+
+// Week of 5–11 Oct 2026. counts[type][dayIndex]; Mon 5 was before the dashboard had a plan, so
+// MDM saw cycles that day with no label — those show as "Untagged" and can be tagged after the fact.
+const DAYS = [['Mon', 5], ['Tue', 6], ['Wed', 7], ['Thu', 8], ['Fri', 9], ['Sat', 10], ['Sun', 11]];
+const TODAY = 3;
+const COUNTS = {
+  ads:        [0, 10, 9, 10, 10, 0, 0],
+  wlcload:    [0, 6, 6, 6, 0, 0, 0],
+  wlcads:     [0, 0, 0, 0, 6, 0, 0],
+  burnin:     [0, 4, 4, 4, 4, 0, 0],
+  restaurant: [0, 3, 4, 3, 0, 0, 0],
+  charging:   [0, 0, 0, 0, 0, 0, 0],
+  phone:      [0, 0, 0, 0, 0, 0, 0],
+};
+const UNTAGGED = [17, 0, 0, 0, 0, 0, 0];
+const rowsHtml = TYPES.filter(t => COUNTS[t.id].some(Boolean)).map(t => `<tr><td>${chip(t.id)}</td>${COUNTS[t.id].map((n, d) =>
+  `<td class="${d === TODAY ? 'today' : ''}">${n ? `<span class="cell-n ${d > TODAY ? 'future' : ''}" style="--c:${t.dot}" data-t="${t.id}" data-d="${d}">${n}</span>` : ''}</td>`).join('')}</tr>`).join('') +
+  `<tr class="untag"><td>${chip(null).replace('<span class="tchip none">', '<span class="tchip none" title="MDM recorded a cycle but no plan exists">')}</td>${UNTAGGED.map((n, d) => `<td class="${d === TODAY ? 'today' : ''}">${n ? `<span class="cell-n untagged" data-t="none" data-d="${d}">${n}</span>` : ''}</td>`).join('')}</tr>`;
+
+const content = `
+<div class="page-head"><div><h1>Schedule</h1><div class="sub">Which test runs on how many devices, day by day. Dashed = planned for later.</div></div>
+  <div style="display:flex;gap:8px;align-items:center"><div class="seg"><button class="on">Week</button><button>Month</button></div><div class="seg"><button>‹</button><button>5 – 11 Oct</button><button>›</button></div><button class="btn">Copy last week</button><a class="btn primary" href="02-plan-day.html">Plan a day</a></div></div>
+<div class="stack">
+  <div class="panel"><table class="cal"><thead><tr><th>Test type</th>${DAYS.map(([n, d], k) => `<th class="${k === TODAY ? 'today' : ''}">${n}<small>${d} Oct</small></th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table>
+    <div class="pager"><div class="legend"><span><i></i>Ran (live from MDM)</span><span><i class="none" style="border-style:dashed"></i>Planned</span><span><i class="warn"></i>Ran with no plan</span></div><span class="muted">Click a number to see the devices</span></div></div>
+  <div class="callout"><div>${Mock.svg(Mock.ICON.info)}</div><div><b>Mon 5 Oct — 17 cycles untagged.</b> The devices ran, MDM recorded it, but no plan existed. Open the day and tag it ("these 17 ran Discharge on Ads") and the cycles join the right test type in History. Nothing is lost by planning late.</div></div>
+</div>`;
+
+const devs = (t, d) => { const n = t === 'none' ? UNTAGGED[d] : COUNTS[t][d]; return Array.from({ length: n }, (_, k) => SERIALS[(k + d * 3) % SERIALS.length]); };
+const insp = (t, d) => {
+  const list = devs(t, d), name = t === 'none' ? chip(null) : chip(t);
+  return `<h3>${DAYS[d][0]} ${DAYS[d][1]} October</h3><div class="isub">${name}</div><div class="big num">${list.length}<small>devices</small></div><hr>
+  <h4>Devices</h4><div class="devlist" style="max-height:230px">${list.map(s => `<label><span class="mono">${s}</span>${d > TODAY ? badge('run', 'Planned') : t === 'none' ? badge('warn', 'Untagged') : badge('ok', 'Ran')}</label>`).join('')}</div>
+  <div class="acts">${t === 'none' ? '<button class="btn primary">Tag these cycles…</button>' : d > TODAY ? '<a class="btn" href="02-plan-day.html">Edit plan</a>' : '<a class="btn" href="04-history.html">Open in History</a>'}</div>`;
+};
+mount({ active: 'schedule', title: 'Schedule',
+  note: 'A week-at-a-glance for planning ahead and fixing gaps. Past cells are "what ran" (MDM) labelled by the plan; future cells are the plan only.',
+  content, insp: insp('ads', 3), status: 'Week of 5 October · 4 test types in use' });
+const cells = [...document.querySelectorAll('.cell-n')];
+cells.find(c => c.dataset.t === 'ads' && c.dataset.d === '3').classList.add('sel');
+cells.forEach(c => c.onclick = () => { cells.forEach(x => x.classList.remove('sel')); c.classList.add('sel'); document.getElementById('insp').innerHTML = insp(c.dataset.t, +c.dataset.d); });
+</script></body></html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device — mockup</title><link rel="stylesheet" href="plan.css"></head>
+<body>
+<script src="mock.js"></script>
+<script>
+const { TYPES, TYPE, chip, badge, bar, esc, mount } = Mock;
+
+const SERIAL = 'AT070AABU00231';
+// last 14 days: 8 Oct back to 25 Sep. null = ran but untagged, 'gap' = nothing (weekend / offline)
+const DAYS14 = ['ads', 'ads', 'wlcload', null, 'gap', 'gap', null, null, 'gap', 'gap', null, null, null, null].reverse().map((t, i) => ({ t, d: 25 + i }));
+DAYS14.forEach((x, i) => { x.n = i < 6 ? 25 + i : i - 5; x.m = i < 6 ? 'Sep' : 'Oct'; });
+const dow = ['Fr', 'Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su', 'Mo', 'Tu', 'We', 'Th'];
+const strip = DAYS14.map((x, i) => {
+  const cls = x.t === null ? 'none' : x.t === 'gap' ? 'gap' : '';
+  return `<div class="day ${cls} ${i === 13 ? 'today' : ''}" title="${x.t && x.t !== 'gap' ? esc(TYPE[x.t].name) : x.t === null ? 'ran, untagged' : 'no cycle'}">${dow[i]}<b>${x.n}</b><i style="${x.t && x.t !== 'gap' ? '--c:' + TYPE[x.t].dot : ''}"></i></div>`;
+}).join('');
+
+const CY = [
+  ['Thu 8 Oct', 'ads', 'plan', 'running', '—', '—'],
+  ['Wed 7 Oct', 'ads', 'plan', 'counted', '17h 38m', '38.2 °C'],
+  ['Tue 6 Oct', 'wlcload', 'plan', 'counted', '9h 12m', '41.6 °C'],
+  ['Mon 5 Oct', null, 'none', 'counted', '16h 50m', '37.9 °C'],
+  ['Fri 2 Oct', null, 'none', 'counted', '17h 05m', '38.4 °C'],
+  ['Thu 1 Oct', null, 'none', 'counted', '16h 41m', '38.0 °C'],
+  ['22 Jun 2026', 'wlcads', 'csv', 'counted', '12h 44m', '43.1 °C'],
+  ['22 May 2026', 'ads', 'csv', 'counted', '17h 20m', '37.5 °C'],
+];
+const rows = CY.map((c, i) => `<tr class="row" data-i="${i}"><td>${c[0]}</td><td>${chip(c[1])}</td><td>${Mock.SRC[c[2]]}</td><td>${c[3] === 'running' ? badge('run', 'Running', 1) : badge('ok', 'Counted')}</td><td class="r num">${c[4]}</td><td class="r num">${c[5]}</td>
+  <td class="r">${c[1] === null ? '<a class="link" href="#">Tag…</a>' : ''}</td></tr>`).join('');
+
+const content = `
+<div class="page-head"><div><h1 class="mono">${SERIAL}</h1><div class="sub">T7 · group Test Cycles · ${badge('run', 'Running Discharge on Ads', 1)}</div></div>
+  <div style="display:flex;gap:8px"><a class="btn" href="01-today.html">Today's plan</a><a class="btn primary" href="02-plan-day.html">Plan a test</a></div></div>
+<div class="stack">
+  <div class="panel"><div class="metrics">
+    <div class="metric"><small>Cycles counted</small><b class="num">52</b><span class="delta">since 22 May</span></div>
+    <div class="metric"><small>Median runtime</small><b class="num">16.9 h</b><span class="delta">projected to empty</span></div>
+    <div class="metric"><small>Battery health</small><b class="num">91%</b><span class="delta down">−2 pts in 30 d</span></div>
+    <div class="metric"><small>Have a test type</small><b class="num">38 of 52</b><span class="delta" style="color:var(--warn)">14 untagged</span></div>
+  </div></div>
+  <div class="panel"><div class="panel-head"><h2>Last 14 days</h2><div class="legend"><span><i style="background:#0a84ff;opacity:.6"></i>test type</span><span><i class="warn"></i>ran, untagged</span><span><i class="none"></i>no cycle</span></div></div>
+    <div class="panel-body"><div class="strip">${strip}</div></div></div>
+  <div class="panel"><div class="panel-head"><h2>Cycle history</h2><span class="muted">test type attached by device + day</span></div>
+    <div class="scroll-x"><table><thead><tr><th>Day</th><th>Test type</th><th>Source</th><th>Status</th><th class="r">Runtime to empty</th><th class="r">Peak temp</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>
+</div>`;
+
+const insp = i => { const c = CY[i]; return `<h3>${c[0]}</h3><div class="isub">${chip(c[1])}</div><div class="big num">${c[4]}<small>runtime to empty</small></div><hr>
+  <dl class="kv"><dt>Source</dt><dd>${Mock.SRC[c[2]]}</dd><dt>Peak temp</dt><dd class="num">${c[5]}</dd><dt>Counted as</dt><dd>Timed run</dd></dl>
+  ${c[1] === null ? `<hr><h4>Tag this cycle</h4><select class="input">${TYPES.map(t => `<option>${esc(t.name)}</option>`).join('')}</select><div class="help">Applies to this device on ${c[0]}. Use <a class="link" href="03-schedule.html">Schedule</a> to tag the whole day at once.</div><div class="acts"><button class="btn primary">Tag cycle</button></div>` : ''}`; };
+mount({ active: 'devices', title: 'Device',
+  note: 'The existing device page, plus a <b>test type on every cycle</b> and a 14-day strip that makes untagged days obvious. Tagging a single cycle lives here; tagging a whole day lives in Schedule.',
+  content, insp: insp(3), status: `${SERIAL} · 52 cycles · 14 untagged` });
+const trs = [...document.querySelectorAll('tr.row')]; trs[3].classList.add('sel');
+trs.forEach(tr => tr.onclick = e => { if (e.target.closest('a')) return; trs.forEach(x => x.classList.remove('sel')); tr.classList.add('sel'); document.getElementById('insp').innerHTML = insp(+tr.dataset.i); });
+</script></body></html>

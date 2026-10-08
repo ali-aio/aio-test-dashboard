@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The approach — mockup</title><link rel="stylesheet" href="plan.css"></head>
+<body>
+<script src="mock.js"></script>
+<script>
+const { chip, badge, svg, ICON, mount } = Mock;
+
+const content = `
+<div class="page-head"><div><h1>Showing the test type: earlier data and from now on</h1><div class="sub">One idea, six screens. Open them from the sidebar, or from the cards below.</div></div></div>
+<div class="stack">
+
+  <div class="panel"><div class="panel-head"><h2>The gap</h2></div><div class="panel-body cmp">
+    <div><b>This dashboard (MDM)</b><div class="muted" style="margin-top:4px">Knows <i>what a device did</i>: battery, temperature, when it left the charger, when it died. It does <b>not</b> know which test was supposed to be running — that is not in the API.</div></div>
+    <div><b>Tariq's dashboard (CSV)</b><div class="muted" style="margin-top:4px">Knows <i>which test ran on which device on which day</i>, because the lab writes it into the file name and rows. It has no live feed — only what someone imports.</div></div>
+  </div></div>
+
+  <div class="panel"><div class="panel-head"><h2>The idea: a small test plan, joined to MDM cycles</h2></div><div class="panel-body">
+    <div class="flow">
+      <div class="box"><h4>MDM (live, already working)</h4>Cycles per device, with start time, runtime, temperature.<br><span class="mono-box">AT070AABU00231 · 7 Oct · 17h 38m</span></div>
+      <div class="arrow">+</div>
+      <div class="box"><h4>Test plan (new, small)</h4>One record per device per day.<br><span class="mono-box">AT070AABU00231 · 7 Oct · Discharge on Ads</span></div>
+      <div class="arrow">=</div>
+      <div class="box out"><h4>A cycle with a test type</h4>${chip('ads')}<br><span class="mono-box" style="display:block;margin-top:4px">17h 38m · 38.2 °C</span></div>
+    </div>
+    <div class="muted" style="margin-top:12px">The join key is <b>device serial + calendar day</b>. Every chart that already exists can then be split or filtered by test type, and the MDM stays the single source of readings.</div>
+  </div></div>
+
+  <div class="panel"><div class="panel-head"><h2>Where the test type comes from</h2></div><div class="panel-body" style="display:grid;gap:10px">
+    <div style="display:flex;gap:12px;align-items:flex-start">${Mock.SRC.csv}<div><b>Earlier data — imported once.</b> Read the lab CSVs (test type from the file name, serial and day from the rows) into plan records. Screens: <a class="link" href="05-import.html">Import</a>, <a class="link" href="04-history.html">History</a>.</div></div>
+    <div style="display:flex;gap:12px;align-items:flex-start">${Mock.SRC.plan}<div><b>From now on — planned in the dashboard.</b> Someone says "tomorrow, 10 devices run Discharge on Ads". Screens: <a class="link" href="02-plan-day.html">Plan a day</a>, <a class="link" href="01-today.html">Today</a>, <a class="link" href="03-schedule.html">Schedule</a>.</div></div>
+    <div style="display:flex;gap:12px;align-items:flex-start">${Mock.SRC.none}<div><b>The days in between — visible, fixable.</b> MDM saw cycles, nobody labelled them. They appear as "Untagged" and can be tagged afterwards, per day or per cycle. Screens: <a class="link" href="03-schedule.html">Schedule</a>, <a class="link" href="06-device.html">Device</a>.</div></div>
+  </div></div>
+
+  <div class="panel"><div class="panel-head"><h2>Where the plan is stored — needs your decision</h2><span class="muted">the MDM API is read-only, so this has to live here</span></div><div class="panel-body cmp" style="grid-template-columns:repeat(3,1fr)">
+    <div class="opt rec"><span class="tag">Recommended</span><h3>A · Team plan file on our backend</h3><ul><li>Backend writes <span class="mono-box">data/plan.json</span>, everyone sees the same plan</li><li>Fits the existing Node server and sweep</li><li>Adds one write endpoint — to our own file, never the MDM</li></ul></div>
+    <div class="opt"><h3>B · Browser only (localStorage)</h3><ul><li>No backend change</li><li>Each person sees only their own plan — same limitation as the old "runs"</li><li>Fine for a trial, wrong for a team</li></ul></div>
+    <div class="opt"><h3>C · Plan kept as a file in git</h3><ul><li>Edit <span class="mono-box">data/plan.csv</span>, commit, deploy</li><li>Auditable, zero new code paths</li><li>No UI to plan — slow for a daily task</li></ul></div>
+  </div></div>
+
+  <div class="panel"><div class="panel-head"><h2>The six screens</h2></div><div class="panel-body"><div class="screens">
+    <a href="01-today.html"><b>1 · Today</b><span>What should run now, and how it is going</span></a>
+    <a href="02-plan-day.html"><b>2 · Plan a day</b><span>Pick day, test type, devices</span></a>
+    <a href="03-schedule.html"><b>3 · Schedule</b><span>Week grid; spot and fix untagged days</span></a>
+    <a href="04-history.html"><b>4 · History</b><span>Earlier data + newer, one list</span></a>
+    <a href="05-import.html"><b>5 · Import past data</b><span>Lab CSVs → plan records</span></a>
+    <a href="06-device.html"><b>6 · Device</b><span>Test type on every cycle</span></a>
+  </div></div></div>
+
+  <div class="panel"><div class="panel-head"><h2>Decisions and limits</h2></div><div class="panel-body"><ol class="decide">
+    <li><div><b>Storage choice (A, B or C above).</b> A is the only one that works for a shared team.</div></li>
+    <li><div><b>Test-type list.</b> I used the seven from the lab's file names. Confirm the names and whether the list should be editable in Settings.</div></li>
+    <li><div><b>One test per device per day?</b> The mockups assume yes. If a device can run two tests in a day, the join needs a time range, not just a day.</div></li>
+    <li><div><b>Old CSVs: labels only, or keep their readings too?</b> Labels only is simpler and always consistent with MDM. Keeping readings covers days MDM has no data for.</div></li>
+    <li><div><b>Hard limit:</b> the API cannot tell us the test type, or what the device itself was running. If the device client ever reports it in <span class="mono-box">extra</span>, the plan becomes a cross-check instead of the only source — worth asking whoever runs the MDM, but nothing here depends on it.</div></li>
+  </ol></div></div>
+
+</div>`;
+mount({ active: 'approach', title: 'The approach', content, note: 'Nothing here is built into the real dashboard yet. These pages exist so you can click through the idea and change it before any code is written.', status: 'Approach · 6 screens' });
+</script></body></html>

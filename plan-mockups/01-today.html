@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Today — mockup</title><link rel="stylesheet" href="plan.css"></head>
+<body>
+<script src="mock.js"></script>
+<script>
+const { TYPES, TYPE, SERIALS, rnd, chip, badge, bar, esc, mount } = Mock;
+
+// Today's plan, as the team entered it this morning (mock). Live status would come from
+// /testdata/devices (battery, charging, last_seen) joined by serial number.
+const PLAN = [['ads', 10], ['wlcload', 6], ['burnin', 4], ['restaurant', 3]];
+let i = 0; const rows = [];
+for (const [t, n] of PLAN) for (let k = 0; k < n; k++, i++) {
+  const serial = SERIALS[i]; let st, pct, started, elapsed, temp;
+  if (t === 'restaurant') { st = 'done'; pct = 18 + Math.round(rnd() * 6); started = '08:15'; elapsed = '4h 25m'; }
+  else if (t === 'burnin' && k >= 2) { st = 'ready'; pct = 100; started = '—'; elapsed = '—'; }
+  else if (serial === SERIALS[7]) { st = 'offline'; pct = 41; started = '10:32'; elapsed = '—'; }
+  else { st = 'run'; started = '10:' + String(28 + Math.round(rnd() * 8)).padStart(2, '0'); const el = 230 + Math.round(rnd() * 12); elapsed = Math.floor(el / 60) + 'h ' + String(el % 60).padStart(2, '0') + 'm'; pct = Math.max(42, 100 - Math.round((el / 840) * 78 + rnd() * 4)); }
+  temp = st === 'run' ? (31 + rnd() * 9).toFixed(1) : st === 'done' ? '29.8' : '—';
+  rows.push({ serial, t, st, pct, started, elapsed, temp });
+}
+const unplanned = SERIALS.slice(i);
+const S = { run: ['run', 'Running', 1], done: ['ok', 'Finished'], ready: ['warn', 'Charged — not started'], offline: ['bad', 'Offline'] };
+const count = s => rows.filter(r => r.st === s).length;
+
+let body = '';
+for (const [t, n] of PLAN) {
+  const g = rows.filter(r => r.t === t);
+  body += `<tr class="grp"><td colspan="6">${chip(t)}<span class="muted">${g.length} devices · ${g.filter(r => r.st === 'run').length} running · ${g.filter(r => r.st === 'done').length} finished</span></td></tr>`;
+  body += g.map(r => `<tr class="row" data-s="${r.serial}"><td class="mono">${r.serial}</td><td>${badge(S[r.st][0], S[r.st][1], S[r.st][2])}</td>
+    <td class="r"><span class="batt">${bar(r.pct, r.pct < 25 ? 'warn' : '')}<span class="num">${r.pct}%</span></span></td>
+    <td class="num">${r.started}</td><td class="num">${r.elapsed}</td><td class="r num">${r.temp === '—' ? '—' : r.temp + ' °C'}</td></tr>`).join('');
+}
+body += `<tr class="grp"><td colspan="6">${chip(null).replace('Untagged', 'No test planned')}<span class="muted">${unplanned.length} devices</span><a class="link sel-all" href="02-plan-day.html">Assign a test…</a></td></tr>`;
+body += unplanned.map(s => `<tr class="row" data-s="${s}"><td class="mono">${s}</td><td>${badge('off', 'Idle')}</td><td class="r"><span class="batt">${bar(100)}<span class="num">100%</span></span></td><td>—</td><td>—</td><td class="r">—</td></tr>`).join('');
+
+const content = `
+<div class="page-head"><div><h1>Today's plan</h1><div class="sub">Thursday 8 October 2026 · ${rows.length} of ${SERIALS.length} devices have a test planned</div></div>
+  <div style="display:flex;gap:8px;align-items:center"><div class="seg"><button>Yesterday</button><button class="on">Today</button><button>Tomorrow</button></div><a class="btn primary" href="02-plan-day.html">Plan a day</a></div></div>
+<div class="stack">
+  <div class="panel"><div class="metrics">
+    <div class="metric"><small>Planned today</small><b class="num">${rows.length}</b><span class="delta">across ${PLAN.length} test types</span></div>
+    <div class="metric"><small>Running</small><b class="num">${count('run')}</b><span class="delta">live from MDM</span></div>
+    <div class="metric"><small>Finished</small><b class="num">${count('done')}</b><span class="delta">cycle counted</span></div>
+    <div class="metric"><small>Needs attention</small><b class="num" style="color:var(--warn)">${count('ready') + count('offline')}</b><span class="delta">not started or offline</span></div>
+  </div></div>
+  <div class="panel"><div class="panel-head"><h2>Devices by test</h2><span class="muted">Status, battery and temperature are live; the test type is from the plan</span></div>
+    <div class="scroll-x"><table><thead><tr><th>Device</th><th>Status</th><th class="r">Battery</th><th>Started</th><th>Elapsed</th><th class="r">Temp</th></tr></thead><tbody>${body}</tbody></table></div></div>
+</div>`;
+
+const inspFor = s => {
+  const r = rows.find(x => x.serial === s);
+  if (!r) return `<h3 class="mono">${s}</h3><div class="isub">No test planned today</div><hr><div class="acts"><a class="btn primary" href="02-plan-day.html">Assign a test</a></div>`;
+  return `<h3 class="mono">${r.serial}</h3><div class="isub">${chip(r.t)}</div>
+    <div class="big num">${r.pct}%<small>${S[r.st][1].toLowerCase()}</small></div><hr>
+    <h4>Today</h4><dl class="kv"><dt>Test</dt><dd>${esc(TYPE[r.t].name)}</dd><dt>Started</dt><dd class="num">${r.started}</dd><dt>Elapsed</dt><dd class="num">${r.elapsed}</dd><dt>Temp now</dt><dd class="num">${r.temp}</dd><dt>Planned by</dt><dd>QA · 09:12</dd></dl><hr>
+    <h4>Last 5 tests on this device</h4><dl class="kv"><dt>Wed 7</dt><dd>${chip('ads')}</dd><dt>Tue 6</dt><dd>${chip('wlcload')}</dd><dt>Mon 5</dt><dd>${chip(null)}</dd><dt>Fri 2</dt><dd>${chip(null)}</dd><dt>Thu 1</dt><dd>${chip(null)}</dd></dl>
+    <div class="acts"><a class="btn" href="06-device.html">Open device</a><a class="btn" href="02-plan-day.html">Change test</a></div>`;
+};
+
+mount({ active: 'today', title: "Today's plan",
+  note: 'The home screen once a plan exists. <b>The plan says what should run; MDM says how it is going.</b> A planned device that is still charged and not started, or offline, floats into "Needs attention".',
+  content, insp: inspFor(rows[0].serial), status: `${rows.length} planned · ${count('run')} running · ${count('done')} finished · ${count('ready') + count('offline')} need attention` });
+const trs = [...document.querySelectorAll('tr.row')];
+trs[0].classList.add('sel');
+trs.forEach(tr => tr.onclick = () => { trs.forEach(x => x.classList.remove('sel')); tr.classList.add('sel'); document.getElementById('insp').innerHTML = inspFor(tr.dataset.s); });
+</script></body></html>

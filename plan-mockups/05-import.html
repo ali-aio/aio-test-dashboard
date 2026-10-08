@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Import past data — mockup</title><link rel="stylesheet" href="plan.css"></head>
+<body>
+<script src="mock.js"></script>
+<script>
+const { TYPES, TYPE, chip, badge, esc, mount } = Mock;
+
+// What the importer would show after reading a folder of lab CSVs. Test type comes from the file
+// name (same rule Tariq's dashboard uses); serials and dates come from the rows themselves.
+const F = [
+  ['11th_May_26_Charging_Cycle.csv',        'charging', '11 May',       9,  9, 'csv',  ''],
+  ['11th_May_26_WLC_on_Load.csv',           'wlcload',  '11 May',       10, 10, 'csv', ''],
+  ['11th_May_26_Restaurant_Case.csv',       'restaurant','11 May',      11, 11, 'both', ''],
+  ['22nd_May_26_Burnin_Test.csv',           'burnin',   '22 May',       13, 13, 'csv', ''],
+  ['22nd_May_26_Discharge_on_Ads.csv',      'ads',      '22 May',       12, 12, 'csv', ''],
+  ['22nd_June_26_WLC+Discharge_on_Ads.csv', 'wlcads',   '22 Jun',       8,  7, 'both', 'warn1'],
+  ['Cycles for Dashboard(Sheet1).csv',      null,       '12 dates',     16, 16, 'csv', 'mixed'],
+];
+const MATCH = { csv: badge('off', 'CSV only'), both: badge('ok', 'MDM + CSV') };
+const rows = F.map(f => `<tr><td><span class="mono">${esc(f[0])}</span></td><td>${f[1] ? chip(f[1]) : badge('warn', 'Several — per row')}</td><td>${f[2]}</td><td class="r num">${f[3]}</td>
+  <td class="r num">${f[4] === f[3] ? f[4] + ' / ' + f[3] : `<span style="color:var(--warn)">${f[4]} / ${f[3]}</span>`}</td><td>${MATCH[f[5]]}</td></tr>`).join('');
+
+const content = `
+<div class="page-head"><div><h1>Import past data</h1><div class="sub">Bring in lab CSVs so earlier days carry a test type. Done once for the existing files; use again for any later ones.</div></div></div>
+<div class="steps"><span class="st done"><b>✓</b>Choose files</span><span class="ln"></span><span class="st on"><b>2</b>Review</span><span class="ln"></span><span class="st"><b>3</b>Import</span></div>
+<div class="stack">
+  <div class="panel"><div class="panel-head"><h2>7 files · 79 device-days</h2><span class="muted">11 May – 22 Jun 2026 · 25 of 26 serials recognised</span></div>
+    <div class="scroll-x"><table><thead><tr><th>File</th><th>Test type (from file name)</th><th>Day</th><th class="r">Devices</th><th class="r">Serials in MDM</th><th>Readings available from</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+  <div class="cols-2">
+    <div class="panel"><div class="panel-head"><h2>What gets imported</h2></div><div class="panel-body">
+      <div class="typelist" id="mode"><label class="on"><input type="radio" name="m" checked><span><b>Labels only</b><small>Just day + device + test type. Curves, cycles and temperatures stay MDM's. Smallest, always consistent with live data.</small></span></label>
+      <label><input type="radio" name="m"><span><b>Labels, and CSV readings where MDM has none</b><small>Also keep the lab's hourly readings for days MDM can't cover (3 of 7 files). Shown as "CSV only" in History.</small></span></label></div></div></div>
+    <div class="panel"><div class="panel-head"><h2>What we had to work around</h2><span class="muted">nothing is changed silently</span></div><div class="panel-body"><div class="warnlist">
+      <div class="w">${badge('warn', '1 file')}<span>One sheet mixes several test types. The type is read from each row, not the file name.</span></div>
+      <div class="w">${badge('warn', '1 serial')}<span><span class="mono">AT070AABU00231</span> in the CSV has no match in MDM. Kept as a label, no readings.</span></div>
+      <div class="w">${badge('off', '4 files')}<span>No header row. Columns were mapped by position using the test type in the file name.</span></div></div></div></div>
+  </div>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn">Back</button><button class="btn primary">Import 79 device-days</button></div>
+  <div class="callout"><div>${Mock.svg(Mock.ICON.info)}</div><div>The browser can't write files into the repo, so Import needs the same small backend as planning. For the <b>existing</b> CSVs it is simpler to run a one-off script (like the earlier backsweep) that produces the same file this screen would.</div></div>
+</div>`;
+mount({ active: 'import', title: 'Import past data',
+  note: 'Reuses the idea from Tariq\'s dashboard (test type read from the file name, honest list of workarounds) but keeps only what MDM can\'t tell us: <b>which test ran on which device on which day</b>.',
+  content, status: '7 files ready · review before importing' });
+const m = document.getElementById('mode'); m.onchange = () => m.querySelectorAll('label').forEach(l => l.classList.toggle('on', l.querySelector('input').checked));
+</script></body></html>

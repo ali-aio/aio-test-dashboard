@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>History — mockup</title><link rel="stylesheet" href="plan.css"></head>
+<body>
+<script src="mock.js"></script>
+<script>
+const { TYPES, TYPE, chip, badge, bar, esc, mount } = Mock;
+
+// One row per (day, test type). Three kinds of source: Imported CSV (before the plan existed),
+// Planned (entered in the dashboard from 6 Oct), Untagged (MDM saw cycles, nobody labelled them).
+// "MDM data" says whether the readings come from the MDM or only from the CSV.
+const H = [
+  ['2026-10-08', 'ads', 10, 'plan', 0, '—', 'live'],
+  ['2026-10-08', 'wlcload', 6, 'plan', 0, '—', 'live'],
+  ['2026-10-07', 'ads', 9, 'plan', 9, '17h 40m', 'mdm'],
+  ['2026-10-07', 'burnin', 4, 'plan', 4, '11h 05m', 'mdm'],
+  ['2026-10-06', 'restaurant', 3, 'plan', 3, '14h 20m', 'mdm'],
+  ['2026-10-05', null, 17, 'none', 17, '16h 52m', 'mdm'],
+  ['2026-10-02', null, 15, 'none', 15, '17h 03m', 'mdm'],
+  ['2026-06-22', 'wlcads', 8, 'csv', 8, '12h 40m', 'both'],
+  ['2026-06-22', 'restaurant', 11, 'csv', 11, '14h 10m', 'both'],
+  ['2026-06-22', 'wlcload', 6, 'csv', 6, '9h 25m', 'csv'],
+  ['2026-05-22', 'burnin', 13, 'csv', 13, '10h 50m', 'csv'],
+  ['2026-05-22', 'ads', 12, 'csv', 12, '17h 15m', 'csv'],
+  ['2026-05-11', 'charging', 9, 'csv', 9, '—', 'csv'],
+  ['2026-05-11', 'phone', 7, 'csv', 7, '—', 'csv'],
+  ['2026-05-11', 'wlcload', 10, 'csv', 10, '9h 40m', 'csv'],
+];
+const fmtD = iso => new Date(iso + 'T12:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const DATA = { live: badge('run', 'Live from MDM', 1), mdm: badge('ok', 'MDM'), both: badge('ok', 'MDM + CSV'), csv: badge('off', 'CSV only') };
+
+const rows = H.map((r, i) => `<tr class="row" data-i="${i}"><td>${fmtD(r[0])}</td><td>${chip(r[1])}</td><td class="r num">${r[2]}</td><td>${Mock.SRC[r[3]]}</td><td class="r num">${r[4] || '—'}</td><td class="r num">${r[5]}</td><td>${DATA[r[6]]}</td></tr>`).join('');
+
+// median projected runtime to empty by test type (mock)
+const RT = [['ads', 17.3], ['restaurant', 14.2], ['wlcads', 12.7], ['burnin', 11.0], ['wlcload', 9.5]];
+const max = Math.max(...RT.map(r => r[1]));
+
+const content = `
+<div class="page-head"><div><h1>History</h1><div class="sub">Every day that has a test type, from the first imported CSV to today — plus days MDM saw but nobody labelled.</div></div>
+  <div style="display:flex;gap:8px;align-items:center"><div class="seg"><button class="on">All</button><button>Imported CSV</button><button>Planned</button><button>Untagged</button></div></div></div>
+<div class="stack">
+  <div class="cols-2">
+    <div class="panel"><div class="panel-head"><h2>Median runtime by test type</h2><span class="muted">projected hours to empty</span></div><div class="panel-body" style="display:grid;gap:8px">
+      ${RT.map(([t, v]) => `<div style="display:grid;grid-template-columns:170px 1fr 54px;gap:10px;align-items:center">${chip(t)}${bar(v / max * 100)}<span class="num r">${v.toFixed(1)} h</span></div>`).join('')}</div></div>
+    <div class="panel"><div class="panel-head"><h2>How complete is the record?</h2></div><div class="panel-body">
+      <div class="with-ring"><svg class="ring" viewBox="0 0 36 36"><circle class="bg" cx="18" cy="18" r="15"/><circle class="fg" cx="18" cy="18" r="15" stroke-dasharray="94.2" stroke-dashoffset="${94.2 * (1 - .71)}"/></svg><div><b class="num" style="font-size:20px">71%</b><div class="muted">of counted cycles have a test type</div></div></div>
+      <dl class="kv" style="margin-top:12px"><dt>Imported CSV</dt><dd class="num">87 days · 1,104 cycles</dd><dt>Planned</dt><dd class="num">3 days · 61 cycles</dd><dt>Untagged</dt><dd class="num" style="color:var(--warn)">2 days · 32 cycles</dd></dl></div></div>
+  </div>
+  <div class="panel"><div class="panel-head"><h2>Days</h2><span class="muted">${H.length} of 92 shown</span></div>
+    <div class="scroll-x"><table><thead><tr><th>Day</th><th>Test type</th><th class="r">Devices</th><th>Source</th><th class="r">Cycles counted</th><th class="r">Median runtime</th><th>Readings from</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+</div>`;
+
+const insp = i => { const r = H[i]; return `<h3>${fmtD(r[0])}</h3><div class="isub">${chip(r[1])}</div><div class="big num">${r[2]}<small>devices</small></div><hr>
+  <dl class="kv"><dt>Source</dt><dd>${Mock.SRC[r[3]]}</dd><dt>Cycles counted</dt><dd class="num">${r[4] || '—'}</dd><dt>Median runtime</dt><dd class="num">${r[5]}</dd><dt>Readings</dt><dd>${DATA[r[6]]}</dd></dl><hr>
+  <h4>${r[6] === 'csv' ? 'Why "CSV only"' : 'Where the numbers come from'}</h4>
+  <div class="muted" style="font-size:12px">${r[6] === 'csv' ? 'The device was not in the MDM group that day, or MDM history had expired, so the curve is the lab\'s own hourly CSV readings.' : r[3] === 'none' ? 'MDM recorded these cycles but no test type exists for the day. Tag the day to include it in the comparison above.' : 'Cycles are detected from MDM history; the test type is attached from the plan.'}</div>
+  <div class="acts">${r[3] === 'none' ? '<button class="btn primary">Tag this day…</button>' : '<a class="btn" href="06-device.html">Open a device</a>'}</div>`; };
+mount({ active: 'history', title: 'History',
+  note: '<b>This answers "how do we show earlier data?"</b> Old days come from the imported CSVs, newer days from the plan, and the days in between are visible as gaps you can fill — all in one list, one test-type vocabulary.',
+  content, insp: insp(2), status: '92 days with data · 71% labelled' });
+const trs = [...document.querySelectorAll('tr.row')]; trs[2].classList.add('sel');
+trs.forEach(tr => tr.onclick = () => { trs.forEach(x => x.classList.remove('sel')); tr.classList.add('sel'); document.getElementById('insp').innerHTML = insp(+tr.dataset.i); });
+</script></body></html>

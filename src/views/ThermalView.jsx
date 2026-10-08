@@ -169,8 +169,6 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
     return [...withPeak]
       .sort((a, b) => b.maxTemp - a.maxTemp)
       .slice(0, 25)
-      .sort((a, b) => compareSerial(a.serial, b.serial)
-        || String(a.date ?? '').localeCompare(String(b.date ?? '')))
       .map((c) => {
         const at = c.tempSeries.reduce(
           (best, p) => (best == null || p.v > best.v ? p : best), null,
@@ -224,7 +222,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
             ? `${hottest.serial}${hottest.date ? ` · ${fmtDate(hottest.date)}` : ''}`
             : DASH}
           breakdown={hottestCycles} breakdownWide
-          breakdownLabel="Hottest runs · serial ascending — click one to isolate it" />
+          breakdownLabel="Hottest runs · hottest first — click one to isolate it" />
         <Stat label="Typical hottest point" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
           foot={`averaged over ${fmtInt(withTemp.length)} runs`} />
         <Stat label="Middle of all readings" value={fmtNum(median(allTemps), 1)} unit="°C"

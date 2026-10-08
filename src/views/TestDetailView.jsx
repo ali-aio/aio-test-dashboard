@@ -185,9 +185,9 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
   const groupCount = (label, runs) => (isCharging ? runsText(runs) : splitByGroup.get(label) ?? runsText(runs))
   const peakBreakdown = useMemo(() => cycles
     .filter((c) => c.maxTemp != null)
-    .sort((a, b) => compareSerial(a.serial, b.serial)
-      || String(a.date ?? '').localeCompare(String(b.date ?? ''))
-      || b.maxTemp - a.maxTemp)
+    .sort((a, b) => b.maxTemp - a.maxTemp
+      || compareSerial(a.serial, b.serial)
+      || String(a.date ?? '').localeCompare(String(b.date ?? '')))
     .map((c, i) => ({
       id: c.id ?? `${c.serial}-${c.date}-${i}`,
       label: c.serial,
@@ -254,7 +254,7 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
             ? 'no temperature recorded'
             : `hottest run reached ${fmtTemp(hottestRun)}`}
           breakdown={peakBreakdown} breakdownWide breakdownRight
-          breakdownLabel="Cycle peak temperatures · serial ascending" />
+          breakdownLabel="Cycle peak temperatures · hottest first" />
       </div>
 
       {isField && (

@@ -641,7 +641,7 @@ function nxTodayView() {
           ${esc(dayLong(key))} ${statusBadge(T.status)}
           ${badge(reporting.length ? 'b-run' : 'b-off', `Live · ${reporting.length} device${reporting.length === 1 ? '' : 's'} reporting`, !!reporting.length)}</div>
         <h1 style="margin:6px 0 4px;font-size:26px;line-height:1.15">${tt ? esc(tt.name) : 'No test declared'}</h1>
-        <div class="muted" style="font-size:12.5px">${tt ? `${T.source === 'rota' ? 'From the standing weekly rota' : `Declared${T.src && T.src.by ? ` by <b>${esc(T.src.by)}</b>` : ''}${T.src && T.src.at ? ` at ${hm(T.src.at)}` : ''}`} · ${T.serials.length} devices · window ${hm(T.startMs)}–${hm(T.endMs)} · every MDM row from these serials today is stamped with this test type.`
+        <div class="muted" style="font-size:12.5px">${tt ? `${T.source === 'rota' ? 'From the standing weekly rota' : `Declared${T.src && T.src.by ? ` by <b>${esc(T.src.by)}</b>` : ''}${T.src && T.src.at ? ` at ${hm(T.src.at)}` : ''}`} · ${T.serials.length} devices · window ${hm(T.startMs)}–${hm(T.endMs)}`
           : `Telemetry cannot say which test this is — the MDM carries no test type. <a class="link" href="#/nx/plan">Declare one on the Cycle plan</a> and today's rows are stamped with it.`}</div>
       </div></div>
     <div class="panel"><div class="metrics">

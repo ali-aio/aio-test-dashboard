@@ -1,3 +1,4 @@
+import { splitText, splitBy } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
 import LifetimeStat from '../components/LifetimeStat.jsx'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
@@ -127,7 +128,7 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
     return plottedCurves.map((g, i) => ({
       id: g.label,
       label: g.label.replace(' Build', ''),
-      sub: isCharging ? runsText(g.count) : bcText(batteryCycles(cycles.filter((c) => (c[key] ?? 'Unknown') === g.label))),
+      sub: isCharging ? runsText(g.count) : splitText(cycles.filter((c) => (c[key] ?? 'Unknown') === g.label)),
       color: key === 'build'
         ? (BUILD_COLOR[g.label] ?? SERIES_VARS[i])
         : groupColors.get(g.label),
@@ -180,8 +181,8 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
   )
   const secondary = useMemo(() => compareBy(cycles, isField ? 'padState' : 'build'), [cycles, isField])
   // "cycles" on this page always means battery cycles; these look them up per group.
-  const bcSecondary = useMemo(() => new Map(batteryCyclesBy(cycles, isField ? 'padState' : 'build').map((r) => [r.label, r.value])), [cycles, isField])
-  const groupCount = (bc, runs) => (isCharging ? runsText(runs) : bcText(bc ?? 0))
+  const splitByGroup = useMemo(() => new Map(splitBy(cycles, isField ? 'padState' : 'build').map((r) => [r.label, r.display])), [cycles, isField])
+  const groupCount = (label, runs) => (isCharging ? runsText(runs) : splitByGroup.get(label) ?? runsText(runs))
   const peakBreakdown = useMemo(() => cycles
     .filter((c) => c.maxTemp != null)
     .sort((a, b) => compareSerial(a.serial, b.serial)
@@ -393,7 +394,7 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
                 label: b.label.replace(' Build', ''),
                 value: b.avgDuration ?? 0,
                 color: isField ? 'var(--series-1)' : (BUILD_COLOR[b.label] ?? 'var(--series-1)'),
-                display: `${fmtNum(b.avgDuration, 1)} h · ${groupCount(bcSecondary.get(b.label), b.cycles)}`,
+                display: `${fmtNum(b.avgDuration, 1)} h · ${groupCount(b.label, b.cycles)}`,
               }))}
               unit="h"
               labelWidth={isField ? 124 : 100}
@@ -401,13 +402,13 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
               caption={`Mean run time by ${isField ? 'pad state' : 'hardware build'}`}
               tableColumns={[
                 { key: 'build', label: isField ? 'Pad state' : 'Build' },
-                { key: 'n', label: isCharging ? 'Runs' : 'Battery cycles' },
+                { key: 'n', label: 'Cycles (MDM) or runs' },
                 { key: 'dur', label: 'Avg run time' },
                 { key: 'drop', label: isCharging ? 'Avg charge rate' : 'Avg drain' },
                 { key: 'temp', label: 'Avg peak temp' },
               ]}
               tableRows={secondary.map((b) => ({
-                build: b.label, n: isCharging ? fmtInt(b.cycles) : fmtBC(bcSecondary.get(b.label) ?? 0), dur: fmtHours(b.avgDuration),
+                build: b.label, n: groupCount(b.label, b.cycles), dur: fmtHours(b.avgDuration),
                 drop: fmtRate(isCharging && b.avgDropPerHr != null ? -b.avgDropPerHr : b.avgDropPerHr),
                 temp: fmtTemp(b.avgPeakTemp),
               }))}

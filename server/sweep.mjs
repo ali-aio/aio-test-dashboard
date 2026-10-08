@@ -10,6 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { detectCycles, normalize } from '../shared/cycles.js';
+import { appendReadings } from '../src/lib/mdmTrack.js';
 import { chargeSegments, thermalStats } from '../shared/profile.js';
 
 const H = 3600e3, DAY = 24 * H, CHUNK = 7 * DAY;
@@ -41,6 +42,7 @@ export async function sweep({ base, group, root, get, log = () => {} }) {
   const from = Math.min(anchor - 3 * DAY, now - 14 * DAY);
   const devices = await get(`/api/v1/testdata/devices?group=${encodeURIComponent(group)}`);
   log(`${devices.length} devices in "${group}", history since ${new Date(from).toISOString()}`);
+  recordLifetime(root, group, devices, now, log);
 
   const out = {}, failed = [];
   const results = await mapLimit(devices, 3, async d => {
@@ -71,3 +73,16 @@ export async function sweep({ base, group, root, get, log = () => {} }) {
   return { at: now, devices: Object.keys(out).length, cycles, failed };
 }
 const serialMsg = results => results.find(r => !r.ok)?.e.message;
+
+// Record every device's MDM lifetime counter (discharge_total_pct) on each sweep, so the
+// dashboard can turn it into cycles per run, test and day — the API only ever reports the
+// current total. Written first, before the slow history fetch, so a failed sweep still
+// keeps the reading. Our own file (gitignored, like topup.json); nothing goes to the MDM.
+function recordLifetime(root, group, devices, now, log) {
+  try {
+    const target = path.join(root, 'data', 'lifetime.json'), tmp = target + '.tmp';
+    const next = appendReadings(readJson(target), group, devices, now);
+    fs.writeFileSync(tmp, JSON.stringify(next)); fs.renameSync(tmp, target);
+    log(`lifetime counter recorded for ${Object.keys(next.devices).length} devices`);
+  } catch (e) { log(`lifetime counter not recorded: ${e.message}`); }
+}

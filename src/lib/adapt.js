@@ -14,6 +14,7 @@
 import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, timeOn, loadDecls, loadRota } from './plan.js';
 import { FIELD_DISCHARGE, FIELD_CHARGING } from './testtypes.js';
 import { perHourRate, HOUR_SNAP } from './t7cycles.js';
+import { mdmCyclesFor } from './mdmTrack.js';
 import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
 
 const H = 3600e3;
@@ -74,6 +75,7 @@ function wholeHours(series) {
 
 /** One of our detected cycles -> one T7 cycle. `rows` is optional history for the curve. */
 export function adaptCycle(d, c, rows, ctx) {
+  const readings = ctx.readings;
   const duration = c.durationMs / H;
   if (!(duration > 0)) return null;
   const { series, tempSeries, firmware, wireless } = seriesFor(rows, c);
@@ -120,15 +122,17 @@ export function adaptCycle(d, c, rows, ctx) {
     avgRam: null, maxRam: null,
     reason: c.reason,
     fullMs: c.fullMs,
+    // the MDM's own cycles for this run (recorded counter end − start), null before recording began
+    mdmCycles: mdmCyclesFor(readings, d.serial, c.start, c.end),
     start: c.start, end: c.end,
     source: 'mdm',
   };
 }
 
 /** Every device's cycles, reshaped. `rowsFor(serial)` supplies history when we have it. */
-export function adaptAll(DEV, rowsFor = () => null) {
+export function adaptAll(DEV, rowsFor = () => null, readings = null) {
   const decls = loadDecls(CTX.group), rota = loadRota(CTX.group);
-  const ctx = { decls, rota, DEV };
+  const ctx = { decls, rota, DEV, readings };
   const out = [];
   for (const d of DEV) {
     const rows = rowsFor(d.serial);

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   TEST_TYPES, testType, ttSlot, loadDecls, saveDecls, loadRota, saveRota, newDecl,
   resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, WEEKDAYS, monthLabel, dayLabel,
 } from '../lib/plan.js'
 import { GROUP } from '../lib/fleet.js'
-import { fmtBC, bcText } from '../lib/fmt.js'
+import { splitText } from '../lib/splitCycles.js'
+import { mdmCyclesFor } from '../lib/mdmTrack.js'
 import { TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur, rt } from '../lib/cycles.js'
 import { hm, day } from '../lib/format.js'
@@ -22,9 +23,12 @@ export default function CyclePlanView({ fleet }) {
   const [form, setForm] = useState(null)
 
   const ranOn = key => allCycles.filter(c => dayKey(c.end) === key).length
-  // what the day drained, in battery cycles (total % ÷ 100) — the figure shown; the run
-  // count above only decides Confirmed / Inferred
-  const bcOn = key => allCycles.filter(c => dayKey(c.end) === key).reduce((a, c) => a + Math.max(0, c.startPct - c.endPct) / 100, 0)
+  // A day's amount: the MDM's recorded counter across its runs when every run is covered,
+  // else the run count (src/lib/splitCycles.js). The run count above only decides
+  // Confirmed / Inferred.
+  const serialOf = useMemo(() => { const m = new Map(); for (const d of DEV) for (const c of d.cycles) m.set(c, d.serial); return m }, [DEV, allCycles])
+  const amountOn = key => splitText(allCycles.filter(c => dayKey(c.end) === key)
+    .map(c => ({ mdmCycles: mdmCyclesFor(fleet.readings, serialOf.get(c), c.start, c.end) })))
   const resolve = key => {
     const r = resolveDay(key, { decls, rota, ran: ranOn(key), devices: DEV.length })
     const src = r.decl || r.rota || null
@@ -94,7 +98,7 @@ export default function CyclePlanView({ fleet }) {
                     }}>
                     <span className="dnum">{c.dayNum}{c.isToday ? <span className="tdy">TODAY</span> : null}</span>
                     {r.tt ? <><Chip r={r} /><span className="tname">{r.tt.name}</span><span className="tdev">{r.serials.length} devices</span></>
-                      : r.status === 'inferred' ? <><Chip r={r} /><span className="tname">Untyped run</span><span className="tdev">{bcText(bcOn(c.key))}</span></>
+                      : r.status === 'inferred' ? <><Chip r={r} /><span className="tname">Untyped run</span><span className="tdev">{amountOn(c.key)}</span></>
                       : c.inMonth ? <span className="declare">{future ? '+ declare' : 'no run'}</span> : null}
                   </button>
                 )
@@ -131,7 +135,7 @@ export default function CyclePlanView({ fleet }) {
                 <dt>Source</dt><dd>{S.source === 'declared' ? 'Explicit declaration' : S.source === 'rota' ? 'Standing weekly rota' : S.source === 'telemetry' ? 'Telemetry only' : <span className="secondary">—</span>}</dd>
                 <dt>Devices</dt><dd className="mono">{S.tt ? S.serials.length : '—'}</dd>
                 <dt>Window</dt><dd className="mono">{S.tt ? `${hm(S.startMs)}–${hm(S.endMs)}` : '—'}</dd>
-                <dt>Battery cycles</dt><dd className="mono">{fmtBC(bcOn(sel))}</dd>
+                <dt>Cycles (MDM) or runs</dt><dd className="mono">{selRan.length ? amountOn(sel) : '—'}</dd>
               </dl>
               <div className="acts">
                 {S.decl

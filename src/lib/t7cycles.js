@@ -337,13 +337,8 @@ export function cascadeOptions(cycles, filters, allSerials) {
 
   const dateCounts = new Map()
   for (const c of upstream.date) {
-    // battery cycles drained that day (what "cycles" means across the dashboard); a charging
-    // run drains nothing and adds 0
-    if (c.date) {
-      const drained = c.testType === 'Charging Cycle' || c.testType === FIELD_CHARGING ? 0
-        : Math.max(0, (c.startBattery ?? 0) - (c.endBattery ?? 0)) / 100
-      dateCounts.set(c.date, (dateCounts.get(c.date) ?? 0) + drained)
-    }
+    // runs that day — the bar length; the label is the MDM figure when covered (FilterBar)
+    if (c.date) dateCounts.set(c.date, (dateCounts.get(c.date) ?? 0) + 1)
   }
 
   return { options, dateCounts, upstream }

@@ -10,6 +10,7 @@ import { ago } from './lib/format.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { HistoryStatus } from './components/historyStatus.js'
 import { lifetimeOf } from './lib/device.js'
+import { splitText } from './lib/splitCycles.js'
 import FilterBar, { FilterPills } from './components/FilterBar.jsx'
 import T7Overview from './views/T7Overview.jsx'
 import ComparisonView from './views/ComparisonView.jsx'
@@ -65,8 +66,8 @@ export default function App() {
   const { DEV, ready, error } = fleet
   // Cycles in T7's shape. The curve on each one comes from the history window, so cycles
   // older than it carry their summary but no per-hour series — the charts say so.
-  const cycles = useMemo(() => (DEV.length ? adaptAll(DEV, rowsFor) : []),
-    [DEV, fleet.allCycles, win.at2])
+  const cycles = useMemo(() => (DEV.length ? adaptAll(DEV, rowsFor, fleet.readings) : []),
+    [DEV, fleet.allCycles, win.at2, fleet.readings])
   const allSerials = useMemo(() => distinct(cycles, 'serial'), [cycles])
   const scoped = useMemo(() => filterCycles(cycles, filters), [cycles, filters])
 
@@ -113,7 +114,7 @@ export default function App() {
     : (
       <div className="view-stack">
         <FilterBar cycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} declaredTypes={declaredTypes} />
-        <FilterPills filters={filters} onChange={setFilters} onReset={resetFilters} count={batteryCycles(scoped)} allSerials={allSerials} />
+        <FilterPills filters={filters} onChange={setFilters} onReset={resetFilters} count={splitText(scoped)} allSerials={allSerials} />
         {fleet.seed && !fleet.seed.ok && (
           <div className="banner banner-warn"><span aria-hidden="true">◆</span>
             <div><strong>Only the sweep's cycles are loaded — most of the history is missing.</strong>

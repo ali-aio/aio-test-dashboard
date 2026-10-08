@@ -4,7 +4,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { ALL_TEST_TYPES, LOAD_TEST_TYPES } from '../lib/testtypes.js'
 import { cascadeOptions, pruneFilters } from '../lib/t7cycles.js'
-import { fmtDate, fmtWeek, fmtBC } from '../lib/fmt.js'
+import { fmtDate, fmtWeek } from '../lib/fmt.js'
+import { splitText } from '../lib/splitCycles.js'
 import DatePicker from './DatePicker.jsx'
 
 export default function FilterBar({ cycles, filters, onChange, onReset, allSerials = [], declaredTypes = [] }) {
@@ -20,7 +21,7 @@ export default function FilterBar({ cycles, filters, onChange, onReset, allSeria
   }
 
   /* Each control offers only what is reachable given the controls before it. */
-  const { options, dateCounts } = useMemo(
+  const { options, dateCounts, upstream } = useMemo(
     () => cascadeOptions(cycles, filters, allSerials),
     [cycles, filters, allSerials],
   )
@@ -113,6 +114,7 @@ export default function FilterBar({ cycles, filters, onChange, onReset, allSeria
 
       <Field label="Test date">
         <DatePicker dates={dates} counts={dateCounts} value={filters.date}
+          countText={(prefix) => splitText((upstream?.date || cycles).filter((c) => c.date && c.date.startsWith(prefix)))}
           onChange={(d) => set({ date: d })} />
       </Field>
 
@@ -254,7 +256,7 @@ export function FilterPills({ filters, onChange, onReset, count, allSerials = []
   return (
     <div className="row row-wrap" style={{ gap: 6, minHeight: 26 }}>
       <span className="pill pill-neutral">
-        <strong className="mono">{fmtBC(count)}</strong>&nbsp;cycles in scope
+        <strong className="mono">{count}</strong>&nbsp;in scope
       </span>
       {chips.map((c) => (
         <span key={c.k} className="pill pill-filter">

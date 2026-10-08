@@ -1,3 +1,4 @@
+import { splitText, splitBy } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { LineChart } from '../components/t7charts.jsx'
@@ -65,39 +66,36 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [], l
      for that field, clicking a row applies it — the breakdown answers "which
      ones?" and the click acts on the answer. */
   const breakdowns = useMemo(() => {
+    // Amounts per group come from the MDM's recorded counter when every run in the group
+    // is covered, else they are run counts (src/lib/splitCycles.js); bars measure runs.
     const rows = (list, onPick) => list.map((r) => ({
       id: String(r.label),
       label: String(r.label),
       value: r.value,
-      display: fmtBC(r.value),
+      display: r.display,
       onClick: onPick ? () => onPick(r.label) : undefined,
     }))
 
-    const byDate = batteryCyclesBy(cycles, 'date')
+    const byDate = splitBy(cycles, 'date')
       .sort((a, b) => String(b.label).localeCompare(String(a.label)))
 
     return {
-      // Battery cycles per test, so the rows add up to the tile they open from. Tests whose
-      // runs drain nothing (charging) have no battery cycles and are left out.
-      testType: [...new Set(cycles.map((c) => c.testType))]
-        .map((t) => ({ t, v: fullDischargeCycles(cycles.filter((c) => c.testType === t)).cycles }))
-        .filter((r) => r.v > 0).sort((a, b) => b.v - a.v)
-        .map((r) => ({ id: r.t, label: r.t, value: r.v, display: fmtBC(r.v), onClick: () => onPickTestType(r.t) })),
-      serial: rows(batteryCyclesBy(cycles, 'serial')
+      testType: rows(splitBy(cycles, 'testType'), (v) => onPickTestType(v)),
+      serial: rows(splitBy(cycles, 'serial')
         .sort((a, b) => compareSerial(a.label, b.label)),
         (v) => onFilter?.({ serials: [v] })),
       date: byDate.map((r) => ({
         id: String(r.label),
         label: fmtDate(r.label),
         value: r.value,
-        display: fmtBC(r.value),
+        display: r.display,
         onClick: onFilter ? () => onFilter({ date: r.label }) : undefined,
       })),
-      build: rows(batteryCyclesBy(cycles, 'build'), (v) => onFilter?.({ build: v })),
-      firmware: rows(batteryCyclesBy(cycles, 'firmware')
+      build: rows(splitBy(cycles, 'build'), (v) => onFilter?.({ build: v })),
+      firmware: rows(splitBy(cycles, 'firmware')
         .sort((a, b) => compareFirmwareNewest(a.label, b.label)),
         (v) => onFilter?.({ firmware: v })),
-      os: rows(batteryCyclesBy(cycles, 'android'), (v) => onFilter?.({ android: v })),
+      os: rows(splitBy(cycles, 'android'), (v) => onFilter?.({ android: v })),
     }
   }, [cycles, onPickTestType, onFilter])
 
@@ -120,7 +118,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [], l
         label: c.label.replace(' Build', ''),
         // charging tests drain nothing, so their legend counts runs
         sub: tt === 'Charging Cycle' || tt === 'Field Charging' ? runsText(c.count)
-          : bcText(batteryCycles(own.filter((x) => (x[groupKey] ?? 'Unknown') === c.label))),
+          : splitText(own.filter((x) => (x[groupKey] ?? 'Unknown') === c.label)),
         color: groupKey === 'build'
           ? (BUILD_COLOR[c.label] ?? SERIES_VARS[i % MAX_SERIES])
           : SERIES_VARS[i % MAX_SERIES],
@@ -166,7 +164,7 @@ function OverviewPanel({ p, allSerials, onPickTestType }) {
   return (
     <Card expandable
       title={p.testType}
-      sub={`${p.charging ? runsText(p.cycles.length) : bcText(batteryCycles(p.cycles))} · ${p.k.serials} devices · ${mode === 'all' ? 'one line per device' : `mean battery by ${p.groupKey === 'build' ? 'build' : 'pad state'}`}`}
+      sub={`${p.charging ? runsText(p.cycles.length) : splitText(p.cycles)} · ${p.k.serials} devices · ${mode === 'all' ? 'one line per device' : `mean battery by ${p.groupKey === 'build' ? 'build' : 'pad state'}`}`}
       right={<>
         <ModeSwitch value={mode} onChange={setMode} />
         <button className="btn btn-sm" onClick={() => onPickTestType(p.testType)}>
@@ -187,7 +185,7 @@ function OverviewPanel({ p, allSerials, onPickTestType }) {
         caption={`Mean battery percentage over elapsed hours for ${p.testType}`}
         tableColumns={[
           { key: 'build', label: p.groupKey === 'build' ? 'Build' : 'Pad state' },
-          { key: 'n', label: p.charging ? 'Runs' : 'Battery cycles' },
+          { key: 'n', label: 'Cycles (MDM) or runs' },
           { key: 'dur', label: 'Avg run time' },
           { key: 'drop', label: p.charging ? 'Avg charge rate' : 'Avg drain' },
           { key: 'end', label: p.charging ? 'Avg charged to' : 'Avg end battery' },
@@ -198,7 +196,7 @@ function OverviewPanel({ p, allSerials, onPickTestType }) {
           const kk = kpis(own)
           return {
             build: b,
-            n: p.charging ? fmtInt(kk.totalCycles) : fmtBC(batteryCycles(own)),
+            n: p.charging ? runsText(kk.totalCycles) : splitText(own),
             dur: fmtHours(kk.avgDuration),
             drop: fmtRate(kk.avgDropPerHr),
             end: fmtPct(kk.avgEndBattery),

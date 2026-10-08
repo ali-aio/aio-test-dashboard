@@ -1,3 +1,4 @@
+import { splitText, splitBy } from '../lib/splitCycles.js'
 import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { Card, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { ModeSwitch, deviceSeries, useDevicePicker } from '../components/CurveModes.jsx'
@@ -131,7 +132,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
      draw, so it drops out here — kept separate from the slice below, because a
      group missing from the chart has to be accounted for rather than vanish. */
   // battery cycles per comparison group — what "cycles" means everywhere on the dashboard
-  const bcByGroup = useMemo(() => new Map(batteryCyclesBy(cycles, dimension).map((r) => [r.label, r.value])), [cycles, dimension])
+  const amountByGroup = useMemo(() => new Map(splitBy(cycles, dimension).map((r) => [r.label, r.display])), [cycles, dimension])
   const drawable = useMemo(() => avgCurveBy(cycles, dimension)
     .filter((g) => visibleLabels.has(g.label)), [cycles, dimension, visibleLabels])
 
@@ -140,7 +141,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
     .map((g) => ({
       id: g.label,
       label: g.label.replace(' Build', ''),
-      sub: bcText(bcByGroup.get(g.label) ?? 0),
+      sub: amountByGroup.get(g.label) ?? '',
       color: colorFor(g.label),
       points: g.points,
     })), [drawable, colorMap])
@@ -219,7 +220,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
         <GroupedColumns
           groups={visible.map((g) => ({
             label: g.label.replace(' Build', ''),
-            nText: bcText(bcByGroup.get(g.label) ?? 0),
+            nText: amountByGroup.get(g.label),
             values: {
               duration: g.avgDuration == null ? null : Number(g.avgDuration.toFixed(2)),
               drain: g.avgDropPerHr == null ? null : Number(Math.abs(g.avgDropPerHr).toFixed(2)),
@@ -238,7 +239,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
           tableSortable
           tableColumns={[
             { key: 'label', label: DIMENSIONS.find((d) => d.id === dimension)?.label ?? 'Group' },
-            { key: 'n', label: 'Battery cycles' },
+            { key: 'n', label: 'Cycles (MDM) or runs' },
             { key: 'serials', label: 'Devices' },
             { key: 'dur', label: 'Avg run time', better: 'up' },
             { key: 'drain', label: chargingOnly ? 'Avg charge rate' : 'Avg drain', better: chargingOnly ? 'up' : 'down' },
@@ -273,7 +274,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
                 temp: g.avgPeakTemp, max: g.maxTemp,
               },
               label: g.label,
-              n: fmtBC(bcByGroup.get(g.label) ?? 0), serials: fmtInt(g.serials),
+              n: amountByGroup.get(g.label) ?? '—', serials: fmtInt(g.serials),
               dur: mark('dur', fmtHours(g.avgDuration)),
               drain: mark('drain', fmtRate(g.avgDropPerHr)),
               start: fmtPct(g.avgStartBattery),

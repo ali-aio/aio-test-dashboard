@@ -11,6 +11,9 @@ import Devices from '../src/views/DevicesView.jsx'
 import Today from '../src/views/TodayView.jsx'
 import CyclePlan from '../src/views/CyclePlanView.jsx'
 import { lifetimeOf } from '../src/lib/device.js'
+import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
+import { DateList } from '../src/components/DatePicker.jsx'
+import { splitText } from '../src/lib/splitCycles.js'
 
 // a rota so every test type, including Restaurant Case's wireless split, gets exercised
 const ROTA = JSON.stringify({0:{testType:'wlc_load'},1:{testType:'restaurant'},2:{testType:'wlc_phone'},3:{testType:'wlc_disch'},4:{testType:'charging'},5:{testType:'burnin'},6:{testType:'disch_ads'}})
@@ -74,5 +77,45 @@ for (const [name, lifetime, want] of checks) {
     } catch (e) { failed++; console.log('FAIL', name, '->', e.message) }
   }
 }
-console.log(`\n${Object.keys(cases).length + lifeCases - failed} passed, ${failed} failed`)
+// Split figures: MDM cycles when every run is covered by recorded counter readings,
+// else a run count — never a partial MDM sum.
+const mdmCases = []
+{
+  // readings that bracket every run of every device, rising by exactly each run's drain
+  const readings = { group: 'Test Cycles', devices: {} }
+  for (const d of DEV) {
+    let t = 0, v = 1000; const rs = []
+    for (const c of [...d.cycles].sort((a, b) => a.start - b.start)) {
+      rs.push([c.start, v]); v += Math.max(0, c.startPct - c.endPct); rs.push([c.end, v])
+    }
+    if (rs.length) readings.devices[d.serial] = rs
+  }
+  const covered = adaptAll(DEV, () => null, readings), bare = adaptAll(DEV, () => null, null)
+  const check = (name, fn) => { mdmCases.push(name); try { fn(); console.log('OK  ', name) } catch (e) { failed++; console.log('FAIL', name, '->', e.message) } }
+  const want = (cond, msg) => { if (!cond) throw new Error(msg) }
+  check('runs covered -> "cycles (MDM)"', () => { const t = splitText(covered.slice(0, 20)); want(/cycles \(MDM\)$/.test(t), t) })
+  check('no readings -> run count', () => { const t = splitText(bare.slice(0, 20)); want(t === '20 runs', t) })
+  check('one uncovered run -> run count, never a partial sum', () => {
+    const mixed = [...covered.slice(0, 5), { ...covered[5], mdmCycles: null }]; const t = splitText(mixed); want(t === '6 runs', t) })
+  check('overview cards show MDM cycles when covered', () => {
+    const h = renderToString(<T7Overview cycles={covered} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} />)
+    want(h.includes('cycles (MDM)'), 'no "cycles (MDM)" on the overview')
+  })
+  check('overview cards show runs without readings', () => {
+    const h = renderToString(<T7Overview cycles={bare} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} />)
+    want(!h.includes('cycles (MDM)') && / runs/.test(h), 'expected run counts only')
+  })
+  check('filter bar + pill render', () => {
+    renderToString(<FilterBar cycles={covered} filters={base} onChange={nop} onReset={nop} allSerials={all} declaredTypes={[]} />)
+    const h = renderToString(<FilterPills filters={base} onChange={nop} onReset={nop} count={splitText(covered)} allSerials={all} />)
+    want(h.includes('in scope'), 'pill missing')
+  })
+  check('date list renders its amounts', () => {
+    const dates = [...new Set(covered.map(c => c.date))].sort().slice(-5)
+    const h = renderToString(<DateList dates={dates} counts={new Map(dates.map(d => [d, 3]))} value="" maxCount={3} onPick={nop} onClear={nop}
+      amount={(d) => splitText(covered.filter(c => c.date === d))} />)
+    want(h.includes('cycles (MDM)'), 'list shows no MDM amounts')
+  })
+}
+console.log(`\n${Object.keys(cases).length + lifeCases + mdmCases.length - failed} passed, ${failed} failed`)
 if (failed) process.exitCode = 1

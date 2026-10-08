@@ -17,7 +17,7 @@ const TOPKEY = `histTopup:v3:${GROUP}`;
 
 const state = {
   DEV: [], DMAP: new Map(), allCycles: [], runs: [], cycleRun: new Map(),
-  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null,
+  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null, readings: null,
 };
 let snapshot = { ...state }, HIST = {}, TOP = {}, local = loadRuns(GROUP);
 const subs = new Set();
@@ -82,9 +82,16 @@ async function topUpFromServer(force) {
     const covered = state.DEV.filter(d => t.devices?.[d.serial]).length;
     state.sweep = { group: t.group, covered, fleet: state.DEV.length };
     if (!covered) return false;
-    TOP = t.devices; derive(); bump(); return true;
+    TOP = t.devices; await loadReadings(); derive(); bump(); return true;
   } catch (e) { if (force) throw e; return false; }
 }
+// The MDM counter recorded by the sweep (src/lib/mdmTrack.js). Optional: without it every
+// split figure falls back to a run count.
+async function loadReadings() {
+  try { const r = await fetch('/data/lifetime.json', { cache: 'no-store' }); state.readings = r.ok ? await r.json() : null; }
+  catch (e) { state.readings = null; }
+}
+
 export async function topUp(force = false) {
   if (await topUpFromServer(force)) return;
   let c = null; try { c = JSON.parse(localStorage.getItem(TOPKEY)); } catch (e) {}

@@ -4,3 +4,5 @@ server/config.json
 data/topup.json
 data/topup.json.tmp
 test/.out/
+data/lifetime.json
+data/lifetime.json.tmp

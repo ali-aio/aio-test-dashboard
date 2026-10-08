@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
-import { fmtDate, bcText, fmtBC } from '../lib/fmt.js'
+import { fmtDate, runsText } from '../lib/fmt.js'
 
 const DAY_NAMES = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -51,7 +51,10 @@ function readMode() {
  * can never be set to something that matches nothing. The chosen view is
  * remembered between visits.
  */
-export default function DatePicker({ dates, counts, value, onChange }) {
+// A day's or month's amount: the caller's text (MDM cycles when covered, else runs).
+
+export default function DatePicker({ dates, counts, value, onChange, countText = null }) {
+  const amount = (key, n) => (countText ? countText(key) : runsText(n))
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState(readMode)
   const ref = useRef(null)
@@ -161,7 +164,7 @@ export default function DatePicker({ dates, counts, value, onChange }) {
           </div>
 
           {mode === 'list' ? (
-            <DateList dates={listDates} counts={counts} value={value} maxCount={maxCount}
+            <DateList amount={amount} dates={listDates} counts={counts} value={value} maxCount={maxCount}
               listRef={listRef}
               onPick={pick}
               onClear={() => { onChange(''); setOpen(false) }} />
@@ -173,7 +176,7 @@ export default function DatePicker({ dates, counts, value, onChange }) {
             <div className="cal-title">
               <strong>{MONTH_NAMES[cursor.month]} {cursor.year}</strong>
               <span className="hint">
-                {monthDays ? `${monthDays} test day${monthDays === 1 ? '' : 's'} · ${bcText(monthTotal)}` : 'no runs this month'}
+                {monthDays ? `${monthDays} test day${monthDays === 1 ? '' : 's'} · ${amount(`${cursor.year}-${String(cursor.month + 1).padStart(2, '0')}`, monthTotal)}` : 'no runs this month'}
               </span>
             </div>
             <button type="button" className="btn btn-icon btn-sm" onClick={() => step(1)}
@@ -196,9 +199,9 @@ export default function DatePicker({ dates, counts, value, onChange }) {
                     disabled={!c.has}
                     aria-pressed={value === c.key}
                     aria-label={c.has
-                      ? `${fmtDate(c.key)} — ${bcText(c.n)}`
+                      ? `${fmtDate(c.key)} — ${amount(c.key, c.n)}`
                       : `${fmtDate(c.key)} — no runs`}
-                    title={c.has ? bcText(c.n) : undefined}
+                    title={c.has ? amount(c.key, c.n) : undefined}
                     onClick={() => pick(c.key)}
                   >
                     <span className="cal-num">{c.day}</span>
@@ -239,7 +242,7 @@ export default function DatePicker({ dates, counts, value, onChange }) {
  * sticky month headers. The bar carries the cycle count the same way the
  * calendar does — width for magnitude, not a second colour.
  */
-export function DateList({ dates, counts, value, maxCount, onPick, onClear, listRef }) {
+export function DateList({ dates, counts, value, maxCount, onPick, onClear, listRef, amount = (d, n) => `${n}` }) {
   if (!dates.length) {
     return <div className="hint" style={{ padding: 10 }}>No dated runs in scope.</div>
   }
@@ -265,12 +268,12 @@ export function DateList({ dates, counts, value, maxCount, onPick, onClear, list
             <button type="button" role="option" aria-selected={value === d}
               className={`date-row${value === d ? ' is-selected' : ''}`}
               data-selected={value === d} onClick={() => onPick(d)}
-              aria-label={`${fmtDate(d)} — ${bcText(n)}`}>
+              aria-label={`${fmtDate(d)} — ${amount(d, n)}`}>
               <span className="dr-label">{fmtDate(d)}</span>
               <span className="dr-bar" aria-hidden="true">
                 <span style={{ transform: `scaleX(${Math.max(0.08, n / Math.max(1, maxCount))})` }} />
               </span>
-              <span className="dr-count">{fmtBC(n)}</span>
+              <span className="dr-count">{amount(d, n)}</span>
             </button>
           </React.Fragment>
         )

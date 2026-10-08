@@ -1923,3 +1923,8 @@ tr.row-link:hover td { background: var(--wash); }
 .link-btn { border: 0; background: none; padding: 0; font: inherit; color: var(--series-1); cursor: pointer; text-align: left; }
 .link-btn:hover { text-decoration: underline; }
 tr.row-link.is-selected td { background: color-mix(in srgb, var(--series-1) 12%, transparent); }
+.grid > .span-all { grid-column: 1 / -1; min-width: 0; }
+.today-head { display: flex; gap: 20px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.today-head-main { flex: 1 1 420px; min-width: 0; }
+.today-search { flex: 0 1 340px; display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 760px) { .today-search { flex-basis: 100%; } }

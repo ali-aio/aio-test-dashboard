@@ -390,7 +390,8 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
             )}
           </Card>
         ) : (
-          <Card expandable title={isField ? 'Run time by pad state' : 'Run time by build'}
+          // A few bars: a full-width strip, not a half-width box beside the taller hourly chart.
+          <div className="span-all"><Card expandable title={isField ? 'Run time by pad state' : 'Run time by build'}
             sub="Mean hours per run">
             <BarRows
               rows={secondary.map((b) => ({
@@ -417,10 +418,10 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
                 temp: fmtTemp(b.avgPeakTemp),
               }))}
             />
-          </Card>
+          </Card></div>
         ))}
 
-        <Card expandable title={testType === 'WLC on Phone'
+        <div className={showSecondaryChart && !isLoadTest ? 'span-all' : undefined}><Card expandable title={testType === 'WLC on Phone'
           ? 'T7 drain and load gain by hour of the run'
           : isCharging ? 'Battery gained by hour of the run' : 'Drain by hour of the run'}
           sub={isCharging
@@ -529,7 +530,7 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
               )}
             </div>
           )}
-        </Card>
+        </Card></div>
       </div>
 
       {/* Every run in scope, one row each — with one device picked (Summary → a test row),

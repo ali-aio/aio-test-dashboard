@@ -73,6 +73,8 @@ export default function TodayView({ fleet }) {
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
   const matches = sn => !q || sn.toLowerCase().includes(q)
+  const [listOpen, setListOpen] = useState(false)
+  const listShown = listOpen || !!q
   // A device clicked in the table is ticked alone in the two charts above (Every device),
   // and the page scrolls up to them; clicking it again ticks every device again.
   const chartsRef = useRef(null)
@@ -164,7 +166,8 @@ export default function TodayView({ fleet }) {
   return (
     <div className="view-stack">
       <div className="card" style={{ borderLeft: `3px solid ${T.tt ? `var(--tt-${ttSlot(T.tt.id)})` : 'var(--border-strong)'}` }}>
-        <div className="card-body">
+        <div className="card-body today-head">
+        <div className="today-head-main">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11.5, letterSpacing: '.04em', color: 'var(--text-3)', fontWeight: 600 }}>
             {dayLong(key)} {statusBadge(T.status)}
             <span className={`pill ${reporting.length ? 'pill-run pill-live' : ''}`}>Live · {reporting.length} device{reporting.length === 1 ? '' : 's'} reporting</span>
@@ -175,6 +178,19 @@ export default function TodayView({ fleet }) {
               {' '}· {T.serials.length} devices · window {hm(T.startMs)}–{hm(T.endMs)} · every MDM row from these serials today is stamped with this test type.</>
               : <>Telemetry cannot say which test this is — the MDM carries no test type. <a className="link" href="#/nx/plan">Declare one on the Cycle plan</a> and today's rows are stamped with it.</>}
           </div>
+        </div>
+        {/* search, on the right of the day's header: narrows the charts and the device list */}
+        <div className="today-search">
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input className="control" type="search" placeholder="Search devices… (e.g. 044)" value={query} aria-label="Search devices"
+              onChange={e => setQuery(e.target.value)} style={{ flex: 1, maxWidth: 'none' }} />
+            {q && <button className="btn btn-sm" onClick={() => setQuery('')}>Clear</button>}
+          </div>
+          <span className="secondary" style={{ fontSize: 12 }}>
+            {q ? `${conf.filter(c => matches(c.serial)).length} of ${conf.length} devices match — charts and list show only these`
+              : 'Narrows the charts and the device list'}
+          </span>
+        </div>
         </div>
       </div>
 
@@ -198,15 +214,6 @@ export default function TodayView({ fleet }) {
 
       {drifting.length > 0 && <Drifters drifting={drifting} tt={T.tt} />}
 
-      <div className="card"><div className="card-body" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input className="control" type="search" placeholder="Search devices… (e.g. 044)" value={query} aria-label="Search devices"
-          onChange={e => setQuery(e.target.value)} style={{ flex: '1 1 240px', maxWidth: 360 }} />
-        <span className="secondary" style={{ fontSize: 12.5 }}>
-          {q ? `${conf.filter(c => matches(c.serial)).length} of ${conf.length} devices match “${query.trim()}” — charts and table show only these`
-            : 'Click a device in the table below to show only it in the charts'}
-        </span>
-        {q && <button className="btn btn-sm" onClick={() => setQuery('')}>Clear</button>}
-      </div></div>
 
 
 
@@ -251,8 +258,13 @@ export default function TodayView({ fleet }) {
           </div>
         </div>
         <div className="card">
-          <div className="card-head"><h2>Devices today</h2><span className="secondary">{reporting.length} reporting</span></div>
-          <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' },
+          {/* closed by default; a search opens it, since the search is about these rows */}
+          <div className="card-head" role="button" tabIndex={0} aria-expanded={listShown} style={{ cursor: 'pointer' }}
+            onClick={() => setListOpen(o => !o)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setListOpen(o => !o) } }}>
+            <h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{listShown ? '▾' : '▸'}</span>Devices today ({conf.filter(c => matches(c.serial)).length})</h2>
+            <span className="secondary">{reporting.length} reporting · {listShown ? 'click to hide' : 'click to show every device — click one to chart it alone'}</span>
+          </div>
+          {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' },
               { label: 'Drain', className: 'r' }, { label: 'Lifetime cycles (MDM)', className: 'r' }, { label: 'Temp now', className: 'r' },
               { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Today', className: 'r', sortable: false }]}>
               {conf.filter(c => matches(c.serial)).sort((a, b) => ((b.state === 'drifting') - (a.state === 'drifting')) || ((fleet.DMAP.get(a.serial)?.snap?.battery_pct ?? 999) - (fleet.DMAP.get(b.serial)?.snap?.battery_pct ?? 999))).map(c => {
@@ -273,7 +285,7 @@ export default function TodayView({ fleet }) {
                   <td className="r">{s ? <Sparkline vals={s.battPts.map(p => p.y)} /> : <span className="secondary">—</span>}</td>
                 </tr>
               })}
-          </SortTable></div>
+          </SortTable></div>}
         </div>
       </>}
     </div>

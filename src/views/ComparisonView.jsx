@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { Card, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns } from '../components/t7charts.jsx'
-import { compareBy, avgCurveBy, maxOf, explainEmpty } from '../lib/t7cycles.js'
+import { compareBy, avgCurveBy, maxOf, explainEmpty, plottedMaxHour } from '../lib/t7cycles.js'
 import { buildColorMap, MAX_SERIES, SERIES_VARS, BUILD_COLOR } from '../lib/palette.js'
 import {
   fmtInt, fmtPct, fmtHours, fmtTemp, fmtRate, fmtHourTick,
@@ -144,7 +144,7 @@ export default function ComparisonView({ cycles, testType }) {
     })), [drawable, colorMap])
 
   const maxHour = useMemo(
-    () => Math.ceil(Math.max(1, maxOf(cycles.map((c) => c.duration), 0))),
+    () => plottedMaxHour(cycles),
     [cycles],
   )
 

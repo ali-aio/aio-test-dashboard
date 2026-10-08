@@ -5,8 +5,7 @@ import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING } from '../lib/testty
 import {
   kpis, fullDischargeCycles, batteryBySerial, avgCurveBy, dropGainByLoadType, hourlyProfile,
   hourContributors, compareBy, mean, maxOf,
-  explainEmpty, explainNoRate,
-} from '../lib/t7cycles.js'
+  explainEmpty, explainNoRate, plottedMaxHour } from '../lib/t7cycles.js'
 import { buildColorMap, MAX_SERIES, SERIES_VARS, BUILD_COLOR, MEASURE_COLOR } from '../lib/palette.js'
 import {
   fmtInt, fmtNum, fmtPct, fmtHours, fmtTemp, fmtRate, fmtSigned, fmtHourTick, fmtDate, fmtSerial, compareSerial,
@@ -75,7 +74,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
   })
 
   const maxHour = useMemo(
-    () => Math.ceil(Math.max(1, maxOf(cycles.map((c) => c.duration), 0))),
+    () => plottedMaxHour(cycles),
     [cycles],
   )
 
@@ -239,7 +238,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
           foot="at cycle end" />
         {/* The average of the peaks hides the worst one, which is the figure a
             thermal problem actually shows up in. */}
-        <Stat label="Avg peak PCB temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
+        <Stat label="Avg peak battery temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
           foot={hottestRun == null
             ? 'no temperature recorded'
             : `hottest run reached ${fmtTemp(hottestRun)}`}

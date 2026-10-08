@@ -2,8 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { LineChart, Heatmap } from '../components/t7charts.jsx'
 import {
-  kpis, mean, median, maxOf, minOf, explainEmpty,
-} from '../lib/t7cycles.js'
+  kpis, mean, median, maxOf, minOf, explainEmpty, plottedMaxHour } from '../lib/t7cycles.js'
 import { thermalTimingByDevice } from '../lib/thermal.js'
 import {
   buildColorMap, MAX_SERIES, STATUS_ICON,
@@ -67,7 +66,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
   })
 
   const maxHour = useMemo(
-    () => Math.ceil(Math.max(1, maxOf(withTemp.map((c) => c.duration), 0))),
+    () => plottedMaxHour(withTemp, 'tempSeries'),
     [withTemp],
   )
 

@@ -3,7 +3,7 @@ import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { LineChart } from '../components/t7charts.jsx'
 import TestDetailView from './TestDetailView.jsx'
 import { ALL_TEST_TYPES, FIELD_TEST_TYPES } from '../lib/testtypes.js'
-import { kpis, fullDischargeCycles, compareFirmwareNewest, avgCurveBy, maxOf, explainEmpty } from '../lib/t7cycles.js'
+import { kpis, fullDischargeCycles, compareFirmwareNewest, avgCurveBy, maxOf, explainEmpty, plottedMaxHour } from '../lib/t7cycles.js'
 import { BUILD_COLOR, SERIES_VARS, MAX_SERIES } from '../lib/palette.js'
 import { fmtInt, fmtNum, fmtHours, fmtPct, fmtTemp, fmtRate, fmtHourTick, fmtDate, compareSerial } from '../lib/fmt.js'
 
@@ -98,7 +98,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter }) {
     // the dimension their data actually distinguishes.
     const groupKey = FIELD_TEST_TYPES.has(tt) ? 'padState' : 'build'
     const curves = avgCurveBy(own, groupKey)
-    const maxHour = Math.max(1, maxOf(own.map((c) => c.duration), 0))
+    const maxHour = plottedMaxHour(own)
     return {
       testType: tt,
       cycles: own,

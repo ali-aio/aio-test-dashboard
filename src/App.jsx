@@ -75,8 +75,12 @@ export default function App() {
   const seeded = useRef(false)
   useEffect(() => {
     if (!cycles.length) { prevSerials.current = []; return }
+    // Capture the previous list NOW: the updater below runs later, during render, by which
+    // time prevSerials.current has been overwritten with the new list — and "19 selected out
+    // of 24 previously available" reads as a deliberate subset, stranding the 5 new devices.
+    const prev = prevSerials.current
     if (!seeded.current) { seeded.current = true; setFilters(filtersFor(allSerials)) }
-    else setFilters(f => ({ ...f, serials: reconcileSerials(f.serials, allSerials, prevSerials.current) }))
+    else setFilters(f => ({ ...f, serials: reconcileSerials(f.serials, allSerials, prev) }))
     prevSerials.current = allSerials
   }, [cycles.length, allSerials.join(',')])
 

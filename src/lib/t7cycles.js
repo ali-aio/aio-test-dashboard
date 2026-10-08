@@ -754,3 +754,25 @@ export function histogramOf(values, binWidth, lo, hi) {
  * point at typos rather than to merge them — merging would hide a real
  * difference if the two spellings turn out to mean different things.
  */
+
+/**
+ * The x extent (hours) of what a curve chart will actually draw: the furthest sample in
+ * the cycles' own series, rounded up. T7 sized these axes by the longest cycle's
+ * duration, which works for bench runs that are all sampled to the end — but an MDM
+ * cycle can span weeks of offline time while its curve covers a day, which squeezed
+ * every line against the left edge of an 800-hour axis. Falls back to duration only
+ * when nothing in scope has a curve, so an empty chart still gets a sensible frame.
+ */
+export function plottedMaxHour(cycles, key = 'series') {
+  // avgCurveBy plots only samples sitting exactly on a whole hour (`p.t === Math.round(p.t)`,
+  // not the looser HOUR_SNAP), so use the identical rule: the axis ends at the last point
+  // that is actually drawn, not at a stray sample the curve itself ignores.
+  let max = 0
+  for (const c of cycles) {
+    for (const p of c[key] || []) {
+      if (p.t === Math.round(p.t) && p.t > max) max = p.t
+    }
+  }
+  if (!max) max = maxOf(cycles.map((c) => c.duration), 0) || 1
+  return Math.max(1, Math.ceil(max))
+}

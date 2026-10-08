@@ -17,7 +17,7 @@ const TOPKEY = `histTopup:v3:${GROUP}`;
 
 const state = {
   DEV: [], DMAP: new Map(), allCycles: [], runs: [], cycleRun: new Map(),
-  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false,
+  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null,
 };
 let snapshot = { ...state }, HIST = {}, TOP = {}, local = loadRuns(GROUP);
 const subs = new Set();
@@ -106,7 +106,11 @@ export async function boot() {
       fetchDevices({ fresh: true }),
       fetch('/data/cycles.json').then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
-    if (hist && hist.group === GROUP) { state.meta = hist; HIST = hist.devices; }
+    // The static import is most of the history (364 cycles against the sweep's ~20), so a
+    // silent miss here quietly drops two thirds of every number on the page. Record why.
+    if (!hist) state.seed = { ok: false, why: 'data/cycles.json did not load' };
+    else if (hist.group !== GROUP) state.seed = { ok: false, why: `data/cycles.json is for group "${hist.group}", this browser is scoped to "${GROUP}"` };
+    else { state.meta = hist; HIST = hist.devices; state.seed = { ok: true, cycles: Object.values(hist.devices).reduce((n, d) => n + (d.cycles?.length || 0), 0) }; }
     setDevices(rows);
     try { TOP = JSON.parse(localStorage.getItem(TOPKEY))?.devices || {}; } catch (e) {}
     derive(); state.ready = true; bump();

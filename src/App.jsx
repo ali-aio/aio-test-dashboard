@@ -95,6 +95,20 @@ export default function App() {
       <div className="view-stack">
         <FilterBar cycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} />
         <FilterPills filters={filters} onChange={setFilters} onReset={resetFilters} count={scoped.length} allSerials={allSerials} />
+        {fleet.seed && !fleet.seed.ok && (
+          <div className="banner banner-warn">
+            <span aria-hidden="true">◆</span>
+            <div><strong>Only the sweep's cycles are loaded — most of the history is missing.</strong>
+              <div>{fleet.seed.why}. You are seeing the last couple of weeks instead of the full campaign,
+                so every count, average and date on this page is understated. Scope group: <span className="mono">{GROUP}</span>.</div></div>
+          </div>
+        )}
+        {!fleet.backend && (
+          <div className="banner banner-warn"><span aria-hidden="true">◆</span>
+            <div><strong>Not using the backend.</strong>
+              <div>This page is talking to the MDM directly instead of through the proxy, so there is no
+                shared cache and no server sweep. A stale bundle is the usual cause — reload with Ctrl+Shift+R.</div></div></div>
+        )}
         {win.loading && <div className="banner"><span aria-hidden="true">●</span>
           <div><span className="spin" /> Reading {Math.round(WINDOW_HOURS / 24)} days of history for {DEV.length} devices — the curve charts fill in as it lands.</div></div>}
         <ErrorBoundary resetKey={`${view}|${JSON.stringify(filters)}`} onReset={resetFilters}>

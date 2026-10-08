@@ -44,9 +44,12 @@ let restored = false;
 export async function loadWindow(DEV, force = false) {
   if (state.loading || !DEV.length) return;
   if (!force && state.at && Date.now() - state.at < 5 * MIN) return;
-  state.loading = true; state.err = null; bump();
+  state.loading = true; state.err = null;
   try {
+    // Read the stored copy before announcing the load, so a return visit never shows the
+    // "reading history" banner for the moment the copy takes to come out of IndexedDB.
     const cache = force ? {} : await readCache(DEV.map(d => d.serial));
+    bump();
     // Paint the stored copy first, so the charts are up before the network is asked anything.
     if (!restored && Object.keys(cache).length) {
       restored = true;

@@ -135,7 +135,9 @@ export default function App() {
               <div>This page is talking to the MDM directly instead of through the proxy, so there is no
                 shared cache and no server sweep. A stale bundle is the usual cause — reload with Ctrl+Shift+R.</div></div></div>
         )}
-        {win.loading && <div className="banner"><span aria-hidden="true">●</span>
+        {/* Only on a browser's first visit: afterwards the charts draw from the stored copy
+            (src/lib/window.js) and the top-up for new readings runs quietly behind them. */}
+        {win.loading && !Object.keys(win.rows || {}).length && <div className="banner"><span aria-hidden="true">●</span>
           <div><span className="spin" /> Reading {Math.round(WINDOW_HOURS / 24)} days of history for {DEV.length} devices — the curve charts fill in as it lands.</div></div>}
         <ErrorBoundary resetKey={`${view}|${JSON.stringify(filters)}`} onReset={resetFilters}>
           {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} testType={filters.testType} allSerials={allSerials} lifetime={lifetime} />}

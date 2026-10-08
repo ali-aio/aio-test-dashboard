@@ -133,6 +133,10 @@ oversight; don't add restaurant filtering back in without being asked.
   kept in the browser's IndexedDB (`readings` store in `src/lib/db.js`), so a page open draws
   from the stored copy and fetches only the readings since (last stamp − 30 min). "Reload
   readings" bypasses it and refetches the full window.
+- `src/components/SortTable.jsx` — every table sorts by any heading: first click highest
+  first, second lowest first, third the table's own order, read from the displayed text
+  ("9.1 h", "47.6 °C", "13h 45m", dates). Chart tables (`TableView`) use it by default; a
+  hand-written table should be a `<SortTable head={[...]}>` rather than a bare `<table>`.
 - `src/lib/plan.js` — the **declared test-type schedule**, the answer to the one thing MDM
   telemetry cannot supply. A declaration is (test type, date window, device group, time
   window); resolution order is explicit declaration > standing weekly rota > inferred from

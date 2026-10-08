@@ -1,5 +1,6 @@
 import { splitText, splitBy } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
+import { SortTable } from '../components/SortTable.jsx'
 import LifetimeStat from '../components/LifetimeStat.jsx'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
@@ -504,19 +505,11 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
                 <EmptyNote>No run has readings at both ends of this hour.</EmptyNote>
               ) : (
                 <div className="table-wrap" style={{ maxHeight: 300 }}>
-                  <table className="data">
-                    <caption className="sr-only">Runs contributing to this hour</caption>
-                    <thead><tr>
-                      <th style={{ textAlign: 'left' }}>Device</th>
-                      <th>Date</th>
-                      <th style={{ textAlign: 'left' }}>Build</th>
-                      <th>Battery at start</th>
-                      <th>Battery at end</th>
-                      <th>{isCharging ? 'Gained' : 'Lost'}</th>
-                      {isLoadTest && <th>Load gained</th>}
-                      <th>Run length</th>
-                    </tr></thead>
-                    <tbody>
+                  <SortTable caption="Runs contributing to this hour" head={[
+                    { label: 'Device', style: { textAlign: 'left' } }, { label: 'Date' }, { label: 'Build', style: { textAlign: 'left' } },
+                    { label: 'Battery at start' }, { label: 'Battery at end' }, { label: isCharging ? 'Gained' : 'Lost' },
+                    ...(isLoadTest ? [{ label: 'Load gained' }] : []), { label: 'Run length' },
+                  ]}>
                       {hourRuns.map((r) => (
                         <tr key={r.id}>
                           <td className="serial" style={{ textAlign: 'left' }}>{fmtSerial(r.serial)}</td>
@@ -529,8 +522,7 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
                           <td>{fmtHours(r.duration)}</td>
                         </tr>
                       ))}
-                    </tbody>
-                  </table>
+                    </SortTable>
                 </div>
               )}
             </div>

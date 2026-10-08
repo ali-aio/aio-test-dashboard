@@ -1,5 +1,6 @@
 import { lifetimeCycles } from '../lib/device.js'
 import React, { useMemo, useState } from 'react'
+import { SortTable } from '../components/SortTable.jsx'
 import { Card, Stat, Pill, EmptyNote } from '../components/Primitives.jsx'
 import EventForm from '../components/EventForm.jsx'
 import DataQualityCard from '../components/DataQualityCard.jsx'
@@ -224,18 +225,10 @@ export default function DevicesView({
 
                           <h4 className="device-sub">What it has run</h4>
                           <div className="table-wrap">
-                            <table className="data">
-                              <caption className="sr-only">Tests this device has run</caption>
-                              <thead><tr>
-                                <th style={{ textAlign: 'left' }}>Test</th>
-                                <th>Runs</th>
-                                <th>Avg run time</th>
-                                <th>Avg drain</th>
-                                <th>Avg peak temp</th>
-                                <th>Hottest</th>
-                                <th>Last run</th>
-                              </tr></thead>
-                              <tbody>
+                            <SortTable caption="Tests this device has run" head={[
+                              { label: 'Test', style: { textAlign: 'left' } }, { label: 'Runs' }, { label: 'Avg run time' },
+                              { label: 'Avg drain' }, { label: 'Avg peak temp' }, { label: 'Hottest' }, { label: 'Last run' },
+                            ]}>
                                 {r.tests.map((tst) => (
                                   <tr key={tst.testType}>
                                     <td style={{ textAlign: 'left' }}>{tst.testType}</td>
@@ -247,8 +240,7 @@ export default function DevicesView({
                                     <td>{tst.last ? fmtDate(tst.last) : DASH}</td>
                                   </tr>
                                 ))}
-                              </tbody>
-                            </table>
+                              </SortTable>
                           </div>
                         </>
                       ) : (

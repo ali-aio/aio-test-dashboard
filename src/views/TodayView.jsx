@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, buckets, dayStats, conform, temp, runStartOf, drainSince, WINDOW_HOURS } from '../lib/window.js'
 import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, loadDecls, loadRota } from '../lib/plan.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
@@ -224,9 +225,9 @@ export default function TodayView({ fleet }) {
         </div>
         <div className="card">
           <div className="card-head"><h2>Devices today</h2><span className="secondary">{reporting.length} reporting</span></div>
-          <div className="scroll-x"><table className="data">
-            <thead><tr><th>Device</th><th>Against plan</th><th className="r">Battery</th><th className="r">Off charger</th><th className="r">Drain</th><th className="r">Lifetime cycles (MDM)</th><th className="r">Temp now</th><th className="r">Peak today</th><th className="r">≥{TEMP_LIMIT} °C</th><th className="r">Today</th></tr></thead>
-            <tbody>
+          <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' },
+              { label: 'Drain', className: 'r' }, { label: 'Lifetime cycles (MDM)', className: 'r' }, { label: 'Temp now', className: 'r' },
+              { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Today', className: 'r', sortable: false }]}>
               {conf.slice().sort((a, b) => ((b.state === 'drifting') - (a.state === 'drifting')) || ((fleet.DMAP.get(a.serial)?.snap?.battery_pct ?? 999) - (fleet.DMAP.get(b.serial)?.snap?.battery_pct ?? 999))).map(c => {
                 const r = runs.get(c.serial)
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
@@ -244,8 +245,7 @@ export default function TodayView({ fleet }) {
                   <td className="r">{s ? <Sparkline vals={s.battPts.map(p => p.y)} /> : <span className="secondary">—</span>}</td>
                 </tr>
               })}
-            </tbody>
-          </table></div>
+          </SortTable></div>
         </div>
       </>}
     </div>

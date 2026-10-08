@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { SortTable } from '../components/SortTable.jsx'
 import {
   TEST_TYPES, testType, ttSlot, loadDecls, saveDecls, loadRota, saveRota, newDecl,
   resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, WEEKDAYS, monthLabel, dayLabel,
@@ -169,9 +170,8 @@ export default function CyclePlanView({ fleet }) {
           <div className="card">
             <div className="card-head"><h2>What actually ran</h2><span className="secondary">runs ending on this day</span></div>
             {selRan.length ? (
-              <div className="scroll-x"><table className="data">
-                <thead><tr><th>Device</th><th>Kind</th><th className="r">Runtime</th><th className="r">Drain</th><th className="r">Peak</th><th className="r">Ended</th></tr></thead>
-                <tbody>{selRan.slice().sort((a, b) => a.end - b.end).map((c, i) => {
+              <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Kind' }, { label: 'Runtime', className: 'r' }, { label: 'Drain', className: 'r' },
+                  { label: 'Peak', className: 'r' }, { label: 'Ended', className: 'r' }]}>{selRan.slice().sort((a, b) => a.end - b.end).map((c, i) => {
                   const d = DEV.find(x => x.cycles.includes(c))
                   return <tr key={i}>
                     <td className="mono">{d ? d.serial : '—'}</td>
@@ -181,8 +181,7 @@ export default function CyclePlanView({ fleet }) {
                     <td className="r mono" style={{ color: c.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : 'inherit' }}>{c.maxTemp != null ? c.maxTemp.toFixed(1) + '°' : '—'}</td>
                     <td className="r muted">{hm(c.end)}</td>
                   </tr>
-                })}</tbody>
-              </table></div>
+                })}</SortTable></div>
             ) : <div className="empty-note">No run ended on this day.</div>}
           </div>
         </div>

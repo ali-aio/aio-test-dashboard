@@ -234,7 +234,7 @@ export function LineChart({
  */
 export function GroupedColumns({
   groups, measures, formatValue = (v) => String(v), yLabel, xLabel, xUnit,
-  height = 260, caption, tableColumns, tableRows, tableNote, tableSortable = false,
+  height = 260, caption, tableColumns, tableRows, tableNote, tableSortable = true,
   rotateLabels = false, emptyState, onSelectGroup, selectedGroup,
 }) {
   const [ref, width] = useMeasure()

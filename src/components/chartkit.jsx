@@ -10,6 +10,7 @@
 
 import { keyBackground } from '../lib/palette.js'
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useSort, SortTh, sortValue, cellText, compareValues } from './SortTable.jsx'
 
 /* ---------------------------------------------------------------- measuring */
 
@@ -269,45 +270,20 @@ export function Legend({ items, onToggle, hidden, note }) {
  * reachable without hover and without relying on colour.
  */
 export function TableView({
-  columns, rows, caption, maxHeight = 320, label = 'table view', note, sortable = false,
+  columns, rows, caption, maxHeight = 320, label = 'table view', note, sortable = true,
 }) {
   const [open, setOpen] = useState(false)
-  /* null until a heading is clicked; `worst` flips the good end to the bottom. */
-  const [sort, setSort] = useState(null)
+  /* Every heading sorts (SortTable.jsx): first click highest first, second lowest first,
+     third the table's own order. A row's `sort` values win over its displayed text. */
+  const [sort, onSort] = useSort()
 
-  /**
-   * Best first, not merely highest first — less drain is better while a longer
-   * run is better, so the column says which end is the good one. A column with
-   * no good end (a count, a name) just sorts biggest or A-Z first.
-   */
   const ordered = useMemo(() => {
     if (!sortable || !sort) return rows
-    const col = columns.find((c) => c.key === sort.key)
-    if (!col) return rows
-    const raw = (r) => r.sort?.[sort.key]
-    const flip = sort.mode === 'worst' ? -1 : 1
-    // A row with nothing recorded is neither best nor worst; it sits at the end.
-    const missing = (v) => v == null || (typeof v === 'number' && !Number.isFinite(v))
-
-    return [...rows].sort((a, b) => {
-      const av = raw(a)
-      const bv = raw(b)
-      if (missing(av) && missing(bv)) return 0
-      if (missing(av)) return 1
-      if (missing(bv)) return -1
-      if (typeof av === 'string' || typeof bv === 'string') {
-        return flip * String(av).localeCompare(String(bv))
-      }
-      // 'up' means a bigger number is the good end.
-      return flip * (col.better === 'down' ? av - bv : bv - av)
-    })
-  }, [rows, sort, sortable, columns])
+    const v = (r) => sortValue(r.sort?.[sort.key] ?? cellText(r[sort.key]))
+    return rows.map((r) => ({ r, v: v(r) })).sort((a, b) => compareValues(a.v, b.v, sort.dir)).map((x) => x.r)
+  }, [rows, sort, sortable])
 
   if (!rows?.length) return null
-
-  const onSort = (key) => setSort((s) => (
-    s?.key === key && s.mode === 'best' ? { key, mode: 'worst' } : { key, mode: 'best' }
-  ))
 
   return (
     <div style={{ marginTop: 10 }}>
@@ -317,7 +293,7 @@ export function TableView({
       {open && note && <p className="hint" style={{ margin: '8px 0 0' }}>{note}</p>}
       {open && sortable && (
         <p className="hint" style={{ margin: '4px 0 0' }}>
-          Click a heading to put its best at the top, again for its worst.
+          Click a heading for highest first, again for lowest first.
         </p>
       )}
       {open && (
@@ -328,20 +304,9 @@ export function TableView({
           <table className="data">
             {caption && <caption className="sr-only">{caption}</caption>}
             <thead>
-              <tr>{columns.map((c) => (
-                <th key={c.key}
-                  onClick={sortable ? () => onSort(c.key) : undefined}
-                  style={{ cursor: sortable ? 'pointer' : 'default' }}
-                  aria-sort={sort?.key === c.key
-                    ? (sort.mode === 'best' ? 'descending' : 'ascending') : 'none'}>
-                  {c.label}
-                  {sortable && sort?.key === c.key && (
-                    <span className="sort-caret" aria-hidden="true">
-                      {sort.mode === 'best' ? ' ▲' : ' ▼'}
-                    </span>
-                  )}
-                </th>
-              ))}</tr>
+              <tr>{columns.map((c) => (sortable
+                ? <SortTh key={c.key} k={c.key} sort={sort} onSort={onSort}>{c.label}</SortTh>
+                : <th key={c.key}>{c.label}</th>))}</tr>
             </thead>
             <tbody>
               {ordered.map((r, i) => (

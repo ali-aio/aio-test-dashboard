@@ -15,6 +15,7 @@ import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText } from '../src/lib/splitCycles.js'
 import RangePicker from '../src/components/RangePicker.jsx'
+import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 
 // a rota so every test type, including Restaurant Case's wireless split, gets exercised
@@ -145,6 +146,21 @@ const mdmCases = []
     want(h.includes('Compare by') && /Device \(\d+\)/.test(h), 'switch hidden or no device counts')
     const solo = one.filter((c) => c.serial === one[0].serial)
     want(renderToString(<Comparison cycles={solo} testType="__all__" allSerials={all} />).includes('Compare by'), 'switch hidden with one group')
+  })
+  check('table sort reads displayed values', () => {
+    const cases = [['9.1 h', 9.1], ['10.03%/h', 10.03], ['47.6 °C', 47.6], ['1,234 runs', 1234], ['13h 45m', 13.75], ['45m', 0.75],
+      ['09:34 PM', 21 * 60 + 34], ['12:05 AM', 5], ['−2.5%', -2.5], ['—', null], ['', null]]
+    for (const [t, v] of cases) want(sortValue(t) === v, `${t} -> ${sortValue(t)}`)
+    want(sortValue('7 May 2026') < sortValue('3 Oct 2026'), 'dates out of order')
+    const vals = ['20.6 h', '—', '35.6 h', '19.8 h'].map(sortValue)
+    want(vals.slice().sort((a, b) => compareValues(a, b, 1))[0] === 35.6, 'highest not first')
+    want(vals.slice().sort((a, b) => compareValues(a, b, -1))[0] === 19.8, 'lowest not first')
+    want(vals.slice().sort((a, b) => compareValues(a, b, -1)).at(-1) === null, 'blank not last')
+  })
+  check('sort table renders clickable headings', () => {
+    const h = renderToString(<SortTable head={[{ label: 'Device' }, { label: 'Temp' }]}>
+      {[['A', '40 °C'], ['B', '50 °C']].map(([a, b]) => <tr key={a}><td>{a}</td><td>{b}</td></tr>)}</SortTable>)
+    want(h.includes('Click for highest first') && h.includes('50 °C'), 'no sortable heading')
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

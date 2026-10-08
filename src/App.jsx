@@ -5,7 +5,7 @@ import { adaptAll, CTX } from './lib/adapt.js'
 import { loadDecls, loadRota, testType as ttById } from './lib/plan.js'
 import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials, batteryCycles } from './lib/t7cycles.js'
 import { initThemeToggle } from './lib/theme.js'
-import { fmtInt, fmtDateLong, fmtBC } from './lib/fmt.js'
+import { fmtInt, fmtDateLong, fmtBC, fmtLifetime } from './lib/fmt.js'
 import { ago } from './lib/format.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { HistoryStatus } from './components/historyStatus.js'
@@ -155,7 +155,7 @@ export default function App() {
         <div className="header-spacer" />
         {ready && (
           <span className="hint nowrap">
-            {fmtBC(batteryCycles(cycles))} cycles · {DEV.length} devices{latestDate ? ` · through ${fmtDateLong(latestDate)}` : ''}
+            {fmtLifetime(lifetimeOf(DEV.map(d => d.serial), sn => fleet.DMAP.get(sn)?.snap).value)} lifetime cycles (MDM) · {DEV.length} devices{latestDate ? ` · through ${fmtDateLong(latestDate)}` : ''}
           </span>
         )}
         <span className="hint nowrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

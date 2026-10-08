@@ -229,9 +229,7 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
   return (
     <div className="view-stack">
       <div className="stat-row">
-        <Stat label="Battery cycles in these runs" hero value={isCharging ? '—' : fmtBC(fullDrain.cycles)}
-          foot={isCharging ? 'charging runs drain no battery' : undefined} />
-        <LifetimeStat lifetime={lifetime} />
+        <LifetimeStat lifetime={lifetime} hero />
         <Stat label="Avg run time" value={fmtNum(k.avgDuration, 1)} unit="h"
           foot="per run" />
         {isRestaurant ? restaurantRates.map((mode) => (

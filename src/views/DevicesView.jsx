@@ -9,7 +9,7 @@ import {
 } from '../lib/events.js'
 import { levelFor } from '../lib/palette.js'
 import {
-  fmtInt, fmtPct, fmtTemp, fmtHours, fmtRate, fmtDate, fmtSerial, compareSerial, DASH, fmtBC, bcText, fmtLifetime } from '../lib/fmt.js'
+  fmtInt, fmtPct, fmtTemp, fmtHours, fmtRate, fmtDate, fmtSerial, compareSerial, DASH, fmtBC, bcText, runsText, fmtLifetime } from '../lib/fmt.js'
 
 const fmtWhen = (ms) => {
   const d = new Date(ms)
@@ -117,7 +117,7 @@ export default function DevicesView({
     <div className="view-stack">
       <div className="stat-row">
         <Stat label="Devices" value={fmtInt(rows.length)} hero
-          foot={`${fmtBC(batteryCycles(cycles))} cycles in scope`} />
+          foot={`${fmtLifetime(rows.reduce((a, r) => { const v = lifetimeCycles(snapOf(r.serial)); return v == null ? a : (a ?? 0) + v }, null))} lifetime cycles (MDM)`} />
         <Stat label="With a recorded event" value={fmtInt(withEvents)}
           foot={<Pill level={withEvents ? 'warning' : 'good'}>
             {withEvents ? `${((withEvents / rows.length) * 100).toFixed(0)}% of devices` : 'none logged'}
@@ -190,7 +190,7 @@ export default function DevicesView({
                     <span className="device-meta">
                       {r.cycles.length
                         ? <>
-                            {bcText(batteryCycles(r.cycles))}
+                            {runsText(r.cycles.length)}
                             {r.builds.length ? ` · ${fmtInt(r.builds.length)} build${r.builds.length === 1 ? '' : 's'}` : ''}
                             {r.firmwares.length ? ` · ${fmtInt(r.firmwares.length)} firmware version${r.firmwares.length === 1 ? '' : 's'}` : ''}
                             {r.lastDate ? ` · last ran ${fmtDate(r.lastDate)}` : ''}

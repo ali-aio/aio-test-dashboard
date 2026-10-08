@@ -68,7 +68,8 @@ for (const [name, lifetime, want] of checks) {
       const i = html.indexOf('Lifetime cycles (MDM)'), tile = html.slice(i, i + 400).replace(/<[^>]+>/g, ' ')
       if (i < 0 || !tile.includes(want)) throw new Error(`expected ${want}, tile read: ${tile.replace(/\s+/g, ' ').slice(0, 120)}`)
       if (!tile.includes('lifetime, all tests — from MDM')) throw new Error('foot text missing')
-      if (!html.includes('Battery cycles in these runs')) throw new Error('run-based tile not relabelled')
+      // cycles come from the MDM only; the run-derived tile was removed on request
+      if (html.includes('Battery cycles in these runs')) throw new Error('run-based tile should be gone')
       console.log('OK  ', name, tt === '__all__' ? '(overview)' : '(test view)')
     } catch (e) { failed++; console.log('FAIL', name, '->', e.message) }
   }

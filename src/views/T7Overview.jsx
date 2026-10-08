@@ -7,7 +7,7 @@ import TestDetailView from './TestDetailView.jsx'
 import { ALL_TEST_TYPES, FIELD_TEST_TYPES } from '../lib/testtypes.js'
 import { kpis, fullDischargeCycles, compareFirmwareNewest, avgCurveBy, maxOf, explainEmpty, plottedMaxHour, batteryCycles, batteryCyclesBy } from '../lib/t7cycles.js'
 import { BUILD_COLOR, SERIES_VARS, MAX_SERIES } from '../lib/palette.js'
-import { fmtBC, bcText, runsText, fmtInt, fmtNum, fmtHours, fmtPct, fmtTemp, fmtRate, fmtHourTick, fmtDate, compareSerial } from '../lib/fmt.js'
+import { fmtLifetime, fmtBC, bcText, runsText, fmtInt, fmtNum, fmtHours, fmtPct, fmtTemp, fmtRate, fmtHourTick, fmtDate, compareSerial } from '../lib/fmt.js'
 
 export default function OverviewView({ cycles, onPickTestType, onFilter, testType = '__all__', allSerials = [], lifetime = null }) {
   if (testType !== '__all__') {
@@ -134,11 +134,12 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [], l
   return (
     <div className="view-stack">
       <div className="stat-row stat-row-lg">
-            <Stat label="Battery cycles in these runs" value={fmtBC(fullDrain.cycles)} hero
-              breakdown={breakdowns.testType} breakdownLabel="Battery cycles per test" />
-            <LifetimeStat lifetime={lifetime} />
+            <LifetimeStat lifetime={lifetime} hero />
             <Stat label="Total devices" value={fmtInt(k.serials)}
-              breakdown={breakdowns.serial} breakdownLabel="Battery cycles per device" />
+              breakdown={(lifetime?.rows || []).slice().sort((a, b) => (b.value ?? -1) - (a.value ?? -1))
+                .map((r) => ({ id: r.serial, label: r.serial, value: r.value ?? 0, display: fmtLifetime(r.value),
+                  onClick: onFilter ? () => onFilter({ serials: [r.serial] }) : undefined }))}
+              breakdownLabel="Lifetime cycles per device (MDM)" />
             <Stat label="Test days" value={fmtInt(k.dates)}
               breakdown={breakdowns.date} breakdownLabel="Battery cycles per test day" />
             <Stat label="HW build" value={fmtInt(inv.build.values.length)}

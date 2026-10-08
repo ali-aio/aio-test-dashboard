@@ -106,10 +106,10 @@ export function resolveDay(key, { decls, rota, ran = 0, devices = 0 }) {
 }
 
 export const STATUS = {
-  declared:     { glyph: '◆', label: 'Declared' },
-  confirmed:    { glyph: '●', label: 'Confirmed' },
-  inferred:     { glyph: '▨', label: 'Inferred' },
-  unclassified: { glyph: '○', label: 'Unclassified' },
+  declared:     { glyph: '◆', label: 'Planned' },
+  confirmed:    { glyph: '●', label: 'Planned & ran' },
+  inferred:     { glyph: '▨', label: 'Ran, no test set' },
+  unclassified: { glyph: '○', label: 'No test, no run' },
   none:         { glyph: '',  label: 'No run' },
 };
 

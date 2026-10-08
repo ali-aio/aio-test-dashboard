@@ -174,7 +174,7 @@ export default function TodayView({ fleet }) {
           </div>
           <h1 style={{ margin: '6px 0 4px', fontSize: 26, lineHeight: 1.15 }}>{T.tt ? T.tt.name : 'No test declared'}</h1>
           <div className="secondary" style={{ fontSize: 12.5 }}>
-            {T.tt ? <>{T.source === 'rota' ? 'From the standing weekly rota' : <>Declared{T.src?.by ? <> by <b>{T.src.by}</b></> : null}{T.src?.at ? ` at ${hm(T.src.at)}` : ''}</>}
+            {T.tt ? <>{T.source === 'rota' ? 'From the standing weekly rota' : <>Planned{T.src?.by ? <> by <b>{T.src.by}</b></> : null}{T.src?.at ? ` at ${hm(T.src.at)}` : ''}</>}
               {' '}· {T.serials.length} devices · window {hm(T.startMs)}–{hm(T.endMs)} · every MDM row from these serials today is stamped with this test type.</>
               : <>Telemetry cannot say which test this is — the MDM carries no test type. <a className="link" href="#/nx/plan">Declare one on the Cycle plan</a> and today's rows are stamped with it.</>}
           </div>
@@ -339,7 +339,7 @@ function Drifters({ drifting, tt }) {
             <span className="mono" style={{ color: 'var(--status-warning)' }}>{(c.delta > 0 ? '+' : '') + c.delta}%</span>
           </div>
         ))}
-        <div className="card-body"><div className="help">These rows will not be stamped with the declared test type — they fall through to Unclassified.</div></div>
+        <div className="card-body"><div className="help">These rows will not be stamped with the declared test type — they count as having no test set.</div></div>
       </> : <div className="empty">{tt ? 'Every reporting device matches the declared test.' : 'Nothing declared for today, so nothing can drift.'}</div>}
     </div>
   )

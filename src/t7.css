@@ -1928,3 +1928,6 @@ tr.row-link.is-selected td { background: color-mix(in srgb, var(--series-1) 12%,
 .today-head-main { flex: 1 1 420px; min-width: 0; }
 .today-search { flex: 0 1 340px; display: flex; flex-direction: column; gap: 4px; }
 @media (max-width: 760px) { .today-search { flex-basis: 100%; } }
+.form-actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; }
+.form-actions .btn-primary { min-width: 120px; }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; }

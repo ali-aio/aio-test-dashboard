@@ -23,7 +23,7 @@ export default function CyclePlanView({ fleet }) {
   const [sel, setSel] = useState(todayKey())
   // the calendar icon: a native date picker, so any month or day is one pick away
   const jumpRef = useRef(null)
-  const jumpTo = (key) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return; const [y, m] = key.split('-').map(Number); setYm({ y, m: m - 1 }); setSel(key) }
+  const jumpTo = (key) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return; const [y, m] = key.split('-').map(Number); setYm({ y, m: m - 1 }); setSel(key); setForm(null) }
   const openJump = () => { const el = jumpRef.current; if (!el) return; try { el.showPicker() } catch (e) { el.focus(); el.click() } }
   const [form, setForm] = useState(null)
 
@@ -79,7 +79,7 @@ export default function CyclePlanView({ fleet }) {
             </div>
             <div className="plan-nav">
               <button aria-label="Previous month" onClick={() => { const d = new Date(ym.y, ym.m - 1, 1); setYm({ y: d.getFullYear(), m: d.getMonth() }) }}>‹</button>
-              <button onClick={() => { const d = new Date(); setYm({ y: d.getFullYear(), m: d.getMonth() }); setSel(todayKey()) }}>Today</button>
+              <button onClick={() => { const d = new Date(); setYm({ y: d.getFullYear(), m: d.getMonth() }); setSel(todayKey()); setForm(null) }}>Today</button>
               <button aria-label="Next month" onClick={() => { const d = new Date(ym.y, ym.m + 1, 1); setYm({ y: d.getFullYear(), m: d.getMonth() }) }}>›</button>
               <span style={{ position: 'relative', display: 'inline-flex' }}>
                 <button aria-label="Go to a date" title="Go to a month or date" onClick={openJump}>
@@ -102,10 +102,12 @@ export default function CyclePlanView({ fleet }) {
                 return (
                   <button key={c.key} className={`plan-day ${c.inMonth ? '' : 'out'} ${c.isToday ? 'today' : ''} ${c.key === sel ? 'sel' : ''}`}
                     title={`${dayLabel(c.key)} · ${STATUS[r.status].label}`}
+                    // One rule: a click selects the day and drops any half-filled form. Only an
+                    // empty day from today on (the "+ set test" cells) goes straight to the form.
                     onClick={() => {
                       setSel(c.key)
-                      if (form) setForm(f => ({ ...f, from: c.key, to: c.key }))
-                      else if (!r.tt && c.inMonth) openForm(null, c.key)
+                      if (!r.tt && future && c.inMonth) openForm(null, c.key)
+                      else setForm(null)
                     }}>
                     <span className="dnum">{c.dayNum}{c.isToday ? <span className="tdy">TODAY</span> : null}</span>
                     {r.tt ? <><Chip r={r} /><span className="tname">{r.tt.name}</span><span className="tdev">{r.serials.length} devices</span></>
@@ -137,7 +139,7 @@ export default function CyclePlanView({ fleet }) {
               setYm({ y, m: m - 1 }); setSel(next.from); setForm(null)
             }} />}
 
-          <div className="card">
+          {!form && <div className="card">
             <div className="card-head"><h2>{dayLabel(sel)}</h2>
               <span className={`pill ${{ declared: 'pill-run', confirmed: 'pill-ok', inferred: 'pill-warn', unclassified: '', none: '' }[S.status]}`}>{STATUS[S.status].label}</span></div>
             <div className="card-body">
@@ -155,7 +157,7 @@ export default function CyclePlanView({ fleet }) {
                   : <button className="btn btn-primary" onClick={() => openForm(null)}>+ Set a test for this day</button>}
               </div>
             </div>
-          </div>
+          </div>}
 
         </div>
       </div>
@@ -174,7 +176,7 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   return (
     <div className="card">
-      <div className="card-head"><div><h2>{editing ? 'Edit the test' : 'Set a test'}</h2><div className="card-sub">which test these devices run, and when</div></div>
+      <div className="card-head"><div><h2>{editing ? 'Edit the test' : 'Set a test'}</h2><div className="card-sub">{form.from ? (form.to && form.to !== form.from ? `${dayLabel(form.from)} to ${dayLabel(form.to)}` : dayLabel(form.from)) : 'pick a date'}</div></div>
         <button className="rp-x" aria-label="Close" title="Close" style={{ marginLeft: 'auto' }} onClick={onCancel}>×</button></div>
       <div className="card-body">
         <div className="field"><label htmlFor="f-type">Test type</label>

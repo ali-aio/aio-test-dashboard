@@ -1,3 +1,4 @@
+import { lifetimeCycles } from '../lib/device.js'
 import React, { useMemo, useState } from 'react'
 import { Card, Stat, Pill, EmptyNote } from '../components/Primitives.jsx'
 import EventForm from '../components/EventForm.jsx'
@@ -8,7 +9,7 @@ import {
 } from '../lib/events.js'
 import { levelFor } from '../lib/palette.js'
 import {
-  fmtInt, fmtPct, fmtTemp, fmtHours, fmtRate, fmtDate, fmtSerial, compareSerial, DASH, fmtBC, bcText } from '../lib/fmt.js'
+  fmtInt, fmtPct, fmtTemp, fmtHours, fmtRate, fmtDate, fmtSerial, compareSerial, DASH, fmtBC, bcText, fmtLifetime } from '../lib/fmt.js'
 
 const fmtWhen = (ms) => {
   const d = new Date(ms)
@@ -26,8 +27,7 @@ const fmtWhen = (ms) => {
  * is usually the explanation for whatever the numbers show.
  */
 export default function DevicesView({
-  cycles, allSerials, events, onEventsChanged, onFilter, issues = [], files = [],
-}) {
+  cycles, allSerials, events, onEventsChanged, onFilter, issues = [], files = [], snapOf = () => null }) {
   const [editing, setEditing] = useState(null)   // an event, {} for new, or null
   const [expanded, setExpanded] = useState(() => new Set())
   /* Only the devices something has been logged against, by default. A list of
@@ -73,7 +73,8 @@ export default function DevicesView({
             last: list.map((c) => c.date).filter(Boolean).sort().pop() ?? null,
           }))
           .sort((a, b) => b.n - a.n || a.testType.localeCompare(b.testType)),
-        builds: [...new Set(own.map((c) => c.build).filter((b) => b !== 'Unknown'))],
+        // MDM runs carry build: null (the API reports no hardware build) — not a build to list
+        builds: [...new Set(own.map((c) => c.build).filter((b) => b != null && b !== 'Unknown'))],
         firmwares: [...new Set(own.map((c) => c.firmware).filter((f) => f !== 'Unknown'))],
       }
     })
@@ -195,6 +196,7 @@ export default function DevicesView({
                             {r.lastDate ? ` · last ran ${fmtDate(r.lastDate)}` : ''}
                           </>
                         : <span className="muted">no runs in the current filters</span>}
+                      {` · ${fmtLifetime(lifetimeCycles(snapOf(r.serial)))} lifetime cycles (MDM)`}
                     </span>
 
                     {Number.isFinite(r.peak) && (
@@ -207,6 +209,7 @@ export default function DevicesView({
                       {r.cycles.length > 0 ? (
                         <>
                           <dl className="device-figures">
+                            <div><dt>Lifetime cycles (MDM)</dt><dd>{fmtLifetime(lifetimeCycles(snapOf(r.serial)))}</dd></div>
                             <div><dt>Runs</dt><dd>{fmtInt(r.cycles.length)}</dd></div>
                             <div><dt>Test types</dt><dd>{fmtInt(r.tests.length)}</dd></div>
                             <div><dt>Test days</dt><dd>{fmtInt(r.k.dates)}</dd></div>

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import LifetimeStat from '../components/LifetimeStat.jsx'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
 import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING } from '../lib/testtypes.js'
@@ -32,7 +33,7 @@ const DEVICE_VIEWS = [
   { id: 'all', label: 'Every run' },
 ]
 
-export default function TestDetailView({ cycles, testType, allSerials }) {
+export default function TestDetailView({ cycles, testType, allSerials, lifetime = null }) {
   /* null until the reader picks one, so the default can follow the data rather
      than being baked in — a grouped mean is the first useful read, and the
      per-device tangle is a step you take once you know what to look for. */
@@ -228,8 +229,9 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
   return (
     <div className="view-stack">
       <div className="stat-row">
-        <Stat label="Total cycles" hero value={isCharging ? '—' : fmtBC(fullDrain.cycles)}
+        <Stat label="Battery cycles in these runs" hero value={isCharging ? '—' : fmtBC(fullDrain.cycles)}
           foot={isCharging ? 'charging runs drain no battery' : undefined} />
+        <LifetimeStat lifetime={lifetime} />
         <Stat label="Avg run time" value={fmtNum(k.avgDuration, 1)} unit="h"
           foot="per run" />
         {isRestaurant ? restaurantRates.map((mode) => (

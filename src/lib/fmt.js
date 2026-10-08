@@ -63,3 +63,7 @@ export const fmtBC = (v) => (v == null || !Number.isFinite(v) ? DASH
   : v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))
 export const bcText = (v) => `${fmtBC(v)} cycle${v === 1 ? '' : 's'}`
 export const runsText = (n) => `${fmtInt(n)} run${n === 1 ? '' : 's'}`
+
+// The MDM's lifetime battery cycles for one device, two decimals ("—" when not reported).
+export const fmtLifetime = (v) => (v == null || !Number.isFinite(v) ? DASH
+  : v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))

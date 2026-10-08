@@ -9,6 +9,7 @@ import { fmtInt, fmtDateLong, fmtBC } from './lib/fmt.js'
 import { ago } from './lib/format.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { HistoryStatus } from './components/historyStatus.js'
+import { lifetimeOf } from './lib/device.js'
 import FilterBar, { FilterPills } from './components/FilterBar.jsx'
 import T7Overview from './views/T7Overview.jsx'
 import ComparisonView from './views/ComparisonView.jsx'
@@ -98,6 +99,11 @@ export default function App() {
     ...loadDecls(GROUP).map(d => ttById(d.testType)?.name),
     ...Object.values(loadRota(GROUP)).map(r => ttById(r?.testType)?.name),
   ].filter(Boolean))]
+  // The MDM's lifetime battery cycles for the devices ticked in the Serial filter. Only the
+  // Serial filter applies: the counter is per device and lifetime, so test type, firmware
+  // and date cannot narrow it.
+  const lifetime = useMemo(() => lifetimeOf(filters.serials || [], sn => fleet.DMAP.get(sn)?.snap),
+    [filters.serials, DEV])
   const analysis = ['overview', 'comparison', 'thermal', 'summary'].includes(view)
   const body = error ? <ErrorPanel error={error} />
     : !ready ? <div className="empty-note">Loading the fleet from the MDM…</div>
@@ -123,10 +129,10 @@ export default function App() {
         {win.loading && <div className="banner"><span aria-hidden="true">●</span>
           <div><span className="spin" /> Reading {Math.round(WINDOW_HOURS / 24)} days of history for {DEV.length} devices — the curve charts fill in as it lands.</div></div>}
         <ErrorBoundary resetKey={`${view}|${JSON.stringify(filters)}`} onReset={resetFilters}>
-          {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} testType={filters.testType} allSerials={allSerials} />}
+          {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} testType={filters.testType} allSerials={allSerials} lifetime={lifetime} />}
           {view === 'comparison' && <ComparisonView cycles={scoped} testType={filters.testType} allSerials={allSerials} />}
           {view === 'thermal' && <ThermalView cycles={scoped} allSerials={allSerials} onFilter={applyFilter} />}
-          {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={[]} onEventsChanged={() => {}} onFilter={applyFilter} issues={[]} files={[]} />}
+          {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={[]} onEventsChanged={() => {}} onFilter={applyFilter} issues={[]} files={[]} snapOf={sn => fleet.DMAP.get(sn)?.snap} />}
         </ErrorBoundary>
       </div>
     )

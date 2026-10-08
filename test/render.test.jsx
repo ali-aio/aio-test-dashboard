@@ -10,6 +10,7 @@ import Thermal from '../src/views/ThermalView.jsx'
 import Devices from '../src/views/DevicesView.jsx'
 import Today from '../src/views/TodayView.jsx'
 import CyclePlan from '../src/views/CyclePlanView.jsx'
+import { lifetimeOf } from '../src/lib/device.js'
 
 // a rota so every test type, including Restaurant Case's wireless split, gets exercised
 const ROTA = JSON.stringify({0:{testType:'wlc_load'},1:{testType:'restaurant'},2:{testType:'wlc_phone'},3:{testType:'wlc_disch'},4:{testType:'charging'},5:{testType:'burnin'},6:{testType:'disch_ads'}})
@@ -50,5 +51,27 @@ for (const [name, [C, p]] of Object.entries(cases)) {
   try { renderToString(<C {...p} />); console.log('OK  ', name, `(${p.cycles.length})`) }
   catch (e) { failed++; console.log('FAIL', name, '->', e.message); console.log((e.stack || '').split('\n').slice(1, 5).join('\n')) }
 }
-console.log(`\n${Object.keys(cases).length - failed} passed, ${failed} failed`)
+// Lifetime cycles (MDM): the tile must show the real sum, and "—" (never 0) when no
+// ticked device reports discharge_total_pct.
+const snaps = { [all[0]]: { discharge_total_pct: 1492 }, [all[1]]: { discharge_total_pct: 9207 }, [all[2]]: {} }
+const checks = [
+  ['lifetime: one device = 14.92', lifetimeOf([all[0]], sn => snaps[sn]), '14.92'],
+  ['lifetime: two devices summed', lifetimeOf([all[0], all[1]], sn => snaps[sn]), '106.99'],
+  ['lifetime: none reporting shows —', lifetimeOf([all[2]], sn => snaps[sn]), '—'],
+]
+let lifeCases = 0
+for (const [name, lifetime, want] of checks) {
+  for (const tt of ['__all__', tts[0]]) {
+    lifeCases++
+    try {
+      const html = renderToString(<T7Overview cycles={tt === '__all__' ? cycles : cycles.filter(c => c.testType === tt)} testType={tt} allSerials={all} onPickTestType={nop} onFilter={nop} lifetime={lifetime} />)
+      const i = html.indexOf('Lifetime cycles (MDM)'), tile = html.slice(i, i + 400).replace(/<[^>]+>/g, ' ')
+      if (i < 0 || !tile.includes(want)) throw new Error(`expected ${want}, tile read: ${tile.replace(/\s+/g, ' ').slice(0, 120)}`)
+      if (!tile.includes('lifetime, all tests — from MDM')) throw new Error('foot text missing')
+      if (!html.includes('Battery cycles in these runs')) throw new Error('run-based tile not relabelled')
+      console.log('OK  ', name, tt === '__all__' ? '(overview)' : '(test view)')
+    } catch (e) { failed++; console.log('FAIL', name, '->', e.message) }
+  }
+}
+console.log(`\n${Object.keys(cases).length + lifeCases - failed} passed, ${failed} failed`)
 if (failed) process.exitCode = 1

@@ -42,6 +42,8 @@ import { apiBase, apiKey, hasConfig, saveConfig, scopeGroup, setScopeGroup, fetc
 import { detectCycles, aggregate, fmtDur, reclassify, loadOpts, DEFAULTS, rt } from './shared/cycles.js';
 import { loadRuns, saveRuns, newRun, evaluateRun, runRows, normalize } from './shared/runs.js';
 import { initThemeToggle } from './shared/theme.js';
+import { lifetimeCycles } from './src/lib/device.js';
+import { fmtLifetime } from './src/lib/fmt.js';
 import { batteryHealth, chargeSegments, thermalStats, TEMP_WARN, TEMP_LIMIT } from './shared/profile.js';
 import { TEST_TYPES, testType, ttSlot, loadDecls, saveDecls, loadRota, saveRota, newDecl, resolveDay, STATUS, groupSerials, monthGrid, dayKey, startOfDay, todayKey, timeOn, WEEKDAYS, monthLabel, dayLabel, dayLong } from './shared/plan.js';
 
@@ -337,12 +339,12 @@ function deviceInspector(d) {
     <div class="big num">${s.pct != null ? s.pct + '%' : '—'}<small>${s.pct != null ? (d.snap.charging ? 'charging' : 'on battery') : s.label.toLowerCase()}</small></div>
     <hr><h4>Battery</h4><dl class="kv">
       <dt>Temperature</dt><dd class="num" style="color:${online(d) && d.snap.battery_temp_c >= TEMP_LIMIT ? 'var(--bad)' : online(d) && d.snap.battery_temp_c >= TEMP_WARN ? 'var(--warn)' : 'inherit'}">${online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : '—'}</dd>
+      <dt>Lifetime cycles (MDM)</dt><dd class="num">${fmtLifetime(lifetimeCycles(d.snap))}</dd>
       <dt>Counted cycles</dt><dd class="num">${d.cycles.length}${d.interrupted.length ? `<span class="muted"> · ${d.interrupted.length} partial</span>` : ''}</dd>
       <dt>Runtime to empty</dt><dd class="num">${d.cycles.length ? `${fmtDur(d.agg.medianDurationMs)}<span class="muted"> median</span>` : '—'}</dd>
       <dt>Last cycle</dt><dd class="num">${last ? `${fmtDur(rt(last))}<span class="muted"> · ${fmtDur(last.durationMs)} to ${last.endPct}% · ${day(last.start)}</span>` : '—'}</dd>
       <dt>Health</dt><dd class="num" style="color:${d.health && d.health.health < 80 ? 'var(--bad)' : 'inherit'}">${d.health ? d.health.health.toFixed(0) + '%' : '<span class="muted">needs 6+ cycles</span>'}</dd>
       ${d.health ? `<dt>Fade per cycle</dt><dd class="num">${signed(d.health.slope)}</dd>` : ''}
-      <dt>Equivalent full cycles</dt><dd class="num">${d.snap.discharge_total_pct != null ? (d.snap.discharge_total_pct / 100).toFixed(1) : '—'}</dd>
       <dt>Peak temperature</dt><dd class="num">${d.agg.maxTemp != null ? d.agg.maxTemp.toFixed(1) + ' °C' : '—'}</dd></dl>
     ${cs.length > 1 ? `<hr><h4>Runtime · last ${cs.length} cycles</h4><div class="bars">${cs.map((c, i) => `<i style="height:${Math.round(rt(c) / mx * 100)}%" class="${i === cs.length - 1 ? 'last' : ''}" title="${fmtDur(rt(c))} to empty · ${fmtDur(c.durationMs)} to ${c.endPct}% · ${day(c.start)}"></i>`).join('')}</div>` : ''}
     <hr><h4>Device</h4><dl class="kv"><dt>Last seen</dt><dd>${dt(Date.parse(d.snap.last_seen_at))}</dd>${x.build_id || d.snap.build_id ? `<dt>Build</dt><dd class="mono">${esc(x.build_id || d.snap.build_id)}</dd>` : ''}${d.snap.restaurant_name ? `<dt>Restaurant</dt><dd>${esc(d.snap.restaurant_name)}</dd>` : ''}<dt>Groups</dt><dd>${esc((d.snap.groups || []).join(', ') || '—')}</dd></dl>
@@ -913,12 +915,12 @@ function nxPlanInspector(cells) {
 const devState = { q: '', sort: 'serial', dir: 1, filter: 'all' };
 function devicesView() {
   crumbs(['Devices']);
-  const cols = [['serial', 'Device'], ['status', 'Status'], ['battery', 'Battery', 1], ['temp', 'Temp', 1], ['cycles', 'Cycles', 1], ['median', 'Runtime to empty', 1], ['last', 'Last cycle', 1], ['health', 'Health', 1], ['', 'Last 12 cycles', 1], ['seen', 'Last seen', 1]];
+  const cols = [['serial', 'Device'], ['status', 'Status'], ['battery', 'Battery', 1], ['temp', 'Temp', 1], ['cycles', 'Cycles', 1], ['lifetime', 'Lifetime cycles (MDM)', 1], ['median', 'Runtime to empty', 1], ['last', 'Last cycle', 1], ['health', 'Health', 1], ['', 'Last 12 cycles', 1], ['seen', 'Last seen', 1]];
   view.innerHTML = `<div class="page-head"><div><h1>${filterLabel(devState.filter)}</h1><div class="sub" id="dev-sub"></div></div></div>
     <div class="stack"><div class="panel">
       <div class="scroll-x"><table><thead><tr>${cols.map(([k, l, r]) => `<th ${k ? `data-sort="${k}"` : ''} class="${r ? 'r' : ''}">${l}<span class="arr">${k && devState.sort === k ? (devState.dir > 0 ? '↑' : '↓') : ''}</span></th>`).join('')}</tr></thead><tbody id="dev-body"></tbody></table></div></div></div>`;
   const draw = () => {
-    const key = { serial: d => d.serial, status: d => status(d).label, battery: d => status(d).pct ?? -1, temp: d => online(d) ? d.snap.battery_temp_c : -1, cycles: d => d.cycles.length, median: d => d.agg.medianDurationMs, last: d => d.lastCycle ? rt(d.lastCycle) : 0, health: d => d.health?.health ?? -1, seen: d => -Date.parse(d.snap.last_seen_at) }[devState.sort];
+    const key = { serial: d => d.serial, status: d => status(d).label, battery: d => status(d).pct ?? -1, temp: d => online(d) ? d.snap.battery_temp_c : -1, cycles: d => d.cycles.length, lifetime: d => lifetimeCycles(d.snap) ?? -1, median: d => d.agg.medianDurationMs, last: d => d.lastCycle ? rt(d.lastCycle) : 0, health: d => d.health?.health ?? -1, seen: d => -Date.parse(d.snap.last_seen_at) }[devState.sort];
     const list = DEV.filter(d => d.serial.toLowerCase().includes(devState.q.toLowerCase()))
       .filter(filterFn(devState.filter))
       .sort((a, b) => (key(a) > key(b) ? 1 : key(a) < key(b) ? -1 : 0) * devState.dir);
@@ -926,9 +928,9 @@ function devicesView() {
       <td class="mono">${d.serial}</td><td>${badge(s.cls, s.label, s.live)}</td>
       <td class="r">${s.pct != null ? `<span class="batt num">${s.pct}%<span class="bar ${s.pct < 20 ? 'warn' : s.k === 'ready' ? 'ok' : 'run'}"><i style="width:${s.pct}%"></i></span></span>` : '<span class="muted">—</span>'}</td>
       <td class="r num">${online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : '<span class="muted">—</span>'}</td>
-      <td class="r num">${d.cycles.length}</td><td class="r num">${d.cycles.length ? fmtDur(d.agg.medianDurationMs) : '—'}</td><td class="r num">${d.lastCycle ? `${fmtDur(rt(d.lastCycle))}<span class="muted"> · ${d.lastCycle.endPct}%</span>` : '—'}</td><td class="r num">${healthCell(d)}</td>
+      <td class="r num">${d.cycles.length}</td><td class="r num">${fmtLifetime(lifetimeCycles(d.snap))}</td><td class="r num">${d.cycles.length ? fmtDur(d.agg.medianDurationMs) : '—'}</td><td class="r num">${d.lastCycle ? `${fmtDur(rt(d.lastCycle))}<span class="muted"> · ${d.lastCycle.endPct}%</span>` : '—'}</td><td class="r num">${healthCell(d)}</td>
       <td class="r">${spark(d.cycles.slice(-12).map(rt))}</td><td class="r muted">${ago(Date.parse(d.snap.last_seen_at))}</td></tr>`; }).join('')
-      : `<tr><td colspan="10" class="empty">No devices match${devState.q ? ` “${esc(devState.q)}”` : ''}.</td></tr>`);
+      : `<tr><td colspan="11" class="empty">No devices match${devState.q ? ` “${esc(devState.q)}”` : ''}.</td></tr>`);
     $('#dev-sub').textContent = `${list.length} of ${DEV.length} devices in ${GROUP}${devState.q ? ` · matching “${devState.q}”` : ''} · click to inspect, double-click to open`;
     rowsClickable($('#dev-body'), 'data-s', s => `#/devices/${s}`, s => inspect(deviceInspector(D(s)))); paginate($('#dev-body'), 'devices');
     if (inspSel && DMAP.has(inspSel)) inspect(deviceInspector(D(inspSel))); else inspect(fleetInspector());
@@ -943,7 +945,7 @@ function deviceView(serial) {
   crumbs(['Devices', '#/devices'], [serial]);
   const s = status(d), last = d.lastCycle;
   view.innerHTML = `<div class="page-head"><div><div style="display:flex;align-items:center;gap:10px"><h1 class="mono">${serial}</h1><span id="d-badge">${badge(s.cls, s.label, s.live)}</span></div>
-      <div class="sub">${esc((d.snap.device_class || '').toUpperCase())} · last seen <span id="d-seen">${ago(Date.parse(d.snap.last_seen_at))}</span>${s.pct != null ? ` · ${s.pct}%` : ''}</div></div></div>
+      <div class="sub">${esc((d.snap.device_class || '').toUpperCase())} · last seen <span id="d-seen">${ago(Date.parse(d.snap.last_seen_at))}</span>${s.pct != null ? ` · ${s.pct}%` : ''} · ${fmtLifetime(lifetimeCycles(d.snap))} lifetime cycles (MDM)</div></div></div>
     <div class="stack">
     <div class="cols-2">
       <div class="panel"><div class="panel-head"><h2>Latest charge</h2><span class="muted">${d.charges.length ? `${dt(d.charges[d.charges.length - 1].start)} · ${d.charges[d.charges.length - 1].wireless ? 'wireless pad' : 'wired'}` : ''}</span></div><div class="panel-body"><div class="chart" id="d-chg"></div></div></div>

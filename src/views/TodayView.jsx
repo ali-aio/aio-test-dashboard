@@ -4,7 +4,8 @@ import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, d
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
 import { median, pctl, hm, dt, ago, MIN, H } from '../lib/format.js'
-import { online, status } from '../lib/device.js'
+import { online, status, lifetimeCycles } from '../lib/device.js'
+import { fmtLifetime } from '../lib/fmt.js'
 import { GROUP } from '../lib/fleet.js'
 import { MultiLineChart, Sparkline, tooltipHtml } from '../components/charts.jsx'
 import { Segmented } from '../components/Primitives.jsx'
@@ -224,7 +225,7 @@ export default function TodayView({ fleet }) {
         <div className="card">
           <div className="card-head"><h2>Devices today</h2><span className="secondary">{reporting.length} reporting</span></div>
           <div className="scroll-x"><table className="data">
-            <thead><tr><th>Device</th><th>Against plan</th><th className="r">Battery</th><th className="r">Off charger</th><th className="r">Drain</th><th className="r">Temp now</th><th className="r">Peak today</th><th className="r">≥{TEMP_LIMIT} °C</th><th className="r">Today</th></tr></thead>
+            <thead><tr><th>Device</th><th>Against plan</th><th className="r">Battery</th><th className="r">Off charger</th><th className="r">Drain</th><th className="r">Lifetime cycles (MDM)</th><th className="r">Temp now</th><th className="r">Peak today</th><th className="r">≥{TEMP_LIMIT} °C</th><th className="r">Today</th></tr></thead>
             <tbody>
               {conf.slice().sort((a, b) => ((b.state === 'drifting') - (a.state === 'drifting')) || ((fleet.DMAP.get(a.serial)?.snap?.battery_pct ?? 999) - (fleet.DMAP.get(b.serial)?.snap?.battery_pct ?? 999))).map(c => {
                 const r = runs.get(c.serial)
@@ -236,6 +237,7 @@ export default function TodayView({ fleet }) {
                   <td className="r">{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span> : <span className="secondary">—</span>}</td>
                   <td className="r mono">{r?.start ? hm(r.start.t) : <span className="secondary">still full</span>}</td>
                   <td className="r mono" style={{ color: c.state === 'drifting' ? 'var(--warn)' : 'inherit' }}>{r?.rate != null ? r.rate.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td>
+                  <td className="r mono">{fmtLifetime(lifetimeCycles(d.snap))}</td>
                   <td className="r mono" style={{ color: online(d) && d.snap.battery_temp_c >= TEMP_LIMIT ? 'var(--bad)' : online(d) && d.snap.battery_temp_c >= TEMP_WARN ? 'var(--warn)' : 'inherit' }}>{online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td>
                   <td className="r mono" style={{ color: s?.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : s?.maxTemp >= TEMP_WARN ? 'var(--warn)' : 'inherit' }}>{s?.maxTemp != null ? s.maxTemp.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td>
                   <td className="r mono" style={{ color: s?.minAbove45 ? 'var(--bad)' : 'inherit' }}>{s?.minAbove45 ? fmtDur(s.minAbove45 * MIN) : <span className="secondary">—</span>}</td>

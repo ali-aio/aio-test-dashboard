@@ -2,17 +2,18 @@ import React, { useMemo, useState } from 'react'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { LineChart } from '../components/t7charts.jsx'
 import { ModeSwitch, deviceSeries, useDevicePicker } from '../components/CurveModes.jsx'
+import LifetimeStat from '../components/LifetimeStat.jsx'
 import TestDetailView from './TestDetailView.jsx'
 import { ALL_TEST_TYPES, FIELD_TEST_TYPES } from '../lib/testtypes.js'
 import { kpis, fullDischargeCycles, compareFirmwareNewest, avgCurveBy, maxOf, explainEmpty, plottedMaxHour, batteryCycles, batteryCyclesBy } from '../lib/t7cycles.js'
 import { BUILD_COLOR, SERIES_VARS, MAX_SERIES } from '../lib/palette.js'
 import { fmtBC, bcText, runsText, fmtInt, fmtNum, fmtHours, fmtPct, fmtTemp, fmtRate, fmtHourTick, fmtDate, compareSerial } from '../lib/fmt.js'
 
-export default function OverviewView({ cycles, onPickTestType, onFilter, testType = '__all__', allSerials = [] }) {
+export default function OverviewView({ cycles, onPickTestType, onFilter, testType = '__all__', allSerials = [], lifetime = null }) {
   if (testType !== '__all__') {
-    return <TestDetailView cycles={cycles} testType={testType} allSerials={allSerials} />
+    return <TestDetailView cycles={cycles} testType={testType} allSerials={allSerials} lifetime={lifetime} />
   }
-  return <AllTestsOverview cycles={cycles} onPickTestType={onPickTestType} onFilter={onFilter} allSerials={allSerials} />
+  return <AllTestsOverview cycles={cycles} onPickTestType={onPickTestType} onFilter={onFilter} allSerials={allSerials} lifetime={lifetime} />
 }
 
 /** Cycle counts per distinct value of a field, biggest first. */
@@ -48,7 +49,7 @@ function inventory(cycles, key) {
  * The stat row describes what the full dataset covers. Selecting a test type
  * switches OverviewView to the full TestDetailView above.
  */
-function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [] }) {
+function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [], lifetime = null }) {
   const k = useMemo(() => kpis(cycles), [cycles])
   // every serial in the app, not just the filtered ones, so a device's colour never shifts
   const allSerialsHere = useMemo(() => (allSerials.length ? allSerials : [...new Set(cycles.map((c) => c.serial))]), [allSerials, cycles])
@@ -133,8 +134,9 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [] })
   return (
     <div className="view-stack">
       <div className="stat-row stat-row-lg">
-            <Stat label="Total cycles" value={fmtBC(fullDrain.cycles)} hero
+            <Stat label="Battery cycles in these runs" value={fmtBC(fullDrain.cycles)} hero
               breakdown={breakdowns.testType} breakdownLabel="Battery cycles per test" />
+            <LifetimeStat lifetime={lifetime} />
             <Stat label="Total devices" value={fmtInt(k.serials)}
               breakdown={breakdowns.serial} breakdownLabel="Battery cycles per device" />
             <Stat label="Test days" value={fmtInt(k.dates)}

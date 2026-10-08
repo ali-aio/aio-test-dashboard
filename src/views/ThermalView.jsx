@@ -203,8 +203,11 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
       <div className="banner banner-warn">
         <span aria-hidden="true">{STATUS_ICON.warning}</span>
         <div>
-          None of the {cycles.length} runs you have selected recorded a temperature, so there is nothing
-          to show. Restaurant Case runs in particular were logged without them.
+          None of the {cycles.length} runs in scope carries a temperature curve, so there is nothing to
+          chart. The MDM does report battery temperature, but the 30-minute sweep stores only each
+          cycle's summary — the per-sample curve these charts need exists just for runs inside the
+          7-day history window this page reads. Narrow the date filter to the last week, or have the
+          sweep keep per-cycle temperature so older runs can be charted too.
         </div>
       </div>
     )
@@ -256,8 +259,8 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
           legendNote={curves.length > shownDevices.size
             ? `Showing ${shownDevices.size} of ${curves.length} devices — the hottest by default, and only so many lines keep their own colour. Use Devices above to change which.`
             : null}
-          emptyState={explainEmpty(cycles, (c) => c.tempSeries.length, 'a PCB temperature reading')}
-          caption="PCB temperature over elapsed hours, per device"
+          emptyState={explainEmpty(cycles, (c) => c.tempSeries.length, 'a battery temperature curve')}
+          caption="battery temperature over elapsed hours, per device"
           tableColumns={[
             { key: 'serial', label: 'Serial' },
             { key: 'peak', label: 'Peak' },
@@ -281,7 +284,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
         {timing.length ? (
           <div className="table-wrap" style={{ maxHeight: 440 }}>
             <table className="data thermal-timing">
-              <caption className="sr-only">Average PCB temperature by device and phase of the cycle</caption>
+              <caption className="sr-only">Average battery temperature by device and phase of the cycle</caption>
               <thead><tr>
                 {[
                   { key: 'serial', label: 'Device' },
@@ -338,8 +341,8 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
           colLabel="elapsed hour"
           colUnit="h"
           labelW={150}
-          emptyState={explainEmpty(cycles, (c) => c.tempSeries.length, 'a PCB temperature reading')}
-          caption="Mean PCB temperature by device and elapsed hour"
+          emptyState={explainEmpty(cycles, (c) => c.tempSeries.length, 'a battery temperature curve')}
+          caption="Mean battery temperature by device and elapsed hour"
           tableColumns={[
             { key: 'serial', label: 'Serial' },
             { key: 'hottest', label: 'Hottest hour' },

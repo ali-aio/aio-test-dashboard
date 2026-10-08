@@ -251,6 +251,21 @@ tr.flash td { animation: flash 1.4s var(--ease); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 
+/* ── Source-list header: dashboard version (v1 = the current dashboard, v2 = the new one
+   being built) on the left, light/dark on the right. v2 is deliberately bare — only the
+   new dashboard's own items — so the search box, which drives the v1 device views, goes
+   with it. */
+.verbar { display: flex; align-items: center; gap: 6px; padding: 1px 2px 7px; }
+.verbar .sp { flex: 1; }
+.ver { position: relative; display: inline-flex; align-items: center; }
+.ver select { appearance: none; height: 22px; padding: 0 23px 0 9px; border: .5px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text); font: 600 12px var(--font); cursor: default; }
+.ver select:hover { background: var(--hover); }
+.ver select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ver::after { content: ""; position: absolute; right: 9px; width: 6px; height: 6px; pointer-events: none;
+  border-right: 1.5px solid var(--text-3); border-bottom: 1.5px solid var(--text-3); transform: translateY(-2px) rotate(45deg); }
+body.v2 .search { display: none; }
+
 /* ── New dashboard: Cycle Plan calendar ───────────────────────────────────────
    Calendar on the left, details for the selected day on the right (the inverse of
    .cols-main). Same tokens as everywhere else: coral only for the selected day, the

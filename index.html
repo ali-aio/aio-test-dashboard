@@ -13,7 +13,7 @@ try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') 
 <body>
 <div class="app">
   <div class="body">
-    <aside class="source"><div class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="input" id="q" placeholder="Search" autocomplete="off"></div><div id="source"></div></aside>
+    <aside class="source"><div class="verbar"><span class="ver"><select id="ver" aria-label="Dashboard version"><option value="v1">v1</option><option value="v2">v2</option></select></span><span class="sp"></span><button class="tbtn" id="theme-top" title="Light / dark theme"></button></div><div class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="input" id="q" placeholder="Search" autocomplete="off"></div><div id="source"></div></aside>
     <main class="pane" id="pane"><div class="content" id="view"></div></main>
     <aside class="insp" id="insp"></aside>
   </div>
@@ -55,7 +55,14 @@ const MDM = 'https://mdm.dev.aioapp.com'; // live only — this dashboard has no
 if (apiKey() && apiBase() !== MDM) saveConfig(MDM, apiKey());
 if (!scopeGroup()) setScopeGroup('Test Cycles');
 const GROUP = scopeGroup();
-initThemeToggle($('#theme'));
+// Dashboard version: v1 is the current dashboard (Views / Fleet / Smart lists / System),
+// v2 is the new one being built. Remembered per browser; v1 stays the default until the
+// new dashboard is signed off, so anyone else opening this URL still lands on the old one.
+let VER = 'v1';
+try { if (localStorage.getItem('ui:ver') === 'v2') VER = 'v2'; } catch (e) {}
+const setVer = v => { VER = v; document.body.classList.toggle('v2', v === 'v2'); try { localStorage.setItem('ui:ver', v); } catch (e) {} };
+setVer(VER);
+initThemeToggle($('#theme')); initThemeToggle($('#theme-top'));
 const insp = $('#insp'), pane = $('#pane');
 // window chrome: sidebar / inspector toggles (remembered), view switcher, settings gear, global search
 try { if (localStorage.getItem('ui:noinsp') === '1') document.body.classList.add('noinsp'); if (localStorage.getItem('ui:noside') === '1') document.body.classList.add('noside'); } catch (e) {}
@@ -276,14 +283,17 @@ function chrome() {
   const live = runs.filter(r => r.status === 'running').length;
   const onDev = curNav === 'devices' && !current.arg, item = ([f, l, i, fn]) => `<a class="item ${onDev && devState.filter === f ? 'on' : ''}" href="#/devices" data-f="${f}">${SICON(i)}<span class="nm">${l}</span><span class="cnt num">${DEV.filter(fn).length}</span></a>`;
   const vcount = v => v === 'devices' ? DEV.length || '' : v === 'runs' ? (live ? `${live} live` : runs.length || '') : '';
-  setH($('#source'), `<div class="sec">Views</div>${VIEWS.map(([v, href, l, col, i]) => `<a class="item ${curNav === v && !(v === 'devices' && onDev && devState.filter !== 'all') ? 'on' : ''}" href="${href}" ${v === 'devices' ? 'data-f="all"' : ''}><span class="glyph" style="background:${col}">${SICON(i)}</span><span class="nm">${l}</span><span class="cnt num">${vcount(v)}</span></a>`).join('')}
+  const nxItems = NXVIEWS.map(([v, href, l, col, i]) => `<a class="item ${curNav === v ? 'on' : ''}" href="${href}"><span class="glyph" style="background:${col}">${SICON(i)}</span><span class="nm">${l}</span><span class="cnt num">${nxCount(v)}</span></a>`).join('');
+  setH($('#source'), VER === 'v2' ? `<div class="sec">New dashboard</div>${nxItems}`
+    : `<div class="sec">Views</div>${VIEWS.map(([v, href, l, col, i]) => `<a class="item ${curNav === v && !(v === 'devices' && onDev && devState.filter !== 'all') ? 'on' : ''}" href="${href}" ${v === 'devices' ? 'data-f="all"' : ''}><span class="glyph" style="background:${col}">${SICON(i)}</span><span class="nm">${l}</span><span class="cnt num">${vcount(v)}</span></a>`).join('')}
     <div class="sec">Fleet</div>${FILTERS.slice(1).map(item).join('')}<div class="sec">Smart lists</div>${SMART.map(item).join('')}
-    <div class="sec">System</div><a class="item ${curNav === 'settings' ? 'on' : ''}" href="#/settings">${SICON('<circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/>')}<span class="nm">Settings</span></a>
-    <div class="sec">New dashboard</div>${NXVIEWS.map(([v, href, l, col, i]) => `<a class="item ${curNav === v ? 'on' : ''}" href="${href}"><span class="glyph" style="background:${col}">${SICON(i)}</span><span class="nm">${l}</span><span class="cnt num">${nxCount(v)}</span></a>`).join('')}`);
+    <div class="sec">System</div><a class="item ${curNav === 'settings' ? 'on' : ''}" href="#/settings">${SICON('<circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/>')}<span class="nm">Settings</span></a>`);
   const n = DEV.length, on = DEV.filter(online).length, bat = DEV.filter(d => status(d).k === 'run').length, chg = DEV.filter(d => online(d) && d.snap.charging).length, hot = DEV.filter(SMART[1][3]).length;
   setH($('#status'), `<span>${n ? `${n} devices · ${on} online · ${bat} on battery · ${chg} charging${hot ? ` · <span style="color:var(--bad)">${hot} over ${TEMP_LIMIT} °C</span>` : ''}` : ''}</span><span class="sp"></span>
     <span><b style="background:var(--${loadError ? 'dot-bad' : ready ? 'dot-ok' : 'dot-off'})"></b>${loadError ? 'Disconnected' : ready ? 'Live' : 'Connecting'}</span>${SERVER && SERVER.lastSweepAt ? `<span>· sweep ${ago(SERVER.lastSweepAt)}</span>` : ''}`);
 }
+$('#ver').value = VER;
+$('#ver').onchange = e => { const v = e.target.value; setVer(v); go(v === 'v2' ? '#/nx' : '#/'); render(true); };
 $('#source').onclick = e => { const a = e.target.closest('a[data-f]'); if (!a) return; e.preventDefault(); devState.filter = a.dataset.f; pages.devices = 0; if (current.fn === devicesView) { render(false); } else go('#/devices'); };
 window.addEventListener('hashchange', () => render(true));
 let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => render(false), 150); });

@@ -104,8 +104,8 @@ export default function TodayView({ fleet }) {
 
   const series = battMode === 'avg'
     ? [
-        { id: 'max', label: 'Highest', pts: battMax, color: 'var(--text-3)', width: 1, opacity: .45, dash: '3 3', endLabel: battMax.length ? `${battMax[battMax.length - 1].y}%` : null, labelColor: 'var(--text-3)' },
-        { id: 'min', label: 'Lowest', pts: battMin, color: 'var(--text-3)', width: 1, opacity: .45, dash: '3 3', endLabel: battMin.length ? `${battMin[battMin.length - 1].y}%` : null, labelColor: 'var(--text-3)' },
+        { id: 'max', label: 'Highest', pts: battMax, color: 'var(--series-8)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMax.length ? `${battMax[battMax.length - 1].y}%` : null, labelColor: 'var(--series-8)' },
+        { id: 'min', label: 'Lowest', pts: battMin, color: 'var(--series-3)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMin.length ? `${battMin[battMin.length - 1].y}%` : null, labelColor: 'var(--series-3)' },
         { id: 'avg', label: 'Average', pts: battAvg, color: 'var(--series-1)', width: 2.4, endLabel: battAvg.length ? `${battAvg[battAvg.length - 1].y.toFixed(0)}%` : null },
         ...projSeries,
       ]

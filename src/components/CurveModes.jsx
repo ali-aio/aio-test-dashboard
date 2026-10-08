@@ -32,8 +32,8 @@ export function envelopeSeries(cycles, key = 'series', avgLabel = 'Average') {
   if (!e.avg.length) return []
   return [
     { id: '__avg', label: avgLabel, sub: `${cycles.length} run${cycles.length === 1 ? '' : 's'}`, color: 'var(--series-1)', points: e.avg },
-    { id: '__max', label: 'Highest', color: 'var(--text-muted)', dashed: true, points: e.max },
-    { id: '__min', label: 'Lowest', color: 'var(--text-muted)', dashed: true, points: e.min },
+    { id: '__max', label: 'Highest', color: 'var(--series-8)', dashed: true, points: e.max },
+    { id: '__min', label: 'Lowest', color: 'var(--series-3)', dashed: true, points: e.min },
   ]
 }
 

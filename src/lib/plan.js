@@ -51,9 +51,12 @@ export const dayLong = k => keyToDate(k).toLocaleDateString([], { weekday: 'long
 // 'HH:MM' on a given day → ms. An empty time means the start / end of that day.
 export function timeOn(key, hhmm, endOfDay = false) {
   const d = keyToDate(key);
-  const [h, m] = (hhmm || '').split(':').map(Number);
-  if (!isFinite(h)) return endOfDay ? d.getTime() + 86400e3 - 1 : d.getTime();
-  d.setHours(h, m || 0, 0, 0);
+  // Beware Number('') === 0: an unset time has to be detected on the string, not on the
+  // parsed hour, or "no time given" silently becomes midnight and an open-ended window
+  // collapses to zero length.
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm ?? '').trim());
+  if (!m) return endOfDay ? d.getTime() + 86400e3 - 1 : d.getTime();
+  d.setHours(+m[1], +m[2], 0, 0);
   return d.getTime();
 }
 

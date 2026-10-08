@@ -8,7 +8,7 @@ import { normalize, detectCycles } from './cycles.js';
 import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
 import { H, MIN, median } from './format.js';
 
-export const WINDOW_HOURS = 48;
+export const WINDOW_HOURS = 24 * 7;
 const state = { rows: {}, at: 0, loading: false, err: null, failed: 0 };
 const subs = new Set();
 let snapshot = { ...state };

@@ -1,24 +1,41 @@
-import React, { useEffect, useState, useSyncExternalStore } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { subscribe, getSnapshot, boot, startPolling, GROUP } from './lib/fleet.js'
+import { loadWindow, subscribeWindow, getWindow, rowsFor, WINDOW_HOURS } from './lib/window.js'
+import { adaptAll, CTX } from './lib/adapt.js'
+import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials } from './lib/t7cycles.js'
 import { initThemeToggle } from './lib/theme.js'
-import { online, status } from './lib/device.js'
-import { TEMP_LIMIT } from './lib/profile.js'
-import { ago, int } from './lib/format.js'
+import { fmtInt, fmtDateLong } from './lib/fmt.js'
+import { ago } from './lib/format.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
-import OverviewView from './views/OverviewView.jsx'
+import FilterBar, { FilterPills } from './components/FilterBar.jsx'
+import T7Overview from './views/T7Overview.jsx'
+import ComparisonView from './views/ComparisonView.jsx'
+import ThermalView from './views/ThermalView.jsx'
+import DevicesView from './views/DevicesView.jsx'
 import TodayView from './views/TodayView.jsx'
 import CyclePlanView from './views/CyclePlanView.jsx'
 import LegacyView from './views/LegacyView.jsx'
 
-// The shell is T7-Dashboard's: a sticky header carrying the brand, the view tabs and the
-// right-hand controls, then one centred column of cards. No source list and no inspector —
-// in T7 everything a selection would show lives in a card in the flow, which is why the
-// views below fold what used to be inspector content into the page.
+CTX.group = GROUP
+
+// T7-Dashboard's shell: a sticky header with the brand, the view tabs and the right-hand
+// controls, then the filter bar and one centred column of cards. The four analysis tabs
+// are T7's own views running on T7's cycle shape — src/lib/adapt.js builds that shape from
+// the MDM instead of from an imported CSV. Today and Cycle plan are this repo's own.
 const VIEWS = [
-  { id: 'nx-overview', hash: '#/nx', label: 'Overview' },
-  { id: 'nx-today', hash: '#/nx/today', label: 'Today' },
-  { id: 'nx-plan', hash: '#/nx/plan', label: 'Cycle plan' },
+  { id: 'overview', hash: '#/nx', label: 'Overview' },
+  { id: 'comparison', hash: '#/nx/comparison', label: 'Comparison' },
+  { id: 'thermal', hash: '#/nx/thermal', label: 'Thermal' },
+  { id: 'summary', hash: '#/nx/summary', label: 'Summary' },
+  { id: 'today', hash: '#/nx/today', label: 'Today' },
+  { id: 'plan', hash: '#/nx/plan', label: 'Cycle plan' },
 ]
+const ROUTE = h => h.startsWith('#/nx/comparison') ? 'comparison'
+  : h.startsWith('#/nx/thermal') ? 'thermal'
+  : h.startsWith('#/nx/summary') ? 'summary'
+  : h.startsWith('#/nx/today') ? 'today'
+  : h.startsWith('#/nx/plan') ? 'plan'
+  : h.startsWith('#/nx') ? 'overview' : 'legacy'
 
 function useHash() {
   const [h, setH] = useState(() => location.hash || '#/nx')
@@ -32,26 +49,62 @@ function useHash() {
 
 export default function App() {
   const fleet = useSyncExternalStore(subscribe, getSnapshot)
+  const win = useSyncExternalStore(subscribeWindow, getWindow)
   const hash = useHash()
+  const view = ROUTE(hash)
   const [ver, setVer] = useState(() => { try { return localStorage.getItem('ui:ver') === 'v1' ? 'v1' : 'v2' } catch (e) { return 'v2' } })
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
 
   useEffect(() => { boot(); return startPolling() }, [])
   useEffect(() => { try { localStorage.setItem('ui:ver', ver) } catch (e) {} }, [ver])
+  useEffect(() => { if (fleet.DEV.length) loadWindow(fleet.DEV) }, [fleet.DEV])
 
-  const { DEV, allCycles, ready, error } = fleet
-  const view = hash.startsWith('#/nx/today') ? 'nx-today'
-    : hash.startsWith('#/nx/plan') ? 'nx-plan'
-    : hash.startsWith('#/nx') ? 'nx-overview' : 'legacy'
+  const { DEV, ready, error } = fleet
+  // Cycles in T7's shape. The curve on each one comes from the history window, so cycles
+  // older than it carry their summary but no per-hour series — the charts say so.
+  const cycles = useMemo(() => (DEV.length ? adaptAll(DEV, rowsFor) : []),
+    [DEV, fleet.allCycles, win.at2])
+  const allSerials = useMemo(() => distinct(cycles, 'serial'), [cycles])
+  const scoped = useMemo(() => filterCycles(cycles, filters), [cycles, filters])
 
-  const on = DEV.filter(online).length
-  const hot = DEV.filter(d => online(d) && d.snap.battery_temp_c >= TEMP_LIMIT).length
+  // The device filter is an explicit selection, so it starts as "everything" the first
+  // time cycles appear — an empty list means "none picked", which would show nothing.
+  // After that it is tended rather than reset: devices that vanish drop out, new ones join
+  // only if the selection already covered everything, and a deliberate subset is left alone.
+  const prevSerials = useRef([])
+  const seeded = useRef(false)
+  useEffect(() => {
+    if (!cycles.length) { prevSerials.current = []; return }
+    if (!seeded.current) { seeded.current = true; setFilters(filtersFor(allSerials)) }
+    else setFilters(f => ({ ...f, serials: reconcileSerials(f.serials, allSerials, prevSerials.current) }))
+    prevSerials.current = allSerials
+  }, [cycles.length, allSerials.join(',')])
 
+  const latestDate = useMemo(() => { const d = distinct(cycles, 'date'); return d.length ? d[d.length - 1] : null }, [cycles])
+  const resetFilters = () => setFilters(filtersFor(allSerials))
+  const applyFilter = patch => setFilters(f => ({ ...f, ...patch }))
+  const openTestType = tt => { setFilters(f => ({ ...f, testType: tt })); location.hash = '#/nx' }
+
+  const analysis = ['overview', 'comparison', 'thermal', 'summary'].includes(view)
   const body = error ? <ErrorPanel error={error} />
     : !ready ? <div className="empty-note">Loading the fleet from the MDM…</div>
-    : view === 'nx-today' ? <TodayView fleet={fleet} />
-    : view === 'nx-plan' ? <CyclePlanView fleet={fleet} />
-    : view === 'nx-overview' ? <OverviewView fleet={fleet} />
-    : <LegacyView />
+    : view === 'today' ? <TodayView fleet={fleet} />
+    : view === 'plan' ? <CyclePlanView fleet={fleet} />
+    : view === 'legacy' ? <LegacyView />
+    : (
+      <div className="view-stack">
+        <FilterBar cycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} />
+        <FilterPills filters={filters} onChange={setFilters} onReset={resetFilters} count={scoped.length} allSerials={allSerials} />
+        {win.loading && <div className="banner"><span aria-hidden="true">●</span>
+          <div><span className="spin" /> Reading {Math.round(WINDOW_HOURS / 24)} days of history for {DEV.length} devices — the curve charts fill in as it lands.</div></div>}
+        <ErrorBoundary resetKey={`${view}|${JSON.stringify(filters)}`} onReset={resetFilters}>
+          {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} testType={filters.testType} allSerials={allSerials} />}
+          {view === 'comparison' && <ComparisonView cycles={scoped} testType={filters.testType} />}
+          {view === 'thermal' && <ThermalView cycles={scoped} allSerials={allSerials} onFilter={applyFilter} />}
+          {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={[]} onEventsChanged={() => {}} onFilter={applyFilter} issues={[]} files={[]} />}
+        </ErrorBoundary>
+      </div>
+    )
 
   return (
     <div className="app">
@@ -60,7 +113,6 @@ export default function App() {
           <span><span className="brand-accent">AIO</span> T7</span>
           <span className="brand-sub">test dashboard</span>
         </div>
-
         {ver === 'v2' && (
           <nav className="tabs" role="tablist" aria-label="Dashboard views">
             {VIEWS.map(v => (
@@ -69,20 +121,16 @@ export default function App() {
             ))}
           </nav>
         )}
-
         <div className="header-spacer" />
-
         {ready && (
           <span className="hint nowrap">
-            {int(allCycles.length)} cycles · {DEV.length} devices · {on} online
-            {hot ? <> · <span style={{ color: 'var(--status-critical)' }}>{hot} over {TEMP_LIMIT} °C</span></> : null}
+            {fmtInt(cycles.length)} cycles · {DEV.length} devices{latestDate ? ` · through ${fmtDateLong(latestDate)}` : ''}
           </span>
         )}
         <span className="hint nowrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span className={`pill ${error ? 'pill-bad' : ready ? 'pill-ok pill-live' : ''}`}>{error ? 'Disconnected' : ready ? 'Live' : 'Connecting'}</span>
           {fleet.server?.lastSweepAt ? <>sweep {ago(fleet.server.lastSweepAt)}</> : null}
         </span>
-
         <span className="ver-pick">
           <select value={ver} aria-label="Dashboard version"
             onChange={e => { setVer(e.target.value); location.hash = e.target.value === 'v2' ? '#/nx' : '#/v1' }}>
@@ -91,7 +139,6 @@ export default function App() {
         </span>
         <ThemeButton />
       </header>
-
       <main className="app-main">
         <ErrorBoundary title="This view could not be drawn">{body}</ErrorBoundary>
       </main>
@@ -104,11 +151,8 @@ function ThemeButton() {
   useEffect(() => { initThemeToggle(ref.current) }, [])
   return <button className="btn btn-icon" ref={ref} />
 }
-
 const ErrorPanel = ({ error }) => (
-  <div className="banner banner-bad">
-    <span aria-hidden="true">●</span>
+  <div className="banner banner-bad"><span aria-hidden="true">●</span>
     <div><strong>{error}</strong>
-      <div>The dashboard keeps showing the last snapshot it had. Check the backend with <span className="mono">/api/status</span>.</div></div>
-  </div>
+      <div>The dashboard keeps showing the last snapshot it had. Check the backend with <span className="mono">/api/status</span>.</div></div></div>
 )

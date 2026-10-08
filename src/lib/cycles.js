@@ -47,7 +47,7 @@ export function normalize(rows) {
     if (r.empty) continue;
     const t = r.sample_at || r.timestamp;
     if (t === prev) continue; prev = t;
-    out.push({ timestamp: t, battery_pct: r.battery_pct, extra: { charging: r.extra?.charging, battery_temp_c: r.extra?.battery_temp_c, charger_type: r.extra?.charger_type, wlc_status: r.extra?.wlc_status } });
+    out.push({ timestamp: t, battery_pct: r.battery_pct, build_id: r.build_id, extra: { charging: r.extra?.charging, battery_temp_c: r.extra?.battery_temp_c, charger_type: r.extra?.charger_type, wlc_status: r.extra?.wlc_status } });
   }
   return out;
 }

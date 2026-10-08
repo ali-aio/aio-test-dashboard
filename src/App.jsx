@@ -9,9 +9,9 @@ import { fmtInt, fmtDateLong, fmtBC, fmtLifetime } from './lib/fmt.js'
 import { ago } from './lib/format.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { HistoryStatus } from './components/historyStatus.js'
-import { lifetimeOf } from './lib/device.js'
+import { lifetimeOf, cyclesInRange } from './lib/device.js'
 import { splitText } from './lib/splitCycles.js'
-import { resolve, overlaps, isoDayRange } from './lib/range.js'
+import { resolve, overlaps, isoDayRange, rangeLabel } from './lib/range.js'
 import FilterBar, { FilterPills } from './components/FilterBar.jsx'
 import T7Overview from './views/T7Overview.jsx'
 import ComparisonView from './views/ComparisonView.jsx'
@@ -106,11 +106,13 @@ export default function App() {
     ...loadDecls(GROUP).map(d => ttById(d.testType)?.name),
     ...Object.values(loadRota(GROUP)).map(r => ttById(r?.testType)?.name),
   ].filter(Boolean))]
-  // The MDM's lifetime battery cycles for the devices ticked in the Serial filter. Only the
-  // Serial filter applies: the counter is per device and lifetime, so test type, firmware
-  // and date cannot narrow it.
-  const lifetime = useMemo(() => lifetimeOf(filters.serials || [], sn => fleet.DMAP.get(sn)?.snap),
-    [filters.serials, DEV])
+  // The MDM's battery cycles for the devices ticked in the Serial filter: lifetime, or with
+  // a Test Date range set, the cycles inside it (counter where recorded, else the battery
+  // readings — src/lib/device.js). Test type and firmware cannot narrow it.
+  const lifetime = useMemo(() => (range
+    ? { ...cyclesInRange(filters.serials || [], range, { readings: fleet.readings, rowsFor, curves: fleet.curves }), range: rangeLabel(filters.range) }
+    : lifetimeOf(filters.serials || [], sn => fleet.DMAP.get(sn)?.snap)),
+  [filters.serials, DEV, range?.from, range && Math.floor(range.to / 60e3), fleet.readings, fleet.curves, win.at2])
   const analysis = ['overview', 'comparison', 'thermal', 'summary'].includes(view)
   const body = error ? <ErrorPanel error={error} />
     : !ready ? <div className="empty-note">Loading the fleet from the MDM…</div>

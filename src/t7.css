@@ -1881,7 +1881,16 @@ button.stat.is-open .stat-chevron {
 /* ── Test Date: custom range picker ──────────────────────────────────────────
    Presets as soft chips, a Monday-first month grid, the chosen span drawn as a filled
    band with solid ends. Future days are disabled; a dot marks days that have runs. */
-.rp-popover { width: 300px; padding: 14px; }
+.rp-popover { width: min(540px, calc(100vw - 32px)); padding: 14px; }
+.rp-body { display: grid; grid-template-columns: 272px 1fr; gap: 14px; }
+.rp-list { display: flex; flex-direction: column; gap: 2px; max-height: 268px; overflow-y: auto; border-left: 1px solid var(--border); padding-left: 12px; }
+.rp-list-head { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); padding: 4px 6px 6px; position: sticky; top: 0; background: var(--surface-1); }
+.rp-date { display: flex; justify-content: space-between; gap: 8px; border: 0; background: transparent; color: var(--text-primary); font-size: 13px; padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer; text-align: left; font-variant-numeric: tabular-nums; }
+.rp-date:hover { background: var(--wash); }
+.rp-date.is-on { background: color-mix(in srgb, var(--series-2) 18%, transparent); font-weight: 600; }
+.rp-date-n { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.rp-list-empty { padding: 6px 8px; font-size: 13px; }
+@media (max-width: 600px) { .rp-body { grid-template-columns: 1fr; } .rp-list { border-left: 0; border-top: 1px solid var(--border); padding: 8px 0 0; max-height: 180px; } }
 .rp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .rp-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
 .rp-x { border: 0; background: none; color: var(--text-secondary); font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 4px; border-radius: var(--radius-xs); }

@@ -155,7 +155,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
     [cycles],
   )
 
-  if (!cycles.length) return <EmptyNote>No cycles match the current filters.</EmptyNote>
+  if (!cycles.length) return <EmptyNote>No finished runs match the current filters. A run is listed once it ends — the one in progress is on Today.</EmptyNote>
   if (groups.length < 2) {
     return (
       <EmptyNote>

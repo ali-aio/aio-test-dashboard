@@ -4,11 +4,13 @@ import { PRESETS, presetRange, dayRange, resolve, rangeLabel } from '../lib/rang
 // The Test Date filter: "Custom range" — quick presets for recent windows, or a span of
 // days picked on a Monday-first calendar (first click = start, second = end). Presets
 // apply at once; a calendar span applies with Apply. Future days cannot be picked.
+// Beside the calendar, the list of test dates (days with runs, newest first): a click shows
+// that day, shift-click stretches the range to it.
 const DOW = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const sod = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime() }
 
-export default function RangePicker({ value, onChange, daysWithRuns = new Set() }) {
+export default function RangePicker({ value, onChange, daysWithRuns = new Map() }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const live = resolve(value)
@@ -39,6 +41,12 @@ export default function RangePicker({ value, onChange, daysWithRuns = new Set() 
   const apply = () => { if (span) { onChange(dayRange(span.from, span.to)); setOpen(false) } }
   const pickPreset = (id) => { onChange({ preset: id }); setOpen(false) }
   const move = (k) => setCursor(({ y, m }) => { const d = new Date(y, m + k, 1); return { y: d.getFullYear(), m: d.getMonth() } })
+  const dates = useMemo(() => [...daysWithRuns.entries()].sort((a, b) => b[0] - a[0]), [daysWithRuns])
+  const pickDate = (t, e) => {
+    const r = e.shiftKey && live ? dayRange(Math.min(sod(live.from), t), Math.max(sod(live.to), t)) : dayRange(t, t)
+    onChange(r); setOpen(false)
+  }
+  const dateOn = (t) => live && t >= sod(live.from) && t <= live.to
   const fmt = (t) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
   return (
@@ -62,6 +70,7 @@ export default function RangePicker({ value, onChange, daysWithRuns = new Set() 
                 onClick={() => pickPreset(p.id)}>{p.label}</button>
             ))}
           </div>
+          <div className="rp-body"><div className="rp-cal">
           <div className="rp-nav">
             <button type="button" aria-label="Previous month" onClick={() => move(-1)}>‹</button>
             <strong>{MONTHS[cursor.m]} {cursor.y}</strong>
@@ -80,6 +89,18 @@ export default function RangePicker({ value, onChange, daysWithRuns = new Set() 
               )
             })}
           </div>
+          </div>
+          <div className="rp-list" role="listbox" aria-label="Test dates">
+            <div className="rp-list-head">Test dates <span className="muted">{dates.length}</span></div>
+            {dates.length ? dates.map(([t, n]) => (
+              <button key={t} type="button" role="option" aria-selected={!!dateOn(t)}
+                className={`rp-date${dateOn(t) ? ' is-on' : ''}`} onClick={(e) => pickDate(t, e)}
+                title="Click to show this day · shift-click to stretch the range to it">
+                <span>{new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                <span className="rp-date-n">{n} run{n === 1 ? '' : 's'}</span>
+              </button>
+            )) : <div className="muted rp-list-empty">No runs yet</div>}
+          </div></div>
           <div className="rp-summary">{span ? `${fmt(span.from)} to ${fmt(span.to)}` : 'Pick a start day, then an end day'}</div>
           <div className="rp-foot">
             <button type="button" className="btn btn-sm" onClick={() => { onChange(null); setOpen(false) }} disabled={!value}>All dates</button>

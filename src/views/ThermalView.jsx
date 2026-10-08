@@ -199,7 +199,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
   const veryHot = cycles.filter((c) => c.maxTemp != null && c.maxTemp >= 60).length
   const peakOverall = maxOf(peakRows.map((row) => row.value))
 
-  if (!cycles.length) return <EmptyNote>No cycles match the current filters.</EmptyNote>
+  if (!cycles.length) return <EmptyNote>No finished runs match the current filters. A run is listed once it ends — the one in progress is on Today.</EmptyNote>
 
   if (!withTemp.length) {
     return (

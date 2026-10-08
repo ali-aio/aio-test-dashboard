@@ -10,9 +10,17 @@ import RangePicker from './RangePicker.jsx'
 import { rangeLabel } from '../lib/range.js'
 
 export default function FilterBar({ cycles, filters, onChange, onReset, allSerials = [], declaredTypes = [], allCycles = null }) {
-  // dots on the range calendar: every local day with a run, whatever range is applied
-  const daysWithRuns = useMemo(() => new Set((allCycles || cycles).filter((c) => c.start != null)
-    .map((c) => { const d = new Date(c.start); d.setHours(0, 0, 0, 0); return d.getTime() })), [allCycles, cycles])
+  // every local day with a run -> how many, whatever range is applied: the calendar's dots
+  // and the picker's list of test dates
+  const daysWithRuns = useMemo(() => {
+    const m = new Map()
+    for (const c of allCycles || cycles) {
+      if (c.start == null) continue
+      const d = new Date(c.start); d.setHours(0, 0, 0, 0); const t = d.getTime()
+      m.set(t, (m.get(t) || 0) + 1)
+    }
+    return m
+  }, [allCycles, cycles])
   /* Every change is pruned: narrowing one control can strand a selection
      further down the bar, and a stranded selection means an empty dashboard
      with no explanation. */

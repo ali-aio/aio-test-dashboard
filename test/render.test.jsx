@@ -10,7 +10,7 @@ import Thermal from '../src/views/ThermalView.jsx'
 import Devices from '../src/views/DevicesView.jsx'
 import Today from '../src/views/TodayView.jsx'
 import CyclePlan from '../src/views/CyclePlanView.jsx'
-import { lifetimeOf } from '../src/lib/device.js'
+import { lifetimeOf, cyclesInRange } from '../src/lib/device.js'
 import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText } from '../src/lib/splitCycles.js'
@@ -121,6 +121,28 @@ const mdmCases = []
     const last = covered.reduce((a, c) => (c.end > a.end ? c : a))
     const r = dayRange(last.start, last.start)
     want(covered.filter((c) => overlaps(c, r)).includes(last), 'run on that day not kept')
+  })
+  check('range cycles: MDM counter where recorded, readings before', () => {
+    const H = 3600e3, t0 = Date.UTC(2026, 9, 1), r = { from: t0, to: t0 + 10 * H }
+    const readings = { devices: { A: [[t0 - H, 1000], [t0 + 11 * H, 1250]] } }
+    // B: window rows from t0+4h (100 -> 70, charge, 90 -> 80); C: a stored curve before that
+    const rows = { B: [[4, 100], [5, 70], [6, 95], [7, 90], [8, 80]].map(([h, b]) => ({ timestamp: new Date(t0 + h * H).toISOString(), battery_pct: b })) }
+    const curves = { [`B@${t0}`]: { s: 60, b: [100, 90, 80] } }
+    const out = cyclesInRange(['A', 'B', 'Z'], r, { readings, rowsFor: (s) => rows[s] || [], curves }, t0 + 20 * H)
+    const v = Object.fromEntries(out.rows.map((x) => [x.serial, x.value]))
+    want(Math.abs(v.A - 2.0833) < 0.001, `A ${v.A}`)          // counter interpolated: 250 x 10/12 / 100
+    want(Math.abs(v.B - 0.65) < 1e-9, `B ${v.B}`)             // 0.2 from the curve + 0.45 from the window (30+5+10)
+    want(v.Z == null && out.missing.includes('Z') && out.source === 'mixed', 'missing device / source')
+  })
+  check('overview keeps the cycles tile when a range has no runs', () => {
+    const h = renderToString(<T7Overview cycles={[]} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop}
+      lifetime={{ value: 3.5, rows: [], devices: 1, missing: [], range: 'Last hour', source: 'counter' }} />)
+    want(h.includes('Battery cycles (MDM)') && h.includes('3.50') && h.includes('Last hour'), 'tile missing')
+  })
+  check('range picker lists test dates', () => {
+    const d = new Date(2026, 9, 6).getTime()
+    const h = renderToString(<RangePicker value={null} onChange={nop} daysWithRuns={new Map([[d, 24]])} />)
+    want(h.includes('All dates'), 'trigger')
   })
   check('date list renders its amounts', () => {
     const dates = [...new Set(covered.map(c => c.date))].sort().slice(-5)

@@ -127,7 +127,13 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [], l
     }
   }).filter((p) => p.cycles.length), [cycles])
 
-  if (!cycles.length) return <EmptyNote>No cycles match the current filters.</EmptyNote>
+  // The battery-cycles tile still answers with no runs in range (e.g. "Last hour" mid-run).
+  if (!cycles.length) return (
+    <div className="view-stack">
+      <div className="stat-row stat-row-lg"><LifetimeStat lifetime={lifetime} hero /></div>
+      <EmptyNote>No finished runs match the current filters. A run is listed once it ends — the one in progress is on Today.</EmptyNote>
+    </div>
+  )
 
   return (
     <div className="view-stack">
@@ -137,7 +143,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [], l
               breakdown={(lifetime?.rows || []).slice().sort((a, b) => (b.value ?? -1) - (a.value ?? -1))
                 .map((r) => ({ id: r.serial, label: r.serial, value: r.value ?? 0, display: fmtLifetime(r.value),
                   onClick: onFilter ? () => onFilter({ serials: [r.serial] }) : undefined }))}
-              breakdownLabel="Lifetime cycles per device (MDM)" />
+              breakdownLabel={lifetime?.range ? `Battery cycles per device · ${lifetime.range}` : 'Lifetime cycles per device (MDM)'} />
             <Stat label="Test days" value={fmtInt(k.dates)}
               breakdown={breakdowns.date} breakdownLabel="Battery cycles per test day" />
             <Stat label="HW build" value={fmtInt(inv.build.values.length)}

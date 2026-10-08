@@ -260,6 +260,11 @@ scripts/deploy-fw2.sh --dry-run   # connection + "what would go out", changes no
   restarts.
 - Afterwards it checks fw2 is on the same commit as `origin/main` and that `/api/status`
   answers on :8090. Overrides: `FW2_USER`, `FW2_HOST`, `FW2_DIR`, `FW2_PORT`.
+- `deploy.sh` picks a Node ≥ 20 (PATH, else the newest under `~/.nvm`) **before** stopping the
+  running server. This matters over SSH: a non-interactive shell skips nvm and finds
+  fw2's `/usr/bin/node` (v10), which can't run the ES-module server — an early version of
+  the script stopped the app and then failed to start it. Now a bad Node aborts with the
+  old server still running.
 - `server/config.json` (the QA key) and `data/topup.json` are never copied between machines;
   each host keeps its own. Tariq's copy has no `config.json`, so run the backend there only
   after adding one — or just use it to edit and deploy.

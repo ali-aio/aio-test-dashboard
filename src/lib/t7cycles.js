@@ -776,3 +776,23 @@ export function plottedMaxHour(cycles, key = 'series') {
   if (!max) max = maxOf(cycles.map((c) => c.duration), 0) || 1
   return Math.max(1, Math.ceil(max))
 }
+
+/**
+ * Average, lowest and highest at each whole hour across a set of cycles — the "Average"
+ * view of a curve chart, with the spread kept visible so one fast-draining device is not
+ * hidden inside the mean. `key` picks the curve ('series' battery, 'tempSeries' temperature);
+ * same exact-whole-hour rule as avgCurveBy, so the two views line up point for point.
+ */
+export function envelopeBy(cycles, key = 'series') {
+  const byHour = new Map()
+  for (const c of cycles) {
+    for (const p of c[key] || []) {
+      if (p.t !== Math.round(p.t)) continue
+      if (!byHour.has(p.t)) byHour.set(p.t, [])
+      byHour.get(p.t).push(p.v)
+    }
+  }
+  const hours = [...byHour.keys()].sort((a, b) => a - b)
+  const pts = (f) => hours.map((t) => ({ t, v: round(f(byHour.get(t)), 1), n: byHour.get(t).length }))
+  return { avg: pts(mean), min: pts((a) => Math.min(...a)), max: pts((a) => Math.max(...a)) }
+}

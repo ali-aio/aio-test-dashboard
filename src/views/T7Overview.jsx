@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { LineChart } from '../components/t7charts.jsx'
+import { ModeSwitch, deviceSeries, useDevicePicker } from '../components/CurveModes.jsx'
 import TestDetailView from './TestDetailView.jsx'
 import { ALL_TEST_TYPES, FIELD_TEST_TYPES } from '../lib/testtypes.js'
 import { kpis, fullDischargeCycles, compareFirmwareNewest, avgCurveBy, maxOf, explainEmpty, plottedMaxHour } from '../lib/t7cycles.js'
@@ -14,7 +15,7 @@ export default function OverviewView({ cycles, onPickTestType, onFilter, testTyp
   if (testType !== '__all__') {
     return <TestDetailView cycles={cycles} testType={testType} allSerials={allSerials} />
   }
-  return <AllTestsOverview cycles={cycles} onPickTestType={onPickTestType} onFilter={onFilter} />
+  return <AllTestsOverview cycles={cycles} onPickTestType={onPickTestType} onFilter={onFilter} allSerials={allSerials} />
 }
 
 /** Cycle counts per distinct value of a field, biggest first. */
@@ -50,8 +51,10 @@ function inventory(cycles, key) {
  * The stat row describes what the full dataset covers. Selecting a test type
  * switches OverviewView to the full TestDetailView above.
  */
-function AllTestsOverview({ cycles, onPickTestType, onFilter }) {
+function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [] }) {
   const k = useMemo(() => kpis(cycles), [cycles])
+  // every serial in the app, not just the filtered ones, so a device's colour never shifts
+  const allSerialsHere = useMemo(() => (allSerials.length ? allSerials : [...new Set(cycles.map((c) => c.serial))]), [allSerials, cycles])
   const fullDrain = useMemo(() => fullDischargeCycles(cycles), [cycles])
 
   const inv = useMemo(() => ({
@@ -146,50 +149,61 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter }) {
       </div>
 
       <div className="grid grid-2">
-        {panels.map((p) => (
-          <Card expandable key={p.testType}
-            title={p.testType}
-            sub={`${p.cycles.length} cycle${p.cycles.length === 1 ? '' : 's'} · ${p.k.serials} devices · mean battery by ${p.groupKey === 'build' ? 'build' : 'pad state'}`}
-            right={
-              <button className="btn btn-sm" onClick={() => onPickTestType(p.testType)}>
-                Open ›
-              </button>
-            }>
-            <LineChart
-              series={p.series}
-              xDomain={[0, p.maxHour]}
-              yDomain={[0, 100]}
-              formatX={fmtHourTick}
-              formatY={(v) => `${v}%`}
-              xLabel="elapsed time"
-              xUnit="h"
-              height={212}
-              emptyState={explainEmpty(p.cycles, (c) => c.series.length, 'a battery reading')}
-              caption={`Mean battery percentage over elapsed hours for ${p.testType}`}
-              tableColumns={[
-                { key: 'build', label: p.groupKey === 'build' ? 'Build' : 'Pad state' },
-                { key: 'n', label: 'Cycles' },
-                { key: 'dur', label: 'Avg run time' },
-                { key: 'drop', label: p.charging ? 'Avg charge rate' : 'Avg drain' },
-                { key: 'end', label: p.charging ? 'Avg charged to' : 'Avg end battery' },
-                { key: 'temp', label: 'Peak temp' },
-              ]}
-              tableRows={[...new Set(p.cycles.map((c) => c[p.groupKey]))].map((b) => {
-                const own = p.cycles.filter((c) => c[p.groupKey] === b)
-                const kk = kpis(own)
-                return {
-                  build: b,
-                  n: fmtInt(kk.totalCycles),
-                  dur: fmtHours(kk.avgDuration),
-                  drop: fmtRate(kk.avgDropPerHr),
-                  end: fmtPct(kk.avgEndBattery),
-                  temp: fmtTemp(maxOf(own.map((c) => c.maxTemp))),
-                }
-              })}
-            />
-          </Card>
-        ))}
+        {panels.map((p) => <OverviewPanel key={p.testType} p={p} allSerials={allSerialsHere} onPickTestType={onPickTestType} />)}
       </div>
     </div>
+  )
+}
+
+// One test-type card. Average = T7's mean curve per pad state (or build); Every device =
+// one line per device with the Devices picker, colours shared with every other chart.
+function OverviewPanel({ p, allSerials, onPickTestType }) {
+  const [mode, setMode] = useState('avg')
+  const perDevice = useMemo(() => deviceSeries(p.cycles, allSerials), [p.cycles, allSerials])
+  const picker = useDevicePicker(perDevice)
+  return (
+    <Card expandable
+      title={p.testType}
+      sub={`${p.cycles.length} cycle${p.cycles.length === 1 ? '' : 's'} · ${p.k.serials} devices · ${mode === 'all' ? 'one line per device' : `mean battery by ${p.groupKey === 'build' ? 'build' : 'pad state'}`}`}
+      right={<>
+        <ModeSwitch value={mode} onChange={setMode} />
+        <button className="btn btn-sm" onClick={() => onPickTestType(p.testType)}>
+          Open ›
+        </button>
+      </>}>
+      <LineChart
+        series={mode === 'all' ? perDevice : p.series}
+        {...(mode === 'all' ? picker : {})}
+        xDomain={[0, p.maxHour]}
+        yDomain={[0, 100]}
+        formatX={fmtHourTick}
+        formatY={(v) => `${v}%`}
+        xLabel="elapsed time"
+        xUnit="h"
+        height={212}
+        emptyState={explainEmpty(p.cycles, (c) => c.series.length, 'a battery reading')}
+        caption={`Mean battery percentage over elapsed hours for ${p.testType}`}
+        tableColumns={[
+          { key: 'build', label: p.groupKey === 'build' ? 'Build' : 'Pad state' },
+          { key: 'n', label: 'Cycles' },
+          { key: 'dur', label: 'Avg run time' },
+          { key: 'drop', label: p.charging ? 'Avg charge rate' : 'Avg drain' },
+          { key: 'end', label: p.charging ? 'Avg charged to' : 'Avg end battery' },
+          { key: 'temp', label: 'Peak temp' },
+        ]}
+        tableRows={[...new Set(p.cycles.map((c) => c[p.groupKey]))].map((b) => {
+          const own = p.cycles.filter((c) => c[p.groupKey] === b)
+          const kk = kpis(own)
+          return {
+            build: b,
+            n: fmtInt(kk.totalCycles),
+            dur: fmtHours(kk.avgDuration),
+            drop: fmtRate(kk.avgDropPerHr),
+            end: fmtPct(kk.avgEndBattery),
+            temp: fmtTemp(maxOf(own.map((c) => c.maxTemp))),
+          }
+        })}
+      />
+    </Card>
   )
 }

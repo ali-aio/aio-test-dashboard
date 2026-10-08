@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
+import { ModeSwitch, envelopeSeries } from '../components/CurveModes.jsx'
 import { LineChart, Heatmap } from '../components/t7charts.jsx'
 import {
   kpis, mean, median, maxOf, minOf, explainEmpty, plottedMaxHour } from '../lib/t7cycles.js'
@@ -65,6 +66,9 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
     return next
   })
 
+  // Every device (T7's view: the hottest few, picker to change) or the average across runs.
+  const [tempMode, setTempMode] = useState('all')
+  const avgTemp = useMemo(() => envelopeSeries(withTemp, 'tempSeries', 'Average temperature'), [withTemp])
   const maxHour = useMemo(
     () => plottedMaxHour(withTemp, 'tempSeries'),
     [withTemp],
@@ -237,10 +241,12 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
           foot="left out of everything on this page" />
       </div>
 
-      <Card expandable title="How hot each device gets during a run"
-        sub="One line per device, following its longest run that recorded temperature">
+      <Card expandable title={tempMode === 'avg' ? 'How hot runs get, on average' : 'How hot each device gets during a run'}
+        sub={tempMode === 'avg' ? 'Mean battery temperature at each whole hour, with the hottest and coolest device'
+          : 'One line per device, following its longest run that recorded temperature'}
+        right={<ModeSwitch value={tempMode} onChange={setTempMode} />}>
         <LineChart
-          series={curves}
+          series={tempMode === 'avg' ? avgTemp : curves}
           xDomain={[0, maxHour]}
           formatX={fmtHourTick}
           formatY={(v) => `${v}°`}
@@ -250,12 +256,12 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
           valueLabel="board temperature"
           height={320}
           markers={false}
-          legendDisclosure="Devices"
-          selectedSeries={shownDevices}
-          onToggleSeries={toggleDevice}
+          legendDisclosure={tempMode === 'all' ? 'Devices' : undefined}
+          selectedSeries={tempMode === 'all' ? shownDevices : null}
+          onToggleSeries={tempMode === 'all' ? toggleDevice : undefined}
           onSelectAllSeries={() => setDevicePick(new Set(curves.map((s) => s.id)))}
           onClearAllSeries={() => setDevicePick(new Set())}
-          legendNote={curves.length > shownDevices.size
+          legendNote={tempMode === 'all' && curves.length > shownDevices.size
             ? `Showing ${shownDevices.size} of ${curves.length} devices — the hottest by default, and only so many lines keep their own colour. Use Devices above to change which.`
             : null}
           emptyState={explainEmpty(cycles, (c) => c.tempSeries.length, 'a battery temperature curve')}

@@ -7,12 +7,17 @@ import { cascadeOptions, pruneFilters } from '../lib/t7cycles.js'
 import { fmtDate, fmtWeek } from '../lib/fmt.js'
 import DatePicker from './DatePicker.jsx'
 
-export default function FilterBar({ cycles, filters, onChange, onReset, allSerials = [] }) {
+export default function FilterBar({ cycles, filters, onChange, onReset, allSerials = [], declaredTypes = [] }) {
   /* Every change is pruned: narrowing one control can strand a selection
      further down the bar, and a stranded selection means an empty dashboard
      with no explanation. */
-  const set = (patch) =>
-    onChange(pruneFilters(cycles, { ...filters, ...patch }, allSerials))
+  const set = (patch) => {
+    const next = pruneFilters(cycles, { ...filters, ...patch }, allSerials)
+    // A test type declared on the Cycle plan stays selectable even before it has a finished
+    // cycle — pruning would otherwise snap it straight back to "All tests".
+    if (patch.testType && declaredTypes.includes(patch.testType)) next.testType = patch.testType
+    onChange(next)
+  }
 
   /* Each control offers only what is reachable given the controls before it. */
   const { options, dateCounts } = useMemo(
@@ -32,10 +37,16 @@ export default function FilterBar({ cycles, filters, onChange, onReset, allSeria
   const showLoad = LOAD_TEST_TYPES.has(filters.testType) && loadTypes.length > 1
   const showCharger = filters.testType === 'Charging Cycle' && chargers.length > 1
 
+  // Every type that has cycles in reach, plus every type declared on the Cycle plan (a day
+  // or the weekly rota) — a test that is planned or running today belongs in the list
+  // before its first cycle has finished.
   const availableTypes = useMemo(
-    () => ALL_TEST_TYPES.filter((t) => options.testType.includes(t)),
-    [options.testType],
+    () => ALL_TEST_TYPES.filter((t) => options.testType.includes(t) || declaredTypes.includes(t)),
+    [options.testType, declaredTypes.join('|')],
   )
+  const typeCounts = useMemo(() => {
+    const m = new Map(); for (const c of cycles) m.set(c.testType, (m.get(c.testType) || 0) + 1); return m
+  }, [cycles])
 
   return (
     <div className="filter-bar">
@@ -43,7 +54,7 @@ export default function FilterBar({ cycles, filters, onChange, onReset, allSeria
         <select className="control" value={filters.testType}
           onChange={(e) => set({ testType: e.target.value, loadType: '', charger: '' })}>
           <option value="__all__">All tests</option>
-          {availableTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+          {availableTypes.map((t) => <option key={t} value={t}>{t}{typeCounts.get(t) ? '' : ' — no cycles yet'}</option>)}
         </select>
       </Field>
 

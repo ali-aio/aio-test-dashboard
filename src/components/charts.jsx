@@ -19,10 +19,19 @@ const smoothY = (pts, on) => on
   ? pts.map((p, i) => { const w = pts.slice(Math.max(0, i - 1), i + 2); return w.reduce((a, q) => a + q.y, 0) / w.length })
   : pts.map(p => p.y)
 
+// T7's tooltip (.chart-tooltip with .tt-time / .tt-row), so hovering reads the same as on
+// the Overview. Placed beside the crosshair, flipped to the left near the right edge.
 function Tip({ x, y, html, width }) {
   if (!html) return null
-  return <div className="tip" style={{ opacity: 1, left: Math.max(70, Math.min(width - 70, x)), top: y }} dangerouslySetInnerHTML={{ __html: html }} />
+  const right = x > width - 200
+  return <div className="chart-tooltip" style={{ left: right ? undefined : x + 14, right: right ? width - x + 14 : undefined, top: Math.max(0, y - 20) }}
+    dangerouslySetInnerHTML={{ __html: html }} />
 }
+
+/** T7 tooltip markup from rows of { color, name, value }. */
+export const tooltipHtml = (title, rows) =>
+  `<div class="tt-time">${title}</div>` + rows.map(r =>
+    `<div class="tt-row"><span class="tt-key" style="background:${r.color}"></span><span class="tt-name">${r.name}</span><span class="tt-val">${r.value}</span></div>`).join('')
 
 export function LineChart({ pts, h = 180, yMax = 100, yFmt = v => v, xFmt, tip, refs = [], area = false, smooth = false, empty = 'No samples yet.' }) {
   const [ref, W] = useWidth()
@@ -102,7 +111,14 @@ export function MultiLineChart({ series, h = 220, yMax = 100, yMin = 0, yFmt = v
           onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); setHitX(xa + (e.clientX - r.left) / (W - pl - pr) * dx) }}
           onMouseLeave={() => setHitX(null)} />
       </svg>
-      {hitX != null && tip && <Tip x={X(hitX)} y={Y(near(live[0], hitX).y)} html={tip(hitX, live.map(s => ({ s, p: near(s, hitX) })))} width={W} />}
+      {hitX != null && tip && (() => {
+        // A line only answers for times it covers (10 min of slack): the projection starts
+        // now, so hovering at 1 PM must not report its first point as a 1 PM reading.
+        const slack = 10 * 60e3
+        const covering = live.filter(s => hitX >= s.pts[0].x - slack && hitX <= s.pts[s.pts.length - 1].x + slack)
+        if (!covering.length) return null
+        return <Tip x={X(hitX)} y={Y(near(covering[0], hitX).y)} html={tip(hitX, covering.map(s => ({ s, p: near(s, hitX) })))} width={W} />
+      })()}
     </div>
   )
 }

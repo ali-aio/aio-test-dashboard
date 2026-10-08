@@ -6,7 +6,8 @@ import { fmtDur } from '../lib/cycles.js'
 import { median, pctl, hm, dt, ago, MIN, H } from '../lib/format.js'
 import { online, status } from '../lib/device.js'
 import { GROUP } from '../lib/fleet.js'
-import { MultiLineChart, Sparkline } from '../components/charts.jsx'
+import { MultiLineChart, Sparkline, tooltipHtml } from '../components/charts.jsx'
+import { Segmented } from '../components/Primitives.jsx'
 import { buildColorMap } from '../lib/palette.js'
 
 const CSTATE = { conforming: ['pill-ok', 'Conforming'], drifting: ['pill-warn', 'Drifting'], silent: ['', 'Not reporting'], untyped: ['', 'No test declared'] }
@@ -53,8 +54,6 @@ export default function TodayView({ fleet }) {
   // hours of a flat line at 100% while the devices sat on the charger.
   const chartFrom = runStart ? Math.max(T.startMs, runStart - 30 * MIN) : T.startMs
 
-  const p50 = useMemo(() => buckets(T.serials, chartFrom, winTo, temp, median), [T, win.at2, chartFrom])
-  const p95 = useMemo(() => buckets(T.serials, chartFrom, winTo, temp, a => pctl(a, .95)), [T, win.at2, chartFrom])
 
   // Which devices the two charts show. null = every device (the default); a Set narrows
   // both charts at once. Colours come from the full sorted list, so a device keeps its
@@ -75,35 +74,70 @@ export default function TodayView({ fleet }) {
   const hi = shown.length ? shown.reduce((a, b) => lastOf(b) > lastOf(a) ? b : a) : null
   const ptsOf = (c, pick = r => r.battery_pct) => c.rows.filter(r => Date.parse(r.timestamp) >= chartFrom && pick(r) != null)
     .map(r => ({ x: Date.parse(r.timestamp), y: pick(r) }))
-  // The projection follows whatever is ticked: the median of the picked devices.
+  // Each chart can show every ticked device or their average. Battery opens on every
+  // device (spot the outlier); temperature on the average (the fleet trend), as before.
+  const [battMode, setBattMode] = useState('all')
+  const [tempMode, setTempMode] = useState('avg')
+  const MODES = [{ id: 'all', label: 'Every device' }, { id: 'avg', label: 'Average' }]
+  const selSerials = shown.map(c => c.serial)
+  const avg = a => a.reduce((x, y) => x + y, 0) / a.length
+  const battAvg = useMemo(() => buckets(selSerials, chartFrom, winTo, r => r.battery_pct, avg), [selSerials.join(','), chartFrom, win.at2])
+  const battMin = useMemo(() => buckets(selSerials, chartFrom, winTo, r => r.battery_pct, a => Math.min(...a)), [selSerials.join(','), chartFrom, win.at2])
+  const battMax = useMemo(() => buckets(selSerials, chartFrom, winTo, r => r.battery_pct, a => Math.max(...a)), [selSerials.join(','), chartFrom, win.at2])
+  const tAvg = useMemo(() => buckets(selSerials, chartFrom, winTo, temp, avg), [selSerials.join(','), chartFrom, win.at2])
+  const tP95 = useMemo(() => buckets(selSerials, chartFrom, winTo, temp, a => pctl(a, .95)), [selSerials.join(','), chartFrom, win.at2])
+
+  // The projection starts from the line actually drawn: the average in Average mode, the
+  // median of the ticked devices otherwise, at their median drain rate.
   const selRuns = shown.map(c => runs.get(c.serial)).filter(Boolean)
-  const selNow = selRuns.length ? median(selRuns.map(r => r.now)) : null
   const selRates = selRuns.filter(r => r.start && r.rate > 0).map(r => r.rate)
   const selRate = selRates.length ? median(selRates) : null
+  const selNow = battMode === 'avg' ? (battAvg.length ? battAvg[battAvg.length - 1].y : null)
+    : (selRuns.length ? median(selRuns.map(r => r.now)) : null)
   const selEmpty = selRate && selNow > 0 ? now + selNow / selRate * H : null
   const projTo = selRate && selNow != null && T.endMs > now ? Math.min(T.endMs, selEmpty || T.endMs) : null
   const projection = projTo ? [{ x: now, y: selNow }, { x: projTo, y: Math.max(0, selNow - selRate * (projTo - now) / H) }] : []
-  const series = [
-    ...shown.map(c => {
-      const drift = c.state === 'drifting'
-      return { id: c.serial, pts: ptsOf(c), color: colorOf.get(c.serial), width: drift ? 1.9 : 1.5, opacity: few ? 1 : .75,
-        dash: drift ? '5 3' : undefined,
-        endLabel: few ? `${c.serial.slice(-4)} ${lastOf(c)}%` : (c === lo || c === hi) ? `${lastOf(c)}%` : null }
-    }),
-    ...(projection.length ? [{ id: 'projected', pts: projection, color: 'var(--text-3)', width: 1.6, dash: '2 4', smooth: false, endLabel: `${Math.round(projection[1].y)}%`, labelColor: 'var(--text-3)' }] : []),
-  ]
-  // Temperature: the fleet's median and 95th percentile while every device is shown;
-  // narrowed to a few, each device's own line in its own colour, so the hot one is visible.
-  const tempSeries = picked == null
+  const projSeries = projection.length ? [{ id: 'projected', label: 'Projected', pts: projection, color: 'var(--text-3)', width: 1.6, dash: '2 4', smooth: false, endLabel: `${Math.round(projection[1].y)}%`, labelColor: 'var(--text-3)' }] : []
+  const tail = sn => '…' + sn.slice(-5)
+
+  const series = battMode === 'avg'
     ? [
-        { id: 'p50', pts: p50, color: 'var(--tt-1)', width: 2, endLabel: p50.length ? `p50 ${p50[p50.length - 1].y.toFixed(0)}°` : null },
-        { id: 'p95', pts: p95, color: 'var(--tt-2)', width: 2, dash: '5 3', endLabel: p95.length ? `p95 ${p95[p95.length - 1].y.toFixed(0)}°` : null },
+        { id: 'max', label: 'Highest', pts: battMax, color: 'var(--text-3)', width: 1, opacity: .45, dash: '3 3', endLabel: battMax.length ? `${battMax[battMax.length - 1].y}%` : null, labelColor: 'var(--text-3)' },
+        { id: 'min', label: 'Lowest', pts: battMin, color: 'var(--text-3)', width: 1, opacity: .45, dash: '3 3', endLabel: battMin.length ? `${battMin[battMin.length - 1].y}%` : null, labelColor: 'var(--text-3)' },
+        { id: 'avg', label: 'Average', pts: battAvg, color: 'var(--series-1)', width: 2.4, endLabel: battAvg.length ? `${battAvg[battAvg.length - 1].y.toFixed(0)}%` : null },
+        ...projSeries,
+      ]
+    : [
+        ...shown.map(c => {
+          const drift = c.state === 'drifting'
+          return { id: c.serial, label: tail(c.serial) + (drift ? ' · drifting' : ''), pts: ptsOf(c), color: colorOf.get(c.serial), width: drift ? 1.9 : 1.5, opacity: few ? 1 : .75,
+            dash: drift ? '5 3' : undefined,
+            endLabel: few ? `${c.serial.slice(-4)} ${lastOf(c)}%` : (c === lo || c === hi) ? `${lastOf(c)}%` : null }
+        }),
+        ...projSeries,
+      ]
+  const tempSeries = tempMode === 'avg'
+    ? [
+        { id: 'avg', label: 'Average', pts: tAvg, color: 'var(--series-1)', width: 2, endLabel: tAvg.length ? `avg ${tAvg[tAvg.length - 1].y.toFixed(0)}°` : null },
+        { id: 'p95', label: '95th percentile', pts: tP95, color: 'var(--series-2)', width: 2, dash: '5 3', endLabel: tP95.length ? `p95 ${tP95[tP95.length - 1].y.toFixed(0)}°` : null },
       ]
     : shown.map(c => {
         const pts = ptsOf(c, temp), last = pts[pts.length - 1]
-        return { id: c.serial, pts, color: colorOf.get(c.serial), width: 1.6,
+        return { id: c.serial, label: tail(c.serial), pts, color: colorOf.get(c.serial), width: 1.6,
           endLabel: last && (few || last.y >= TEMP_WARN) ? `${c.serial.slice(-4)} ${last.y.toFixed(0)}°` : null }
       })
+  // Tooltip rows in T7's style; the busiest charts list the six most relevant lines.
+  const battTip = (t, hits) => {
+    const rows = hits.filter(h => h.p).sort((a, b) => a.p.y - b.p.y)
+    const top = rows.length > 6 ? [...rows.slice(0, 3), ...rows.slice(-3)] : rows
+    return tooltipHtml(hm(t), top.map(({ s, p }) => ({ color: s.color, name: s.label || s.id, value: `${Math.round(p.y)}%` })))
+      + (rows.length > 6 ? `<div class="tt-time" style="margin:4px 0 0">+${rows.length - 6} more between</div>` : '')
+  }
+  const tempTip = (t, hits) => {
+    const rows = hits.filter(h => h.p).sort((a, b) => b.p.y - a.p.y)
+    return tooltipHtml(hm(t), rows.slice(0, 6).map(({ s, p }) => ({ color: s.color, name: s.label || s.id, value: `${p.y.toFixed(1)} °C` })))
+      + (rows.length > 6 ? `<div class="tt-time" style="margin:4px 0 0">+${rows.length - 6} more, all cooler</div>` : '')
+  }
   const picker = <DevicePicker serials={sorted} picked={picked} colorOf={colorOf} drifting={new Set(drifting.map(d => d.serial))}
     onToggle={toggle} onAll={() => setPicked(null)} onNone={() => setPicked(new Set())} />
   const noneTicked = picked != null && picked.size === 0
@@ -148,36 +182,42 @@ export default function TodayView({ fleet }) {
 
       {!win.at ? <Stale win={win} n={DEV.length} /> : <>
         <div className="card">
-          <div className="card-head"><h2>T7 battery, today</h2><span className="secondary">from {hm(chartFrom)} · live from MDM · 5-minute rows</span></div>
+          <div className="card-head"><div><h2>T7 battery, today</h2><div className="card-sub">from {hm(chartFrom)} · live from MDM · 5-minute rows</div></div>
+            <Segmented ariaLabel="Battery chart" options={MODES} value={battMode} onChange={setBattMode} /></div>
           <div className="card-body">
             {picker}
             <div className="legend" style={{ margin: '8px 0 10px' }}>
-              {drifting.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)' }} />dashed = drifting</span> : null}
-              {projection.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--text-3)' }} />Projected median{picked != null ? ' of the ticked devices' : ''}, at {selRate.toFixed(1)} %/h</span> : null}
-              <span className="legend-item secondary">{few ? 'every line is labelled' : 'labels mark the lowest and highest'}</span>
+              {battMode === 'avg' ? <>
+                <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average of {shown.length} device{shown.length === 1 ? '' : 's'}</span>
+                <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--text-3)', opacity: .5 }} />Highest and lowest</span>
+              </> : <>
+                {drifting.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)' }} />dashed = drifting</span> : null}
+                <span className="legend-item secondary">{few ? 'every line is labelled' : 'labels mark the lowest and highest'}</span>
+              </>}
+              {projection.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--text-3)' }} />Projected, at {selRate.toFixed(1)} %/h</span> : null}
             </div>
             {noneTicked ? <div className="empty">No devices ticked — pick some above, or choose Select all.</div> :
             <MultiLineChart series={series} h={230} yMax={100} yFmt={v => v + '%'} xFmt={hm} x0={chartFrom} x1={projTo || winTo}
-              tip={(t, hits) => { const top = hits.filter(x => x.p).sort((a, b) => a.p.y - b.p.y).slice(0, 4)
-                return `<b>${hm(t)}</b><br>${top.map(({ s, p }) => `${s.id.slice(-5)} ${p.y}%`).join('<br>')}${hits.length > 4 ? `<br><span style="opacity:.7">+${hits.length - 4} more</span>` : ''}` }} />}
+              tip={battTip} />}
           </div>
         </div>
         <div className="card">
-          <div className="card-head"><h2>Battery temperature, today</h2><span className="secondary">{picked == null ? 'fleet median and 95th percentile' : `${shown.length} ticked device${shown.length === 1 ? '' : 's'}`} · °C</span></div>
+          <div className="card-head"><div><h2>Battery temperature, today</h2><div className="card-sub">{shown.length} device{shown.length === 1 ? '' : 's'} · °C</div></div>
+            <Segmented ariaLabel="Temperature chart" options={MODES} value={tempMode} onChange={setTempMode} /></div>
           <div className="card-body">
             {picker}
             <div className="legend" style={{ margin: '8px 0 10px' }}>
-              {picked == null ? <>
-                <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Median</span>
+              {tempMode === 'avg' ? <>
+                <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average</span>
                 <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-2)' }} />95th percentile</span>
-              </> : <span className="legend-item secondary">one line per ticked device, colours as in the list</span>}
+              </> : <span className="legend-item secondary">one line per device, colours as in the list</span>}
               <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)' }} />{TEMP_LIMIT} °C review threshold</span>
             </div>
             {noneTicked ? <div className="empty">No devices ticked — pick some above, or choose Select all.</div> :
             <MultiLineChart h={230} yMax={60} yFmt={v => v.toFixed(0) + '°'} xFmt={hm} x0={chartFrom} x1={winTo}
               refs={[{ v: TEMP_LIMIT, label: `${TEMP_LIMIT} °C review threshold`, color: 'var(--warn)' }]}
               series={tempSeries}
-              tip={(t, hits) => `<b>${hm(t)}</b><br>${hits.sort((a, b) => b.p.y - a.p.y).slice(0, 6).map(({ s, p }) => `${s.id.length > 4 ? s.id.slice(-5) : s.id} ${p.y.toFixed(1)} °C`).join('<br>')}`} />}
+              tip={tempTip} />}
           </div>
         </div>
         <div className="card">

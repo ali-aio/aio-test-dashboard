@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { Card, EmptyNote, Segmented } from '../components/Primitives.jsx'
+import { ModeSwitch, deviceSeries, useDevicePicker } from '../components/CurveModes.jsx'
 import { LineChart, GroupedColumns } from '../components/t7charts.jsx'
 import { compareBy, avgCurveBy, maxOf, explainEmpty, plottedMaxHour } from '../lib/t7cycles.js'
 import { buildColorMap, MAX_SERIES, SERIES_VARS, BUILD_COLOR } from '../lib/palette.js'
@@ -80,7 +81,7 @@ export function visibleGroups(groups, picked, max = DEFAULT_GROUPS) {
   return out.length ? out : groups.slice(0, 1)
 }
 
-export default function ComparisonView({ cycles, testType }) {
+export default function ComparisonView({ cycles, testType, allSerials = [] }) {
   /* MDM field telemetry carries no firmware or build column, so defaulting to
      firmware would show a single "Unknown" group and nothing to compare. Start
      on whichever dimension the data in scope actually splits into the most
@@ -142,6 +143,10 @@ export default function ComparisonView({ cycles, testType }) {
       color: colorFor(g.label),
       points: g.points,
     })), [drawable, colorMap])
+  // Average per group (T7's view) or every device on its own line, with the device picker.
+  const [curveMode, setCurveMode] = useState('avg')
+  const perDevice = useMemo(() => deviceSeries(cycles, allSerials.length ? allSerials : [...new Set(cycles.map((c) => c.serial))]), [cycles, allSerials])
+  const picker = useDevicePicker(perDevice)
 
   const maxHour = useMemo(
     () => plottedMaxHour(cycles),
@@ -181,10 +186,12 @@ export default function ComparisonView({ cycles, testType }) {
         </span>
       </div>
 
-      <Card expandable title="Mean battery curve by group"
-        sub={`Mean battery at each whole hour${testType === '__all__' ? ' across every test type in scope' : ` · ${testType}`}`}>
+      <Card expandable title={curveMode === 'all' ? 'Battery curve, every device' : 'Mean battery curve by group'}
+        sub={`${curveMode === 'all' ? 'Each device’s mean battery' : 'Mean battery'} at each whole hour${testType === '__all__' ? ' across every test type in scope' : ` · ${testType}`}`}
+        right={<ModeSwitch value={curveMode} onChange={setCurveMode} avgLabel="Average per group" />}>
         <LineChart
-          series={curves}
+          series={curveMode === 'all' ? perDevice : curves}
+          {...(curveMode === 'all' ? picker : {})}
           xDomain={[0, maxHour]}
           yDomain={[0, 100]}
           formatX={fmtHourTick}

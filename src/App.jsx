@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } fro
 import { subscribe, getSnapshot, boot, startPolling, GROUP } from './lib/fleet.js'
 import { loadWindow, subscribeWindow, getWindow, rowsFor, WINDOW_HOURS } from './lib/window.js'
 import { adaptAll, CTX } from './lib/adapt.js'
+import { loadDecls, loadRota, testType as ttById } from './lib/plan.js'
 import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials } from './lib/t7cycles.js'
 import { initThemeToggle } from './lib/theme.js'
 import { fmtInt, fmtDateLong } from './lib/fmt.js'
@@ -89,6 +90,13 @@ export default function App() {
   const applyFilter = patch => setFilters(f => ({ ...f, ...patch }))
   const openTestType = tt => { setFilters(f => ({ ...f, testType: tt })); location.hash = '#/nx' }
 
+  // Test types declared on the Cycle plan — single days and the weekly rota. Re-read on
+  // every render (two small localStorage reads), so a declaration made on the Cycle plan
+  // tab is in the Overview's list the moment you switch back.
+  const declaredTypes = [...new Set([
+    ...loadDecls(GROUP).map(d => ttById(d.testType)?.name),
+    ...Object.values(loadRota(GROUP)).map(r => ttById(r?.testType)?.name),
+  ].filter(Boolean))]
   const analysis = ['overview', 'comparison', 'thermal', 'summary'].includes(view)
   const body = error ? <ErrorPanel error={error} />
     : !ready ? <div className="empty-note">Loading the fleet from the MDM…</div>
@@ -97,7 +105,7 @@ export default function App() {
     : view === 'legacy' ? <LegacyView />
     : (
       <div className="view-stack">
-        <FilterBar cycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} />
+        <FilterBar cycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} declaredTypes={declaredTypes} />
         <FilterPills filters={filters} onChange={setFilters} onReset={resetFilters} count={scoped.length} allSerials={allSerials} />
         {fleet.seed && !fleet.seed.ok && (
           <div className="banner banner-warn"><span aria-hidden="true">◆</span>
@@ -115,7 +123,7 @@ export default function App() {
           <div><span className="spin" /> Reading {Math.round(WINDOW_HOURS / 24)} days of history for {DEV.length} devices — the curve charts fill in as it lands.</div></div>}
         <ErrorBoundary resetKey={`${view}|${JSON.stringify(filters)}`} onReset={resetFilters}>
           {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} testType={filters.testType} allSerials={allSerials} />}
-          {view === 'comparison' && <ComparisonView cycles={scoped} testType={filters.testType} />}
+          {view === 'comparison' && <ComparisonView cycles={scoped} testType={filters.testType} allSerials={allSerials} />}
           {view === 'thermal' && <ThermalView cycles={scoped} allSerials={allSerials} onFilter={applyFilter} />}
           {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={[]} onEventsChanged={() => {}} onFilter={applyFilter} issues={[]} files={[]} />}
         </ErrorBoundary>

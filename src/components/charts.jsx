@@ -76,7 +76,8 @@ export function MultiLineChart({ series, h = 220, yMax = 100, yMin = 0, yFmt = v
   const dx = (xb - xa) || 1, span = (yMax - yMin) || 1
   const X = v => pl + (v - xa) / dx * (W - pl - pr)
   const Y = v => pt + (1 - (Math.min(Math.max(v, yMin), yMax) - yMin) / span) * (h - pt - pb)
-  const path = s => { const ys = smoothY(s.pts, smooth); return ys.map((v, i) => `${i ? 'L' : 'M'}${X(s.pts[i].x).toFixed(1)},${Y(v).toFixed(1)}`).join('') }
+  // a series can opt out (`smooth: false`): a two-point projection averaged with itself goes flat
+  const path = s => { const ys = smoothY(s.pts, smooth && s.smooth !== false); return ys.map((v, i) => `${i ? 'L' : 'M'}${X(s.pts[i].x).toFixed(1)},${Y(v).toFixed(1)}`).join('') }
   const xt = (W < 460 ? [0, .5, 1] : [0, .25, .5, .75, 1]).map(f => xa + f * dx)
   const labs = live.filter(s => s.endLabel).map(s => ({ s, y: Y(s.pts[s.pts.length - 1].y) })).sort((a, b) => a.y - b.y)
   for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i - 1].y < 12) labs[i].y = labs[i - 1].y + 12

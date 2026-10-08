@@ -19,7 +19,7 @@ export default function CyclePlanView({ fleet }) {
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() })
   const [sel, setSel] = useState(todayKey())
   const [form, setForm] = useState(null)
-  const [showRota, setShowRota] = useState(false)
+  const [bulkType, setBulkType] = useState(TEST_TYPES[0].id)
 
   const ranOn = key => allCycles.filter(c => dayKey(c.end) === key).length
   const resolve = key => {
@@ -35,10 +35,10 @@ export default function CyclePlanView({ fleet }) {
   const counts = inMonth.reduce((a, c) => { a[c.r.status] = (a[c.r.status] || 0) + 1; return a }, {})
 
   const commit = next => { saveDecls(GROUP, next); setDecls(loadDecls(GROUP)) }
-  const openForm = id => {
+  const openForm = (id, day = sel) => {
     const d = id && decls.find(x => x.id === id)
     let by = ''; try { by = localStorage.getItem('declaredBy') || '' } catch (e) {}
-    setForm(d ? { ...d } : { testType: TEST_TYPES[0].id, from: sel, to: sel, group: { kind: 'all' }, startTime: '07:00', endTime: '19:00', repeat: 'none', by })
+    setForm(d ? { ...d } : { testType: TEST_TYPES[0].id, from: day, to: day, group: { kind: 'all' }, startTime: '07:00', endTime: '19:00', repeat: 'none', by })
   }
 
   return (
@@ -47,11 +47,39 @@ export default function CyclePlanView({ fleet }) {
         <div><h1>Cycle plan</h1>
           <div className="sub" style={{ maxWidth: 620 }}>This screen <i>is</i> the test-type column. Declare once — a date, a device group, a test type — and every MDM row that arrives inside that window is stamped on the way in. No import step, no filename convention, nothing to remember at the end of a run.</div>
         </div>
+        <div className="spacer" />
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn" onClick={() => setShowRota(v => !v)}>Weekly rota…</button>
-          <button className="btn primary" onClick={() => openForm(null)}>+ Declare a cycle</button>
+          <button className="btn btn-primary" onClick={() => openForm(null)}>+ Declare a cycle</button>
         </div>
       </div>
+
+      {!decls.length && !Object.keys(rota).length && (
+        <div className="banner banner-warn">
+          <span aria-hidden="true">◆</span>
+          <div><strong>No test types are set up yet, so every run is "Untyped".</strong>
+            <div>The MDM never says which test a run was — this screen does. The quickest start is the
+              <b> Standing weekly rota</b> on the right: pick a test for each weekday once and every day,
+              past and future, is labelled. Declare a single day to override it.</div></div>
+        </div>
+      )}
+      {inMonth.filter(c => c.r.status === 'inferred').length > 0 && (
+        <div className="card"><div className="card-body" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span><b>{inMonth.filter(c => c.r.status === 'inferred').length} day{inMonth.filter(c => c.r.status === 'inferred').length === 1 ? '' : 's'}</b> in {monthLabel(ym.y, ym.m)} ran with no test type.</span>
+          <span className="secondary">Label them all as</span>
+          <span className="ver" style={{ display: 'inline-block', minWidth: 220 }}>
+            <select value={bulkType} onChange={e => setBulkType(e.target.value)}>
+              {TEST_TYPES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select></span>
+          <button className="btn btn-primary" onClick={() => {
+            const days = inMonth.filter(c => c.r.status === 'inferred')
+            if (!confirm(`Declare ${testType(bulkType).name} for ${days.length} past day${days.length === 1 ? '' : 's'}? Each becomes its own declaration you can edit or delete.`)) return
+            let next = [...decls]
+            for (const c of days) next = [...next, newDecl(next, { testType: bulkType, from: c.key, to: c.key, group: { kind: 'all' }, startTime: '', endTime: '', repeat: 'none' })]
+            commit(next)
+          }}>Apply</button>
+          <span className="help" style={{ margin: 0 }}>Turns ▨ Inferred into ● Confirmed. Use the rota instead if the same test runs every week.</span>
+        </div></div>
+      )}
 
       <div className="cols-plan">
         <div className="card">
@@ -75,7 +103,11 @@ export default function CyclePlanView({ fleet }) {
                 return (
                   <button key={c.key} className={`plan-day ${c.inMonth ? '' : 'out'} ${c.isToday ? 'today' : ''} ${c.key === sel ? 'sel' : ''}`}
                     title={`${dayLabel(c.key)} · ${STATUS[r.status].label}`}
-                    onClick={() => { setSel(c.key); if (form) setForm(f => ({ ...f, from: c.key, to: c.key })) }}>
+                    onClick={() => {
+                      setSel(c.key)
+                      if (form) setForm(f => ({ ...f, from: c.key, to: c.key }))
+                      else if (!r.tt && c.inMonth) openForm(null, c.key)
+                    }}>
                     <span className="dnum">{c.dayNum}{c.isToday ? <span className="tdy">TODAY</span> : null}</span>
                     {r.tt ? <><Chip r={r} /><span className="tname">{r.tt.name}</span><span className="tdev">{r.serials.length} devices</span></>
                       : r.status === 'inferred' ? <><Chip r={r} /><span className="tname">Untyped run</span><span className="tdev">{r.ran} cycle{r.ran === 1 ? '' : 's'}</span></>
@@ -126,7 +158,7 @@ export default function CyclePlanView({ fleet }) {
             </div>
           </div>
 
-          {showRota && (
+          {(
             <div className="card">
               <div className="card-head"><h2>Standing weekly rota</h2><span className="secondary">applied where no day overrides it</span></div>
               {WEEKDAYS.map((d, i) => (
@@ -153,7 +185,7 @@ export default function CyclePlanView({ fleet }) {
                 <thead><tr><th>Device</th><th>Kind</th><th className="r">Runtime</th><th className="r">Drain</th><th className="r">Peak</th><th className="r">Ended</th></tr></thead>
                 <tbody>{selRan.slice().sort((a, b) => a.end - b.end).map((c, i) => {
                   const d = DEV.find(x => x.cycles.includes(c))
-                  return <tr className="row" key={i}>
+                  return <tr key={i}>
                     <td className="mono">{d ? d.serial : '—'}</td>
                     <td><span className={`pill ${c.reason === 'died' ? 'pill-ok' : 'pill-run'}`}>{c.reason === 'died' ? 'Run-down' : 'Timed'}</span></td>
                     <td className="r mono">{fmtDur(rt(c))}</td>

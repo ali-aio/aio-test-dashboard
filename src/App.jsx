@@ -49,7 +49,7 @@ function useHash() {
 
 export default function App() {
   const fleet = useSyncExternalStore(subscribe, getSnapshot)
-  const win = useSyncExternalStore(subscribeWindow, getWindow)
+  const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
   const hash = useHash()
   const view = ROUTE(hash)
   const [ver, setVer] = useState(() => { try { return localStorage.getItem('ui:ver') === 'v1' ? 'v1' : 'v2' } catch (e) { return 'v2' } })

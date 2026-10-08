@@ -8,6 +8,8 @@ import T7Overview from '../src/views/T7Overview.jsx'
 import Comparison from '../src/views/ComparisonView.jsx'
 import Thermal from '../src/views/ThermalView.jsx'
 import Devices from '../src/views/DevicesView.jsx'
+import Today from '../src/views/TodayView.jsx'
+import CyclePlan from '../src/views/CyclePlanView.jsx'
 
 // a rota so every test type, including Restaurant Case's wireless split, gets exercised
 const ROTA = JSON.stringify({0:{testType:'wlc_load'},1:{testType:'restaurant'},2:{testType:'wlc_phone'},3:{testType:'wlc_disch'},4:{testType:'charging'},5:{testType:'burnin'},6:{testType:'disch_ads'}})
@@ -35,6 +37,9 @@ const cases = {
     [`summary test=${t}`, [Devices, { cycles: cs, allSerials: all, events: [], onEventsChanged: nop, onFilter: nop, issues: [], files: [] }]],
   ] })),
   'empty scope': ov([]),
+  // this repo's own two screens, fed the fleet shape they read
+  today: [Today, { fleet: { DEV, allCycles: DEV.flatMap(d => d.cycles), DMAP: new Map(DEV.map(d => [d.serial, d])), opts: DEFAULTS }, cycles: [] }],
+  'cycle plan': [CyclePlan, { fleet: { DEV, allCycles: DEV.flatMap(d => d.cycles), DMAP: new Map(DEV.map(d => [d.serial, d])), opts: DEFAULTS }, cycles: [] }],
   thermal: [Thermal, { cycles, allSerials: all, onFilter: nop }],
   summary: [Devices, { cycles, allSerials: all, events: [], onEventsChanged: nop, onFilter: nop, issues: [], files: [] }],
 }

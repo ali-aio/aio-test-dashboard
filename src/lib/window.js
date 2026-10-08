@@ -93,3 +93,30 @@ export function running(DEV, opts) {
   return { devices: ips.sort((a, b) => a.ip.start - b.ip.start), start, elapsedMs: now - start,
     drained: median(ips.map(x => x.ip.startPct - x.ip.nowPct)) };
 }
+
+// When did this device's run actually start? The declared window opens at, say, 07:00,
+// but devices sit full on the charger until someone pulls them — 11:00 on a typical day.
+// Elapsed time, drain rate and the chart's left edge should all count from the moment
+// the battery started to fall, not from the window. That moment is the LAST sample at
+// the run's peak before the level dropped by 2+ points (one point is charger wobble).
+export function runStartOf(rows) {
+  if (!rows || rows.length < 2) return null;
+  let peak = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].battery_pct >= rows[peak].battery_pct) peak = i;
+    else if (rows[peak].battery_pct - rows[i].battery_pct >= 2) {
+      return { t: Date.parse(rows[peak].timestamp), pct: rows[peak].battery_pct };
+    }
+  }
+  return null; // still full, or never fell far enough to call it a run
+}
+
+// Drain since the run started, in percentage points per hour, from the device's own
+// first and latest readings. Null until the run is at least 20 minutes old — before that
+// the rate is two samples of noise.
+export function drainSince(rows, start) {
+  if (!start || !rows || !rows.length) return null;
+  const last = rows[rows.length - 1], h = (Date.parse(last.timestamp) - start.t) / H;
+  if (h < 1 / 3) return null;
+  return (start.pct - last.battery_pct) / h;
+}

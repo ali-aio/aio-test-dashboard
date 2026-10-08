@@ -10,7 +10,7 @@ import { LineChart } from '../components/charts.jsx'
 
 export default function OverviewView({ fleet }) {
   const { DEV, allCycles, opts } = fleet
-  const win = useSyncExternalStore(subscribeWindow, getWindow)
+  const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
   useEffect(() => { loadWindow(DEV) }, [DEV])
 
   const now = Date.now(), key = todayKey()

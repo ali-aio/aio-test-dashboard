@@ -29,11 +29,11 @@ CTX.group = GROUP
 // the MDM instead of from an imported CSV. Today and Cycle plan are this repo's own.
 const VIEWS = [
   { id: 'overview', hash: '#/nx', label: 'Overview' },
+  { id: 'today', hash: '#/nx/today', label: 'Today' },
+  { id: 'plan', hash: '#/nx/plan', label: 'Cycle plan' },
   { id: 'comparison', hash: '#/nx/comparison', label: 'Comparison' },
   { id: 'thermal', hash: '#/nx/thermal', label: 'Thermal' },
   { id: 'summary', hash: '#/nx/summary', label: 'Summary' },
-  { id: 'today', hash: '#/nx/today', label: 'Today' },
-  { id: 'plan', hash: '#/nx/plan', label: 'Cycle plan' },
 ]
 const ROUTE = h => h.startsWith('#/nx/comparison') ? 'comparison'
   : h.startsWith('#/nx/thermal') ? 'thermal'

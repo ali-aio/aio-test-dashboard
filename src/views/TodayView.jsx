@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, buckets, dayStats, conform, temp, runStartOf, drainSince, WINDOW_HOURS } from '../lib/window.js'
-import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, loadDecls, loadRota } from '../lib/plan.js'
+import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, loadDecls, loadRota } from '../lib/plan.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
 import { median, pctl, hm, dt, ago, MIN, H } from '../lib/format.js'
@@ -21,6 +21,7 @@ export default function TodayView({ fleet }) {
   useEffect(() => { loadWindow(DEV) }, [DEV])
 
   const now = Date.now()
+  const [planRev, setPlanRev] = useState(0) // bumped after a take-out / put-back, to re-read the plan
   // The day whose run is on now. A run planned 10:00 → 04:00 belongs to the day it started,
   // so until yesterday's overnight window closes (and today's has not opened) Today stays
   // on yesterday's run.
@@ -38,10 +39,12 @@ export default function TodayView({ fleet }) {
     if (!pick) return dayFor(todayKey())
     const base = dayFor(pick.key), src = pick.decl
     return { ...base, testType: src.testType, tt: testType(src.testType), decl: src, src,
-      serials: groupSerials(src.group, DEV), startMs: pick.startMs, endMs: pick.endMs, overnight: pick.overnight,
+      // devices taken out of this cycle leave its charts and table from the moment they left
+      serials: activeSerials(src, DEV, now), removed: removedFrom(src), startMs: pick.startMs, endMs: pick.endMs, overnight: pick.overnight,
       cycleNo: cyclesOn(decls, pick.key).findIndex(c => c.decl.id === src.id) + 1, cycleCount: cyclesOn(decls, pick.key).length }
-  }, [DEV, allCycles, win.at2, todayKey()])
+  }, [DEV, allCycles, win.at2, todayKey(), planRev])
   const key = T.key
+  const [takingOut, setTakingOut] = useState(null) // serial whose take-out form is open
 
   const winTo = Math.min(now, T.endMs)
   const conf = useMemo(() => T.serials.map(s => conform(s, T.tt, T.startMs, winTo)), [T, win.at2])
@@ -277,9 +280,12 @@ export default function TodayView({ fleet }) {
             <h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{listShown ? '▾' : '▸'}</span>Devices today ({conf.filter(c => matches(c.serial)).length})</h2>
             <span className="secondary">{reporting.length} reporting · {listShown ? 'click to hide' : 'click to show every device — click one to chart it alone'}</span>
           </div>
+          {takingOut && T.decl && <TakeOutForm serial={takingOut} cycle={T} onCancel={() => setTakingOut(null)}
+            onSave={rec => { takeOut(GROUP, T.decl.id, { serial: takingOut, ...rec }); setTakingOut(null); setPlanRev(v => v + 1) }} />}
           {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' },
               { label: 'Drain', className: 'r' }, { label: 'Lifetime cycles (MDM)', className: 'r' }, { label: 'Temp now', className: 'r' },
-              { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Today', className: 'r', sortable: false }]}>
+              { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Today', className: 'r', sortable: false },
+              ...(T.decl ? [{ label: '', sortable: false }] : [])]}>
               {conf.filter(c => matches(c.serial)).sort((a, b) => ((b.state === 'drifting') - (a.state === 'drifting')) || ((fleet.DMAP.get(a.serial)?.snap?.battery_pct ?? 999) - (fleet.DMAP.get(b.serial)?.snap?.battery_pct ?? 999))).map(c => {
                 const r = runs.get(c.serial)
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
@@ -296,10 +302,29 @@ export default function TodayView({ fleet }) {
                   <td className="r mono" style={{ color: s?.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : s?.maxTemp >= TEMP_WARN ? 'var(--warn)' : 'inherit' }}>{s?.maxTemp != null ? s.maxTemp.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td>
                   <td className="r mono" style={{ color: s?.minAbove45 ? 'var(--bad)' : 'inherit' }}>{s?.minAbove45 ? fmtDur(s.minAbove45 * MIN) : <span className="secondary">—</span>}</td>
                   <td className="r">{s ? <Sparkline vals={s.battPts.map(p => p.y)} /> : <span className="secondary">—</span>}</td>
+                  {T.decl && <td className="r"><button type="button" className="btn btn-sm" title={`Take ${c.serial} out of this cycle, with a reason`}
+                    onClick={e => { e.stopPropagation(); setTakingOut(c.serial) }}>Take out</button></td>}
                 </tr>
               })}
           </SortTable></div>}
         </div>
+        {T.decl && T.removed?.length > 0 && (
+          <div className="card">
+            <div className="card-head"><h2>Taken out of this cycle ({T.removed.length})</h2><span className="secondary">kept on record · their runs from then on don't count toward {T.tt?.name}</span></div>
+            <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Taken out' }, { label: 'Reason' }, { label: 'Note' }, { label: 'By' }, { label: '', sortable: false }]}>
+              {T.removed.map(r => (
+                <tr key={r.serial}>
+                  <td className="mono">{r.serial}</td>
+                  <td className="mono">{dayKey(r.at) === todayKey() ? hm(r.at) : dt(r.at)}</td>
+                  <td>{r.reason}</td>
+                  <td>{r.note || <span className="secondary">—</span>}</td>
+                  <td>{r.by || <span className="secondary">—</span>}</td>
+                  <td className="r"><button type="button" className="btn btn-sm" onClick={() => { if (confirm(`Put ${r.serial} back into this cycle? The record of it being taken out is removed.`)) { putBack(GROUP, T.decl.id, r.serial); setPlanRev(v => v + 1) } }}>Put back</button></td>
+                </tr>
+              ))}
+            </SortTable></div>
+          </div>
+        )}
       </>}
     </div>
   )
@@ -382,3 +407,32 @@ function DevicePicker({ serials, picked, colorOf, styleOf, drifting, onToggle, o
   )
 }
 
+
+// Taking one device out of the running cycle: a reason from a short list, an optional
+// note and name. Saved on the cycle with the time, so the record says who left and why.
+function TakeOutForm({ serial, cycle, onSave, onCancel }) {
+  const [reason, setReason] = useState(TAKE_OUT_REASONS[0])
+  const [note, setNote] = useState('')
+  const [by, setBy] = useState(() => { try { return localStorage.getItem('declaredBy') || '' } catch (e) { return '' } })
+  const needNote = reason === 'Other' && !note.trim()
+  return (
+    <div className="card-body takeout">
+      <div style={{ marginBottom: 8 }}><b>Take <span className="mono">{serial}</span> out of {cycle.tt?.name}</b>
+        <div className="secondary" style={{ fontSize: 12 }}>It leaves the charts and the cycle from now ({hm(Date.now())}). The run it is on stops counting toward this test.</div></div>
+      <div className="takeout-grid">
+        <label className="field"><span>Reason</span>
+          <span className="ver" style={{ display: 'block' }}><select value={reason} onChange={e => setReason(e.target.value)} style={{ width: '100%' }}>
+            {TAKE_OUT_REASONS.map(r => <option key={r}>{r}</option>)}</select></span></label>
+        <label className="field"><span>Note {reason === 'Other' ? '(required)' : '(optional)'}</span>
+          <input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. taken by Sam for the customer demo" /></label>
+        <label className="field"><span>Taken out by</span>
+          <input className="input" value={by} onChange={e => setBy(e.target.value)} placeholder="optional" /></label>
+      </div>
+      <div className="form-actions">
+        <button className="btn" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-primary" disabled={needNote} title={needNote ? 'Add a note for "Other"' : undefined}
+          onClick={() => { try { localStorage.setItem('declaredBy', by) } catch (e) {} onSave({ reason, note: note.trim(), by: by.trim() }) }}>Take out</button>
+      </div>
+    </div>
+  )
+}

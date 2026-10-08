@@ -1932,8 +1932,9 @@ tr.row-link.is-selected td { background: color-mix(in srgb, var(--series-1) 12%,
 .form-actions .btn-primary { min-width: 120px; }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 /* Cycle plan: the cycles on one day, one row each */
-.cyc-row { display: grid; grid-template-columns: 64px 1fr auto; gap: 4px 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-.cyc-row .cyc-acts { grid-column: 2 / -1; display: flex; gap: 6px; }
+.cyc-row { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.cyc-row .cyc-acts { grid-column: 2 / -1; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.cyc-row > .mono { grid-column: 2 / -1; }
 .cyc-row.carried { opacity: .85; }
 /* Set a test: tick the devices */
 .dev-pick { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
@@ -1942,3 +1943,14 @@ tr.row-link.is-selected td { background: color-mix(in srgb, var(--series-1) 12%,
 .dev-pick-list { max-height: 220px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 8px; padding: 4px 6px; }
 .dev-pick-item { display: flex; align-items: center; gap: 6px; padding: 5px 2px; font-size: 12.5px; cursor: pointer; }
 .plan-day .carry { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+/* Today: taking a device out of the cycle */
+.takeout { border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--status-warning) 7%, var(--surface-1)); }
+.takeout-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.takeout-grid .field > span:first-child { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.cyc-row .cyc-out { grid-column: 2 / -1; font-size: 12px; color: var(--text-secondary); border-left: 2px solid var(--status-warning); padding-left: 8px; }
+/* Cycle plan: two cycles claiming the same time */
+.overlap-warn { background: color-mix(in srgb, var(--status-warning) 14%, var(--surface-1)); border: 1px solid color-mix(in srgb, var(--status-warning) 55%, transparent);
+  border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12.5px; line-height: 1.45; margin: 4px 0 10px; }
+.overlap-warn > div { color: var(--text-secondary); margin-top: 2px; }
+.plan-day .overlap-flag { font-size: 11px; font-weight: 600; color: var(--status-serious); margin-top: 2px; }
+.plan-day .chips { display: flex; gap: 4px; flex-wrap: wrap; }

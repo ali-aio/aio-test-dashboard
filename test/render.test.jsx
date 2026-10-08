@@ -16,7 +16,7 @@ import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText } from '../src/lib/splitCycles.js'
 import RangePicker from '../src/components/RangePicker.jsx'
-import { windowOn, cycleAt, nextCycleTimes, cyclesOn } from '../src/lib/plan.js'
+import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn } from '../src/lib/plan.js'
 import { testTypeFor } from '../src/lib/adapt.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
@@ -201,6 +201,26 @@ const mdmCases = []
     want(cyclesOn(decls, '2026-10-12').length === 1, 'own cycles on Oct 12')
     const tt = testTypeFor({ start: at(12, 1), end: at(12, 3), serial: 'A' }, { decls, rota: {}, DEV: [] })
     want(tt === 'WLC on Load', `1am run -> ${tt}`)
+  })
+  check('a device taken out leaves the cycle and its cut-short run', () => {
+    const at = (d, h) => new Date(2026, 9, d, h).getTime()
+    const decl = { id: 'd1', at: 1, testType: 'wlc_load', from: '2026-10-11', to: '2026-10-11', startTime: '10:00', endTime: '04:00', group: { kind: 'all' },
+      removed: [{ serial: 'B', at: at(11, 15), reason: 'Taken for debugging' }] }
+    const DEV = [{ serial: 'A' }, { serial: 'B' }]
+    want(activeSerials(decl, DEV, at(11, 12)).length === 2, 'B still in before it was taken')
+    want(activeSerials(decl, DEV, at(11, 16)).join() === 'A', 'B gone after')
+    const tB = testTypeFor({ start: at(11, 10), end: at(11, 20), serial: 'B' }, { decls: [decl], rota: {}, DEV })
+    const tA = testTypeFor({ start: at(11, 10), end: at(11, 20), serial: 'A' }, { decls: [decl], rota: {}, DEV })
+    want(tB !== 'WLC on Load' && tA === 'WLC on Load', `B ${tB} / A ${tA}`)
+  })
+  check('overlapping cycles are found; back-to-back ones are not', () => {
+    const DEV = [{ serial: 'A' }, { serial: 'B' }]
+    const d = (id, at, s, e, group = { kind: 'all' }) => ({ id, at, testType: 'wlc_load', from: '2026-10-10', to: '2026-10-10', startTime: s, endTime: e, group })
+    const o = overlapsOn([d('x', 1, '07:00', '19:00'), d('y', 2, '10:00', '04:00')], '2026-10-10', DEV)
+    want(o.length === 1 && o[0].shared === 2 && o[0].winner.decl.id === 'y', 'clash not found')
+    want(new Date(o[0].from).getHours() === 10 && new Date(o[0].to).getHours() === 19, 'overlap span')
+    want(!overlapsOn([d('x', 1, '07:00', '13:00'), d('y', 2, '13:00', '19:00')], '2026-10-10', DEV).length, 'back to back flagged')
+    want(!overlapsOn([d('x', 1, '07:00', '19:00', { kind: 'serials', serials: ['A'] }), d('y', 2, '10:00', '20:00', { kind: 'serials', serials: ['B'] })], '2026-10-10', DEV).length, 'different devices flagged')
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

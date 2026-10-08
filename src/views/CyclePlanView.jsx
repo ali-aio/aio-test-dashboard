@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
 import {
   TEST_TYPES, testType, ttSlot, loadDecls, saveDecls, loadRota, saveRota, newDecl,
-  resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, windowOn, cyclesOn, carriedInto, nextCycleTimes, WEEKDAYS, monthLabel, dayLabel,
+  resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, windowOn, cyclesOn, carriedInto, nextCycleTimes, overlapsOn, WEEKDAYS, monthLabel, dayLabel,
 } from '../lib/plan.js'
 import { GROUP } from '../lib/fleet.js'
 import { splitText } from '../lib/splitCycles.js'
@@ -111,11 +111,16 @@ export default function CyclePlanView({ fleet }) {
                       else setForm(null)
                     }}>
                     <span className="dnum">{c.dayNum}{c.isToday ? <span className="tdy">TODAY</span> : null}</span>
-                    {r.tt ? <><Chip r={r} /><span className="tname">{r.tt.name}</span><span className="tdev">{r.serials.length} devices</span></>
+                    {r.tt ? (r.cycles?.length > 1
+                      // several cycles: a badge for each, names in start order
+                      ? <><span className="chips">{r.cycles.map(x => <Chip key={x.decl.id} r={{ tt: testType(x.decl.testType), status: r.status }} />)}</span>
+                          <span className="tname">{r.cycles.map(x => testType(x.decl.testType)?.name).join(' · ')}</span>
+                          <span className="tdev">{r.cycles.length} cycles</span></>
+                      : <><Chip r={r} /><span className="tname">{r.tt.name}</span><span className="tdev">{r.serials.length} devices</span></>)
                       : r.status === 'inferred' ? <><Chip r={r} /><span className="tname">No test set</span><span className="tdev">{amountOn(c.key)}</span></>
                       : c.inMonth && !carried.length ? <span className="declare">{future ? '+ set test' : 'no run'}</span> : null}
                     {carried.length > 0 && c.inMonth && <span className="carry">↪ {testType(carried[0].decl.testType)?.code} until {hm(carried[0].endMs)}{!r.tt && future ? ' · + next cycle' : ''}</span>}
-                    {r.cycles?.length > 1 && <span className="carry">+{r.cycles.length - 1} more cycle{r.cycles.length > 2 ? 's' : ''}</span>}
+                    {c.inMonth && overlapsOn(decls, c.key, DEV).length > 0 && <span className="overlap-flag" title="Two cycles overlap on this day — open it to see">⚠ cycles overlap</span>}
                   </button>
                 )
               })}
@@ -149,7 +154,16 @@ export default function CyclePlanView({ fleet }) {
               {(() => {
                 const own = cyclesOn(decls, sel), carried = carriedInto(decls, sel)
                 const fmtW = c => `${hm(c.startMs)} → ${hm(c.endMs)}${c.overnight ? ' next day' : ''}`
+                const clashes = overlapsOn(decls, sel, DEV)
+                const nameOf = x => testType(x.decl.testType)?.name
+                const label = x => x.key !== sel ? `${nameOf(x)} (from ${dayLabel(x.key).split(',')[0]})` : `${nameOf(x)} (cycle ${own.findIndex(o => o.decl.id === x.decl.id) + 1})`
                 return <>
+                  {clashes.map((o, i) => (
+                    <div className="overlap-warn" key={'o' + i} role="alert">
+                      <b>⚠ {label(o.a)} and {label(o.b)} overlap</b> {hm(o.from)}–{hm(o.to)}{dayKey(o.to) !== dayKey(o.from) ? ' next day' : ''} on {o.shared} shared device{o.shared === 1 ? '' : 's'}.
+                      <div>A run starting in that time counts as <b>{nameOf(o.winner)}</b> (set most recently). Edit one of them so their times don't overlap, or untick the shared devices.</div>
+                    </div>
+                  ))}
                   {carried.map(c => (
                     <div className="cyc-row carried" key={'c' + c.decl.id}>
                       <span className="secondary" style={{ fontSize: 12 }}>From {dayLabel(c.key).split(',')[0]} ↪</span>
@@ -162,10 +176,20 @@ export default function CyclePlanView({ fleet }) {
                       <span className="secondary" style={{ fontSize: 12 }}>Cycle {i + 1}</span>
                       <span><Chip r={{ tt: testType(c.decl.testType), status: S.status }} /> {testType(c.decl.testType)?.name}</span>
                       <span className="mono">{fmtW(c)}</span>
-                      <span className="cyc-acts">
-                        <button className="btn btn-sm" onClick={() => openForm(c.decl.id)}>Edit</button>
-                        <button className="btn btn-sm" onClick={() => { if (confirm('Remove this cycle? Its runs go back to having no test set.')) commit(decls.filter(d => d.id !== c.decl.id)) }}>Delete</button>
-                      </span>
+                      {(c.decl.removed || []).length > 0 && <div className="cyc-out">
+                        {c.decl.removed.map(r => <div key={r.serial}><span className="mono">{r.serial}</span> taken out {dayKey(r.at) === c.key ? hm(r.at) : `${dayLabel(dayKey(r.at)).split(',')[0]} ${hm(r.at)}`} — {r.reason}{r.note ? `: ${r.note}` : ''}{r.by ? ` (${r.by})` : ''}</div>)}
+                      </div>}
+                      {/* a plan covering several days (or repeating weekly) is edited on the day it was set,
+                          so Edit / Delete here would silently change the other days too */}
+                      {c.decl.from === sel
+                        ? <span className="cyc-acts">
+                            <button className="btn btn-sm" onClick={() => openForm(c.decl.id)}>Edit</button>
+                            <button className="btn btn-sm" onClick={() => { if (confirm('Remove this cycle? Its runs go back to having no test set.')) commit(decls.filter(d => d.id !== c.decl.id)) }}>Delete</button>
+                          </span>
+                        : <span className="cyc-acts secondary" style={{ fontSize: 12 }}>
+                            part of the plan set on {dayLabel(c.decl.from).split(',').slice(0, 2).join(',')}{c.decl.repeat === 'weekly' ? ' (repeats weekly)' : ''} ·{' '}
+                            <button type="button" className="link-btn" onClick={() => { const [y, m] = c.decl.from.split('-').map(Number); setYm({ y, m: m - 1 }); setSel(c.decl.from) }}>open that day to edit</button>
+                          </span>}
                     </div>
                   )) : <p className="secondary" style={{ margin: '4px 0 10px' }}>{carried.length ? 'No new cycle starts on this day yet.' : 'No test set for this day.'}</p>}
                   <dl className="kv" style={{ marginTop: 10 }}>
@@ -246,6 +270,16 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
             </select></span></div>
         <div className="field"><label htmlFor="f-by">Set by</label><input className="input" id="f-by" value={form.by || ''} placeholder="optional" onChange={e => set('by', e.target.value)} /></div>
         <div className="help" style={{ marginBottom: 12 }}>A run belongs to the day it starts. An end time earlier than the start means the next morning (e.g. 10:00 AM → 04:00 AM), so a late run that finishes after midnight still counts here. Runs starting outside the window count as having no test set.</div>
+        {(() => {
+          // clashes this cycle would make with the cycles already set, on its first day
+          const others = decls.filter(d => d.id !== form.id)
+          const clash = form.from ? overlapsOn(others, form.from, DEV, { ...form, id: form.id || '__new', at: Infinity }).filter(o => o.a.decl.id === (form.id || '__new') || o.b.decl.id === (form.id || '__new')) : []
+          return clash.length ? <div className="overlap-warn" role="alert">
+            {clash.map((o, i) => { const other = o.a.decl.id === (form.id || '__new') ? o.b : o.a
+              return <div key={i}><b>⚠ Overlaps {testType(other.decl.testType)?.name}</b> ({hm(other.startMs)} → {hm(other.endMs)}) from {hm(o.from)} to {hm(o.to)} on {o.shared} shared device{o.shared === 1 ? '' : 's'}.</div> })}
+            <div>You can still save — runs starting in the overlap will count as this cycle, since it is the newest.</div>
+          </div> : null
+        })()}
         <div className="form-actions">
           <button className="btn" onClick={onCancel}>Cancel</button>
           <button className="btn btn-primary" disabled={!form.from || !ticked.size} title={!ticked.size ? 'Tick at least one device' : undefined} onClick={() => onSave({ ...form, to: form.to || form.from })}>{editing ? 'Save changes' : 'Save test'}</button>
@@ -257,7 +291,9 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
 
 function MonthSummary({ ym, counts, inMonth }) {
   const typed = inMonth.filter(c => c.r.tt).length
-  const upcoming = inMonth.filter(c => c.key >= todayKey() && c.r.tt).slice(0, 5)
+  // every cycle coming up, not one per day: a day with WL then RC lists both
+  const upcoming = inMonth.filter(c => c.key >= todayKey() && c.r.tt)
+    .flatMap(c => (c.r.cycles?.length ? c.r.cycles : [{ decl: null, startMs: null }]).map((x, i) => ({ c, x, i }))).slice(0, 6)
   return (
     <div className="card">
       <div className="card-head"><h3>{monthLabel(ym.y, ym.m)}</h3><span className="card-sub">{GROUP}</span></div>
@@ -272,11 +308,13 @@ function MonthSummary({ ym, counts, inMonth }) {
         {upcoming.length ? (
           <div style={{ marginTop: 14 }}>
             <div className="stat-label" style={{ marginBottom: 6 }}>Coming up</div>
-            {upcoming.map(c => (
-              <div className="row-item" key={c.key} style={{ paddingLeft: 0, paddingRight: 0 }}>
-                <Chip r={c.r} /><span className="grow">{c.r.tt.name}</span><span className="secondary">{day(c.date)}</span>
+            {upcoming.map(({ c, x, i }) => {
+              const tt = x.decl ? testType(x.decl.testType) : c.r.tt
+              return <div className="row-item" key={c.key + i} style={{ paddingLeft: 0, paddingRight: 0 }}>
+                <Chip r={{ tt, status: c.r.status }} /><span className="grow">{tt?.name}</span>
+                <span className="secondary">{day(c.date)}{x.startMs ? ` · ${hm(x.startMs)}` : ''}</span>
               </div>
-            ))}
+            })}
           </div>
         ) : null}
         <div className="help">“Ran, no test set” means the devices ran but nobody said which test — open that day and set its test to turn it into “Planned & ran”.</div>

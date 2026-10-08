@@ -164,6 +164,52 @@ export function groupSerials(g, DEV) {
 export const groupLabel = (g, DEV) => !g || g.kind === 'all' ? `All devices (${DEV.length})`
   : g.kind === 'group' ? `${g.name} (${groupSerials(g, DEV).length})` : `${(g.serials || []).length} selected`;
 
+/** Pairs of cycles on a day (including one carried over from last night) whose windows
+ *  overlap on at least one shared device. A run starting in the overlap goes to the more
+ *  recently set cycle (cycleAt), so the plan should not leave it ambiguous. */
+export function overlapsOn(decls, key, DEV, extra = null) {
+  const list = [...carriedInto(decls, key), ...cyclesOn(decls, key)]
+  if (extra) list.push({ decl: extra, key, ...windowOn(key, extra) })
+  const out = []
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    const a = list[i], b = list[j]
+    if (a.decl.id && a.decl.id === b.decl.id) continue
+    const from = Math.max(a.startMs, b.startMs), to = Math.min(a.endMs, b.endMs)
+    if (from >= to) continue
+    const sa = new Set(groupSerials(a.decl.group, DEV)), shared = groupSerials(b.decl.group, DEV).filter(x => sa.has(x))
+    if (!shared.length && DEV.length) continue
+    const later = (b.decl.at || Infinity) >= (a.decl.at || Infinity) ? b : a
+    out.push({ a, b, from, to, shared: shared.length, winner: later })
+  }
+  return out
+}
+
+// ── devices taken out of a cycle ──────────────────────────────────────────────
+// Someone borrows a device mid-cycle: it leaves the cycle from that moment, with a reason
+// on record. Kept on the declaration ({ serial, at, reason, note, by }), so the plan
+// remembers who left, when and why; "put back" removes the record.
+export const TAKE_OUT_REASONS = [
+  'Taken for a demo / customer', 'Taken for debugging', 'Hardware fault', 'Firmware update / reflash',
+  'Battery or charger swap', 'Other',
+];
+export const removedFrom = (decl, t = Infinity) => (decl?.removed || []).filter(r => r.at <= t);
+/** The cycle's devices still in it at time t. */
+export function activeSerials(decl, DEV, t = Date.now()) {
+  const out = new Set(removedFrom(decl, t).map(r => r.serial));
+  return groupSerials(decl?.group, DEV).filter(s => !out.has(s));
+}
+/** Was this run cut short by the device being taken out of its cycle? */
+export const takenOutDuring = (decl, serial, end) => (decl?.removed || []).some(r => r.serial === serial && r.at < end);
+export function takeOut(group, declId, rec) {
+  const decls = loadDecls(group).map(d => d.id !== declId ? d
+    : { ...d, removed: [...(d.removed || []).filter(r => r.serial !== rec.serial), { at: Date.now(), ...rec }] });
+  saveDecls(group, decls); return decls;
+}
+export function putBack(group, declId, serial) {
+  const decls = loadDecls(group).map(d => d.id !== declId ? d : { ...d, removed: (d.removed || []).filter(r => r.serial !== serial) });
+  saveDecls(group, decls); return decls;
+}
+
 // ── month grid ────────────────────────────────────────────────────────────────
 // Six weeks covering `month` (0-11), Monday-first, so the calendar never reflows.
 export function monthGrid(year, month) {

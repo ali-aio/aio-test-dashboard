@@ -11,7 +11,7 @@
 //   · build      — the MDM reports one device_class ("t7") for the whole fleet
 //   · android    — no OS/SDK field exists anywhere in the check-in payload
 //   · load gain  — the MDM reports the T7's own battery, never the phone/load's
-import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, windowOn, cycleAt, loadDecls, loadRota } from './plan.js';
+import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, windowOn, cycleAt, takenOutDuring, loadDecls, loadRota } from './plan.js';
 import { FIELD_DISCHARGE, FIELD_CHARGING } from './testtypes.js';
 import { perHourRate, HOUR_SNAP } from './t7cycles.js';
 import { mdmCyclesFor } from './mdmTrack.js';
@@ -32,6 +32,8 @@ export function testTypeFor(cycle, { decls, rota, DEV }) {
   if (hit) {
     const serials = groupSerials(hit.decl.group, DEV);
     if (serials.length && !serials.includes(cycle.serial)) return FIELD_DISCHARGE;
+    // taken out of the cycle before this run finished: not a run of this test
+    if (takenOutDuring(hit.decl, cycle.serial, cycle.end ?? cycle.start)) return FIELD_DISCHARGE;
     return ttById(hit.decl.testType)?.name || FIELD_DISCHARGE;
   }
   const key = dayKey(cycle.start);

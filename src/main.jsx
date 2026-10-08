@@ -2,7 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
-import '../app.css'
+import './t7.css'
 
 // Two boundaries: this one is the backstop for the shell, and App puts another around the
 // view area so one broken chart cannot take the navigation down with it.

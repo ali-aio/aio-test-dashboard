@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
 import {
   TEST_TYPES, testType, ttSlot, loadDecls, saveDecls, loadRota, saveRota, newDecl,
-  resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, windowOn, cyclesOn, carriedInto, nextCycleTimes, overlapsOn, WEEKDAYS, monthLabel, dayLabel,
+  resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, windowOn, cyclesOn, carriedInto, nextCycleTimes, overlapsOn, addDays, daysBetween, WEEKDAYS, monthLabel, dayLabel,
 } from '../lib/plan.js'
 import { GROUP } from '../lib/fleet.js'
 import { splitText } from '../lib/splitCycles.js'
@@ -51,7 +51,15 @@ export default function CyclePlanView({ fleet }) {
   const openForm = (id, day = sel) => {
     const d = id && decls.find(x => x.id === id)
     let by = ''; try { by = localStorage.getItem('declaredBy') || '' } catch (e) {}
-    setForm(d ? { ...d } : { testType: TEST_TYPES[0].id, from: day, to: day, group: { kind: 'all' }, ...nextCycleTimes(decls, day), repeat: 'none', by })
+    if (d) {
+      // stored shape -> form: end date from the cycle's real window; a plan covering several
+      // days without "weekly" is the old From/To range, i.e. "every day until"
+      const w = windowOn(d.from, d)
+      setForm({ ...d, endDate: dayKey(w.endMs - 1), repeat: d.repeat === 'weekly' ? 'weekly' : (d.to > d.from ? 'daily' : 'none') })
+    } else {
+      const t = nextCycleTimes(decls, day)
+      setForm({ testType: TEST_TYPES[0].id, from: day, to: day, group: { kind: 'all' }, ...t, endDate: t.endTime <= t.startTime ? addDays(day, 1) : day, repeat: 'none', by })
+    }
   }
 
   return (
@@ -125,11 +133,6 @@ export default function CyclePlanView({ fleet }) {
                 )
               })}
             </div>
-            <div className="banner" style={{ marginTop: 12 }}>
-              <div><b>This month at a glance.</b>{' '}
-                {counts.inferred || counts.confirmed ? `${counts.confirmed || 0} day${counts.confirmed === 1 ? '' : 's'} planned & ran, ${counts.inferred || 0} ran with no test set. ` : ''}
-                The goal is a calendar with no <b>▨ Ran, no test set</b> and no <b>○ No test, no run</b> in it: every test set before it runs.</div>
-            </div>
           </div>
         </div>
 
@@ -199,7 +202,7 @@ export default function CyclePlanView({ fleet }) {
                   <div className="acts">
                     <button className="btn btn-primary" onClick={() => openForm(null)}>
                       {own.length || carried.length ? '+ Start next cycle' : '+ Set a test for this day'}</button>
-                    {(own.length || carried.length) ? <span className="secondary" style={{ fontSize: 12 }}>starts {nextCycleTimes(decls, sel).startTime}, where the last one ends</span> : null}
+                    {(own.length || carried.length) ? <span className="secondary" style={{ fontSize: 12 }}>{nextCycleTimes(decls, sel).fromLast ? `starts ${nextCycleTimes(decls, sel).startTime}, where the last one ends` : 'pick its start and end in the form'}</span> : null}
                   </div>
                 </>
               })()}
@@ -219,6 +222,14 @@ const Chip = ({ r }) => r.tt
 function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
   const editing = decls.some(d => d.id === form.id)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const span = (() => {
+    const st = form.from && form.startTime ? new Date(`${form.from}T${form.startTime}`).getTime() : NaN
+    const en = (form.endDate || form.from) && form.endTime ? new Date(`${form.endDate || form.from}T${form.endTime}`).getTime() : NaN
+    if (!(en > st)) return { ok: false }
+    const h = (en - st) / 3600e3, days = daysBetween(form.from, form.endDate || form.from)
+    return { ok: true, text: `${h % 1 ? h.toFixed(1) : h} h long`, label: days === 0 ? 'same day' : days === 1 ? 'ends the next day' : `ends ${days} days later` }
+  })()
+  const repeatOk = (form.repeat || 'none') === 'none' || (form.to && form.to > form.from)
   // Devices: every one listed with a checkbox and a search. All ticked is stored as "all"
   // (so a device added to the group later is included); otherwise the exact serials.
   const allSerials = DEV.map(d => d.serial).sort()
@@ -237,10 +248,17 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
             <select id="f-type" style={{ width: '100%' }} value={form.testType} onChange={e => set('testType', e.target.value)}>
               {TEST_TYPES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select></span></div>
+        {/* One cycle = one continuous stretch, start date+time to end date+time. Repeating it is
+            a separate, explicit choice (it used to be implied by a From/To date range). */}
         <div className="grid grid-2">
-          <div className="field"><label htmlFor="f-from">From</label><input className="input" id="f-from" type="date" value={form.from} onChange={e => set('from', e.target.value)} /></div>
-          <div className="field"><label htmlFor="f-to">To</label><input className="input" id="f-to" type="date" value={form.to || form.from} onChange={e => set('to', e.target.value)} /></div>
+          <div className="field"><label htmlFor="f-from">Start</label>
+            <div className="dt-pair"><input className="input" id="f-from" type="date" value={form.from} onChange={e => set('from', e.target.value)} />
+              <input className="input" aria-label="Start time" type="time" value={form.startTime || ''} onChange={e => set('startTime', e.target.value)} /></div></div>
+          <div className="field"><label htmlFor="f-end-date">End</label>
+            <div className="dt-pair"><input className="input" id="f-end-date" type="date" value={form.endDate || form.from} min={form.from} onChange={e => set('endDate', e.target.value)} />
+              <input className="input" aria-label="End time" type="time" value={form.endTime || ''} onChange={e => set('endTime', e.target.value)} /></div></div>
         </div>
+        <div className="help" style={{ margin: '-4px 0 10px' }}>{span.ok ? `${span.text} · ${span.label}` : <span style={{ color: 'var(--status-critical)' }}>The end must be after the start.</span>}</div>
         <div className="field"><label htmlFor="f-dev-q">Devices <span className="secondary" style={{ fontWeight: 400 }}>· {ticked.size} of {allSerials.length} ticked</span></label>
           <div className="dev-pick">
             <div className="dev-pick-bar">
@@ -260,20 +278,20 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
           {devQ && <div className="help" style={{ marginTop: 4 }}>Select all and Clear apply to the {shownDev.length} serials shown.</div>}
         </div>
         <div className="grid grid-2">
-          <div className="field"><label htmlFor="f-start">Starts</label><input className="input" id="f-start" type="time" value={form.startTime || ''} onChange={e => set('startTime', e.target.value)} /></div>
-          <div className="field"><label htmlFor="f-end">Ends{form.startTime && form.endTime && form.endTime <= form.startTime ? <span className="secondary" style={{ fontWeight: 400 }}> · next day</span> : null}</label><input className="input" id="f-end" type="time" value={form.endTime || ''} onChange={e => set('endTime', e.target.value)} /></div>
+          <div className="field"><label htmlFor="f-repeat">Repeat</label>
+            <span className="ver" style={{ display: 'block' }}>
+              <select id="f-repeat" style={{ width: '100%' }} value={form.repeat || 'none'} onChange={e => set('repeat', e.target.value)}>
+                <option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekly">Every week, same weekday</option>
+              </select></span></div>
+          {(form.repeat || 'none') !== 'none' && <div className="field"><label htmlFor="f-until">Until</label>
+            <input className="input" id="f-until" type="date" min={form.from} value={form.to && form.to > form.from ? form.to : ''} onChange={e => set('to', e.target.value)} /></div>}
         </div>
-        <div className="field"><label htmlFor="f-repeat">Repeat</label>
-          <span className="ver" style={{ display: 'block' }}>
-            <select id="f-repeat" style={{ width: '100%' }} value={form.repeat || 'none'} onChange={e => set('repeat', e.target.value)}>
-              <option value="none">Does not repeat</option><option value="weekly">Weekly, same weekday</option>
-            </select></span></div>
         <div className="field"><label htmlFor="f-by">Set by</label><input className="input" id="f-by" value={form.by || ''} placeholder="optional" onChange={e => set('by', e.target.value)} /></div>
-        <div className="help" style={{ marginBottom: 12 }}>A run belongs to the day it starts. An end time earlier than the start means the next morning (e.g. 10:00 AM → 04:00 AM), so a late run that finishes after midnight still counts here. Runs starting outside the window count as having no test set.</div>
+        <div className="help" style={{ marginBottom: 12 }}>A run belongs to the cycle it starts in, even if it finishes after the cycle ends. Runs starting outside every cycle count as having no test set.</div>
         {(() => {
           // clashes this cycle would make with the cycles already set, on its first day
           const others = decls.filter(d => d.id !== form.id)
-          const clash = form.from ? overlapsOn(others, form.from, DEV, { ...form, id: form.id || '__new', at: Infinity }).filter(o => o.a.decl.id === (form.id || '__new') || o.b.decl.id === (form.id || '__new')) : []
+          const clash = form.from ? overlapsOn(others, form.from, DEV, { ...form, id: form.id || '__new', at: Infinity, spanDays: daysBetween(form.from, form.endDate || form.from), to: (form.repeat || 'none') === 'none' ? form.from : form.to }).filter(o => o.a.decl.id === (form.id || '__new') || o.b.decl.id === (form.id || '__new')) : []
           return clash.length ? <div className="overlap-warn" role="alert">
             {clash.map((o, i) => { const other = o.a.decl.id === (form.id || '__new') ? o.b : o.a
               return <div key={i}><b>⚠ Overlaps {testType(other.decl.testType)?.name}</b> ({hm(other.startMs)} → {hm(other.endMs)}) from {hm(o.from)} to {hm(o.to)} on {o.shared} shared device{o.shared === 1 ? '' : 's'}.</div> })}
@@ -282,7 +300,8 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
         })()}
         <div className="form-actions">
           <button className="btn" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-primary" disabled={!form.from || !ticked.size} title={!ticked.size ? 'Tick at least one device' : undefined} onClick={() => onSave({ ...form, to: form.to || form.from })}>{editing ? 'Save changes' : 'Save test'}</button>
+          <button className="btn btn-primary" disabled={!form.from || !ticked.size || !span.ok || !repeatOk} title={!ticked.size ? 'Tick at least one device' : !span.ok ? 'The end must be after the start' : !repeatOk ? 'Pick the last day it repeats' : undefined} onClick={() => { const { endDate, ...rest } = form; const rep = form.repeat || 'none'
+            onSave({ ...rest, spanDays: daysBetween(form.from, endDate || form.from), repeat: rep === 'weekly' ? 'weekly' : 'none', to: rep === 'none' ? form.from : form.to }) }}>{editing ? 'Save changes' : 'Save test'}</button>
         </div>
       </div>
     </div>

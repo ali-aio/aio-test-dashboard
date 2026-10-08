@@ -141,10 +141,13 @@ oversight; don't add restaurant filtering back in without being asked.
   telemetry cannot supply. A declaration is (test type, date window, device group, time
   window); resolution order is explicit declaration > standing weekly rota > inferred from
   telemetry > unclassified. Stored in localStorage per group, like `runs.js`.
-  A declaration is one **cycle**; a day can hold several (`cyclesOn`). An end time at or before
-  the start means the next morning (`windowOn`, e.g. 10:00 → 04:00), a run belongs to the cycle
-  whose window it *started* in (`cycleAt`, which also checks yesterday's overnight cycles), and
-  runs count on their start day. Devices are picked per cycle (all, or an explicit serial list).
+  A declaration is one **cycle**: start date + time to end date + time (`spanDays` = days from
+  start to end; older plans without it read an end at or before the start as the next morning).
+  `from`..`to` is only for repeating it (daily, or `repeat: 'weekly'`) — the form says so explicitly.
+  A day can hold several cycles (`cyclesOn`); a run belongs to the cycle whose window it *started*
+  in (`cycleAt`, which also checks cycles carried in from earlier days), and runs count on their
+  start day. Devices are picked per cycle (all, or an explicit serial list); devices taken out
+  mid-cycle are recorded on it (`removed`, with reason) and leave it from that moment.
 - `index.html` + (inline module script) — **the previous dashboard (v1)**, one page, hash-routed:
   Overview (KPIs, weekly runtime trend, needs-attention, bench grid) · Devices (sortable
   table + inspector → device detail with runtime-per-cycle + cycle history) · Test cycles (UI label; code and routes still say "runs")

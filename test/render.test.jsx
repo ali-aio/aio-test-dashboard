@@ -197,7 +197,7 @@ const mdmCases = []
     want(cycleAt(decls, at(12, 10)) == null, '10:00 Oct 12 is between cycles')
     want(cycleAt(decls, at(12, 15))?.decl.id === 'd2', '15:00 Oct 12 is the second cycle')
     const n = nextCycleTimes(decls.slice(0, 1), '2026-10-12')
-    want(n.startTime === '04:00' && n.endTime === '22:00', `next cycle ${n.startTime}-${n.endTime}`)
+    want(n.startTime === '04:00' && n.endTime === '22:00' && n.fromLast, `next cycle ${n.startTime}-${n.endTime}`)
     want(cyclesOn(decls, '2026-10-12').length === 1, 'own cycles on Oct 12')
     const tt = testTypeFor({ start: at(12, 1), end: at(12, 3), serial: 'A' }, { decls, rota: {}, DEV: [] })
     want(tt === 'WLC on Load', `1am run -> ${tt}`)
@@ -221,6 +221,16 @@ const mdmCases = []
     want(new Date(o[0].from).getHours() === 10 && new Date(o[0].to).getHours() === 19, 'overlap span')
     want(!overlapsOn([d('x', 1, '07:00', '13:00'), d('y', 2, '13:00', '19:00')], '2026-10-10', DEV).length, 'back to back flagged')
     want(!overlapsOn([d('x', 1, '07:00', '19:00', { kind: 'serials', serials: ['A'] }), d('y', 2, '10:00', '20:00', { kind: 'serials', serials: ['B'] })], '2026-10-10', DEV).length, 'different devices flagged')
+  })
+  check('a cycle with an end date: Oct 10 07:00 -> Oct 11 03:00, no copy on Oct 11', () => {
+    const decls = [{ id: 'x', at: 1, testType: 'charging', from: '2026-10-10', to: '2026-10-10', startTime: '07:00', endTime: '03:00', spanDays: 1, group: { kind: 'all' } },
+      { id: 'y', at: 2, testType: 'restaurant', from: '2026-10-11', to: '2026-10-11', startTime: '11:00', endTime: '22:00', spanDays: 0, group: { kind: 'all' } }]
+    const w = windowOn('2026-10-10', decls[0])
+    want((w.endMs - w.startMs) / 3600e3 === 20, `span ${(w.endMs - w.startMs) / 3600e3}`)
+    want(!overlapsOn(decls, '2026-10-11', [{ serial: 'A' }]).length, 'should not overlap')
+    const long = windowOn('2026-10-10', { startTime: '07:00', endTime: '15:00', spanDays: 2 })
+    want((long.endMs - long.startMs) / 3600e3 === 56, 'two-day cycle')
+    want(cycleAt([{ ...decls[0], spanDays: 2, endTime: '15:00' }], new Date(2026, 9, 12, 9).getTime())?.decl.id === 'x', 'day 3 of a long cycle')
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

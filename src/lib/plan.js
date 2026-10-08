@@ -65,11 +65,16 @@ export function timeOn(key, hhmm, endOfDay = false) {
 // still belongs to the day it started. Without times the window is the whole day.
 export function windowOn(key, src) {
   const startMs = timeOn(key, src && src.startTime);
-  let endMs = timeOn(key, src && src.endTime, true);
-  const overnight = endMs <= startMs;
-  if (overnight) endMs += 86400e3;
+  // spanDays: how many days after its start day the cycle ends (set by the form's End date).
+  // Older plans have none: an end at or before the start then means the next morning.
+  const span = Number.isInteger(src?.spanDays) && src.spanDays >= 0 ? src.spanDays : null;
+  let endMs = timeOn(span ? addDays(key, span) : key, src && src.endTime, true);
+  if (endMs <= startMs) endMs += 86400e3;
+  const overnight = dayKey(endMs - 1) !== key;
   return { startMs, endMs, overnight };
 }
+export const addDays = (key, n) => { const d = keyToDate(key); d.setDate(d.getDate() + n); return dayKey(d.getTime()); };
+export const daysBetween = (a, b) => Math.round((keyToDate(b) - keyToDate(a)) / 86400e3);
 
 // ── storage ───────────────────────────────────────────────────────────────────
 const validDecl = d => d && typeof d.from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.from) && testType(d.testType);
@@ -111,8 +116,12 @@ export function cyclesOn(decls, key) {
   return decls.filter(d => declCovers(d, key)).map(d => ({ decl: d, key, ...windowOn(key, d) }))
     .sort((a, b) => a.startMs - b.startMs || (a.decl.at || 0) - (b.decl.at || 0));
 }
-/** Yesterday's cycles that run past midnight into this day. */
-export const carriedInto = (decls, key) => cyclesOn(decls, prevKey(key)).filter(c => c.overnight);
+/** Earlier days' cycles still running into this day (overnight, or several days long). */
+export function carriedInto(decls, key) {
+  const dayStart = keyToDate(key).getTime(), out = [];
+  for (let n = 1; n <= 7; n++) out.push(...cyclesOn(decls, addDays(key, -n)).filter(c => c.endMs > dayStart));
+  return out.sort((a, b) => a.startMs - b.startMs);
+}
 /** The cycle whose window holds time t — today's, or yesterday's still running overnight.
  *  Overlaps go to the most recently declared, so a correction beats the earlier booking. */
 export function cycleAt(decls, t) {
@@ -127,9 +136,9 @@ export function nextCycleTimes(decls, key) {
   const dayStart = keyToDate(key).getTime(), dayEnd = dayStart + 86400e3;
   const ends = [...carriedInto(decls, key), ...cyclesOn(decls, key)].filter(c => c.endMs > dayStart && c.endMs < dayEnd);
   const last = ends.sort((a, b) => a.endMs - b.endMs).pop();
-  if (!last) return { startTime: '07:00', endTime: '19:00' };
+  if (!last) return { startTime: '07:00', endTime: '19:00', fromLast: false };
   const hhmm = t => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
-  return { startTime: hhmm(last.endMs), endTime: hhmm(last.endMs + (last.endMs - last.startMs)) };
+  return { startTime: hhmm(last.endMs), endTime: hhmm(last.endMs + (last.endMs - last.startMs)), fromLast: true };
 }
 
 // ── resolving a day ───────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useKeepOnScreen } from './Primitives.jsx'
 import { PRESETS, presetRange, dayRange, resolve, rangeLabel } from '../lib/range.js'
 
 // The Test Date filter: "Custom range" — quick presets for recent windows, or a span of
@@ -13,6 +14,7 @@ const sod = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.get
 export default function RangePicker({ value, onChange, daysWithRuns = new Map() }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
+  const popRef = useKeepOnScreen(open)
   const live = resolve(value)
   const [cursor, setCursor] = useState(() => { const d = new Date(live?.to ?? Date.now()); return { y: d.getFullYear(), m: d.getMonth() } })
   const [draft, setDraft] = useState(null) // { a, b } day starts while picking a span
@@ -59,7 +61,7 @@ export default function RangePicker({ value, onChange, daysWithRuns = new Map() 
       </button>
 
       {open && (
-        <div className="popover rp-popover" role="dialog" aria-label="Choose a date range">
+        <div ref={popRef} className="popover rp-popover" role="dialog" aria-label="Choose a date range">
           <div className="rp-head">
             <span className="rp-title">Custom range</span>
             <button type="button" className="rp-x" aria-label="Close" onClick={() => setOpen(false)}>×</button>

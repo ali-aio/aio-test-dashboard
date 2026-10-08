@@ -6,6 +6,7 @@ import { ALL_TEST_TYPES, LOAD_TEST_TYPES } from '../lib/testtypes.js'
 import { cascadeOptions, pruneFilters } from '../lib/t7cycles.js'
 import { fmtDate, fmtWeek } from '../lib/fmt.js'
 import { splitText } from '../lib/splitCycles.js'
+import { useKeepOnScreen } from './Primitives.jsx'
 import RangePicker from './RangePicker.jsx'
 import { rangeLabel } from '../lib/range.js'
 
@@ -148,6 +149,7 @@ function Field({ label, children }) {
 
 function SerialPicker({ serials, selected, onChange }) {
   const [open, setOpen] = useState(false)
+  const popRef = useKeepOnScreen(open)
   const [query, setQuery] = useState('')
   const ref = useRef(null)
 
@@ -200,7 +202,7 @@ function SerialPicker({ serials, selected, onChange }) {
         <span aria-hidden="true" className="muted">▾</span>
       </button>
       {open && (
-        <div className="popover">
+        <div ref={popRef} className="popover">
           <input className="control" style={{ width: '100%', maxWidth: 'none', marginBottom: 6 }}
             placeholder="Filter serials…" value={query} autoFocus
             onChange={(e) => setQuery(e.target.value)} aria-label="Filter serials" />

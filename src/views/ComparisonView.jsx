@@ -1,6 +1,6 @@
 import { splitText, splitBy } from '../lib/splitCycles.js'
 import React, { useMemo, useState, useEffect, useRef } from 'react'
-import { Card, EmptyNote, Segmented } from '../components/Primitives.jsx'
+import { Card, EmptyNote, Segmented, useKeepOnScreen } from '../components/Primitives.jsx'
 import { ModeSwitch, deviceSeries, useDevicePicker } from '../components/CurveModes.jsx'
 import { LineChart, GroupedColumns } from '../components/t7charts.jsx'
 import { batteryCyclesBy, compareBy, avgCurveBy, maxOf, explainEmpty, plottedMaxHour } from '../lib/t7cycles.js'
@@ -156,12 +156,25 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
   )
 
   if (!cycles.length) return <EmptyNote>No finished runs match the current filters. A run is listed once it ends — the one in progress is on Today.</EmptyNote>
+  // The switch stays on screen even when the chosen dimension has one group, so the
+  // reader can move to one that splits (e.g. Last 24h: one build, 19 devices).
+  const compareBySwitch = (
+    <label className="filter-field">
+      <span className="filter-label">Compare by</span>
+      <Segmented ariaLabel="Comparison dimension"
+        options={DIMENSIONS.map((d) => ({ ...d, label: `${d.label} (${compareBy(cycles, d.id).length})` }))}
+        value={dimension} onChange={(d) => { setTouched(true); setDimension(d) }} />
+    </label>
+  )
   if (groups.length < 2) {
     return (
-      <EmptyNote>
-        Only one {DIMENSIONS.find((d) => d.id === dimension)?.label.toLowerCase()} in scope — nothing
-        to compare. Widen the filters, or pick another dimension.
-      </EmptyNote>
+      <div className="view-stack">
+        <div className="row row-wrap" style={{ gap: 12 }}>{compareBySwitch}</div>
+        <EmptyNote>
+          Only one {DIMENSIONS.find((d) => d.id === dimension)?.label.toLowerCase()} in scope — nothing
+          to compare. Pick another option in Compare by, or widen the filters.
+        </EmptyNote>
+      </div>
     )
   }
 
@@ -171,11 +184,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
   return (
     <div className="view-stack">
       <div className="row row-wrap" style={{ gap: 12 }}>
-        <label className="filter-field">
-          <span className="filter-label">Compare by</span>
-          <Segmented ariaLabel="Comparison dimension" options={DIMENSIONS}
-            value={dimension} onChange={(d) => { setTouched(true); setDimension(d) }} />
-        </label>
+        {compareBySwitch}
         <label className="filter-field">
           <span className="filter-label">
             {DIMENSIONS.find((d) => d.id === dimension)?.label ?? 'Groups'} to compare
@@ -292,8 +301,9 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
 /** Prefer a dimension that says something about configuration over one that
  *  just enumerates hardware. */
 function firstMeaningful(cycles) {
+  // the groups the chart would actually draw, so an "Unknown" alongside one build is not a split
   for (const id of ['build', 'firmware']) {
-    if (new Set(cycles.map((c) => c[id]).filter(Boolean)).size > 1) return id
+    if (compareBy(cycles, id).length > 1) return id
   }
   return 'serial'
 }
@@ -306,6 +316,7 @@ function firstMeaningful(cycles) {
  */
 function GroupPicker({ groups, selected, onChange }) {
   const [open, setOpen] = useState(false)
+  const popRef = useKeepOnScreen(open)
   const [query, setQuery] = useState('')
   const ref = useRef(null)
 
@@ -341,7 +352,7 @@ function GroupPicker({ groups, selected, onChange }) {
         <span aria-hidden="true" className="muted">▾</span>
       </button>
       {open && (
-        <div className="popover" style={{ width: 290 }}>
+        <div ref={popRef} className="popover" style={{ width: 290 }}>
           {groups.length > 8 && (
             <input className="control" style={{ width: '100%', maxWidth: 'none', marginBottom: 6 }}
               placeholder="Filter…" value={query} autoFocus

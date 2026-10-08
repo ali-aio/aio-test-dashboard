@@ -139,6 +139,13 @@ const mdmCases = []
       lifetime={{ value: 3.5, rows: [], devices: 1, missing: [], range: 'Last hour', source: 'counter' }} />)
     want(h.includes('Battery cycles (MDM)') && h.includes('3.50') && h.includes('Last hour'), 'tile missing')
   })
+  check('comparison keeps Compare by when one build is in scope', () => {
+    const one = covered.map((c) => ({ ...c, build: 'EVT', firmware: 'fw1' }))
+    const h = renderToString(<Comparison cycles={one} testType="__all__" allSerials={all} />)
+    want(h.includes('Compare by') && /Device \(\d+\)/.test(h), 'switch hidden or no device counts')
+    const solo = one.filter((c) => c.serial === one[0].serial)
+    want(renderToString(<Comparison cycles={solo} testType="__all__" allSerials={all} />).includes('Compare by'), 'switch hidden with one group')
+  })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()
     const h = renderToString(<RangePicker value={null} onChange={nop} daysWithRuns={new Map([[d, 24]])} />)

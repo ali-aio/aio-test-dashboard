@@ -1,4 +1,28 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react'
+
+/**
+ * Keeps an open popover inside the window: after it lays out (left- or right-anchored by
+ * CSS), measure it and slide it sideways by however much it crosses either edge, with a
+ * 12 px gutter. Without this a right-anchored popover on the first tile of a phone-width
+ * row opens off the left edge of the screen. Returns a ref for the popover element.
+ */
+export function useKeepOnScreen(open) {
+  const ref = useRef(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!open || !el) return
+    const fit = () => {
+      el.style.transform = ''
+      const r = el.getBoundingClientRect(), W = document.documentElement.clientWidth, g = 12
+      const dx = r.left < g ? g - r.left : r.right > W - g ? Math.max(g - r.left, W - g - r.right) : 0
+      if (dx) el.style.transform = `translateX(${Math.round(dx)}px)`
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [open])
+  return ref
+}
 import { STATUS_ICON } from '../lib/palette.js'
 
 /**
@@ -12,6 +36,7 @@ import { STATUS_ICON } from '../lib/palette.js'
 export function Stat({ label, value, unit, foot, hero = false, breakdown, breakdownLabel, breakdownWide, breakdownRight }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
+  const popRef = useKeepOnScreen(open)
   const hasMenu = Array.isArray(breakdown) && breakdown.length > 0
 
   useEffect(() => {
@@ -58,7 +83,7 @@ export function Stat({ label, value, unit, foot, hero = false, breakdown, breakd
         </span>
       </button>
       {open && (
-        <div className={`popover stat-popover${breakdownWide ? ' is-wide' : ''}${breakdownRight ? ' popover-right' : ''}`} role="dialog" aria-label={breakdownLabel ?? `${label} breakdown`}>
+        <div ref={popRef} className={`popover stat-popover${breakdownWide ? ' is-wide' : ''}${breakdownRight ? ' popover-right' : ''}`} role="dialog" aria-label={breakdownLabel ?? `${label} breakdown`}>
           <div className="files-head">
             <strong>{breakdownLabel ?? label}</strong>
             <span className="hint">{breakdown.length} group{breakdown.length === 1 ? '' : 's'}</span>

@@ -4,6 +4,7 @@ import {
   resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, WEEKDAYS, monthLabel, dayLabel,
 } from '../lib/plan.js'
 import { GROUP } from '../lib/fleet.js'
+import { fmtBC, bcText } from '../lib/fmt.js'
 import { TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur, rt } from '../lib/cycles.js'
 import { hm, day } from '../lib/format.js'
@@ -21,6 +22,9 @@ export default function CyclePlanView({ fleet }) {
   const [form, setForm] = useState(null)
 
   const ranOn = key => allCycles.filter(c => dayKey(c.end) === key).length
+  // what the day drained, in battery cycles (total % ÷ 100) — the figure shown; the run
+  // count above only decides Confirmed / Inferred
+  const bcOn = key => allCycles.filter(c => dayKey(c.end) === key).reduce((a, c) => a + Math.max(0, c.startPct - c.endPct) / 100, 0)
   const resolve = key => {
     const r = resolveDay(key, { decls, rota, ran: ranOn(key), devices: DEV.length })
     const src = r.decl || r.rota || null
@@ -90,7 +94,7 @@ export default function CyclePlanView({ fleet }) {
                     }}>
                     <span className="dnum">{c.dayNum}{c.isToday ? <span className="tdy">TODAY</span> : null}</span>
                     {r.tt ? <><Chip r={r} /><span className="tname">{r.tt.name}</span><span className="tdev">{r.serials.length} devices</span></>
-                      : r.status === 'inferred' ? <><Chip r={r} /><span className="tname">Untyped run</span><span className="tdev">{r.ran} cycle{r.ran === 1 ? '' : 's'}</span></>
+                      : r.status === 'inferred' ? <><Chip r={r} /><span className="tname">Untyped run</span><span className="tdev">{bcText(bcOn(c.key))}</span></>
                       : c.inMonth ? <span className="declare">{future ? '+ declare' : 'no run'}</span> : null}
                   </button>
                 )
@@ -127,7 +131,7 @@ export default function CyclePlanView({ fleet }) {
                 <dt>Source</dt><dd>{S.source === 'declared' ? 'Explicit declaration' : S.source === 'rota' ? 'Standing weekly rota' : S.source === 'telemetry' ? 'Telemetry only' : <span className="secondary">—</span>}</dd>
                 <dt>Devices</dt><dd className="mono">{S.tt ? S.serials.length : '—'}</dd>
                 <dt>Window</dt><dd className="mono">{S.tt ? `${hm(S.startMs)}–${hm(S.endMs)}` : '—'}</dd>
-                <dt>Cycles counted</dt><dd className="mono">{S.ran}</dd>
+                <dt>Battery cycles</dt><dd className="mono">{fmtBC(bcOn(sel))}</dd>
               </dl>
               <div className="acts">
                 {S.decl
@@ -159,7 +163,7 @@ export default function CyclePlanView({ fleet }) {
           )}
 
           <div className="card">
-            <div className="card-head"><h2>What actually ran</h2><span className="secondary">counted cycles ending on this day</span></div>
+            <div className="card-head"><h2>What actually ran</h2><span className="secondary">runs ending on this day</span></div>
             {selRan.length ? (
               <div className="scroll-x"><table className="data">
                 <thead><tr><th>Device</th><th>Kind</th><th className="r">Runtime</th><th className="r">Drain</th><th className="r">Peak</th><th className="r">Ended</th></tr></thead>
@@ -175,7 +179,7 @@ export default function CyclePlanView({ fleet }) {
                   </tr>
                 })}</tbody>
               </table></div>
-            ) : <div className="empty-note">No counted cycle ended on this day.</div>}
+            ) : <div className="empty-note">No run ended on this day.</div>}
           </div>
         </div>
       </div>

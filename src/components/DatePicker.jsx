@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
-import { fmtDate } from '../lib/fmt.js'
+import { fmtDate, bcText, fmtBC } from '../lib/fmt.js'
 
 const DAY_NAMES = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -173,7 +173,7 @@ export default function DatePicker({ dates, counts, value, onChange }) {
             <div className="cal-title">
               <strong>{MONTH_NAMES[cursor.month]} {cursor.year}</strong>
               <span className="hint">
-                {monthDays ? `${monthDays} test day${monthDays === 1 ? '' : 's'} · ${monthTotal} cycles` : 'no runs this month'}
+                {monthDays ? `${monthDays} test day${monthDays === 1 ? '' : 's'} · ${bcText(monthTotal)}` : 'no runs this month'}
               </span>
             </div>
             <button type="button" className="btn btn-icon btn-sm" onClick={() => step(1)}
@@ -196,9 +196,9 @@ export default function DatePicker({ dates, counts, value, onChange }) {
                     disabled={!c.has}
                     aria-pressed={value === c.key}
                     aria-label={c.has
-                      ? `${fmtDate(c.key)} — ${c.n} cycle${c.n === 1 ? '' : 's'}`
+                      ? `${fmtDate(c.key)} — ${bcText(c.n)}`
                       : `${fmtDate(c.key)} — no runs`}
-                    title={c.has ? `${c.n} cycle${c.n === 1 ? '' : 's'}` : undefined}
+                    title={c.has ? bcText(c.n) : undefined}
                     onClick={() => pick(c.key)}
                   >
                     <span className="cal-num">{c.day}</span>
@@ -265,12 +265,12 @@ export function DateList({ dates, counts, value, maxCount, onPick, onClear, list
             <button type="button" role="option" aria-selected={value === d}
               className={`date-row${value === d ? ' is-selected' : ''}`}
               data-selected={value === d} onClick={() => onPick(d)}
-              aria-label={`${fmtDate(d)} — ${n} cycle${n === 1 ? '' : 's'}`}>
+              aria-label={`${fmtDate(d)} — ${bcText(n)}`}>
               <span className="dr-label">{fmtDate(d)}</span>
               <span className="dr-bar" aria-hidden="true">
                 <span style={{ transform: `scaleX(${Math.max(0.08, n / Math.max(1, maxCount))})` }} />
               </span>
-              <span className="dr-count">{n}</span>
+              <span className="dr-count">{fmtBC(n)}</span>
             </button>
           </React.Fragment>
         )

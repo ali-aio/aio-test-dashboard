@@ -40,7 +40,8 @@ export function fmtDateLong(iso) {
 export const fmtWeek = (w) => String(w || '').replace(/_/g, ' ')
 
 /** Numeric hour ticks; charts mark the axis unit once at its end. */
-export const fmtHourTick = (h) => String(Math.round(h))
+// Ticks can fall on half hours on a short axis; rounding those printed "1 1 2 2".
+export const fmtHourTick = (h) => { const r = Math.round(h * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1) }
 
 /**
  * Serials are shown in full everywhere.
@@ -55,3 +56,10 @@ export const fmtSerial = (sn) => (sn ? String(sn) : DASH)
 
 /** One natural ascending order for device IDs throughout the dashboard. */
 export const compareSerial = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })
+
+// Battery cycles — the dashboard's one meaning of "cycles": total % drained ÷ 100. A run
+// that drains 78 points is 0.78 of a cycle. Counts of runs say "runs", never "cycles".
+export const fmtBC = (v) => (v == null || !Number.isFinite(v) ? DASH
+  : v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))
+export const bcText = (v) => `${fmtBC(v)} cycle${v === 1 ? '' : 's'}`
+export const runsText = (n) => `${fmtInt(n)} run${n === 1 ? '' : 's'}`

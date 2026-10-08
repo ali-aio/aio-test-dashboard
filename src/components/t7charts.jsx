@@ -10,13 +10,14 @@
      • no dual axes, ever — two measures of different scale get two charts
    =========================================================================== */
 
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useContext, useId, useMemo, useRef, useState } from 'react'
+import { HistoryStatus } from './historyStatus.js'
 import {
   useMeasure, linear, niceDomain, ticksFor, GridY, AxisY, AxisX, AxisXBands, bandLabelDrop,
   Tooltip, TooltipRow, Legend, TableView, usePlotPointer, nearestPoint,
   linePath, areaPath, columnPath, barPath,
 } from './chartkit.jsx'
-import { seqColor, SEQ_STEPS } from '../lib/palette.js'
+import { seqColor, SEQ_STEPS, keyBackground } from '../lib/palette.js'
 import { maxOf, minOf } from '../lib/t7cycles.js'
 import { fmtInt } from '../lib/fmt.js'
 
@@ -29,12 +30,31 @@ const MIN_BAND = 64      // narrowest a group can get before the chart scrolls i
  * data never recorded — two problems with different fixes — so the caller
  * passes the reason and the chart shows it.
  */
-export function EmptyPlot({ reason, hint }) {
+export function EmptyPlot({ reason, hint, noData = true }) {
+  // Curves come from a per-sample history window that loads after the page does. While
+  // it loads, say so; once loaded, an empty curve usually means these runs are older than
+  // the window, so say that and offer a reload rather than "missing from the source".
+  const h = useContext(HistoryStatus)
+  if (noData && h?.loading) {
+    return (
+      <div className="empty-plot">
+        <strong><span className="spin" /> Loading battery readings…</strong>
+        <span>Reading the last {h.days} days of history for every device. The chart fills in as it lands.</span>
+      </div>
+    )
+  }
   return (
     <div className="empty-plot">
       <strong>Nothing to plot here</strong>
       <span>{reason ?? 'No data in the current selection.'}</span>
-      {hint && <span className="hint">{hint}</span>}
+      {noData && h ? (
+        <>
+          <span className="hint">{h.err ? `Loading readings failed: ${h.err}. `
+            : `Curves exist only for runs in the last ${h.days} days of readings — older runs keep their numbers but have no line. `}
+            {h.at ? `Readings loaded ${Math.max(0, Math.round((Date.now() - h.at) / 60000))} min ago.` : ''}</span>
+          <button type="button" className="btn btn-sm" style={{ marginTop: 6 }} onClick={h.reload}>Reload readings</button>
+        </>
+      ) : hint && <span className="hint">{hint}</span>}
     </div>
   )
 }
@@ -56,6 +76,7 @@ export function LineChart({
 }) {
   const [ref, width] = useMeasure()
   const svgRef = useRef(null)
+  const clipId = `clip${useId().replace(/:/g, '')}`
 
   const M = {
     left: 52,
@@ -113,7 +134,7 @@ export function LineChart({
   if (!available.length) return empty(emptyState)
 
   const legend = <Legend items={live.map((s) => ({
-    id: s.id, label: s.label, sub: s.sub, color: s.color, shape: 'line',
+    id: s.id, label: s.label, sub: s.sub, color: s.color, dash: s.dash || (s.dashed ? '5 4' : null), shape: 'line',
   }))} note={legendNote} />
 
   return (
@@ -130,7 +151,7 @@ export function LineChart({
               <label className="series-legend-item" key={s.id}>
                 <input type="checkbox" checked={selectedSeries == null || selectedSeries.has(s.id)}
                   onChange={() => onToggleSeries(s.id)} />
-                <span className="legend-key-line" style={{ background: s.color }} aria-hidden="true" />
+                <span className="legend-key-line" style={{ background: keyBackground(s.color, s.dash || (s.dashed ? '5 4' : null)) }} aria-hidden="true" />
                 <span>{s.label}</span>
               </label>
             ))}
@@ -143,7 +164,7 @@ export function LineChart({
         </details>
       ) : legend}
       {!live.length && (
-        <EmptyPlot reason={`No ${legendDisclosure?.toLowerCase() ?? 'series'} selected.`}
+        <EmptyPlot noData={false} reason={`No ${legendDisclosure?.toLowerCase() ?? 'series'} selected.`}
           hint={`Select ${legendDisclosure?.toLowerCase() ?? 'series'} above or choose Select all.`} />
       )}
       {live.length > 0 && width > 0 && (
@@ -158,12 +179,15 @@ export function LineChart({
               fill={live[0].color} opacity="0.10" />
           )}
 
+          <defs><clipPath id={clipId}><rect x={M.left} y={M.top - 6} width={plotW} height={plotH + 12} /></clipPath></defs>
+          <g clipPath={`url(#${clipId})`}>
           {live.map((s) => (
             <path key={s.id} d={linePath(s.points, sx, sy)} fill="none" stroke={s.color}
               strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
-              strokeDasharray={s.dashed ? '5 4' : undefined} />
+              strokeDasharray={s.dash || (s.dashed ? '5 4' : undefined)} />
           ))}
 
+          </g>
           {/* markers only when the series is sparse enough for them to read */}
           {markers && live.map((s) => (
             s.points.length <= 40 ? s.points.map((p, i) => (
@@ -295,8 +319,11 @@ export function GroupedColumns({
       )}
       {hover && (
         <Tooltip x={pt.x} y={pt.y} containerWidth={contentW}>
-          <div className="tt-time">{hover.group.label}{hover.group.n != null
-            ? ` · ${fmtInt(hover.group.n)} cycle${hover.group.n === 1 ? '' : 's'}` : ''}</div>
+          {/* A caller says what its number is (nText); otherwise n is how many runs sit behind
+              the bar. "cycles" is reserved for battery cycles across the dashboard. */}
+          <div className="tt-time">{hover.group.label}{hover.group.nText
+            ? ` · ${hover.group.nText}`
+            : hover.group.n != null ? ` · ${fmtInt(hover.group.n)} run${hover.group.n === 1 ? '' : 's'}` : ''}</div>
           {measures.map((m) => (
             hover.group.values[m.key] != null && (
               <TooltipRow key={m.key} color={m.color} name={m.label}

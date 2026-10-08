@@ -128,3 +128,26 @@ const FILL_INK = {
 }
 export const inkOn = (cssVar) => FILL_INK[cssVar] ?? INK_DARK
 export const seqInk = (norm01) => (norm01 > 0.6 ? INK_LIGHT : INK_DARK)
+
+/* ------------------------------------------------- many lines, one per thing
+   Eight validated hues, so a chart with more lines than that must tell them apart some
+   other way — never by generating a 9th hue (it would fail the colour-blind checks and
+   look like a near-duplicate anyway). Lines 1–8 are solid; 9–16 reuse the same hues
+   dashed; 17–24 dotted; then dash-dot. Colour + pattern stays unique for 32 lines, and
+   a line keeps its style whatever else is shown, because the map is built from the full
+   sorted list of keys, not from what happens to be visible. */
+const DASHES = [undefined, '6 3', '1.5 3', '8 3 2 3']
+export function buildStyleMap(keys) {
+  const map = new Map()
+  keys.forEach((k, i) => map.set(k, {
+    color: SERIES_VARS[i % MAX_SERIES],
+    dash: DASHES[Math.floor(i / MAX_SERIES) % DASHES.length],
+  }))
+  return map
+}
+/** Background for a legend/picker key that matches a line's dash pattern. */
+export function keyBackground(color, dash) {
+  if (!dash) return color
+  const [on, off] = String(dash).split(/\s+/).map(Number)
+  return `repeating-linear-gradient(90deg, ${color} 0 ${on}px, transparent ${on}px ${on + off}px)`
+}

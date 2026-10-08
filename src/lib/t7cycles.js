@@ -337,7 +337,13 @@ export function cascadeOptions(cycles, filters, allSerials) {
 
   const dateCounts = new Map()
   for (const c of upstream.date) {
-    if (c.date) dateCounts.set(c.date, (dateCounts.get(c.date) ?? 0) + 1)
+    // battery cycles drained that day (what "cycles" means across the dashboard); a charging
+    // run drains nothing and adds 0
+    if (c.date) {
+      const drained = c.testType === 'Charging Cycle' || c.testType === FIELD_CHARGING ? 0
+        : Math.max(0, (c.startBattery ?? 0) - (c.endBattery ?? 0)) / 100
+      dateCounts.set(c.date, (dateCounts.get(c.date) ?? 0) + drained)
+    }
   }
 
   return { options, dateCounts, upstream }
@@ -795,4 +801,21 @@ export function envelopeBy(cycles, key = 'series') {
   const hours = [...byHour.keys()].sort((a, b) => a - b)
   const pts = (f) => hours.map((t) => ({ t, v: round(f(byHour.get(t)), 1), n: byHour.get(t).length }))
   return { avg: pts(mean), min: pts((a) => Math.min(...a)), max: pts((a) => Math.max(...a)) }
+}
+
+/** Battery cycles in a set of T7-shaped cycles: total % drained ÷ 100 (charging excluded). */
+export const batteryCycles = (cycles) => fullDischargeCycles(cycles).cycles
+
+/** Battery cycles per distinct value of a field, biggest first — the replacement for a
+ *  plain count wherever the dashboard says "cycles". */
+export function batteryCyclesBy(cycles, key) {
+  const groups = new Map()
+  for (const c of cycles) {
+    const v = c[key]
+    if (v == null || v === '' || v === 'Unknown') continue
+    if (!groups.has(v)) groups.set(v, [])
+    groups.get(v).push(c)
+  }
+  return [...groups.entries()].map(([label, list]) => ({ label, value: batteryCycles(list), runs: list.length }))
+    .sort((a, b) => b.value - a.value || String(a.label).localeCompare(String(b.label)))
 }

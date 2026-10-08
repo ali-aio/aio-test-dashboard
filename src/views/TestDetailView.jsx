@@ -3,12 +3,12 @@ import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
 import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING } from '../lib/testtypes.js'
 import {
-  kpis, fullDischargeCycles, batteryBySerial, avgCurveBy, dropGainByLoadType, hourlyProfile,
+  kpis, fullDischargeCycles, batteryCycles, batteryCyclesBy, batteryBySerial, avgCurveBy, dropGainByLoadType, hourlyProfile,
   hourContributors, compareBy, mean, maxOf,
   explainEmpty, explainNoRate, plottedMaxHour } from '../lib/t7cycles.js'
-import { buildColorMap, MAX_SERIES, SERIES_VARS, BUILD_COLOR, MEASURE_COLOR } from '../lib/palette.js'
+import { buildColorMap, buildStyleMap, MAX_SERIES, SERIES_VARS, BUILD_COLOR, MEASURE_COLOR } from '../lib/palette.js'
 import {
-  fmtInt, fmtNum, fmtPct, fmtHours, fmtTemp, fmtRate, fmtSigned, fmtHourTick, fmtDate, fmtSerial, compareSerial,
+  fmtBC, bcText, runsText, fmtInt, fmtNum, fmtPct, fmtHours, fmtTemp, fmtRate, fmtSigned, fmtHourTick, fmtDate, fmtSerial, compareSerial,
 } from '../lib/fmt.js'
 
 const BENCH_CURVE_MODES = [
@@ -31,9 +31,6 @@ const DEVICE_VIEWS = [
   { id: 'average', label: 'Average per device' },
   { id: 'all', label: 'Every run' },
 ]
-
-// Battery cycles: total % drained across the runs, divided by 100 (see fullDischargeCycles).
-const fmtBC = (v) => (v == null ? '—' : v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))
 
 export default function TestDetailView({ cycles, testType, allSerials }) {
   /* null until the reader picks one, so the default can follow the data rather
@@ -64,7 +61,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
 
   /* Colour follows the serial across the whole app, so filtering a device out
      never repaints the others. */
-  const colorMap = useMemo(() => buildColorMap(allSerials), [allSerials])
+  const styleMap = useMemo(() => buildStyleMap([...allSerials].sort(compareSerial)), [allSerials])
 
   const bySerial = useMemo(() => batteryBySerial(cycles), [cycles])
   const selectedDevices = deviceChoice.testType === testType ? deviceChoice.selected : null
@@ -96,10 +93,10 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
         && (limit == null || c.duration == null || c.duration <= limit))
 
       if (deviceView === 'all') {
-        /* Every run keeps its device's colour, so a device reads as a band of
-           lines and its spread is the point rather than a hunt for the legend.
-           Series are per run here, so the device tick-list cannot key off them
-           — the choice made in the averaged view is applied directly instead. */
+        /* Every run gets its own colour + dash, so runs can be told apart even when they
+           all come from one device (colouring by device made them one colour). Styles
+           are assigned over every run in scope, so ticking runs never restyles the rest. */
+        const runStyle = buildStyleMap(inScope.map((c, i) => c.id ?? `${c.serial}-${c.date}-${i}`))
         return inScope
           .filter((c) => selectedDevices == null || selectedDevices.has(c.serial))
           .sort((a, b) => compareSerial(a.serial, b.serial)
@@ -107,7 +104,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
           .map((c, i) => ({
             id: c.id ?? `${c.serial}-${c.date}-${i}`,
             label: `${fmtSerial(c.serial)}${c.date ? ` · ${fmtDate(c.date)}` : ''}`,
-            color: colorMap.get(c.serial) ?? SERIES_VARS[i % MAX_SERIES],
+            ...(runStyle.get(c.id ?? `${c.serial}-${c.date}-${i}`) ?? { color: SERIES_VARS[i % MAX_SERIES] }),
             points: c.series,
           }))
       }
@@ -116,7 +113,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
         id: g.label,
         label: fmtSerial(g.label),
         sub: `${fmtInt(g.count)} run${g.count === 1 ? '' : 's'}`,
-        color: colorMap.get(g.label) ?? SERIES_VARS[i % MAX_SERIES],
+        ...(styleMap.get(g.label) ?? { color: SERIES_VARS[i % MAX_SERIES] }),
         points: g.points,
       }))
     }
@@ -129,13 +126,20 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
     return plottedCurves.map((g, i) => ({
       id: g.label,
       label: g.label.replace(' Build', ''),
-      sub: `${fmtInt(g.count)} cycle${g.count === 1 ? '' : 's'}`,
+      sub: isCharging ? runsText(g.count) : bcText(batteryCycles(cycles.filter((c) => (c[key] ?? 'Unknown') === g.label))),
       color: key === 'build'
         ? (BUILD_COLOR[g.label] ?? SERIES_VARS[i])
         : groupColors.get(g.label),
       points: g.points,
     }))
-  }, [activeMode, deviceView, selectedDevices, bySerial, cycles, colorMap])
+  }, [activeMode, deviceView, selectedDevices, bySerial, cycles, styleMap])
+  // The axis ends at the furthest point actually drawn. "Every run" plots every sample,
+  // not just whole hours, so sizing it like the averaged views let lines run off the edge.
+  const curveMaxHour = useMemo(() => {
+    let m = 0
+    for (const sr of curveSeries) for (const p of sr.points) if (p.t > m) m = p.t
+    return Math.max(1, Math.ceil(m || maxHour))
+  }, [curveSeries, maxHour])
   /* Which tick-list the chart is showing, so the three pickers share one set
      of Select all / Clear all buttons without each testing the mode again. */
   const picker = activeMode === 'firmware' ? 'firmware'
@@ -174,6 +178,9 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
     [cycles, hourPick],
   )
   const secondary = useMemo(() => compareBy(cycles, isField ? 'padState' : 'build'), [cycles, isField])
+  // "cycles" on this page always means battery cycles; these look them up per group.
+  const bcSecondary = useMemo(() => new Map(batteryCyclesBy(cycles, isField ? 'padState' : 'build').map((r) => [r.label, r.value])), [cycles, isField])
+  const groupCount = (bc, runs) => (isCharging ? runsText(runs) : bcText(bc ?? 0))
   const peakBreakdown = useMemo(() => cycles
     .filter((c) => c.maxTemp != null)
     .sort((a, b) => compareSerial(a.serial, b.serial)
@@ -199,7 +206,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
   }, [cycles])
 
   if (!cycles.length) {
-    return <EmptyNote>No {testType} cycles match the current filters.</EmptyNote>
+    return <EmptyNote>No {testType} runs match the current filters.</EmptyNote>
   }
 
   /* --- the second KPI row, which depends on what the test measures -------- */
@@ -224,7 +231,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
         <Stat label="Total cycles" hero value={isCharging ? '—' : fmtBC(fullDrain.cycles)}
           foot={isCharging ? 'charging runs drain no battery' : undefined} />
         <Stat label="Avg run time" value={fmtNum(k.avgDuration, 1)} unit="h"
-          foot="per cycle" />
+          foot="per run" />
         {isRestaurant ? restaurantRates.map((mode) => (
           <Stat key={mode.rateKey} label={mode.label} value={fmtRate(mode.rate)}
             foot={mode.rate != null
@@ -238,7 +245,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
         )}
         <Stat label="Avg start battery" value={fmtPct(k.avgStartBattery)} />
         <Stat label={isCharging ? 'Avg charged to' : 'Avg end battery'} value={fmtPct(k.avgEndBattery)}
-          foot="at cycle end" />
+          foot="at run end" />
         {/* The average of the peaks hides the worst one, which is the figure a
             thermal problem actually shows up in. */}
         <Stat label="Avg peak battery temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
@@ -254,10 +261,10 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
           <Stat label="Avg RAM used" value={fmtPct(mean(cycles.map((c) => c.avgRam)), 1)}
             foot="recorded only by MDM telemetry" />
           <Stat label="Peak RAM used" value={fmtPct(maxOf(cycles.map((c) => c.maxRam)), 1)} />
-          <Stat label="Cycles on a misplaced pad"
+          <Stat label="Runs on a misplaced pad"
             value={fmtInt(cycles.filter((c) => c.padState === 'Pad misplaced').length)}
             foot="pad reported a misplaced device for most of the run" />
-          <Stat label="Rated by straight line"
+          <Stat label="Runs rated by straight line"
             value={fmtInt(cycles.filter((c) => c.rateBasis === 'straight line over the run').length)}
             foot="shorter than two whole hours" />
         </div>
@@ -270,7 +277,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
               foot={`${x.drop == null
                 ? 'T7 loss not measurable'
                 : `T7 loses ${Math.abs(x.drop / 6).toFixed(2)}% per 10 min`
-              } · ${x.n} cycle${x.n === 1 ? '' : 's'}`} />
+              } · ${runsText(x.n)}`} />
           ))}
         </div>
       )}
@@ -280,7 +287,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
         title="T7 battery over elapsed time"
         sub={activeMode === 'serial'
           ? (deviceView === 'all'
-            ? 'One line per run, coloured by device — how much a device varies between runs'
+            ? 'One line per run, each in its own colour and pattern — tick runs in the list to compare a few'
             : "One line per device, averaging that device's runs at each whole hour")
           : `Mean battery at each whole hour, grouped by ${activeMode === 'padState' ? 'pad state' : activeMode}`}
         right={<Segmented ariaLabel="Curve grouping" options={curveModes} value={activeMode} onChange={setMode} />}>
@@ -294,7 +301,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
         )}
         <LineChart
           series={curveSeries}
-          xDomain={[0, maxHour]}
+          xDomain={[0, curveMaxHour]}
           yDomain={[0, 100]}
           formatX={fmtHourTick}
           formatY={(v) => `${v}%`}
@@ -360,7 +367,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
               caption="Mean T7 drain and load gain per hour, by load type"
               tableColumns={[
                 { key: 'load', label: 'Load type' },
-                { key: 'n', label: 'Cycles' },
+                { key: 'n', label: 'Runs' },
                 { key: 'drop', label: 'T7 drain' },
                 { key: 'gain', label: 'Load gain' },
               ]}
@@ -379,14 +386,14 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
           </Card>
         ) : (
           <Card expandable title={isField ? 'Run time by pad state' : 'Run time by build'}
-            sub="Mean hours per cycle">
+            sub="Mean hours per run">
             <BarRows
               rows={secondary.map((b) => ({
                 id: b.label,
                 label: b.label.replace(' Build', ''),
                 value: b.avgDuration ?? 0,
                 color: isField ? 'var(--series-1)' : (BUILD_COLOR[b.label] ?? 'var(--series-1)'),
-                display: `${fmtNum(b.avgDuration, 1)} h · ${fmtInt(b.cycles)} cycle${b.cycles === 1 ? '' : 's'}`,
+                display: `${fmtNum(b.avgDuration, 1)} h · ${groupCount(bcSecondary.get(b.label), b.cycles)}`,
               }))}
               unit="h"
               labelWidth={isField ? 124 : 100}
@@ -394,13 +401,13 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
               caption={`Mean run time by ${isField ? 'pad state' : 'hardware build'}`}
               tableColumns={[
                 { key: 'build', label: isField ? 'Pad state' : 'Build' },
-                { key: 'n', label: 'Cycles' },
+                { key: 'n', label: isCharging ? 'Runs' : 'Battery cycles' },
                 { key: 'dur', label: 'Avg run time' },
                 { key: 'drop', label: isCharging ? 'Avg charge rate' : 'Avg drain' },
                 { key: 'temp', label: 'Avg peak temp' },
               ]}
               tableRows={secondary.map((b) => ({
-                build: b.label, n: fmtInt(b.cycles), dur: fmtHours(b.avgDuration),
+                build: b.label, n: isCharging ? fmtInt(b.cycles) : fmtBC(bcSecondary.get(b.label) ?? 0), dur: fmtHours(b.avgDuration),
                 drop: fmtRate(isCharging && b.avgDropPerHr != null ? -b.avgDropPerHr : b.avgDropPerHr),
                 temp: fmtTemp(b.avgPeakTemp),
               }))}
@@ -412,7 +419,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
           ? 'T7 drain and load gain by hour of the run'
           : isCharging ? 'Battery gained by hour of the run' : 'Drain by hour of the run'}
           sub={isCharging
-            ? 'How many battery percentage points the T7 gains in each whole hour, averaged across charging cycles.'
+            ? 'How many battery percentage points the T7 gains in each whole hour, averaged across charging runs.'
             : isRestaurant
               ? 'Mean T7 battery loss in each hour, split by whether a wireless load was recorded at the start of that hour.'
               : testType === 'WLC on Phone'
@@ -452,7 +459,7 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
                   : 'Mean battery change per hour window'}
             tableColumns={[
               { key: 'window', label: 'Hour' },
-              { key: 'n', label: 'Cycles' },
+              { key: 'n', label: 'Runs' },
               ...(isRestaurant ? [
                 { key: 'wireless', label: 'With wireless (WLC)' },
                 { key: 'withoutWireless', label: 'Without wireless' },
@@ -468,9 +475,9 @@ export default function TestDetailView({ cycles, testType, allSerials }) {
               drop: h.drop != null ? `${h.drop}%` : '—',
               charge: h.drop != null ? fmtSigned(-h.drop, 2, '%') : '—',
               gain: h.gain != null ? `+${h.gain}%` : '—',
-              wireless: h.wirelessDrop != null ? `${h.wirelessDrop}% · ${h.wirelessN} cycles` : '—',
+              wireless: h.wirelessDrop != null ? `${h.wirelessDrop}% · ${runsText(h.wirelessN)}` : '—',
               withoutWireless: h.withoutWirelessDrop != null
-                ? `${h.withoutWirelessDrop}% · ${h.withoutWirelessN} cycles` : '—',
+                ? `${h.withoutWirelessDrop}% · ${runsText(h.withoutWirelessN)}` : '—',
             }))}
           />
 

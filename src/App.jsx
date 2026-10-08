@@ -3,11 +3,12 @@ import { subscribe, getSnapshot, boot, startPolling, GROUP } from './lib/fleet.j
 import { loadWindow, subscribeWindow, getWindow, rowsFor, WINDOW_HOURS } from './lib/window.js'
 import { adaptAll, CTX } from './lib/adapt.js'
 import { loadDecls, loadRota, testType as ttById } from './lib/plan.js'
-import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials } from './lib/t7cycles.js'
+import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials, batteryCycles } from './lib/t7cycles.js'
 import { initThemeToggle } from './lib/theme.js'
-import { fmtInt, fmtDateLong } from './lib/fmt.js'
+import { fmtInt, fmtDateLong, fmtBC } from './lib/fmt.js'
 import { ago } from './lib/format.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import { HistoryStatus } from './components/historyStatus.js'
 import FilterBar, { FilterPills } from './components/FilterBar.jsx'
 import T7Overview from './views/T7Overview.jsx'
 import ComparisonView from './views/ComparisonView.jsx'
@@ -106,7 +107,7 @@ export default function App() {
     : (
       <div className="view-stack">
         <FilterBar cycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} declaredTypes={declaredTypes} />
-        <FilterPills filters={filters} onChange={setFilters} onReset={resetFilters} count={scoped.length} allSerials={allSerials} />
+        <FilterPills filters={filters} onChange={setFilters} onReset={resetFilters} count={batteryCycles(scoped)} allSerials={allSerials} />
         {fleet.seed && !fleet.seed.ok && (
           <div className="banner banner-warn"><span aria-hidden="true">◆</span>
             <div><strong>Only the sweep's cycles are loaded — most of the history is missing.</strong>
@@ -148,7 +149,7 @@ export default function App() {
         <div className="header-spacer" />
         {ready && (
           <span className="hint nowrap">
-            {fmtInt(cycles.length)} cycles · {DEV.length} devices{latestDate ? ` · through ${fmtDateLong(latestDate)}` : ''}
+            {fmtBC(batteryCycles(cycles))} cycles · {DEV.length} devices{latestDate ? ` · through ${fmtDateLong(latestDate)}` : ''}
           </span>
         )}
         <span className="hint nowrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -164,7 +165,10 @@ export default function App() {
         <ThemeButton />
       </header>
       <main className="app-main">
-        <ErrorBoundary title="This view could not be drawn">{body}</ErrorBoundary>
+        <HistoryStatus.Provider value={{ loading: win.loading, at: win.at, err: win.err,
+          days: Math.round(WINDOW_HOURS / 24), reload: () => loadWindow(DEV, true) }}>
+          <ErrorBoundary title="This view could not be drawn">{body}</ErrorBoundary>
+        </HistoryStatus.Provider>
       </main>
     </div>
   )

@@ -2,14 +2,13 @@ import React, { useMemo, useState } from 'react'
 import { Card, Stat, Pill, EmptyNote } from '../components/Primitives.jsx'
 import EventForm from '../components/EventForm.jsx'
 import DataQualityCard from '../components/DataQualityCard.jsx'
-import { kpis, maxOf } from '../lib/t7cycles.js'
+import { kpis, maxOf, batteryCycles } from '../lib/t7cycles.js'
 import {
   eventsBySerial, worstSeverity, SEVERITY_LEVEL, removeEvent,
 } from '../lib/events.js'
 import { levelFor } from '../lib/palette.js'
 import {
-  fmtInt, fmtPct, fmtTemp, fmtHours, fmtRate, fmtDate, fmtSerial, compareSerial, DASH,
-} from '../lib/fmt.js'
+  fmtInt, fmtPct, fmtTemp, fmtHours, fmtRate, fmtDate, fmtSerial, compareSerial, DASH, fmtBC, bcText } from '../lib/fmt.js'
 
 const fmtWhen = (ms) => {
   const d = new Date(ms)
@@ -117,7 +116,7 @@ export default function DevicesView({
     <div className="view-stack">
       <div className="stat-row">
         <Stat label="Devices" value={fmtInt(rows.length)} hero
-          foot={`${fmtInt(cycles.length)} cycles in scope`} />
+          foot={`${fmtBC(batteryCycles(cycles))} cycles in scope`} />
         <Stat label="With a recorded event" value={fmtInt(withEvents)}
           foot={<Pill level={withEvents ? 'warning' : 'good'}>
             {withEvents ? `${((withEvents / rows.length) * 100).toFixed(0)}% of devices` : 'none logged'}
@@ -190,12 +189,12 @@ export default function DevicesView({
                     <span className="device-meta">
                       {r.cycles.length
                         ? <>
-                            {fmtInt(r.cycles.length)} cycles
+                            {bcText(batteryCycles(r.cycles))}
                             {r.builds.length ? ` · ${fmtInt(r.builds.length)} build${r.builds.length === 1 ? '' : 's'}` : ''}
                             {r.firmwares.length ? ` · ${fmtInt(r.firmwares.length)} firmware version${r.firmwares.length === 1 ? '' : 's'}` : ''}
                             {r.lastDate ? ` · last ran ${fmtDate(r.lastDate)}` : ''}
                           </>
-                        : <span className="muted">no cycles in the current filters</span>}
+                        : <span className="muted">no runs in the current filters</span>}
                     </span>
 
                     {Number.isFinite(r.peak) && (

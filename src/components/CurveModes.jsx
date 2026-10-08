@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { avgCurveBy, envelopeBy } from '../lib/t7cycles.js'
-import { buildColorMap } from '../lib/palette.js'
+import { buildStyleMap } from '../lib/palette.js'
 import { compareSerial } from '../lib/fmt.js'
 import { Segmented } from './Primitives.jsx'
 
@@ -18,11 +18,11 @@ export function ModeSwitch({ value, onChange, avgLabel = 'Average' }) {
 /** One averaged curve per device. Colours come from every serial in the app, sorted, so a
  *  device has the same colour on every chart and on every tab. */
 export function deviceSeries(cycles, allSerials, key = 'series') {
-  const colorOf = buildColorMap([...allSerials].sort(compareSerial))
+  const styleOf = buildStyleMap([...allSerials].sort(compareSerial))
   const src = key === 'series' ? cycles : cycles.map((c) => ({ ...c, series: c[key] || [] }))
   return avgCurveBy(src, 'serial').map((g) => ({
     id: g.label, label: g.label, sub: `${g.count} run${g.count === 1 ? '' : 's'}`,
-    color: colorOf.get(g.label) || 'var(--series-1)', points: g.points,
+    ...(styleOf.get(g.label) || { color: 'var(--series-1)' }), points: g.points,
   }))
 }
 

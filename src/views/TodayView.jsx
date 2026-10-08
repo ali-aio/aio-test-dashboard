@@ -8,7 +8,7 @@ import { online, status } from '../lib/device.js'
 import { GROUP } from '../lib/fleet.js'
 import { MultiLineChart, Sparkline, tooltipHtml } from '../components/charts.jsx'
 import { Segmented } from '../components/Primitives.jsx'
-import { buildColorMap } from '../lib/palette.js'
+import { buildStyleMap, keyBackground } from '../lib/palette.js'
 
 const CSTATE = { conforming: ['pill-ok', 'Conforming'], drifting: ['pill-warn', 'Drifting'], silent: ['', 'Not reporting'], untyped: ['', 'No test declared'] }
 const statusBadge = st => <span className={`pill ${{ declared: 'pill-run', confirmed: 'pill-ok', inferred: 'pill-warn', unclassified: '', none: '' }[st]}`}>{STATUS[st].label}</span>
@@ -60,7 +60,8 @@ export default function TodayView({ fleet }) {
   // colour whatever else is ticked — the same rule T7's own device picker follows.
   const [picked, setPicked] = useState(null)
   const sorted = useMemo(() => [...T.serials].sort(), [T.serials.join(',')])
-  const colorOf = useMemo(() => buildColorMap(sorted), [sorted])
+  const styleOf = useMemo(() => buildStyleMap(sorted), [sorted])
+  const colorOf = useMemo(() => new Map([...styleOf].map(([k, v]) => [k, v.color])), [styleOf])
   const isOn = sn => picked == null || picked.has(sn)
   const toggle = sn => setPicked(p => {
     const n = new Set(p ?? sorted); n.has(sn) ? n.delete(sn) : n.add(sn)
@@ -110,8 +111,8 @@ export default function TodayView({ fleet }) {
     : [
         ...shown.map(c => {
           const drift = c.state === 'drifting'
-          return { id: c.serial, label: tail(c.serial) + (drift ? ' · drifting' : ''), pts: ptsOf(c), color: colorOf.get(c.serial), width: drift ? 1.9 : 1.5, opacity: few ? 1 : .75,
-            dash: drift ? '5 3' : undefined,
+          return { id: c.serial, label: tail(c.serial) + (drift ? ' · drifting' : ''), pts: ptsOf(c), color: colorOf.get(c.serial), width: drift ? 2.8 : 1.5, opacity: few || drift ? 1 : .8,
+            dash: styleOf.get(c.serial)?.dash,
             endLabel: few ? `${c.serial.slice(-4)} ${lastOf(c)}%` : (c === lo || c === hi) ? `${lastOf(c)}%` : null }
         }),
         ...projSeries,
@@ -123,7 +124,7 @@ export default function TodayView({ fleet }) {
       ]
     : shown.map(c => {
         const pts = ptsOf(c, temp), last = pts[pts.length - 1]
-        return { id: c.serial, label: tail(c.serial), pts, color: colorOf.get(c.serial), width: 1.6,
+        return { id: c.serial, label: tail(c.serial), pts, color: colorOf.get(c.serial), dash: styleOf.get(c.serial)?.dash, width: 1.6,
           endLabel: last && (few || last.y >= TEMP_WARN) ? `${c.serial.slice(-4)} ${last.y.toFixed(0)}°` : null }
       })
   // Tooltip rows in T7's style; the busiest charts list the six most relevant lines.
@@ -138,7 +139,7 @@ export default function TodayView({ fleet }) {
     return tooltipHtml(hm(t), rows.slice(0, 6).map(({ s, p }) => ({ color: s.color, name: s.label || s.id, value: `${p.y.toFixed(1)} °C` })))
       + (rows.length > 6 ? `<div class="tt-time" style="margin:4px 0 0">+${rows.length - 6} more, all cooler</div>` : '')
   }
-  const picker = <DevicePicker serials={sorted} picked={picked} colorOf={colorOf} drifting={new Set(drifting.map(d => d.serial))}
+  const picker = <DevicePicker serials={sorted} picked={picked} colorOf={colorOf} styleOf={styleOf} drifting={new Set(drifting.map(d => d.serial))}
     onToggle={toggle} onAll={() => setPicked(null)} onNone={() => setPicked(new Set())} />
   const noneTicked = picked != null && picked.size === 0
   const silent = T.serials.length - reporting.length
@@ -191,7 +192,7 @@ export default function TodayView({ fleet }) {
                 <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average of {shown.length} device{shown.length === 1 ? '' : 's'}</span>
                 <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--text-3)', opacity: .5 }} />Highest and lowest</span>
               </> : <>
-                {drifting.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)' }} />dashed = drifting</span> : null}
+                {drifting.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)' }} />thick line = drifting</span> : null}
                 <span className="legend-item secondary">{few ? 'every line is labelled' : 'labels mark the lowest and highest'}</span>
               </>}
               {projection.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--text-3)' }} />Projected, at {selRate.toFixed(1)} %/h</span> : null}
@@ -304,7 +305,7 @@ function Drifters({ drifting, tt }) {
 
 // T7's own device picker markup (chart-legend-details / series-legend), so it looks and
 // behaves like the one on the Overview's single-test view. Drifting devices are marked.
-function DevicePicker({ serials, picked, colorOf, drifting, onToggle, onAll, onNone }) {
+function DevicePicker({ serials, picked, colorOf, styleOf, drifting, onToggle, onAll, onNone }) {
   const n = picked == null ? serials.length : picked.size
   return (
     <details className="chart-legend-details">
@@ -317,7 +318,7 @@ function DevicePicker({ serials, picked, colorOf, drifting, onToggle, onAll, onN
         {serials.map(sn => (
           <label className="series-legend-item" key={sn}>
             <input type="checkbox" checked={picked == null || picked.has(sn)} onChange={() => onToggle(sn)} />
-            <span className="legend-key-line" style={{ background: colorOf.get(sn) }} aria-hidden="true" />
+            <span className="legend-key-line" style={{ background: keyBackground(colorOf.get(sn), styleOf.get(sn)?.dash) }} aria-hidden="true" />
             <span>{sn}{drifting.has(sn) ? <span className="secondary"> · drifting</span> : null}</span>
           </label>
         ))}

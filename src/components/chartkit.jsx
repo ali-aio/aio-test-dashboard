@@ -8,6 +8,7 @@
      • a table-view twin, so no value is reachable only by hovering
    =========================================================================== */
 
+import { keyBackground } from '../lib/palette.js'
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 
 /* ---------------------------------------------------------------- measuring */
@@ -250,7 +251,7 @@ export function Legend({ items, onToggle, hidden, note }) {
             title={onToggle ? `Toggle ${it.label}` : undefined}>
             {it.shape === 'rect'
               ? <span className="legend-key-rect" style={{ background: it.color }} />
-              : <span className="legend-key-line" style={{ background: it.color }} />}
+              : <span className="legend-key-line" style={{ background: keyBackground(it.color, it.dash) }} />}
             {it.label}
             {it.sub && <span className="muted"> {it.sub}</span>}
           </Tag>

@@ -4,7 +4,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { ALL_TEST_TYPES, LOAD_TEST_TYPES } from '../lib/testtypes.js'
 import { cascadeOptions, pruneFilters } from '../lib/t7cycles.js'
-import { fmtDate, fmtWeek } from '../lib/fmt.js'
+import { fmtDate, fmtWeek, fmtBC } from '../lib/fmt.js'
 import DatePicker from './DatePicker.jsx'
 
 export default function FilterBar({ cycles, filters, onChange, onReset, allSerials = [], declaredTypes = [] }) {
@@ -54,7 +54,7 @@ export default function FilterBar({ cycles, filters, onChange, onReset, allSeria
         <select className="control" value={filters.testType}
           onChange={(e) => set({ testType: e.target.value, loadType: '', charger: '' })}>
           <option value="__all__">All tests</option>
-          {availableTypes.map((t) => <option key={t} value={t}>{t}{typeCounts.get(t) ? '' : ' — no cycles yet'}</option>)}
+          {availableTypes.map((t) => <option key={t} value={t}>{t}{typeCounts.get(t) ? '' : ' — no runs yet'}</option>)}
         </select>
       </Field>
 
@@ -254,7 +254,7 @@ export function FilterPills({ filters, onChange, onReset, count, allSerials = []
   return (
     <div className="row row-wrap" style={{ gap: 6, minHeight: 26 }}>
       <span className="pill pill-neutral">
-        <strong className="mono">{count.toLocaleString('en-US')}</strong>&nbsp;cycles in scope
+        <strong className="mono">{fmtBC(count)}</strong>&nbsp;cycles in scope
       </span>
       {chips.map((c) => (
         <span key={c.k} className="pill pill-filter">

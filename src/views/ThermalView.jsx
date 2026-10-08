@@ -6,7 +6,7 @@ import {
   kpis, mean, median, maxOf, minOf, explainEmpty, plottedMaxHour } from '../lib/t7cycles.js'
 import { thermalTimingByDevice } from '../lib/thermal.js'
 import {
-  buildColorMap, MAX_SERIES, STATUS_ICON,
+  buildColorMap, buildStyleMap, MAX_SERIES, STATUS_ICON,
 } from '../lib/palette.js'
 import {
   fmtInt, fmtNum, fmtTemp, fmtHourTick, fmtDate, fmtSerial, compareSerial, DASH,
@@ -15,7 +15,7 @@ import {
 export default function ThermalView({ cycles, allSerials, onFilter }) {
   const withTemp = useMemo(() => cycles.filter((c) => c.tempSeries.length), [cycles])
   const k = useMemo(() => kpis(cycles), [cycles])
-  const colorMap = useMemo(() => buildColorMap(allSerials), [allSerials])
+  const colorMap = useMemo(() => buildStyleMap([...allSerials].sort(compareSerial)), [allSerials])
 
   /* Every temperature reading in scope, behind the median readout. */
   const allTemps = useMemo(
@@ -37,7 +37,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
     return order.sort(compareSerial).map((sn) => ({
       id: sn,
       label: fmtSerial(sn),
-      color: colorMap.get(sn) ?? 'var(--series-1)',
+      ...(colorMap.get(sn) ?? { color: 'var(--series-1)' }),
       points: picked.get(sn).tempSeries,
     }))
   }, [withTemp, colorMap])

@@ -16,14 +16,14 @@ import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText } from '../src/lib/splitCycles.js'
 import RangePicker from '../src/components/RangePicker.jsx'
-import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn } from '../src/lib/plan.js'
+import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
 import { testTypeFor } from '../src/lib/adapt.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 
 // a rota so every test type, including Restaurant Case's wireless split, gets exercised
 const ROTA = JSON.stringify({0:{testType:'wlc_load'},1:{testType:'restaurant'},2:{testType:'wlc_phone'},3:{testType:'wlc_disch'},4:{testType:'charging'},5:{testType:'burnin'},6:{testType:'disch_ads'}})
-globalThis.localStorage = { getItem: k => k.startsWith('cyclePlan:rota') ? ROTA : null, setItem() {}, removeItem() {} }
+{ const m = new Map(); globalThis.localStorage = { getItem: k => k.startsWith('cyclePlan:rota') ? ROTA : (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)) }, removeItem: k => { m.delete(k) } } }
 const seed = JSON.parse(fs.readFileSync('data/cycles.json'))
 const DEV = Object.entries(seed.devices).map(([serial, h]) => ({ serial, snap: { groups: ['Test Cycles'] },
   cycles: reclassify(h.cycles || [], h.interrupted || [], DEFAULTS).cycles }))
@@ -242,6 +242,15 @@ const mdmCases = []
     // times overlap: 02:00-05:00 on Oct 11 clashes with the night cycle from 02:00 to 03:00
     const o = overlapsOn([night, c('x', 2, '2026-10-11', '02:00', '05:00', 0)], '2026-10-11', DEV)
     want(o.length === 1 && new Date(o[0].from).getHours() === 2 && new Date(o[0].to).getHours() === 3, 'real clash missed')
+  })
+  check('an old From/To plan reads as one continuous cycle', () => {
+    localStorage.setItem('cyclePlan:decls:v1:T', JSON.stringify([
+      { id: 'D-001', at: 1, testType: 'charging', from: '2026-10-10', to: '2026-10-11', startTime: '07:00', endTime: '03:00', group: { kind: 'all' }, repeat: 'none' },
+      { id: 'D-002', at: 2, testType: 'restaurant', from: '2026-10-11', to: '2026-10-11', startTime: '11:00', endTime: '22:00', group: { kind: 'all' }, repeat: 'none' }]))
+    const decls = loadDecls('T'), w = windowOn('2026-10-10', decls.find((d) => d.id === 'D-001'))
+    want((w.endMs - w.startMs) / 3600e3 === 20, `span ${(w.endMs - w.startMs) / 3600e3} h`)
+    want(cyclesOn(decls, '2026-10-11').length === 1, 'still a copy on Oct 11')
+    want(!overlapsOn(decls, '2026-10-11', [{ serial: 'A' }]).length, 'Oct 11 still warns')
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

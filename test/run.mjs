@@ -14,7 +14,7 @@ await build({ logLevel: 'error', configFile: false, plugins: [react()],
   build: { target: 'esnext', ssr: path.join(here, 'render.test.jsx'), outDir: path.join(here, '.out'), emptyOutDir: true } })
 // fleet.js reads the scope group from storage at import time, so the stub has to exist
 // before the bundle loads; render.test.jsx swaps in its own after.
-globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} }
+{ const m = new Map(); globalThis.localStorage = { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)) }, removeItem: (k) => { m.delete(k) } } }
 const before = process.exitCode
 await import(path.join(here, '.out', 'render.test.js'))
 if (process.exitCode && !before) console.error('\nrender test FAILED')

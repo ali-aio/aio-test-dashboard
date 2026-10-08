@@ -250,7 +250,7 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
             </select></span></div>
         {/* One cycle = one continuous stretch, start date+time to end date+time. Repeating it is
             a separate, explicit choice (it used to be implied by a From/To date range). */}
-        <div className="grid grid-2">
+        <div>
           <div className="field"><label htmlFor="f-from">Start</label>
             <div className="dt-pair"><input className="input" id="f-from" type="date" value={form.from} onChange={e => set('from', e.target.value)} />
               <input className="input" aria-label="Start time" type="time" value={form.startTime || ''} onChange={e => set('startTime', e.target.value)} /></div></div>

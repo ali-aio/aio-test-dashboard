@@ -78,10 +78,18 @@ export const daysBetween = (a, b) => Math.round((keyToDate(b) - keyToDate(a)) / 
 
 // ── storage ───────────────────────────────────────────────────────────────────
 const validDecl = d => d && typeof d.from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.from) && testType(d.testType);
+// Plans saved by the first form had From / To dates and one start and end time. In use,
+// From..To meant one continuous cycle (Oct 10 07:00 -> Oct 11 03:00), not the same window
+// repeated each day, so a plan without spanDays reads that way: the end date is To.
+function fromOldForm(d) {
+  const to = d.to || d.from;
+  if (Number.isInteger(d.spanDays) || d.repeat === 'weekly' || to <= d.from) return { ...d, to };
+  return { ...d, spanDays: daysBetween(d.from, to), to: d.from };
+}
 export function loadDecls(group) {
   try {
     const raw = JSON.parse(localStorage.getItem(DKEY(group)) || '[]');
-    return (Array.isArray(raw) ? raw : []).filter(validDecl).map(d => ({ ...d, to: d.to || d.from })).sort((a, b) => a.from < b.from ? -1 : 1);
+    return (Array.isArray(raw) ? raw : []).filter(validDecl).map(fromOldForm).sort((a, b) => a.from < b.from ? -1 : 1);
   } catch (e) { return []; }
 }
 export function saveDecls(group, decls) {

@@ -142,7 +142,8 @@ oversight; don't add restaurant filtering back in without being asked.
   window); resolution order is explicit declaration > standing weekly rota > inferred from
   telemetry > unclassified. Stored in localStorage per group, like `runs.js`.
   A declaration is one **cycle**: start date + time to end date + time (`spanDays` = days from
-  start to end; older plans without it read an end at or before the start as the next morning).
+  start to end). Plans saved by the first From/To form have no `spanDays`; `loadDecls` reads them
+  as one continuous cycle ending on their To date, which is how the lab used that form.
   `from`..`to` is only for repeating it (daily, or `repeat: 'weekly'`) — the form says so explicitly.
   A day can hold several cycles (`cyclesOn`); a run belongs to the cycle whose window it *started*
   in (`cycleAt`, which also checks cycles carried in from earlier days), and runs count on their

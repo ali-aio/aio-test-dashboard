@@ -232,6 +232,17 @@ const mdmCases = []
     want((long.endMs - long.startMs) / 3600e3 === 56, 'two-day cycle')
     want(cycleAt([{ ...decls[0], spanDays: 2, endTime: '15:00' }], new Date(2026, 9, 12, 9).getTime())?.decl.id === 'x', 'day 3 of a long cycle')
   })
+  check('overlap warning is about times, never about sharing a day', () => {
+    const DEV = [{ serial: 'A' }]
+    const c = (id, at, from, st, en, span) => ({ id, at, testType: 'charging', from, to: from, startTime: st, endTime: en, spanDays: span, group: { kind: 'all' } })
+    const night = c('n', 1, '2026-10-10', '07:00', '03:00', 1)                    // Oct 10 07:00 -> Oct 11 03:00
+    // days overlap (both on Oct 11), times do not: no warning, on either day
+    for (const later of [c('a', 2, '2026-10-11', '11:00', '22:00', 0), c('b', 2, '2026-10-11', '03:00', '09:00', 0)])
+      for (const day of ['2026-10-10', '2026-10-11']) want(!overlapsOn([night, later], day, DEV).length, `${later.startTime} flagged on ${day}`)
+    // times overlap: 02:00-05:00 on Oct 11 clashes with the night cycle from 02:00 to 03:00
+    const o = overlapsOn([night, c('x', 2, '2026-10-11', '02:00', '05:00', 0)], '2026-10-11', DEV)
+    want(o.length === 1 && new Date(o[0].from).getHours() === 2 && new Date(o[0].to).getHours() === 3, 'real clash missed')
+  })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()
     const h = renderToString(<RangePicker value={null} onChange={nop} daysWithRuns={new Map([[d, 24]])} />)

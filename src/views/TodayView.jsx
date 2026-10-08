@@ -11,7 +11,7 @@ import { MultiLineChart, Sparkline, tooltipHtml } from '../components/charts.jsx
 import { Segmented } from '../components/Primitives.jsx'
 import { buildStyleMap, keyBackground } from '../lib/palette.js'
 
-const CSTATE = { conforming: ['pill-ok', 'Conforming'], drifting: ['pill-warn', 'Drifting'], silent: ['', 'Not reporting'], untyped: ['', 'No test declared'] }
+const CSTATE = { conforming: ['pill-ok', 'On track'], drifting: ['pill-warn', 'Drifting'], silent: ['', 'Not reporting'], untyped: ['', 'No test declared'] }
 const statusBadge = st => <span className={`pill ${{ declared: 'pill-run', confirmed: 'pill-ok', inferred: 'pill-warn', unclassified: '', none: '' }[st]}`}>{STATUS[st].label}</span>
 
 export default function TodayView({ fleet }) {
@@ -173,7 +173,7 @@ export default function TodayView({ fleet }) {
           delta={rate ? `${(rate / 6).toFixed(2)}% per 10 min · median of ${rates.length}` : 'needs 20 min of running'} />
         <Metric label={`Reaches ${END_BAND}%`} value={etaEnd ? when(etaEnd) : medNow != null && medNow <= END_BAND ? 'Done' : '—'}
           delta={etaEnd ? `${fmtDur(etaEnd - now)} from now${etaEmpty ? ` · empty ≈ ${when(etaEmpty)}` : ''}` : medNow != null && medNow <= END_BAND ? 'median is in the end band' : 'at the current rate'} />
-        <Metric label="Conforming to plan" color={T.tt && conforming.length === T.serials.length ? 'var(--ok)' : drifting.length ? 'var(--warn)' : null}
+        <Metric label="On track with plan" color={T.tt && conforming.length === T.serials.length ? 'var(--ok)' : drifting.length ? 'var(--warn)' : null}
           value={<>{conforming.length}<span className="secondary" style={{ fontSize: 13 }}> / {T.serials.length}</span></>}
           delta={!T.tt ? 'nothing declared to match' : drifting.length || silent
             ? [drifting.length && `${drifting.length} drifting`, silent && `${silent} not reporting`].filter(Boolean).join(' · ')

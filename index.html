@@ -646,7 +646,7 @@ function nxTodayView() {
       </div></div>
     <div class="panel"><div class="metrics">
       <div class="metric"><small>Elapsed</small><b class="num">${fmtDur(elapsed)}<span class="muted" style="font-size:13px"> of ~${fmtDur(expected)}</span></b><span class="delta">${tt ? `started ${hm(T.startMs)}${isFinite(firstRow) ? ` · first row ${hm(firstRow)}` : ''}` : ''}</span></div>
-      <div class="metric"><small>Conforming to plan</small><b class="num" style="color:${tt && conforming.length ? 'var(--ok)' : 'inherit'}">${N(conforming.length)}<span class="muted" style="font-size:13px"> / ${T.serials.length}</span></b><span class="delta">${tt ? 'telemetry matches the declared test' : 'nothing to match against'}</span></div>
+      <div class="metric"><small>On track with plan</small><b class="num" style="color:${tt && conforming.length ? 'var(--ok)' : 'inherit'}">${N(conforming.length)}<span class="muted" style="font-size:13px"> / ${T.serials.length}</span></b><span class="delta">${tt ? 'telemetry matches the declared test' : 'nothing to match against'}</span></div>
       <div class="metric"><small>Drifting</small><b class="num" style="color:${drifting.length ? 'var(--warn)' : 'inherit'}">${N(drifting.length)}</b><span class="delta">${drifting.length ? 'label will drop to Unclassified' : tt ? 'every reporting device matches' : ''}</span></div>
       <div class="metric"><small>Not reporting</small><b class="num">${N(T.serials.length - reporting.length)}</b><span class="delta">no rows in the window</span></div>
       <div class="metric"><small>Cycles finished today</small><b class="num">${N(ran)}</b><span class="delta">counted cycles</span></div>
@@ -654,7 +654,7 @@ function nxTodayView() {
     ${!NX.at ? nxStale() : `
     <div class="panel"><div class="panel-head"><h2>T7 battery, today</h2><span class="muted">live from MDM · 5-minute rows</span></div>
       <div class="panel-body"><div class="slegend" style="margin-bottom:8px">
-        <span><i style="border-color:var(--tt-1)"></i>Conforming (${conforming.length})</span>
+        <span><i style="border-color:var(--tt-1)"></i>On track (${conforming.length})</span>
         ${drifting.length ? `<span><i style="border-color:var(--warn);border-top-style:dashed"></i>Drifting (${drifting.length}) — ${drifting.map(d => esc(d.serial.slice(-4))).join(', ')}</span>` : ''}
         <span class="muted">labels mark the lowest and highest</span></div>
         <div class="chart" id="nxt-batt"></div></div></div>
@@ -688,7 +688,7 @@ function nxTodayView() {
       refs: [{ v: TEMP_LIMIT, label: `${TEMP_LIMIT} °C review threshold`, color: 'var(--warn)' }],
       tip: (t, hits) => `<b>${hm(t)}</b><br>${hits.map(({ s, p }) => `${s.id} ${p.y.toFixed(1)} °C`).join('<br>')}` });
 
-    const CSTATE = { conforming: ['b-ok', 'Conforming'], drifting: ['b-warn', 'Drifting'], silent: ['b-off', 'Not reporting'], untyped: ['b-off', 'No test declared'] };
+    const CSTATE = { conforming: ['b-ok', 'On track'], drifting: ['b-warn', 'Drifting'], silent: ['b-off', 'Not reporting'], untyped: ['b-off', 'No test declared'] };
     const draw = () => {
       setH($('#nxt-body'), conf.length ? conf.slice().sort((a, b) => (a.state === 'drifting' ? -1 : 0) - (b.state === 'drifting' ? -1 : 0)).map(c => {
         const d = D(c.serial), st = status(d), s = nxDayStats(d), cs = CSTATE[c.state];
@@ -737,11 +737,11 @@ function nxInspectDay(d) {
 }
 function nxTodayInspector(T, conforming, drifting, reporting) {
   return `<h3>${T.tt ? esc(T.tt.name) : 'No test declared'}</h3><div class="isub">${esc(dayLabel(T.key))} · ${STATUS[T.status].label}</div>
-    <div class="big num">${T.serials.length ? Math.round(conforming.length / T.serials.length * 100) : 0}%<small>conforming to plan</small></div>
+    <div class="big num">${T.serials.length ? Math.round(conforming.length / T.serials.length * 100) : 0}%<small>on track with plan</small></div>
     <hr><h4>Against the declaration</h4><dl class="kv">
       <dt>Declared devices</dt><dd class="num">${T.serials.length}</dd>
       <dt>Reporting</dt><dd class="num">${reporting.length}</dd>
-      <dt>Conforming</dt><dd class="num" style="color:var(--ok)">${conforming.length}</dd>
+      <dt>On track</dt><dd class="num" style="color:var(--ok)">${conforming.length}</dd>
       <dt>Drifting</dt><dd class="num" style="color:${drifting.length ? 'var(--warn)' : 'inherit'}">${drifting.length}</dd>
       <dt>Window</dt><dd class="num">${hm(T.startMs)}–${hm(T.endMs)}</dd>
       <dt>Expectation</dt><dd>${T.tt ? (T.tt.expect === 'charge' ? 'battery rising' : 'battery draining, off charge') : '—'}</dd>

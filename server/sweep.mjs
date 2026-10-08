@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { detectCycles, normalize } from '../shared/cycles.js';
 import { appendReadings } from '../src/lib/mdmTrack.js';
+import { resampleRun, curveKey } from '../src/lib/curves.js';
 import { chargeSegments, thermalStats } from '../shared/profile.js';
 
 const H = 3600e3, DAY = 24 * H, CHUNK = 7 * DAY;
@@ -70,6 +71,7 @@ export async function sweep({ base, group, root, get, log = () => {} }) {
   fs.writeFileSync(tmp, JSON.stringify(file)); fs.renameSync(tmp, target);
   const cycles = Object.values(out).reduce((a, d) => a + d.cycles.length, 0);
   log(`done in ${Math.round((Date.now() - now) / 1000)}s: ${cycles} cycles since the import across ${Object.keys(out).length} devices${failed.length ? `, ${failed.length} failed (kept previous)` : ''}`);
+  await buildCurves({ root, devices: devices.map(d => d.serial_number), topup: out, get, log });
   return { at: now, devices: Object.keys(out).length, cycles, failed };
 }
 const serialMsg = results => results.find(r => !r.ok)?.e.message;
@@ -85,4 +87,43 @@ function recordLifetime(root, group, devices, now, log) {
     fs.writeFileSync(tmp, JSON.stringify(next)); fs.renameSync(tmp, target);
     log(`lifetime counter recorded for ${Object.keys(next.devices).length} devices`);
   } catch (e) { log(`lifetime counter not recorded: ${e.message}`); }
+}
+
+// Per-run curves (src/lib/curves.js) for every run the dashboard knows about — the static
+// import and the sweep, matched by serial — so charts can draw runs older than the browser's
+// 7-day history window. Each run's readings are fetched from the MDM once; neighbouring
+// runs share one fetch. A run whose readings do not cover it is stored as 0 so it is not
+// fetched again on every sweep. Saved after each device, so an interrupted first backfill
+// keeps what it got. Our own gitignored file; reads from the MDM only.
+export async function buildCurves({ root, devices, topup, get, log = () => {} }) {
+  const target = path.join(root, 'data', 'curves.json'), tmp = target + '.tmp';
+  const file = readJson(target) || { v: 1, curves: {} };
+  const seed = readJson(path.join(root, 'data', 'cycles.json'));
+  const save = () => { file.at = Date.now(); fs.writeFileSync(tmp, JSON.stringify(file)); fs.renameSync(tmp, target); };
+  let made = 0, none = 0, calls = 0;
+  await mapLimit(devices, 3, async serial => {
+    const h = seed?.devices?.[serial] || {}, t = topup?.[serial] || {};
+    const runs = [...(h.cycles || []), ...(h.interrupted || []), ...(t.cycles || []), ...(t.interrupted || [])]
+      .filter(c => !(curveKey(serial, c.start) in file.curves)).sort((a, b) => a.start - b.start);
+    if (!runs.length) return;
+    // runs less than a day apart share one history fetch
+    const ranges = [];
+    for (const c of runs) {
+      const r = ranges[ranges.length - 1];
+      if (r && c.start - r.end < DAY) { r.end = Math.max(r.end, c.end); r.runs.push(c); }
+      else ranges.push({ start: c.start, end: c.end, runs: [c] });
+    }
+    for (const r of ranges) {
+      const rows = normalize(await history(get, serial, r.start - 30 * 60e3, r.end + 30 * 60e3));
+      calls += Math.ceil((r.end - r.start + 60 * 60e3) / CHUNK);
+      for (const c of r.runs) {
+        const curve = resampleRun(rows, c.start, c.end);
+        file.curves[curveKey(serial, c.start)] = curve || 0;
+        curve ? made++ : none++;
+      }
+    }
+    save();
+  });
+  if (made || none) log(`curves: ${made} runs drawn, ${none} without full readings, ~${calls} history calls`);
+  return { made, none };
 }

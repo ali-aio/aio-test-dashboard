@@ -15,6 +15,7 @@ import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, timeO
 import { FIELD_DISCHARGE, FIELD_CHARGING } from './testtypes.js';
 import { perHourRate, HOUR_SNAP } from './t7cycles.js';
 import { mdmCyclesFor } from './mdmTrack.js';
+import { curveKey, curveSeries } from './curves.js';
 import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
 
 const H = 3600e3;
@@ -57,7 +58,10 @@ function seriesFor(rows, c) {
   }
   // the build the device was actually on during this run, not whatever it is on now
   const firmware = [...fw.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-  return { series, tempSeries, firmware, wireless: n > 0 && wireless > n / 2 };
+  // A run the window only partly covers would be drawn from its first in-window reading at
+  // 0 h — a line that starts mid-run in the wrong place. No line is better than that.
+  const partial = !series.length || series[0].t > 1 / 3;
+  return { series: partial ? [] : series, tempSeries: partial ? [] : tempSeries, firmware, wireless: n > 0 && wireless > n / 2 };
 }
 
 // Snap samples to whole hours the way T7 does, so a rate computed here and a rate
@@ -78,7 +82,13 @@ export function adaptCycle(d, c, rows, ctx) {
   const readings = ctx.readings;
   const duration = c.durationMs / H;
   if (!(duration > 0)) return null;
-  const { series, tempSeries, firmware, wireless } = seriesFor(rows, c);
+  // Prefer the run's stored curve (every run, even months old); fall back to the browser's
+  // 7-day window for runs the sweep has not curved yet.
+  const stored = ctx.curves?.[curveKey(d.serial, c.start)] || null;
+  const fromWindow = seriesFor(rows, c);
+  const { series, tempSeries } = stored ? curveSeries(stored) : fromWindow;
+  const firmware = (stored && stored.fw) || fromWindow.firmware;
+  const wireless = stored ? !!stored.w : fromWindow.wireless;
   const hourVals = wholeHours(series);
   const charging = c.endPct > c.startPct;
   const linear = (c.startPct - c.endPct) / duration;
@@ -130,9 +140,9 @@ export function adaptCycle(d, c, rows, ctx) {
 }
 
 /** Every device's cycles, reshaped. `rowsFor(serial)` supplies history when we have it. */
-export function adaptAll(DEV, rowsFor = () => null, readings = null) {
+export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = null) {
   const decls = loadDecls(CTX.group), rota = loadRota(CTX.group);
-  const ctx = { decls, rota, DEV, readings };
+  const ctx = { decls, rota, DEV, readings, curves };
   const out = [];
   for (const d of DEV) {
     const rows = rowsFor(d.serial);

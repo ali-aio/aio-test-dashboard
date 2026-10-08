@@ -14,6 +14,8 @@ import { lifetimeOf } from '../src/lib/device.js'
 import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText } from '../src/lib/splitCycles.js'
+import RangePicker from '../src/components/RangePicker.jsx'
+import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 
 // a rota so every test type, including Restaurant Case's wireless split, gets exercised
 const ROTA = JSON.stringify({0:{testType:'wlc_load'},1:{testType:'restaurant'},2:{testType:'wlc_phone'},3:{testType:'wlc_disch'},4:{testType:'charging'},5:{testType:'burnin'},6:{testType:'disch_ads'}})
@@ -109,6 +111,16 @@ const mdmCases = []
     renderToString(<FilterBar cycles={covered} filters={base} onChange={nop} onReset={nop} allSerials={all} declaredTypes={[]} />)
     const h = renderToString(<FilterPills filters={base} onChange={nop} onReset={nop} count={splitText(covered)} allSerials={all} />)
     want(h.includes('in scope'), 'pill missing')
+  })
+  check('range picker + range chip render', () => {
+    want(renderToString(<RangePicker value={{ preset: '24h' }} onChange={nop} />).includes('Last 24h'), 'trigger label')
+    const h = renderToString(<FilterPills filters={{ ...base, range: { preset: '7d' } }} onChange={nop} onReset={nop} count="3 runs" allSerials={all} />)
+    want(h.includes('Last 7 days'), 'range chip missing')
+  })
+  check('range filter keeps runs that overlap it', () => {
+    const last = covered.reduce((a, c) => (c.end > a.end ? c : a))
+    const r = dayRange(last.start, last.start)
+    want(covered.filter((c) => overlaps(c, r)).includes(last), 'run on that day not kept')
   })
   check('date list renders its amounts', () => {
     const dates = [...new Set(covered.map(c => c.date))].sort().slice(-5)

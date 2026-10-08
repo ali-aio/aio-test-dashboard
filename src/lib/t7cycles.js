@@ -564,8 +564,13 @@ export function avgCurveBy(cycles, key) {
         byHour.get(p.t).push(p.v)
       }
     }
+    // An average only means something where enough runs reached that hour: past it, the
+    // line is a handful of long (often partly offline) runs and swings wildly. Keep hours
+    // reached by at least 5% of the group's runs, and at least 3 — the same cut the axis uses.
+    const need = minRunsFor(list.length)
     const points = [...byHour.entries()]
       .map(([t, vals]) => ({ t, v: round(mean(vals), 1), n: vals.length }))
+      .filter((p) => p.n >= need)
       .sort((a, b) => a.t - b.t)
     if (points.length) out.push({ label, points, count: list.length })
   }
@@ -768,14 +773,16 @@ export function plottedMaxHour(cycles, key = 'series') {
   // avgCurveBy plots only samples sitting exactly on a whole hour (`p.t === Math.round(p.t)`,
   // not the looser HOUR_SNAP), so use the identical rule: the axis ends at the last point
   // that is actually drawn, not at a stray sample the curve itself ignores.
-  let max = 0
+  // the last whole hour each run reached; the axis ends at the hour enough runs reached
+  const reach = []
   for (const c of cycles) {
-    for (const p of c[key] || []) {
-      if (p.t === Math.round(p.t) && p.t > max) max = p.t
-    }
+    let m = -1
+    for (const p of c[key] || []) if (p.t === Math.round(p.t) && p.t > m) m = p.t
+    if (m >= 0) reach.push(m)
   }
-  if (!max) max = maxOf(cycles.map((c) => c.duration), 0) || 1
-  return Math.max(1, Math.ceil(max))
+  if (!reach.length) return Math.max(1, Math.ceil(maxOf(cycles.map((c) => c.duration), 0) || 1))
+  reach.sort((a, b) => b - a)
+  return Math.max(1, Math.ceil(reach[Math.min(reach.length, minRunsFor(reach.length)) - 1]))
 }
 
 /**
@@ -813,4 +820,11 @@ export function batteryCyclesBy(cycles, key) {
   }
   return [...groups.entries()].map(([label, list]) => ({ label, value: batteryCycles(list), runs: list.length }))
     .sort((a, b) => b.value - a.value || String(a.label).localeCompare(String(b.label)))
+}
+
+
+/** How many runs an hour needs before an averaged curve plots it (and the axis reaches it):
+ *  5% of the runs, at least 3 — or every run when there are fewer than 3. */
+export function minRunsFor(n) {
+  return n < 3 ? 1 : Math.max(3, Math.ceil(n * 0.05))
 }

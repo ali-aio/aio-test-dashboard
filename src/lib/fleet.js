@@ -17,7 +17,7 @@ const TOPKEY = `histTopup:v3:${GROUP}`;
 
 const state = {
   DEV: [], DMAP: new Map(), allCycles: [], runs: [], cycleRun: new Map(),
-  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null, readings: null,
+  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null, readings: null, curves: null,
 };
 let snapshot = { ...state }, HIST = {}, TOP = {}, local = loadRuns(GROUP);
 const subs = new Set();
@@ -90,6 +90,10 @@ async function topUpFromServer(force) {
 async function loadReadings() {
   try { const r = await fetch('/data/lifetime.json', { cache: 'no-store' }); state.readings = r.ok ? await r.json() : null; }
   catch (e) { state.readings = null; }
+  // Per-run curves the sweep stores (src/lib/curves.js), so every run back to the start of
+  // the history can be drawn, not only the last 7 days. ETag'd, so a reload is a 304.
+  try { const r = await fetch('/data/curves.json'); state.curves = r.ok ? (await r.json()).curves || null : null; }
+  catch (e) { state.curves = null; }
 }
 
 export async function topUp(force = false) {

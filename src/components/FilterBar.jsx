@@ -6,9 +6,13 @@ import { ALL_TEST_TYPES, LOAD_TEST_TYPES } from '../lib/testtypes.js'
 import { cascadeOptions, pruneFilters } from '../lib/t7cycles.js'
 import { fmtDate, fmtWeek } from '../lib/fmt.js'
 import { splitText } from '../lib/splitCycles.js'
-import DatePicker from './DatePicker.jsx'
+import RangePicker from './RangePicker.jsx'
+import { rangeLabel } from '../lib/range.js'
 
-export default function FilterBar({ cycles, filters, onChange, onReset, allSerials = [], declaredTypes = [] }) {
+export default function FilterBar({ cycles, filters, onChange, onReset, allSerials = [], declaredTypes = [], allCycles = null }) {
+  // dots on the range calendar: every local day with a run, whatever range is applied
+  const daysWithRuns = useMemo(() => new Set((allCycles || cycles).filter((c) => c.start != null)
+    .map((c) => { const d = new Date(c.start); d.setHours(0, 0, 0, 0); return d.getTime() })), [allCycles, cycles])
   /* Every change is pruned: narrowing one control can strand a selection
      further down the bar, and a stranded selection means an empty dashboard
      with no explanation. */
@@ -113,9 +117,8 @@ export default function FilterBar({ cycles, filters, onChange, onReset, allSeria
       )}
 
       <Field label="Test date">
-        <DatePicker dates={dates} counts={dateCounts} value={filters.date}
-          countText={(prefix) => splitText((upstream?.date || cycles).filter((c) => c.date && c.date.startsWith(prefix)))}
-          onChange={(d) => set({ date: d })} />
+        <RangePicker value={filters.range || null} daysWithRuns={daysWithRuns}
+          onChange={(range) => onChange({ ...filters, range, date: '' })} />
       </Field>
 
       <div className="header-spacer" />
@@ -252,6 +255,7 @@ export function FilterPills({ filters, onChange, onReset, count, allSerials = []
   if (filters.charger) chips.push({ k: 'c', text: `Charger: ${filters.charger}`, onX: () => clear({ charger: '' }) })
   if (filters.week) chips.push({ k: 'w', text: `Batch: ${fmtWeek(filters.week)}`, onX: () => clear({ week: '' }) })
   if (filters.date) chips.push({ k: 'd', text: `Date: ${fmtDate(filters.date)}`, onX: () => clear({ date: '' }) })
+  if (filters.range) chips.push({ k: 'r', text: rangeLabel(filters.range), onX: () => clear({ range: null }) })
 
   return (
     <div className="row row-wrap" style={{ gap: 6, minHeight: 26 }}>

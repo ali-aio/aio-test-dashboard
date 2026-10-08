@@ -6,3 +6,5 @@ data/topup.json.tmp
 test/.out/
 data/lifetime.json
 data/lifetime.json.tmp
+data/curves.json
+data/curves.json.tmp

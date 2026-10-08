@@ -11,6 +11,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { HistoryStatus } from './components/historyStatus.js'
 import { lifetimeOf } from './lib/device.js'
 import { splitText } from './lib/splitCycles.js'
+import { resolve, overlaps, isoDayRange } from './lib/range.js'
 import FilterBar, { FilterPills } from './components/FilterBar.jsx'
 import T7Overview from './views/T7Overview.jsx'
 import ComparisonView from './views/ComparisonView.jsx'
@@ -66,10 +67,15 @@ export default function App() {
   const { DEV, ready, error } = fleet
   // Cycles in T7's shape. The curve on each one comes from the history window, so cycles
   // older than it carry their summary but no per-hour series — the charts say so.
-  const cycles = useMemo(() => (DEV.length ? adaptAll(DEV, rowsFor, fleet.readings) : []),
-    [DEV, fleet.allCycles, win.at2, fleet.readings])
+  const cycles = useMemo(() => (DEV.length ? adaptAll(DEV, rowsFor, fleet.readings, fleet.curves) : []),
+    [DEV, fleet.allCycles, win.at2, fleet.readings, fleet.curves])
   const allSerials = useMemo(() => distinct(cycles, 'serial'), [cycles])
-  const scoped = useMemo(() => filterCycles(cycles, filters), [cycles, filters])
+  // The Test Date range applies first (a run is in if any part of it falls inside); the
+  // rest of the bar then cascades within it. A preset like "Last 24h" is re-evaluated
+  // each render, so it keeps moving with the clock.
+  const range = resolve(filters.range)
+  const inRange = useMemo(() => (range ? cycles.filter((c) => overlaps(c, range)) : cycles), [cycles, range?.from, range?.to])
+  const scoped = useMemo(() => filterCycles(inRange, filters), [inRange, filters])
 
   // The device filter is an explicit selection, so it starts as "everything" the first
   // time cycles appear — an empty list means "none picked", which would show nothing.
@@ -90,7 +96,7 @@ export default function App() {
 
   const latestDate = useMemo(() => { const d = distinct(cycles, 'date'); return d.length ? d[d.length - 1] : null }, [cycles])
   const resetFilters = () => setFilters(filtersFor(allSerials))
-  const applyFilter = patch => setFilters(f => ({ ...f, ...patch }))
+  const applyFilter = patch => setFilters(f => (patch.date ? { ...f, ...patch, date: '', range: isoDayRange(patch.date) } : { ...f, ...patch }))
   const openTestType = tt => { setFilters(f => ({ ...f, testType: tt })); location.hash = '#/nx' }
 
   // Test types declared on the Cycle plan — single days and the weekly rota. Re-read on
@@ -113,7 +119,7 @@ export default function App() {
     : view === 'legacy' ? <LegacyView />
     : (
       <div className="view-stack">
-        <FilterBar cycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} declaredTypes={declaredTypes} />
+        <FilterBar cycles={inRange} allCycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} declaredTypes={declaredTypes} />
         <FilterPills filters={filters} onChange={setFilters} onReset={resetFilters} count={splitText(scoped)} allSerials={allSerials} />
         {fleet.seed && !fleet.seed.ok && (
           <div className="banner banner-warn"><span aria-hidden="true">◆</span>

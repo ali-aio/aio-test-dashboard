@@ -155,7 +155,7 @@ export default function App() {
       <header className="app-header">
         <div className="brand">
           <span><span className="brand-accent">AIO</span> T7</span>
-          <span className="brand-sub">test dashboard</span>
+          <span className="brand-sub">Cycle Dashboard</span>
         </div>
         {ver === 'v2' && (
           <nav className="tabs" role="tablist" aria-label="Dashboard views">

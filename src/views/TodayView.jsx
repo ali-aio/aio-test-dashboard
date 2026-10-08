@@ -73,10 +73,9 @@ export default function TodayView({ fleet }) {
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
   const matches = sn => !q || sn.toLowerCase().includes(q)
-  // A device clicked in the table opens in its own card: today's battery and temperature.
-  const [focus, setFocus] = useState(null)
-  const focusRef = useRef(null)
-  useEffect(() => { if (focus) focusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, [focus])
+  // A device clicked in the table is ticked alone in the two charts above (Every device),
+  // and the page scrolls up to them; clicking it again ticks every device again.
+  const chartsRef = useRef(null)
   const shown = conf.filter(c => c.rows?.length && isOn(c.serial) && matches(c.serial))
   const few = shown.length <= 4 // few enough to label every line by name
 
@@ -90,6 +89,12 @@ export default function TodayView({ fleet }) {
   const [battMode, setBattMode] = useState('all')
   const [tempMode, setTempMode] = useState('avg')
   const MODES = [{ id: 'all', label: 'Every device' }, { id: 'avg', label: 'Average' }]
+  const only = picked != null && picked.size === 1 ? [...picked][0] : null
+  const focusDevice = sn => {
+    if (only === sn) { setPicked(null); return }
+    setPicked(new Set([sn])); setBattMode('all'); setTempMode('all')
+    chartsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   const selSerials = shown.map(c => c.serial)
   const avg = a => a.reduce((x, y) => x + y, 0) / a.length
   const battAvg = useMemo(() => buckets(selSerials, chartFrom, winTo, r => r.battery_pct, avg), [selSerials.join(','), chartFrom, win.at2])
@@ -106,7 +111,9 @@ export default function TodayView({ fleet }) {
   const selNow = battMode === 'avg' ? (battAvg.length ? battAvg[battAvg.length - 1].y : null)
     : (selRuns.length ? median(selRuns.map(r => r.now)) : null)
   const selEmpty = selRate && selNow > 0 ? now + selNow / selRate * H : null
-  const projTo = selRate && selNow != null && T.endMs > now ? Math.min(T.endMs, selEmpty || T.endMs) : null
+  // no drain to project when every shown device is back on the charger
+  const allCharging = shown.length > 0 && shown.every(c => fleet.DMAP.get(c.serial)?.snap?.charging)
+  const projTo = selRate && selNow != null && T.endMs > now && !allCharging ? Math.min(T.endMs, selEmpty || T.endMs) : null
   const projection = projTo ? [{ x: now, y: selNow }, { x: projTo, y: Math.max(0, selNow - selRate * (projTo - now) / H) }] : []
   const projSeries = projection.length ? [{ id: 'projected', label: 'Projected', pts: projection, color: 'var(--text-3)', width: 1.6, dash: '2 4', smooth: false, endLabel: `${Math.round(projection[1].y)}%`, labelColor: 'var(--text-3)' }] : []
   const tail = sn => '…' + sn.slice(-5)
@@ -196,19 +203,15 @@ export default function TodayView({ fleet }) {
           onChange={e => setQuery(e.target.value)} style={{ flex: '1 1 240px', maxWidth: 360 }} />
         <span className="secondary" style={{ fontSize: 12.5 }}>
           {q ? `${conf.filter(c => matches(c.serial)).length} of ${conf.length} devices match “${query.trim()}” — charts and table show only these`
-            : 'Click a device in the table below to see its battery and temperature today'}
+            : 'Click a device in the table below to show only it in the charts'}
         </span>
         {q && <button className="btn btn-sm" onClick={() => setQuery('')}>Clear</button>}
       </div></div>
 
-      {focus && (() => {
-        const c = conf.find(x => x.serial === focus), d = fleet.DMAP.get(focus)
-        return c && d ? <div ref={focusRef}><DeviceToday c={c} d={d} run={runs.get(focus)} stats={dayStats(focus, T.startMs)}
-          from={T.startMs} to={winTo} state={CSTATE[c.state]} onClose={() => setFocus(null)} /></div> : null
-      })()}
+
 
       {!win.at ? <Stale win={win} n={DEV.length} /> : <>
-        <div className="card">
+        <div className="card" ref={chartsRef} style={{ scrollMarginTop: 80 }}>
           <div className="card-head"><div><h2>T7 battery, today</h2><div className="card-sub">from {hm(chartFrom)} · live from MDM · 5-minute rows</div></div>
             <Segmented ariaLabel="Battery chart" options={MODES} value={battMode} onChange={setBattMode} /></div>
           <div className="card-body">
@@ -256,9 +259,9 @@ export default function TodayView({ fleet }) {
                 const r = runs.get(c.serial)
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
                 const st = status(d), s = dayStats(c.serial, T.startMs), cs = CSTATE[c.state]
-                return <tr key={c.serial} className={`row-link${focus === c.serial ? ' is-selected' : ''}`} onClick={() => setFocus(c.serial)}
-                  title={`Open ${c.serial}: battery and temperature today`}>
-                  <td className="mono"><button type="button" className="link-btn mono" onClick={e => { e.stopPropagation(); setFocus(c.serial) }}>{c.serial}</button></td>
+                return <tr key={c.serial} className={`row-link${only === c.serial ? ' is-selected' : ''}`} onClick={() => focusDevice(c.serial)}
+                  title={only === c.serial ? 'Click to show every device again' : `Show only ${c.serial} in the charts above`}>
+                  <td className="mono"><button type="button" className="link-btn mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button></td>
                   <td><span className={`pill ${cs[0]}`}>{cs[1]}</span></td>
                   <td className="r">{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span> : <span className="secondary">—</span>}</td>
                   <td className="r mono">{r?.start ? hm(r.start.t) : <span className="secondary">still full</span>}</td>
@@ -354,45 +357,3 @@ function DevicePicker({ serials, picked, colorOf, styleOf, drifting, onToggle, o
   )
 }
 
-// One device, today: its numbers and two charts (battery, temperature) from the window's
-// 5-minute readings, from the plan window's start (or 30 min before it came off charge).
-function DeviceToday({ c, d, run, stats, from, to, state, onClose }) {
-  const rows = (c.rows || []).filter(r => Date.parse(r.timestamp) >= from)
-  const start = run?.start ? Math.max(from, run.start.t - 30 * MIN) : from
-  const pts = pick => rows.filter(r => Date.parse(r.timestamp) >= start && pick(r) != null).map(r => ({ x: Date.parse(r.timestamp), y: pick(r) }))
-  const batt = pts(r => r.battery_pct), tmp = pts(temp)
-  const st = status(d), last = batt[batt.length - 1], lastT = tmp[tmp.length - 1]
-  const peak = tmp.length ? tmp.reduce((a, b) => (b.y > a.y ? b : a)) : null
-  const tip = unit => (t, hits) => tooltipHtml(hm(t), hits.filter(h => h.p).map(({ s, p }) => ({ color: s.color, name: s.label, value: unit === '%' ? `${Math.round(p.y)}%` : `${p.y.toFixed(1)} °C` })))
-  return (
-    <div className="card" style={{ borderLeft: '3px solid var(--series-1)' }}>
-      <div className="card-head">
-        <div><h2 className="mono">{c.serial} <span className={`pill ${state[0]}`} style={{ marginLeft: 6, verticalAlign: 'middle' }}>{state[1]}</span></h2>
-          <div className="card-sub">today from {hm(start)} · {rows.length} readings · {st.label}{d.snap?.last_seen_at ? ` · last seen ${ago(Date.parse(d.snap.last_seen_at))}` : ''}</div></div>
-        <button className="btn btn-sm" onClick={onClose} aria-label="Close device">Close ×</button>
-      </div>
-      <div className="card-body">
-        <div className="stat-row" style={{ marginBottom: 12 }}>
-          <Metric label="Battery now" value={st.pct != null ? `${st.pct}%` : last ? `${last.y}%` : '—'} delta={st.label} />
-          <Metric label="Off charger" value={run?.start ? hm(run.start.t) : 'Still full'} delta={run?.start ? `${fmtDur(Date.now() - run.start.t)} ago` : 'not started yet'} />
-          <Metric label="Drain" value={run?.rate != null ? <>{run.rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'} delta="since off charger" />
-          <Metric label="Temp now" value={lastT ? `${lastT.y.toFixed(1)} °C` : '—'} delta={peak ? `peak ${peak.y.toFixed(1)} °C at ${hm(peak.x)}` : 'no temperature yet'}
-            color={lastT?.y >= TEMP_LIMIT ? 'var(--bad)' : lastT?.y >= TEMP_WARN ? 'var(--warn)' : null} />
-          <Metric label={`Time ≥${TEMP_LIMIT} °C`} value={stats?.minAbove45 ? fmtDur(stats.minAbove45 * MIN) : '—'} delta={stats?.minAbove40 ? `${fmtDur(stats.minAbove40 * MIN)} ≥${TEMP_WARN} °C` : 'none today'} />
-          <Metric label="Lifetime cycles (MDM)" value={fmtLifetime(lifetimeCycles(d.snap))} delta="all tests" />
-        </div>
-        <div className="grid grid-2">
-          <div><h3 className="device-sub">Battery today</h3>
-            {batt.length ? <MultiLineChart h={220} yMax={100} yFmt={v => v + '%'} xFmt={hm} x0={start} x1={to} tip={tip('%')}
-              series={[{ id: 'b', label: 'Battery', pts: batt, color: 'var(--series-1)', width: 2.2, endLabel: last ? `${last.y}%` : null }]} />
-              : <div className="empty">No battery readings yet today.</div>}</div>
-          <div><h3 className="device-sub">Battery temperature today</h3>
-            {tmp.length ? <MultiLineChart h={220} yMax={60} yFmt={v => v.toFixed(0) + '°'} xFmt={hm} x0={start} x1={to} tip={tip('°C')}
-              refs={[{ v: TEMP_LIMIT, label: `${TEMP_LIMIT} °C review threshold`, color: 'var(--warn)' }]}
-              series={[{ id: 't', label: 'Temperature', pts: tmp, color: 'var(--series-2)', width: 2.2, endLabel: lastT ? `${lastT.y.toFixed(0)}°` : null }]} />
-              : <div className="empty">No temperature readings yet today.</div>}</div>
-        </div>
-      </div>
-    </div>
-  )
-}

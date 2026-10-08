@@ -1,4 +1,5 @@
 .DS_Store
+node_modules/
 server/config.json
 data/topup.json
 data/topup.json.tmp

@@ -43,7 +43,7 @@ import { detectCycles, aggregate, fmtDur, reclassify, loadOpts, DEFAULTS, rt } f
 import { loadRuns, saveRuns, newRun, evaluateRun, runRows, normalize } from './shared/runs.js';
 import { initThemeToggle } from './shared/theme.js';
 import { batteryHealth, chargeSegments, thermalStats, TEMP_WARN, TEMP_LIMIT } from './shared/profile.js';
-import { loadPlans, savePlans, newPlan, plansOn, monthGrid, dayKey, startOfDay, todayKey, planMs, WEEKDAYS, monthLabel, dayLabel } from './shared/plan.js';
+import { TEST_TYPES, testType, ttSlot, loadDecls, saveDecls, loadRota, saveRota, newDecl, resolveDay, STATUS, groupSerials, monthGrid, dayKey, startOfDay, todayKey, timeOn, WEEKDAYS, monthLabel, dayLabel, dayLong } from './shared/plan.js';
 
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const H = 3600e3, MIN = 60e3, DAY = 24 * H, root = document.documentElement, view = $('#view');
@@ -76,7 +76,9 @@ document.addEventListener('keydown', e => { if (e.key === '/' && !e.target.match
 // detected in the browser and cached for 6h. Live state = /testdata/devices, polled.
 let DEV = [], DMAP = new Map(), META = null, HIST = {}, TOP = {}, allCycles = [], runs = [], cycleRun = new Map(), loadError = null, ready = false;
 let local = loadRuns(GROUP), OPTS = loadOpts();
-let plans = loadPlans(GROUP); // planned calibrations for the new dashboard's Cycle plan screen
+// The declared test-type schedule the new dashboard's Cycle plan screen writes — the one
+// thing MDM telemetry cannot supply. See shared/plan.js.
+let decls = loadDecls(GROUP), rota = loadRota(GROUP);
 const TOPKEY = `histTopup:v3:${GROUP}`;
 const stub = serial => ({ serial, tag: serial.slice(-5), snap: null, cycles: [], interrupted: [], charges: [], health: null, agg: aggregate([[]]), lastCycle: null });
 const D = serial => DMAP.get(serial) || stub(serial);
@@ -278,7 +280,7 @@ const NXVIEWS = [
   ['nx-today', '#/nx/today', 'Today', '#30b0c7', '<circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 1.5"/>'],
   ['nx-plan', '#/nx/plan', 'Cycle plan', '#bf5af2', '<rect x="2" y="3.5" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/>'],
 ];
-const nxCount = v => v === 'nx-plan' ? (plans.length || '') : '';
+const nxCount = v => v === 'nx-plan' ? (decls.length || '') : '';
 function chrome() {
   const live = runs.filter(r => r.status === 'running').length;
   const onDev = curNav === 'devices' && !current.arg, item = ([f, l, i, fn]) => `<a class="item ${onDev && devState.filter === f ? 'on' : ''}" href="#/devices" data-f="${f}">${SICON(i)}<span class="nm">${l}</span><span class="cnt num">${DEV.filter(fn).length}</span></a>`;
@@ -418,15 +420,14 @@ function overviewView() {
 }
 
 // ── New dashboard (in development) ────────────────────────────────────────────
-// Three screens — Overview, Today and Cycle plan — reached from the "New dashboard"
-// section at the bottom of the source list. They run alongside the current views while
-// being built; the plan is to replace the old dashboard with them once they're signed
-// off, so nothing in here touches the existing views, the data layer or the detectors.
+// Three screens — Overview, Today, Cycle plan — reached from the "New dashboard"
+// section of the source list (version v2). They run alongside the current views while
+// being built; nothing in here touches v1, the data layer or the detectors.
 //
 // Today and the new Overview need finer-grained recent history than the 30-min sweep
 // gives (a temperature curve for *today*), so they pull a 48 h window per device at the
-// 5-min interval — 48 h, not 24, because the lab's bench run starts ~10:30 and runs past
-// midnight, and an in-progress discharge has to be found from its start.
+// 5-min interval — 48 h, not 24, because a bench run can start before midnight and an
+// in-progress discharge has to be found from its start.
 const NX = { rows: {}, at: 0, loading: false, err: null, failed: 0 };
 const NX_HOURS = 48;
 async function nxLoad(force = false) {
@@ -447,21 +448,22 @@ async function nxLoad(force = false) {
 const nxRows = serial => NX.rows[serial] || [];
 const nxTemp = r => { const t = r.extra?.battery_temp_c; return typeof t === 'number' && t > 0 ? t : null; };
 const hm = t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const pctl = (a, p) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
 
-// Fleet curve for today: median across devices per 10-min bucket, so one device going
-// offline doesn't put a step in the line. Same smoothing rule as every other chart here.
-function nxSeries(pick) {
-  const t0 = startOfDay(Date.now()), now = Date.now(), step = 10 * MIN, buckets = new Map();
-  for (const d of DEV) for (const r of nxRows(d.serial)) {
-    const t = Date.parse(r.timestamp); if (t < t0 || t > now) continue;
+// Fleet curve for a window: a statistic across devices per 10-min bucket, so one device
+// going offline doesn't put a step in the line.
+function nxBuckets(serials, from, to, pick, stat) {
+  const step = 10 * MIN, b = new Map();
+  for (const s of serials) for (const r of nxRows(s)) {
+    const t = Date.parse(r.timestamp); if (t < from || t > to) continue;
     const v = pick(r); if (v == null || !isFinite(v)) continue;
-    const k = Math.floor((t - t0) / step);
-    if (!buckets.has(k)) buckets.set(k, []);
-    buckets.get(k).push(v);
+    const k = Math.floor((t - from) / step);
+    if (!b.has(k)) b.set(k, []); b.get(k).push(v);
   }
-  return [...buckets.keys()].sort((a, b) => a - b).map(k => ({ x: t0 + k * step, y: median(buckets.get(k)), n: buckets.get(k).length }));
+  return [...b.keys()].sort((x, y) => x - y).map(k => ({ x: from + k * step, y: stat(b.get(k)), n: b.get(k).length }));
 }
-// One device's readings since local midnight.
+const nxSeries = pick => nxBuckets(DEV.map(d => d.serial), startOfDay(Date.now()), Date.now(), pick, median);
+
 function nxDayStats(d) {
   const t0 = startOfDay(Date.now()), rows = nxRows(d.serial).filter(r => Date.parse(r.timestamp) >= t0);
   if (rows.length < 2) return null;
@@ -472,7 +474,7 @@ function nxDayStats(d) {
     if (t != null && t >= TEMP_WARN) m40 += gap;
     if (t != null && t >= TEMP_LIMIT) m45 += gap;
     const drop = rows[i - 1].battery_pct - rows[i].battery_pct;
-    if (drop > 0) drained += drop; // sum the downward steps, so a mid-day recharge doesn't cancel the drain
+    if (drop > 0) drained += drop;
   }
   return { n: rows.length, startPct: rows[0].battery_pct, endPct: rows[rows.length - 1].battery_pct, drained,
     maxTemp: temps.length ? Math.max(...temps) : null, avgTemp: temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : null,
@@ -480,8 +482,6 @@ function nxDayStats(d) {
     battPts: rows.map(r => ({ x: Date.parse(r.timestamp), y: r.battery_pct })),
     tempPts: rows.filter(r => nxTemp(r) != null).map(r => ({ x: Date.parse(r.timestamp), y: nxTemp(r) })) };
 }
-// The discharge the bench is in the middle of right now, from the same detector the rest
-// of the app uses: every device with an in-progress discharge, clustered into one run.
 function nxRunning() {
   const now = Date.now(), ips = [];
   for (const d of DEV) {
@@ -496,14 +496,69 @@ function nxRunning() {
     startedLabel: dayKey(start) === todayKey() ? hm(start) : dt(start),
     drained: median(ips.map(x => x.ip.startPct - x.ip.nowPct)) };
 }
-const nxStale = () => `<div class="callout">${INFO}<div>${NX.loading ? `<span class="spin"></span> Reading the last ${NX_HOURS} h of history for ${DEV.length} devices…` : NX.err ? `Could not read recent history: ${esc(NX.err)}` : `No recent history loaded yet.`}</div></div>`;
-const nxNote = extra => `<div class="callout">${INFO}<div>This is the <b>new dashboard</b>, still being built — the current one is unchanged under Views above.${extra ? ' ' + extra : ''}</div></div>`;
+const nxStale = () => `<div class="callout">${INFO}<div>${NX.loading ? `<span class="spin"></span> Reading the last ${NX_HOURS} h of history for ${DEV.length} devices…` : NX.err ? `Could not read recent history: ${esc(NX.err)}` : 'No recent history loaded yet.'}</div></div>`;
+const nxNote = extra => `<div class="callout">${INFO}<div>This is the <b>new dashboard</b>, still being built — the current one is unchanged under v1.${extra ? ' ' + extra : ''}</div></div>`;
+
+// ── The declared test type ────────────────────────────────────────────────────
+// Everything on Today hangs off what the Cycle plan screen declared for the day, since
+// MDM telemetry carries no test type of its own (see shared/plan.js).
+const ranOn = key => allCycles.filter(c => dayKey(c.end) === key).length;
+function nxDay(key) {
+  const r = resolveDay(key, { decls, rota, ran: ranOn(key), devices: DEV.length });
+  const src = r.decl || r.rota || null;
+  return { ...r, tt: testType(r.testType), src,
+    serials: groupSerials(src && src.group, DEV),
+    startMs: timeOn(key, src && src.startTime), endMs: timeOn(key, src && src.endTime, true) };
+}
+// Does a device's telemetry look like the declared test? A discharge test wants the
+// battery going down and the device off charge; a charging test the reverse. The 3-point
+// floor is the same one the T7 dashboard uses to decide a run moved the battery at all.
+function nxConform(serial, tt, from, to) {
+  const rows = nxRows(serial).filter(r => { const t = Date.parse(r.timestamp); return t >= from && t <= to; });
+  if (rows.length < 2) return { state: 'silent', rows };
+  const a = rows[0].battery_pct, b = rows[rows.length - 1].battery_pct, chg = !!rows[rows.length - 1].extra?.charging;
+  const delta = b - a;
+  if (!tt) return { state: 'untyped', delta, rows };
+  const ok = tt.expect === 'charge' ? (delta >= 3 || chg) : (-delta >= 3 && !chg);
+  return { state: ok ? 'conforming' : 'drifting', delta, charging: chg, rows };
+}
+
+// ── Multi-series line chart ───────────────────────────────────────────────────
+// One y-axis, many lines. Series carry their own colour/dash; `endLabel` puts the value
+// at the right edge (direct labelling), nudged apart so labels never collide. Same
+// moving-average smoothing as the single-series chart — raw battery readings are jittery
+// enough to look broken otherwise.
+function multiLineChart(el, series, { h = 220, yMax = 100, yMin = 0, yFmt = v => v, xFmt, refs = [], tip, smooth = true, x0, x1 }) {
+  const live = series.filter(s => s.pts.length > 1);
+  if (!live.length) { el.innerHTML = '<div class="empty">No readings in this window yet.</div>'; return; }
+  const W = Math.max(280, el.clientWidth || 640), pl = 38, pr = 54, pt = 10, pb = 22;
+  const xa = x0 ?? Math.min(...live.map(s => s.pts[0].x)), xb = x1 ?? Math.max(...live.map(s => s.pts[s.pts.length - 1].x));
+  const dx = (xb - xa) || 1, span = (yMax - yMin) || 1;
+  const X = v => pl + (v - xa) / dx * (W - pl - pr), Y = v => pt + (1 - (Math.min(Math.max(v, yMin), yMax) - yMin) / span) * (h - pt - pb);
+  const sm = pts => smooth ? pts.map((p, i) => { const w = pts.slice(Math.max(0, i - 1), i + 2); return { x: p.x, y: w.reduce((a, q) => a + q.y, 0) / w.length }; }) : pts;
+  const path = pts => sm(pts).map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join('');
+  const xt = (W < 460 ? [0, .5, 1] : [0, .25, .5, .75, 1]).map(f => xa + f * dx);
+  // end labels: sorted by y, pushed apart so none overlap
+  const labs = live.filter(s => s.endLabel).map(s => ({ s, y: Y(s.pts[s.pts.length - 1].y) })).sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i - 1].y < 12) labs[i].y = labs[i - 1].y + 12;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${h}" style="height:${h}px">
+    ${[0, .5, 1].map(f => { const v = yMin + f * span; return `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${pl - 6}" y="${Y(v) + 3}" text-anchor="end">${yFmt(v)}</text>`; }).join('')}
+    ${xt.map((x, i) => `<text x="${X(x)}" y="${h - 4}" text-anchor="${i === 0 ? 'start' : i === xt.length - 1 ? 'end' : 'middle'}">${xFmt(x)}</text>`).join('')}
+    ${refs.map(r => `<line x1="${pl}" x2="${W - pr}" y1="${Y(r.v)}" y2="${Y(r.v)}" stroke="${r.color || 'var(--text-3)'}" stroke-dasharray="4 3"/><text x="${pl + 4}" y="${Y(r.v) - 4}" fill="${r.color || 'var(--text-3)'}">${r.label}</text>`).join('')}
+    ${live.map(s => `<path class="lane" d="${path(s.pts)}" stroke="${s.color}" stroke-width="${s.width || 1.6}" opacity="${s.opacity ?? 1}"${s.dash ? ` stroke-dasharray="${s.dash}"` : ''}/>`).join('')}
+    ${labs.map(({ s, y }) => `<text class="endlab" x="${W - pr + 6}" y="${y + 3}" fill="${s.labelColor || s.color}">${s.endLabel}</text>`).join('')}
+    <line class="xh" y1="${pt}" y2="${h - pb}" stroke="var(--border-strong)" opacity="0"/>
+    <rect x="${pl}" y="0" width="${W - pl - pr}" height="${h}" fill="transparent" class="hit"/></svg><div class="tip"></div>`;
+  const at = t => { const near = s => s.pts.reduce((b, p) => Math.abs(p.x - t) < Math.abs(b.x - t) ? p : b, s.pts[0]);
+    return { x: X(t), y: Y(near(live[0]).y), html: tip(t, live.map(s => ({ s, p: near(s) }))) }; };
+  hover(el, i => at(i), px => xa + (px - pl) / (W - pl - pr) * dx);
+}
 
 // ── New dashboard · Overview ──────────────────────────────────────────────────
 function nxOverviewView() {
   crumbs(['Overview (new)']);
   nxLoad();
-  const now = Date.now(), run = nxRunning();
+  const now = Date.now(), run = nxRunning(), today = nxDay(todayKey());
   const onl = DEV.filter(online), bat = DEV.filter(d => status(d).k === 'run'), chg = DEV.filter(d => online(d) && d.snap.charging);
   const nowB = onl.map(d => d.snap.battery_pct).filter(v => typeof v === 'number');
   const nowT = onl.map(d => d.snap.battery_temp_c).filter(v => typeof v === 'number' && v > 0);
@@ -515,14 +570,13 @@ function nxOverviewView() {
   const off = DEV.filter(d => d.snap && now - Date.parse(d.snap.last_seen_at) > 2 * DAY).sort((a, b) => Date.parse(b.snap.last_seen_at) - Date.parse(a.snap.last_seen_at));
   const hotNow = onl.filter(d => d.snap.battery_temp_c >= TEMP_LIMIT);
   const batt = NX.at ? nxSeries(r => r.battery_pct) : [], temp = NX.at ? nxSeries(nxTemp) : [];
-  const plansToday = plansOn(plans, todayKey());
 
   view.innerHTML = `<div class="page-head"><div><h1>Overview</h1><div class="sub">${esc(GROUP)} · ${DEV.length} devices · ${new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</div></div></div>
     <div class="stack">
     ${nxNote()}
-    ${run ? `<a class="callout live-strip" href="#/nx/today" style="text-decoration:none;align-items:center;flex-wrap:wrap">${badge('b-run', 'Running', 1)}
-      <div style="flex:1;min-width:0"><b style="color:var(--text)">${esc(run.name)}</b> · started ${esc(run.startedLabel)} · ${run.devices.length} device${run.devices.length === 1 ? '' : 's'} discharging · ${fmtDur(run.elapsedMs)} elapsed · ${run.drained.toFixed(0)}% drained</div><span class="muted">Today →</span></a>`
-    : NX.at ? `<div class="callout">${INFO}<div>No discharge in progress — nothing is running on the bench right now.${plansToday.length ? ` ${plansToday.length} calibration${plansToday.length === 1 ? '' : 's'} planned for today (<a class="link" href="#/nx/plan">Cycle plan</a>).` : ''}</div></div>` : ''}
+    ${today.tt ? `<a class="callout live-strip" href="#/nx/today" style="text-decoration:none;align-items:center;flex-wrap:wrap">${ttChip(today)}
+      <div style="flex:1;min-width:0"><b style="color:var(--text)">${esc(today.tt.name)}</b> · ${STATUS[today.status].label.toLowerCase()} for today · ${today.serials.length} devices${run ? ` · ${fmtDur(run.elapsedMs)} elapsed` : ''}</div><span class="muted">Today →</span></a>`
+    : `<div class="callout">${INFO}<div>No test type declared for today — telemetry alone cannot say which test is running. <a class="link" href="#/nx/plan">Declare one</a>.</div></div>`}
     <div class="panel"><div class="metrics">
       <div class="metric"><small>Devices online</small><b class="num">${N(onl.length)} / ${DEV.length}</b><span class="delta">${off.length} not seen for 2+ days</span></div>
       <div class="metric"><small>On battery</small><b class="num">${N(bat.length)}</b><span class="delta">${chg.length} charging</span></div>
@@ -564,79 +618,96 @@ function nxOverviewView() {
 }
 
 // ── New dashboard · Today ─────────────────────────────────────────────────────
+// The day's declared test, and whether the fleet is actually running it.
 function nxTodayView() {
   crumbs(['Today']);
   nxLoad();
-  const now = Date.now(), run = nxRunning();
-  const stats = DEV.map(d => ({ d, s: nxDayStats(d) })), withData = stats.filter(x => x.s);
-  const onl = DEV.filter(online);
-  const nowB = onl.map(d => d.snap.battery_pct).filter(v => typeof v === 'number');
-  const nowT = onl.map(d => d.snap.battery_temp_c).filter(v => typeof v === 'number' && v > 0);
-  const batt = NX.at ? nxSeries(r => r.battery_pct) : [], temp = NX.at ? nxSeries(nxTemp) : [];
-  const hot = withData.filter(x => x.s.minAbove45 > 0), warm = withData.filter(x => x.s.minAbove40 > 0);
-  const maxToday = withData.length ? Math.max(...withData.map(x => x.s.maxTemp ?? -Infinity)) : null;
-  const drained = withData.length ? median(withData.map(x => x.s.drained)) : 0;
-  const ranToday = allCycles.filter(c => dayKey(c.end) === todayKey());
-  const planned = plansOn(plans, todayKey());
+  const key = todayKey(), now = Date.now(), T = nxDay(key), tt = T.tt;
+  const winTo = Math.min(now, T.endMs), elapsed = Math.max(0, winTo - T.startMs), expected = T.endMs - T.startMs;
+  const conf = T.serials.map(s => ({ serial: s, ...nxConform(s, tt, T.startMs, winTo) }));
+  const reporting = conf.filter(c => c.state !== 'silent');
+  const conforming = conf.filter(c => c.state === 'conforming'), drifting = conf.filter(c => c.state === 'drifting');
+  const firstRow = Math.min(...reporting.map(c => Date.parse(c.rows[0].timestamp)).filter(isFinite));
+  const temps = nxBuckets(T.serials, T.startMs, winTo, nxTemp, a => median(a));
+  const p95 = nxBuckets(T.serials, T.startMs, winTo, nxTemp, a => pctl(a, .95));
+  const ran = ranOn(key);
 
-  view.innerHTML = `<div class="page-head"><div><h1>Today</h1><div class="sub">${new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })} · ${esc(GROUP)}${NX.at ? ` · readings since midnight, updated ${ago(NX.at)}` : ''}</div></div>
-      <button class="btn" id="nx-reload" ${NX.loading ? 'disabled' : ''}>${NX.loading ? '<span class="spin"></span> Reading…' : 'Reload history'}</button></div>
-    <div class="stack">
-    ${planned.length ? `<a class="callout" href="#/nx/plan" style="text-decoration:none"><div>${planned.map(p => `${badge('b-off', 'Planned')} <b style="color:var(--text)">${esc(p.name)}</b>${p.time ? ` at ${esc(p.time)}` : ''}${p.serials.length ? ` · ${p.serials.length} device${p.serials.length === 1 ? '' : 's'}` : ''}`).join('<br>')}</div><span class="muted" style="margin-left:auto">Cycle plan →</span></a>` : ''}
+  view.innerHTML = `<div class="stack">
+    <div class="panel" style="border-left:3px solid ${tt ? `var(--tt-${ttSlot(tt.id)})` : 'var(--border-strong)'}">
+      <div class="panel-body">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;letter-spacing:.04em;color:var(--text-3);font-weight:600">
+          ${esc(dayLong(key))} ${statusBadge(T.status)}
+          ${badge(reporting.length ? 'b-run' : 'b-off', `Live · ${reporting.length} device${reporting.length === 1 ? '' : 's'} reporting`, !!reporting.length)}</div>
+        <h1 style="margin:6px 0 4px;font-size:26px;line-height:1.15">${tt ? esc(tt.name) : 'No test declared'}</h1>
+        <div class="muted" style="font-size:12.5px">${tt ? `${T.source === 'rota' ? 'From the standing weekly rota' : `Declared${T.src && T.src.by ? ` by <b>${esc(T.src.by)}</b>` : ''}${T.src && T.src.at ? ` at ${hm(T.src.at)}` : ''}`} · ${T.serials.length} devices · window ${hm(T.startMs)}–${hm(T.endMs)} · every MDM row from these serials today is stamped with this test type.`
+          : `Telemetry cannot say which test this is — the MDM carries no test type. <a class="link" href="#/nx/plan">Declare one on the Cycle plan</a> and today's rows are stamped with it.`}</div>
+      </div></div>
     <div class="panel"><div class="metrics">
-      <div class="metric"><small>Running cycle</small><b class="num">${run ? esc(run.name) : NX.at ? 'None' : '—'}</b><span class="delta">${run ? `${run.devices.length} of ${DEV.length} devices discharging` : NX.at ? 'no discharge in progress' : ''}</span></div>
-      <div class="metric"><small>Cycle duration</small><b class="num">${run ? N(run.elapsedMs, 'dur') : '—'}</b><span class="delta">${run ? `since ${esc(run.startedLabel)} · ${run.drained.toFixed(0)}% drained` : ''}</span></div>
-      <div class="metric"><small>Battery now</small><b class="num">${nowB.length ? N(median(nowB)) + '%' : '—'}</b><span class="delta">${drained ? `${drained.toFixed(0)}% drained today, median` : 'median of online devices'}</span></div>
-      <div class="metric"><small>Temperature now</small><b class="num" style="color:${nowT.length && median(nowT) >= TEMP_LIMIT ? 'var(--bad)' : nowT.length && median(nowT) >= TEMP_WARN ? 'var(--warn)' : 'inherit'}">${nowT.length ? median(nowT).toFixed(1) + ' °C' : '—'}</b><span class="delta">${maxToday != null && isFinite(maxToday) ? `peak ${maxToday.toFixed(1)} °C today` : ''}</span></div>
-      <div class="metric"><small>Over ${TEMP_WARN} °C today</small><b class="num">${N(warm.length)}</b><span class="delta">${hot.length ? `<span style="color:var(--bad)">${hot.length} over ${TEMP_LIMIT} °C</span>` : `none over ${TEMP_LIMIT} °C`}</span></div>
-      <div class="metric"><small>Cycles finished today</small><b class="num">${N(ranToday.length)}</b><span class="delta">${ranToday.length ? `${fmtDur(median(ranToday.map(rt)))} to empty, median` : 'counted cycles'}</span></div>
+      <div class="metric"><small>Elapsed</small><b class="num">${fmtDur(elapsed)}<span class="muted" style="font-size:13px"> of ~${fmtDur(expected)}</span></b><span class="delta">${tt ? `started ${hm(T.startMs)}${isFinite(firstRow) ? ` · first row ${hm(firstRow)}` : ''}` : ''}</span></div>
+      <div class="metric"><small>Conforming to plan</small><b class="num" style="color:${tt && conforming.length ? 'var(--ok)' : 'inherit'}">${N(conforming.length)}<span class="muted" style="font-size:13px"> / ${T.serials.length}</span></b><span class="delta">${tt ? 'telemetry matches the declared test' : 'nothing to match against'}</span></div>
+      <div class="metric"><small>Drifting</small><b class="num" style="color:${drifting.length ? 'var(--warn)' : 'inherit'}">${N(drifting.length)}</b><span class="delta">${drifting.length ? 'label will drop to Unclassified' : tt ? 'every reporting device matches' : ''}</span></div>
+      <div class="metric"><small>Not reporting</small><b class="num">${N(T.serials.length - reporting.length)}</b><span class="delta">no rows in the window</span></div>
+      <div class="metric"><small>Cycles finished today</small><b class="num">${N(ran)}</b><span class="delta">counted cycles</span></div>
     </div></div>
-    ${run ? `<div class="panel"><div class="panel-head"><h2>Current running cycle</h2><span class="muted">${esc(run.name)} · started ${esc(run.startedLabel)}</span></div>
-      <div class="panel-body"><dl class="kv" style="max-width:520px">
-        <dt>Started</dt><dd class="num">${dt(run.start)} <span class="muted">· ${fmtDur(run.elapsedMs)} ago</span></dd>
-        <dt>Devices discharging</dt><dd class="num">${run.devices.length} of ${DEV.length}</dd>
-        <dt>Drained so far</dt><dd class="num">${run.drained.toFixed(0)}% <span class="muted">median</span></dd>
-        <dt>Lowest device</dt><dd class="num">${Math.min(...run.devices.map(x => x.ip.nowPct))}%</dd>
-        ${run.run ? `<dt>Test cycle</dt><dd><a class="link" href="#/runs/${run.run.id}">${esc(run.run.name)}</a></dd>` : ''}
-      </dl></div></div>` : ''}
-    ${!NX.at ? nxStale() : `<div class="cols-2">
-      <div class="panel"><div class="panel-head"><h2>Battery today</h2><span class="muted">median across ${DEV.length} devices</span></div><div class="panel-body"><div class="chart" id="nxt-batt"></div></div></div>
-      <div class="panel"><div class="panel-head"><h2>Temperature today</h2><span class="muted">median across ${DEV.length} devices</span></div><div class="panel-body"><div class="chart" id="nxt-temp"></div></div></div>
-    </div>
-    <div class="panel"><div class="panel-head"><h2>Devices today</h2><span class="muted">${withData.length} with readings since midnight · click to inspect</span></div>
-      <div class="scroll-x"><table><thead><tr><th>Device</th><th>State</th><th class="r">Battery</th><th class="r">At midnight</th><th class="r">Drained</th><th class="r">Temp now</th><th class="r">Peak today</th><th class="r">≥${TEMP_WARN} °C</th><th class="r">≥${TEMP_LIMIT} °C</th><th class="r">Today</th></tr></thead><tbody id="nxt-body"></tbody></table></div></div>`}
+    ${!NX.at ? nxStale() : `
+    <div class="panel"><div class="panel-head"><h2>T7 battery, today</h2><span class="muted">live from MDM · 5-minute rows</span></div>
+      <div class="panel-body"><div class="slegend" style="margin-bottom:8px">
+        <span><i style="border-color:var(--tt-1)"></i>Conforming (${conforming.length})</span>
+        ${drifting.length ? `<span><i style="border-color:var(--warn);border-top-style:dashed"></i>Drifting (${drifting.length}) — ${drifting.map(d => esc(d.serial.slice(-4))).join(', ')}</span>` : ''}
+        <span class="muted">labels mark the lowest and highest</span></div>
+        <div class="chart" id="nxt-batt"></div></div></div>
+    <div class="panel"><div class="panel-head"><h2>Battery temperature, today</h2><span class="muted">fleet median and 95th percentile · °C</span></div>
+      <div class="panel-body"><div class="slegend" style="margin-bottom:8px">
+        <span><i style="border-color:var(--tt-1)"></i>Median</span><span><i style="border-color:var(--tt-2)"></i>95th percentile</span>
+        <span><i style="border-color:var(--warn);border-top-style:dashed"></i>${TEMP_LIMIT} °C review threshold</span></div>
+        <div class="chart" id="nxt-temp"></div></div></div>
+    <div class="panel"><div class="panel-head"><h2>Devices today</h2><span class="muted">click to inspect</span></div>
+      <div class="scroll-x"><table><thead><tr><th>Device</th><th>Against plan</th><th class="r">Battery</th><th class="r">At window start</th><th class="r">Change</th><th class="r">Temp now</th><th class="r">Peak today</th><th class="r">≥${TEMP_LIMIT} °C</th><th class="r">Today</th></tr></thead><tbody id="nxt-body"></tbody></table></div></div>`}
     </div>`;
 
-  if ($('#nx-reload')) $('#nx-reload').onclick = () => nxLoad(true);
   if (NX.at) {
-    lineChart($('#nxt-batt'), batt, { h: 200, yMax: 100, yFmt: v => v + '%', xFmt: hm, area: true, smooth: true,
-      tip: p => `<b>${p.y.toFixed(0)}%</b> median<br>${hm(p.x)} · ${p.n} devices` });
-    lineChart($('#nxt-temp'), temp, { h: 200, yMax: 60, yFmt: v => v.toFixed(0) + '°', xFmt: hm, smooth: true,
-      refs: [{ v: TEMP_LIMIT, label: `${TEMP_LIMIT} °C limit` }, { v: TEMP_WARN, label: `${TEMP_WARN} °C` }],
-      tip: p => `<b>${p.y.toFixed(1)} °C</b> median<br>${hm(p.x)} · ${p.n} devices` });
+    const bands = conforming.map(c => c.rows.map(r => ({ x: Date.parse(r.timestamp), y: r.battery_pct })));
+    const lastOf = c => c.rows[c.rows.length - 1].battery_pct;
+    const lo = conforming.length ? conforming.reduce((a, b) => lastOf(b) < lastOf(a) ? b : a) : null;
+    const hi = conforming.length ? conforming.reduce((a, b) => lastOf(b) > lastOf(a) ? b : a) : null;
+    const series = [
+      ...conforming.map((c, i) => ({ id: c.serial, pts: bands[i], color: `var(--tt-1)`, width: 1.4, opacity: .5,
+        endLabel: c === lo || c === hi ? `${lastOf(c)}%` : null, labelColor: 'var(--text-2)' })),
+      ...drifting.map(c => ({ id: c.serial, pts: c.rows.map(r => ({ x: Date.parse(r.timestamp), y: r.battery_pct })),
+        color: 'var(--warn)', width: 1.8, dash: '5 3', endLabel: `${lastOf(c)}%`, labelColor: 'var(--warn)' })),
+    ];
+    multiLineChart($('#nxt-batt'), series, { h: 230, yMax: 100, yFmt: v => v + '%', xFmt: hm, x0: T.startMs, x1: winTo,
+      tip: (t, hits) => { const top = hits.filter(x => x.p).sort((a, b) => a.p.y - b.p.y).slice(0, 4);
+        return `<b>${hm(t)}</b><br>${top.map(({ s, p }) => `${s.id.slice(-5)} ${p.y}%`).join('<br>')}${hits.length > 4 ? `<br><span style="opacity:.7">+${hits.length - 4} more</span>` : ''}`; } });
+    multiLineChart($('#nxt-temp'), [
+      { id: 'p50', pts: temps, color: 'var(--tt-1)', width: 2, endLabel: temps.length ? `p50 ${temps[temps.length - 1].y.toFixed(0)}°` : null },
+      { id: 'p95', pts: p95, color: 'var(--tt-2)', width: 2, dash: '5 3', endLabel: p95.length ? `p95 ${p95[p95.length - 1].y.toFixed(0)}°` : null },
+    ], { h: 230, yMax: 60, yFmt: v => v.toFixed(0) + '°', xFmt: hm, x0: T.startMs, x1: winTo,
+      refs: [{ v: TEMP_LIMIT, label: `${TEMP_LIMIT} °C review threshold`, color: 'var(--warn)' }],
+      tip: (t, hits) => `<b>${hm(t)}</b><br>${hits.map(({ s, p }) => `${s.id} ${p.y.toFixed(1)} °C`).join('<br>')}` });
+
+    const CSTATE = { conforming: ['b-ok', 'Conforming'], drifting: ['b-warn', 'Drifting'], silent: ['b-off', 'Not reporting'], untyped: ['b-off', 'No test declared'] };
     const draw = () => {
-      setH($('#nxt-body'), stats.length ? stats.sort((a, b) => (b.s?.maxTemp ?? -1) - (a.s?.maxTemp ?? -1)).map(({ d, s }) => {
-        const st = status(d);
-        if (!s) return `<tr class="row" data-s="${d.serial}"><td class="mono">${d.serial}</td><td>${badge(st.cls, st.label, st.live)}</td><td class="r num">${st.pct != null ? st.pct + '%' : '<span class="muted">—</span>'}</td><td colspan="7" class="muted" style="text-align:center">No readings since midnight</td></tr>`;
-        return `<tr class="row" data-s="${d.serial}">
-          <td class="mono">${d.serial}</td><td>${badge(st.cls, st.label, st.live)}</td>
+      setH($('#nxt-body'), conf.length ? conf.slice().sort((a, b) => (a.state === 'drifting' ? -1 : 0) - (b.state === 'drifting' ? -1 : 0)).map(c => {
+        const d = D(c.serial), st = status(d), s = nxDayStats(d), cs = CSTATE[c.state];
+        return `<tr class="row" data-s="${c.serial}">
+          <td class="mono">${c.serial}</td><td>${badge(cs[0], cs[1])}</td>
           <td class="r">${st.pct != null ? `<span class="batt num">${st.pct}%<span class="bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}"><i style="width:${st.pct}%"></i></span></span>` : '<span class="muted">—</span>'}</td>
-          <td class="r num">${s.startPct}%</td><td class="r num">${s.drained ? s.drained.toFixed(0) + '%' : '<span class="muted">—</span>'}</td>
+          <td class="r num">${c.rows && c.rows.length ? c.rows[0].battery_pct + '%' : '<span class="muted">—</span>'}</td>
+          <td class="r num" style="color:${c.state === 'drifting' ? 'var(--warn)' : 'inherit'}">${c.delta != null ? (c.delta > 0 ? '+' : '') + c.delta + '%' : '<span class="muted">—</span>'}</td>
           <td class="r num" style="color:${online(d) && d.snap.battery_temp_c >= TEMP_LIMIT ? 'var(--bad)' : online(d) && d.snap.battery_temp_c >= TEMP_WARN ? 'var(--warn)' : 'inherit'}">${online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : '<span class="muted">—</span>'}</td>
-          <td class="r num" style="color:${s.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : s.maxTemp >= TEMP_WARN ? 'var(--warn)' : 'inherit'}">${s.maxTemp != null ? s.maxTemp.toFixed(1) + ' °C' : '<span class="muted">—</span>'}</td>
-          <td class="r num">${s.minAbove40 ? fmtDur(s.minAbove40 * MIN) : '<span class="muted">—</span>'}</td>
-          <td class="r num" style="color:${s.minAbove45 ? 'var(--bad)' : 'inherit'}">${s.minAbove45 ? fmtDur(s.minAbove45 * MIN) : '<span class="muted">—</span>'}</td>
-          <td class="r">${spark(s.battPts.map(p => p.y))}</td></tr>`;
-      }).join('') : `<tr><td colspan="10" class="empty">No devices.</td></tr>`);
+          <td class="r num" style="color:${s && s.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : s && s.maxTemp >= TEMP_WARN ? 'var(--warn)' : 'inherit'}">${s && s.maxTemp != null ? s.maxTemp.toFixed(1) + ' °C' : '<span class="muted">—</span>'}</td>
+          <td class="r num" style="color:${s && s.minAbove45 ? 'var(--bad)' : 'inherit'}">${s && s.minAbove45 ? fmtDur(s.minAbove45 * MIN) : '<span class="muted">—</span>'}</td>
+          <td class="r">${s ? spark(s.battPts.map(p => p.y)) : '<span class="muted">—</span>'}</td></tr>`;
+      }).join('') : '<tr><td colspan="9" class="empty">No devices in the declared group.</td></tr>');
       rowsClickable($('#nxt-body'), 'data-s', s => `#/devices/${s}`, s => nxInspectDay(D(s))); paginate($('#nxt-body'), 'nxtoday');
     };
     draw();
-    onData = () => { if (!view.classList.contains('enter')) draw(); inspSel && DMAP.has(inspSel) ? nxInspectDay(D(inspSel)) : inspect(nxTodayInspector(run, withData)); };
+    onData = () => { if (!view.classList.contains('enter')) draw(); };
   }
-  inspSel && DMAP.has(inspSel) ? nxInspectDay(D(inspSel)) : inspect(nxTodayInspector(run, withData));
+  if (!(inspSel && DMAP.has(inspSel))) inspect(nxTodayInspector(T, conforming, drifting, reporting));
+  else nxInspectDay(D(inspSel));
 }
-// Inspector: today's own curves for one device, so the table stays readable and the detail
-// lives on the right like everywhere else in the shell.
 function nxDayInspector(d) {
   if (!d.snap) return `<h3 class="mono">${d.serial}</h3><div class="isub">Not in the current fleet snapshot.</div>`;
   const s = nxDayStats(d), st = status(d);
@@ -648,7 +719,6 @@ function nxDayInspector(d) {
       <dt>Drained</dt><dd class="num">${s.drained.toFixed(0)}%</dd>
       <dt>Peak temperature</dt><dd class="num" style="color:${s.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : s.maxTemp >= TEMP_WARN ? 'var(--warn)' : 'inherit'}">${s.maxTemp != null ? s.maxTemp.toFixed(1) + ' °C' : '—'}</dd>
       <dt>Average temperature</dt><dd class="num">${s.avgTemp != null ? s.avgTemp.toFixed(1) + ' °C' : '—'}</dd>
-      <dt>Over ${TEMP_WARN} °C</dt><dd class="num">${s.minAbove40 ? fmtDur(s.minAbove40 * MIN) : '—'}</dd>
       <dt>Over ${TEMP_LIMIT} °C</dt><dd class="num" style="color:${s.minAbove45 ? 'var(--bad)' : 'inherit'}">${s.minAbove45 ? fmtDur(s.minAbove45 * MIN) : '—'}</dd>
       <dt>Samples</dt><dd class="num">${s.n}</dd>
     </dl>
@@ -656,7 +726,6 @@ function nxDayInspector(d) {
     <hr><h4>Temperature today</h4><div class="chart" id="nxi-temp"></div>`}
     <div class="acts"><a class="btn" href="#/devices/${d.serial}">Open history</a></div>`;
 }
-// inspect() only swaps HTML, so the two chart divs the day inspector declares are drawn here.
 function nxInspectDay(d) {
   inspect(nxDayInspector(d));
   const s = nxDayStats(d); if (!s) return;
@@ -664,147 +733,180 @@ function nxInspectDay(d) {
   if ($('#nxi-temp') && s.tempPts.length > 1) lineChart($('#nxi-temp'), s.tempPts, { h: 110, yMax: 60, yFmt: v => v.toFixed(0) + '°', xFmt: hm, smooth: true,
     refs: [{ v: TEMP_LIMIT, label: `${TEMP_LIMIT} °C` }], tip: p => `<b>${p.y.toFixed(1)} °C</b><br>${hm(p.x)}` });
 }
-function nxTodayInspector(run, withData) {
-  const t = withData.map(x => x.s.maxTemp).filter(v => v != null);
-  return `<h3>Today</h3><div class="isub">${esc(GROUP)} · ${withData.length} of ${DEV.length} devices reporting</div>
-    <div class="big num">${run ? fmtDur(run.elapsedMs) : '—'}<small>${run ? 'current cycle' : 'nothing running'}</small></div>
-    <hr><h4>Fleet today</h4><dl class="kv">
-      <dt>Devices on battery</dt><dd class="num">${DEV.filter(d => status(d).k === 'run').length}</dd>
-      <dt>Charging</dt><dd class="num">${DEV.filter(d => online(d) && d.snap.charging).length}</dd>
-      <dt>Drained, median</dt><dd class="num">${withData.length ? median(withData.map(x => x.s.drained)).toFixed(0) + '%' : '—'}</dd>
-      <dt>Peak temperature</dt><dd class="num">${t.length ? Math.max(...t).toFixed(1) + ' °C' : '—'}</dd>
-      <dt>Cycles finished</dt><dd class="num">${allCycles.filter(c => dayKey(c.end) === todayKey()).length}</dd>
-    </dl><div class="help">Select a device in the table to see its own curves for today.</div>`;
+function nxTodayInspector(T, conforming, drifting, reporting) {
+  return `<h3>${T.tt ? esc(T.tt.name) : 'No test declared'}</h3><div class="isub">${esc(dayLabel(T.key))} · ${STATUS[T.status].label}</div>
+    <div class="big num">${T.serials.length ? Math.round(conforming.length / T.serials.length * 100) : 0}%<small>conforming to plan</small></div>
+    <hr><h4>Against the declaration</h4><dl class="kv">
+      <dt>Declared devices</dt><dd class="num">${T.serials.length}</dd>
+      <dt>Reporting</dt><dd class="num">${reporting.length}</dd>
+      <dt>Conforming</dt><dd class="num" style="color:var(--ok)">${conforming.length}</dd>
+      <dt>Drifting</dt><dd class="num" style="color:${drifting.length ? 'var(--warn)' : 'inherit'}">${drifting.length}</dd>
+      <dt>Window</dt><dd class="num">${hm(T.startMs)}–${hm(T.endMs)}</dd>
+      <dt>Expectation</dt><dd>${T.tt ? (T.tt.expect === 'charge' ? 'battery rising' : 'battery draining, off charge') : '—'}</dd>
+    </dl>
+    ${drifting.length ? `<hr><h4>Drifting</h4>${drifting.map(c => `<div class="list-item" style="padding-left:0;padding-right:0"><span class="grow mono">${esc(c.serial)}</span><span class="num">${(c.delta > 0 ? '+' : '') + c.delta}%</span></div>`).join('')}
+      <div class="help">These rows will not be stamped with the declared test type — they fall through to Unclassified.</div>` : ''}
+    <div class="acts"><a class="btn" href="#/nx/plan">Open Cycle plan</a></div>`;
 }
 
 // ── New dashboard · Cycle plan ────────────────────────────────────────────────
-// The planned calibration schedule. The MDM has no notion of a plan, so this is ours:
-// localStorage, per group, via shared/plan.js — the same trade-off as shared/runs.js, and
-// the same caveat (per-browser, not shared with teammates).
-const nxPlan = { y: new Date().getFullYear(), m: new Date().getMonth(), sel: todayKey(), form: null };
+// This screen IS the test-type column. See shared/plan.js for the resolution order.
+const nxPlan = { y: new Date().getFullYear(), m: new Date().getMonth(), sel: todayKey(), form: null, rota: false };
+const statusBadge = st => `<span class="badge ${{ declared: 'b-run', confirmed: 'b-ok', inferred: 'b-warn', unclassified: 'b-off', none: 'b-off' }[st]}">${STATUS[st].glyph} ${STATUS[st].label}</span>`;
+function ttChip(r) {
+  if (r.tt) return `<span class="tt-chip" style="--tt:var(--tt-${ttSlot(r.tt.id)})">${r.tt.code}<span class="g">${STATUS[r.status].glyph}</span></span>`;
+  if (r.status === 'inferred') return `<span class="tt-chip inferred">?<span class="g">▨</span></span>`;
+  return '';
+}
 function nxPlanView() {
   crumbs(['Cycle plan']);
-  const cells = monthGrid(nxPlan.y, nxPlan.m);
-  const ranByDay = new Map();
-  for (const c of allCycles) { const k = dayKey(c.end); ranByDay.set(k, (ranByDay.get(k) || 0) + 1); }
-  const sel = nxPlan.sel, selPlans = plansOn(plans, sel), selRan = allCycles.filter(c => dayKey(c.end) === sel);
-  const upcoming = plans.filter(p => planMs(p) >= startOfDay(Date.now())).slice(0, 6);
+  const cells = monthGrid(nxPlan.y, nxPlan.m).map(c => ({ ...c, r: nxDay(c.key) }));
+  const sel = nxPlan.sel, S = nxDay(sel), selRan = allCycles.filter(c => dayKey(c.end) === sel);
+  const counts = cells.filter(c => c.inMonth).reduce((a, c) => { a[c.r.status] = (a[c.r.status] || 0) + 1; return a; }, {});
 
-  view.innerHTML = `<div class="page-head"><div><h1>Cycle plan</h1><div class="sub">${esc(GROUP)} · ${plans.length} planned calibration${plans.length === 1 ? '' : 's'} · saved in this browser only</div></div>
-      <button class="btn primary" id="nxp-add">${PLUS} Plan a calibration</button></div>
+  view.innerHTML = `<div class="page-head"><div><h1>Cycle plan</h1><div class="sub" style="max-width:620px">This screen <i>is</i> the test-type column. Declare once — a date, a device group, a test type — and every MDM row that arrives inside that window is stamped on the way in. No import step, no filename convention, nothing to remember at the end of a run.</div></div>
+      <div style="display:flex;gap:8px"><button class="btn" id="nxp-rota">Weekly rota…</button><button class="btn primary" id="nxp-add">${PLUS} Declare a cycle</button></div></div>
     <div class="stack">
-    ${nxNote('Calibration plans live in this browser, like test cycles — teammates won\'t see them until we agree a shared store.')}
-    <div class="cols-cal">
+    ${nxNote('Declarations are stored in this browser only, like test cycles — teammates won\'t see them until we agree a shared store.')}
+    <div class="cols-plan">
       <div class="panel">
         <div class="panel-head"><b>${esc(monthLabel(nxPlan.y, nxPlan.m))}</b>
+          <div class="cal-legend"><span><i class="declared"></i>Declared</span><span><i class="confirmed"></i>Confirmed</span><span><i class="inferred"></i>Inferred</span><span><i class="unclassified"></i>Unclassified</span></div>
           <div class="cal-nav"><button id="nxp-prev" aria-label="Previous month">‹</button><button id="nxp-today">Today</button><button id="nxp-next" aria-label="Next month">›</button></div></div>
         <div class="panel-body">
-          <div class="cal-dow">${WEEKDAYS.map(d => `<span>${d}</span>`).join('')}</div>
+          <div class="cal-dow">${WEEKDAYS.map(d => `<span>${d.toUpperCase()}</span>`).join('')}</div>
           <div class="cal-grid" id="nxp-grid">${cells.map(c => {
-            const np = plansOn(plans, c.key).length, nr = ranByDay.get(c.key) || 0;
-            return `<button class="cal-day ${c.inMonth ? '' : 'out'} ${c.isToday ? 'today' : ''} ${c.key === sel ? 'sel' : ''}" data-k="${c.key}" title="${esc(dayLabel(c.key))}${np ? ` · ${np} planned` : ''}${nr ? ` · ${nr} cycle${nr === 1 ? '' : 's'} ran` : ''}">
-              <span>${c.dayNum}</span><span class="dots">${np ? '<i class="plan"></i>' : ''}${nr ? '<i class="ran"></i>' : ''}</span></button>`;
+            const r = c.r, future = c.key >= todayKey();
+            return `<button class="cal-day ${c.inMonth ? '' : 'out'} ${c.isToday ? 'today' : ''} ${c.key === sel ? 'sel' : ''}" data-k="${c.key}" title="${esc(dayLabel(c.key))} · ${STATUS[r.status].label}">
+              <span class="dnum">${c.dayNum}${c.isToday ? '<span class="tdy">TODAY</span>' : ''}</span>
+              ${r.tt ? `${ttChip(r)}<span class="tname">${esc(r.tt.name)}</span><span class="tdev">${r.serials.length} devices</span>`
+                : r.status === 'inferred' ? `${ttChip(r)}<span class="tname">Untyped run</span><span class="tdev">${r.ran} cycle${r.ran === 1 ? '' : 's'}</span>`
+                : c.inMonth ? `<span class="declare">${future ? '+ declare' : 'no run'}</span>` : ''}</button>`;
           }).join('')}</div>
-          <div class="cal-legend"><span><i class="plan"></i>Calibration planned</span><span><i class="ran"></i>Cycle counted</span></div>
+          <div class="callout" style="margin-top:12px"><div><b>Read the month left to right and you can see the whole problem.</b>
+            ${counts.inferred || counts.confirmed ? `This month carries ${counts.confirmed || 0} confirmed and ${counts.inferred || 0} inferred — history recovered after the fact. ` : ''}The goal is a calendar with no <b>▨ Inferred</b> and no <b>○ Unclassified</b> in it: declared before the data exists.</div></div>
         </div>
       </div>
       <div class="stack">
-        <div class="panel"><div class="panel-head"><h2>${esc(dayLabel(sel))}</h2><span class="muted">${selPlans.length} planned · ${selRan.length} ran</span></div>
-          ${nxPlan.form ? nxPlanForm() : ''}
-          ${selPlans.length ? selPlans.map(p => `<div class="list-item" style="align-items:flex-start">
-              <div class="grow"><b>${esc(p.name)}</b> <span class="muted mono">${p.id}</span>
-                <div class="muted" style="margin-top:2px">${p.time ? `Planned for ${esc(p.time)}` : 'No time set'} · ${p.serials.length ? `${p.serials.length} device${p.serials.length === 1 ? '' : 's'}` : 'all devices'}</div>
-                ${p.note ? `<div style="margin-top:4px;color:var(--text-2)">${esc(p.note)}</div>` : ''}
-                ${p.serials.length ? `<div class="muted mono" style="margin-top:4px;font-size:11px">${p.serials.map(esc).join(' · ')}</div>` : ''}</div>
-              <button class="btn" data-edit="${p.id}">Edit</button><button class="btn" data-del="${p.id}">Delete</button></div>`).join('')
-            : nxPlan.form ? '' : `<div class="empty">Nothing planned for this day.<br><a class="link" href="#" id="nxp-add2">Plan a calibration</a></div>`}
+        ${nxPlan.form ? nxDeclForm() : ''}
+        <div class="panel"><div class="panel-head"><h2>${esc(dayLabel(sel))}</h2>${statusBadge(S.status)}</div>
+          <div class="panel-body"><dl class="kv">
+            <dt>Test type</dt><dd>${S.tt ? `${ttChip(S)} ${esc(S.tt.name)}` : '<span class="muted">none declared</span>'}</dd>
+            <dt>Source</dt><dd>${S.source === 'declared' ? 'Explicit declaration' : S.source === 'rota' ? 'Standing weekly rota' : S.source === 'telemetry' ? 'Telemetry only' : '<span class="muted">—</span>'}</dd>
+            <dt>Devices</dt><dd class="num">${S.tt ? S.serials.length : '—'}</dd>
+            <dt>Window</dt><dd class="num">${S.tt ? `${hm(S.startMs)}–${hm(S.endMs)}` : '—'}</dd>
+            <dt>Cycles counted</dt><dd class="num">${S.ran}</dd>
+          </dl>
+          <div class="acts">${S.decl ? `<button class="btn" data-edit="${S.decl.id}">Edit</button><button class="btn" data-del="${S.decl.id}">Delete</button>` : `<button class="btn primary" id="nxp-add2">Declare this day</button>`}</div></div>
         </div>
+        ${nxPlan.rota ? nxRotaPanel() : ''}
         <div class="panel"><div class="panel-head"><h2>What actually ran</h2><span class="muted">counted cycles ending on this day</span></div>
-          ${selRan.length ? `<div class="scroll-x"><table><thead><tr><th>Device</th><th>Kind</th><th class="r">Runtime to empty</th><th class="r">Drain</th><th class="r">Peak temp</th><th class="r">Ended</th></tr></thead><tbody>
+          ${selRan.length ? `<div class="scroll-x"><table><thead><tr><th>Device</th><th>Kind</th><th class="r">Runtime</th><th class="r">Drain</th><th class="r">Peak</th><th class="r">Ended</th></tr></thead><tbody>
             ${selRan.sort((a, b) => a.end - b.end).map(c => { const d = DEV.find(x => x.cycles.includes(c)); return `<tr class="row" ${d ? `data-s="${d.serial}"` : ''}>
-              <td class="mono">${d ? d.serial : '—'}</td><td>${badge(c.reason === 'died' ? 'b-ok' : 'b-run', c.reason === 'died' ? 'Run-down' : 'Timed run')}</td>
-              <td class="r num">${fmtDur(rt(c))}</td><td class="r num">${c.startPct}% → ${c.endPct}%</td>
-              <td class="r num" style="color:${c.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : c.maxTemp >= TEMP_WARN ? 'var(--warn)' : 'inherit'}">${c.maxTemp != null ? c.maxTemp.toFixed(1) + ' °C' : '—'}</td>
+              <td class="mono">${d ? d.serial : '—'}</td><td>${badge(c.reason === 'died' ? 'b-ok' : 'b-run', c.reason === 'died' ? 'Run-down' : 'Timed')}</td>
+              <td class="r num">${fmtDur(rt(c))}</td><td class="r num">${c.startPct}→${c.endPct}%</td>
+              <td class="r num" style="color:${c.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : 'inherit'}">${c.maxTemp != null ? c.maxTemp.toFixed(1) + '°' : '—'}</td>
               <td class="r muted">${hm(c.end)}</td></tr>`; }).join('')}</tbody></table></div>`
             : '<div class="empty">No counted cycle ended on this day.</div>'}
         </div>
       </div>
     </div>
-    <div class="panel"><div class="panel-head"><h2>Upcoming</h2><span class="muted">next ${upcoming.length}</span></div>
-      ${upcoming.length ? upcoming.map(p => `<a class="list-item" href="#" data-go="${p.date}">${badge(p.date === todayKey() ? 'b-run' : 'b-off', p.date === todayKey() ? 'Today' : day(planMs(p)))}
-        <span class="grow"><b>${esc(p.name)}</b>${p.time ? ` <span class="muted">at ${esc(p.time)}</span>` : ''}</span>
-        <span class="muted">${p.serials.length ? `${p.serials.length} device${p.serials.length === 1 ? '' : 's'}` : 'all devices'}</span></a>`).join('')
-        : '<div class="empty">No calibrations planned.</div>'}
-    </div>
     </div>`;
 
-  // calendar + list wiring
-  $('#nxp-grid').onclick = e => { const b = e.target.closest('button[data-k]'); if (!b) return; nxPlan.sel = b.dataset.k; nxPlan.form = null; render(false); };
+  $('#nxp-grid').onclick = e => { const b = e.target.closest('button[data-k]'); if (!b) return; nxPlan.sel = b.dataset.k; if (nxPlan.form) nxPlan.form = { ...nxPlan.form, from: b.dataset.k, to: b.dataset.k }; render(false); };
   $('#nxp-prev').onclick = () => { const d = new Date(nxPlan.y, nxPlan.m - 1, 1); nxPlan.y = d.getFullYear(); nxPlan.m = d.getMonth(); render(false); };
   $('#nxp-next').onclick = () => { const d = new Date(nxPlan.y, nxPlan.m + 1, 1); nxPlan.y = d.getFullYear(); nxPlan.m = d.getMonth(); render(false); };
   $('#nxp-today').onclick = () => { const n = new Date(); nxPlan.y = n.getFullYear(); nxPlan.m = n.getMonth(); nxPlan.sel = todayKey(); render(false); };
-  const openForm = id => { nxPlan.form = id ? { ...plans.find(p => p.id === id) } : { date: nxPlan.sel, time: '', name: '', serials: [], note: '' }; render(false); };
+  $('#nxp-rota').onclick = () => { nxPlan.rota = !nxPlan.rota; render(false); };
+  const openForm = id => { const d = id && decls.find(x => x.id === id);
+    nxPlan.form = d ? { ...d } : { testType: TEST_TYPES[0].id, from: nxPlan.sel, to: nxPlan.sel, group: { kind: 'all' }, startTime: '07:00', endTime: '19:00', repeat: 'none', by: lastBy() };
+    render(false); };
   $('#nxp-add').onclick = () => openForm(null);
-  if ($('#nxp-add2')) $('#nxp-add2').onclick = e => { e.preventDefault(); openForm(null); };
+  if ($('#nxp-add2')) $('#nxp-add2').onclick = () => openForm(null);
   $$('[data-edit]', view).forEach(b => b.onclick = () => openForm(b.dataset.edit));
   $$('[data-del]', view).forEach(b => b.onclick = () => {
-    const p = plans.find(x => x.id === b.dataset.del); if (!p || !confirm(`Delete "${p.name}" from this browser? This can't be undone.`)) return;
-    plans = plans.filter(x => x !== p); savePlans(GROUP, plans); toast(`${p.name} deleted.`); render(false);
+    const d = decls.find(x => x.id === b.dataset.del); if (!d || !confirm(`Delete this declaration? The day falls back to the rota, or to Unclassified.`)) return;
+    decls = decls.filter(x => x !== d); saveDecls(GROUP, decls); toast('Declaration deleted.'); render(false);
   });
-  $$('[data-go]', view).forEach(a => a.onclick = e => { e.preventDefault(); const k = a.dataset.go, [y, m] = k.split('-').map(Number); nxPlan.y = y; nxPlan.m = m - 1; nxPlan.sel = k; nxPlan.form = null; render(false); });
-  if (nxPlan.form) nxPlanFormWire();
+  if (nxPlan.form) nxDeclWire();
+  if (nxPlan.rota) nxRotaWire();
   rowsClickable(view, 'data-s', s => `#/devices/${s}`, s => inspect(deviceInspector(D(s))));
-  inspect(inspSel && DMAP.has(inspSel) ? deviceInspector(D(inspSel)) : nxPlanInspector());
+  inspect(inspSel && DMAP.has(inspSel) ? deviceInspector(D(inspSel)) : nxPlanInspector(cells));
 }
-function nxPlanForm() {
-  const f = nxPlan.form, editing = plans.some(p => p.id === f.id);
-  return `<div class="panel-body" style="border-bottom:.5px solid var(--sep);background:var(--surface-2)">
-    <div class="field"><label for="nxf-name">What is being calibrated</label><input class="input" id="nxf-name" value="${esc(f.name || '')}" placeholder="Cycle calibration"><div class="errmsg">Give it a name.</div></div>
-    <div class="cols-2">
-      <div class="field"><label for="nxf-date">Date</label><input class="input" id="nxf-date" type="date" value="${esc(f.date)}"></div>
-      <div class="field"><label for="nxf-time">Planned time</label><input class="input" id="nxf-time" type="time" value="${esc(f.time || '')}"></div>
-    </div>
-    <div class="field"><label>Devices <span class="muted" id="nxf-count"></span></label>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px" class="muted"><span>Leave all unticked to mean the whole group.</span><span><a href="#" class="link" id="nxf-all">All</a> · <a href="#" class="link" id="nxf-none">None</a></span></div>
-      <div class="devlist" id="nxf-devs">${DEV.map(d => `<label><input type="checkbox" value="${d.serial}" ${f.serials.includes(d.serial) ? 'checked' : ''}><span class="mono">${d.serial}</span>${badge(status(d).cls, status(d).label)}</label>`).join('')}</div></div>
-    <div class="field"><label for="nxf-note">Notes</label><input class="input" id="nxf-note" value="${esc(f.note || '')}" placeholder="Anything the bench needs to know"></div>
-    <div style="display:flex;gap:8px"><button class="btn primary" id="nxf-save">${editing ? 'Save changes' : 'Add to plan'}</button><button class="btn" id="nxf-cancel">Cancel</button></div>
-  </div>`;
+const lastBy = () => { try { return localStorage.getItem('declaredBy') || ''; } catch (e) { return ''; } };
+function nxDeclForm() {
+  const f = nxPlan.form, editing = decls.some(d => d.id === f.id);
+  const groups = [...new Set(DEV.flatMap(d => d.snap?.groups || []))].sort();
+  const gv = f.group && f.group.kind === 'group' ? `group:${f.group.name}` : 'all';
+  return `<div class="panel"><div class="panel-head"><h2>${editing ? 'Edit declaration' : 'Declare a cycle'}</h2><button class="btn" id="nxf-cancel">Cancel</button></div>
+    <div class="panel-body">
+      <div class="field"><label for="nxf-type">Test type</label><span class="ver" style="display:block"><select id="nxf-type" style="width:100%">${TEST_TYPES.map(t => `<option value="${t.id}" ${f.testType === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></span></div>
+      <div class="cols-2">
+        <div class="field"><label for="nxf-from">From</label><input class="input" id="nxf-from" type="date" value="${esc(f.from)}"></div>
+        <div class="field"><label for="nxf-to">To</label><input class="input" id="nxf-to" type="date" value="${esc(f.to || f.from)}"></div>
+      </div>
+      <div class="field"><label for="nxf-group">Device group</label><span class="ver" style="display:block"><select id="nxf-group" style="width:100%">
+        <option value="all" ${gv === 'all' ? 'selected' : ''}>All devices (${DEV.length})</option>
+        ${groups.map(g => `<option value="group:${esc(g)}" ${gv === `group:${g}` ? 'selected' : ''}>${esc(g)} (${DEV.filter(d => (d.snap?.groups || []).includes(g)).length})</option>`).join('')}
+      </select></span></div>
+      <div class="cols-2">
+        <div class="field"><label for="nxf-start">Starts</label><input class="input" id="nxf-start" type="time" value="${esc(f.startTime || '')}"></div>
+        <div class="field"><label for="nxf-end">Ends</label><input class="input" id="nxf-end" type="time" value="${esc(f.endTime || '')}"></div>
+      </div>
+      <div class="field"><label for="nxf-repeat">Repeat</label><span class="ver" style="display:block"><select id="nxf-repeat" style="width:100%">
+        <option value="none" ${f.repeat !== 'weekly' ? 'selected' : ''}>Does not repeat</option>
+        <option value="weekly" ${f.repeat === 'weekly' ? 'selected' : ''}>Weekly, same weekday</option></select></span></div>
+      <div class="field"><label for="nxf-by">Declared by</label><input class="input" id="nxf-by" value="${esc(f.by || '')}" placeholder="optional"></div>
+      <div class="help" style="margin-bottom:10px">Rows outside the window fall through to the next rule, or to Unclassified. The window is deliberately generous — a run that starts late is still the declared test.</div>
+      <button class="btn primary" id="nxf-save" style="width:100%">${editing ? 'Save declaration' : 'Declare'}</button>
+    </div></div>`;
 }
-function nxPlanFormWire() {
-  const count = () => { const n = $$('#nxf-devs input:checked').length; $('#nxf-count').textContent = n ? `· ${n} selected` : '· whole group'; };
-  $('#nxf-devs').onchange = count; count();
-  $('#nxf-all').onclick = e => { e.preventDefault(); $$('#nxf-devs input').forEach(c => c.checked = true); count(); };
-  $('#nxf-none').onclick = e => { e.preventDefault(); $$('#nxf-devs input').forEach(c => c.checked = false); count(); };
+function nxDeclWire() {
   $('#nxf-cancel').onclick = () => { nxPlan.form = null; render(false); };
   $('#nxf-save').onclick = () => {
-    const name = $('#nxf-name').value.trim(), date = $('#nxf-date').value, time = $('#nxf-time').value,
-      serials = $$('#nxf-devs input:checked').map(c => c.value), note = $('#nxf-note').value.trim();
-    $('#nxf-name').classList.toggle('err', !name);
-    if (!name || !date) return;
-    const f = nxPlan.form, existing = plans.find(p => p.id === f.id);
-    if (existing) Object.assign(existing, { name, date, time, serials, note });
-    else plans = [...plans, newPlan(plans, { date, time, name, serials, note })];
-    savePlans(GROUP, plans); plans = loadPlans(GROUP);
-    const [y, m] = date.split('-').map(Number); nxPlan.y = y; nxPlan.m = m - 1; nxPlan.sel = date; nxPlan.form = null;
-    toast(`${name} ${existing ? 'updated' : 'added'} for ${dayLabel(date)}.`); render(false);
+    const gsel = $('#nxf-group').value, group = gsel === 'all' ? { kind: 'all' } : { kind: 'group', name: gsel.slice(6) };
+    const next = { testType: $('#nxf-type').value, from: $('#nxf-from').value, to: $('#nxf-to').value || $('#nxf-from').value,
+      group, startTime: $('#nxf-start').value, endTime: $('#nxf-end').value, repeat: $('#nxf-repeat').value, by: $('#nxf-by').value.trim() };
+    if (!next.from) return;
+    try { localStorage.setItem('declaredBy', next.by); } catch (e) {}
+    const f = nxPlan.form, existing = decls.find(d => d.id === f.id);
+    if (existing) Object.assign(existing, next); else decls = [...decls, newDecl(decls, next)];
+    saveDecls(GROUP, decls); decls = loadDecls(GROUP);
+    const [y, m] = next.from.split('-').map(Number); nxPlan.y = y; nxPlan.m = m - 1; nxPlan.sel = next.from; nxPlan.form = null;
+    toast(`${testType(next.testType).name} declared for ${dayLabel(next.from)}.`); render(false);
   };
 }
-function nxPlanInspector() {
-  const next = plans.find(p => planMs(p) >= Date.now());
-  const sel = plansOn(plans, nxPlan.sel);
-  return `<h3>Cycle plan</h3><div class="isub">${esc(GROUP)} · ${plans.length} planned</div>
-    <div class="big num">${sel.length}<small>planned on ${esc(dayLabel(nxPlan.sel))}</small></div>
-    <hr><h4>Next up</h4>${next ? `<dl class="kv">
-      <dt>${esc(next.name)}</dt><dd class="num">${day(planMs(next))}${next.time ? ` ${esc(next.time)}` : ''}</dd>
-      <dt>Devices</dt><dd class="num">${next.serials.length || DEV.length}</dd>
-      ${next.note ? `<dt>Notes</dt><dd>${esc(next.note)}</dd>` : ''}
-    </dl>` : '<div class="empty">Nothing planned ahead.</div>'}
+function nxRotaPanel() {
+  return `<div class="panel"><div class="panel-head"><h2>Standing weekly rota</h2><span class="muted">applied where no day overrides it</span></div>
+    ${WEEKDAYS.map((d, i) => `<div class="rota-row"><span class="d">${d}</span>
+      <span class="ver" style="display:block"><select data-rota="${i}" class="${rota[i] && rota[i].testType ? '' : 'none'}" style="width:100%">
+        <option value="">— no standing test —</option>
+        ${TEST_TYPES.map(t => `<option value="${t.id}" ${rota[i] && rota[i].testType === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
+      </select></span>
+      <span class="muted num">${rota[i] && rota[i].testType ? DEV.length : ''}</span></div>`).join('')}
+    <div class="panel-body"><div class="help">A weekday with a standing test needs no daily declaration — the calendar shows it as Declared, and any explicit declaration for a date beats it.</div></div></div>`;
+}
+function nxRotaWire() {
+  $$('[data-rota]', view).forEach(sel => sel.onchange = () => {
+    const i = +sel.dataset.rota;
+    if (sel.value) rota[i] = { testType: sel.value }; else delete rota[i];
+    saveRota(GROUP, rota); toast(sel.value ? `${WEEKDAYS[i]}: ${testType(sel.value).name}` : `${WEEKDAYS[i]} cleared.`); render(false);
+  });
+}
+function nxPlanInspector(cells) {
+  const inMonth = cells.filter(c => c.inMonth), counts = inMonth.reduce((a, c) => { a[c.r.status] = (a[c.r.status] || 0) + 1; return a; }, {});
+  const upcoming = inMonth.filter(c => c.key >= todayKey() && c.r.tt).slice(0, 5);
+  const typed = inMonth.filter(c => c.r.tt).length;
+  return `<h3>Cycle plan</h3><div class="isub">${esc(monthLabel(nxPlan.y, nxPlan.m))} · ${esc(GROUP)}</div>
+    <div class="big num">${inMonth.length ? Math.round(typed / inMonth.length * 100) : 0}%<small>of days carry a test type</small></div>
     <hr><h4>This month</h4><dl class="kv">
-      <dt>Planned</dt><dd class="num">${plans.filter(p => { const [y, m] = p.date.split('-').map(Number); return y === nxPlan.y && m - 1 === nxPlan.m; }).length}</dd>
-      <dt>Cycles counted</dt><dd class="num">${allCycles.filter(c => { const d = new Date(c.end); return d.getFullYear() === nxPlan.y && d.getMonth() === nxPlan.m; }).length}</dd>
+      <dt>${STATUS.declared.glyph} Declared</dt><dd class="num">${counts.declared || 0}</dd>
+      <dt>${STATUS.confirmed.glyph} Confirmed</dt><dd class="num" style="color:var(--ok)">${counts.confirmed || 0}</dd>
+      <dt>${STATUS.inferred.glyph} Inferred</dt><dd class="num" style="color:${counts.inferred ? 'var(--warn)' : 'inherit'}">${counts.inferred || 0}</dd>
+      <dt>${STATUS.unclassified.glyph} Unclassified</dt><dd class="num">${counts.unclassified || 0}</dd>
     </dl>
-    <div class="help">Plans are stored in this browser only, like test cycles.</div>`;
+    ${upcoming.length ? `<hr><h4>Coming up</h4>${upcoming.map(c => `<div class="list-item" style="padding-left:0;padding-right:0">${ttChip(c.r)}<span class="grow">${esc(c.r.tt.name)}</span><span class="muted">${day(c.date)}</span></div>`).join('')}` : ''}
+    <div class="help">Inferred means telemetry found a run nobody declared — open that day and declare it to turn it into Confirmed.</div>`;
 }
 
 // ── Devices ───────────────────────────────────────────────────────────────────

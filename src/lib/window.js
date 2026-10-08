@@ -1,0 +1,95 @@
+// The recent-history window the Today and Overview screens read.
+//
+// The 30-min sweep is too coarse for "temperature today", so these screens pull a 48 h
+// window per device at the 5-min interval. 48 h, not 24, because a bench run can start
+// before midnight and an in-progress discharge has to be found from its start.
+import { fetchHistoryRange, mapLimit } from './data.js';
+import { normalize, detectCycles } from './cycles.js';
+import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
+import { H, MIN, median } from './format.js';
+
+export const WINDOW_HOURS = 48;
+const state = { rows: {}, at: 0, loading: false, err: null, failed: 0 };
+const subs = new Set();
+let snapshot = { ...state };
+const bump = () => { snapshot = { ...state, at2: Date.now() }; subs.forEach(f => f()); };
+export const subscribeWindow = f => { subs.add(f); return () => subs.delete(f); };
+export const getWindow = () => snapshot;
+export const rowsFor = serial => state.rows[serial] || [];
+
+export async function loadWindow(DEV, force = false) {
+  if (state.loading || !DEV.length) return;
+  if (!force && state.at && Date.now() - state.at < 5 * MIN) return;
+  state.loading = true; state.err = null; bump();
+  try {
+    const now = Date.now(), from = now - WINDOW_HOURS * H, out = {};
+    await mapLimit(DEV, 3, async d => { out[d.serial] = normalize(await fetchHistoryRange(d.serial, from, now, 300)); });
+    state.failed = DEV.filter(d => !out[d.serial]).length; // mapLimit swallows per-device errors
+    if (state.failed === DEV.length) throw new Error('history unavailable for every device');
+    state.rows = out; state.at = now;
+  } catch (e) { state.err = e.message; }
+  finally { state.loading = false; bump(); }
+}
+
+export const temp = r => { const t = r.extra?.battery_temp_c; return typeof t === 'number' && t > 0 ? t : null; };
+
+// A statistic across devices per 10-min bucket, so one device going offline doesn't put
+// a step in the line.
+export function buckets(serials, from, to, pick, stat) {
+  const step = 10 * MIN, b = new Map();
+  for (const s of serials) for (const r of rowsFor(s)) {
+    const t = Date.parse(r.timestamp); if (t < from || t > to) continue;
+    const v = pick(r); if (v == null || !isFinite(v)) continue;
+    const k = Math.floor((t - from) / step);
+    if (!b.has(k)) b.set(k, []);
+    b.get(k).push(v);
+  }
+  return [...b.keys()].sort((x, y) => x - y).map(k => ({ x: from + k * step, y: stat(b.get(k)), n: b.get(k).length }));
+}
+
+export function dayStats(serial, from) {
+  const rows = rowsFor(serial).filter(r => Date.parse(r.timestamp) >= from);
+  if (rows.length < 2) return null;
+  const temps = rows.map(temp).filter(t => t != null);
+  let m40 = 0, m45 = 0, drained = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const t = temp(rows[i]), gap = Math.min(Date.parse(rows[i].timestamp) - Date.parse(rows[i - 1].timestamp), 30 * MIN);
+    if (t != null && t >= TEMP_WARN) m40 += gap;
+    if (t != null && t >= TEMP_LIMIT) m45 += gap;
+    const drop = rows[i - 1].battery_pct - rows[i].battery_pct;
+    if (drop > 0) drained += drop;
+  }
+  return { n: rows.length, startPct: rows[0].battery_pct, endPct: rows[rows.length - 1].battery_pct, drained,
+    maxTemp: temps.length ? Math.max(...temps) : null, avgTemp: temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : null,
+    minAbove40: Math.round(m40 / MIN), minAbove45: Math.round(m45 / MIN),
+    battPts: rows.map(r => ({ x: Date.parse(r.timestamp), y: r.battery_pct })),
+    tempPts: rows.filter(r => temp(r) != null).map(r => ({ x: Date.parse(r.timestamp), y: temp(r) })) };
+}
+
+// Does a device's telemetry look like the declared test? A discharge test wants the
+// battery going down and the device off charge; a charging test the reverse. The 3-point
+// floor is the one the T7 dashboard uses to decide a run moved the battery at all.
+export function conform(serial, tt, from, to) {
+  const rows = rowsFor(serial).filter(r => { const t = Date.parse(r.timestamp); return t >= from && t <= to; });
+  if (rows.length < 2) return { serial, state: 'silent', rows };
+  const a = rows[0].battery_pct, b = rows[rows.length - 1].battery_pct, chg = !!rows[rows.length - 1].extra?.charging;
+  const delta = b - a;
+  if (!tt) return { serial, state: 'untyped', delta, rows };
+  const ok = tt.expect === 'charge' ? (delta >= 3 || chg) : (-delta >= 3 && !chg);
+  return { serial, state: ok ? 'conforming' : 'drifting', delta, charging: chg, rows };
+}
+
+// The discharge the bench is in the middle of, from the same detector the rest of the app
+// uses: every device with an in-progress discharge, clustered into one run.
+export function running(DEV, opts) {
+  const now = Date.now(), ips = [];
+  for (const d of DEV) {
+    const rows = rowsFor(d.serial); if (rows.length < 2) continue;
+    let res; try { res = detectCycles(rows, { nowMs: now, ...opts }); } catch (e) { continue; }
+    if (res.inProgress) ips.push({ d, ip: res.inProgress });
+  }
+  if (!ips.length) return null;
+  const start = Math.min(...ips.map(x => x.ip.start));
+  return { devices: ips.sort((a, b) => a.ip.start - b.ip.start), start, elapsedMs: now - start,
+    drained: median(ips.map(x => x.ip.startPct - x.ip.nowPct)) };
+}

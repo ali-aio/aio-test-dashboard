@@ -125,7 +125,15 @@ oversight; don't add restaurant filtering back in without being asked.
 
 ## Structure
 
-- `index.html` + (inline module script) — **the whole app, one page, hash-routed**:
+- `app.html` + `src/` — **the React app (v2)**, hash-routed: `src/main.jsx` ->
+  `src/App.jsx` (shell, source list, status bar, inspector, v1/v2 picker, theme) ->
+  `src/views/*.jsx`. Built with `npm run build` into `dist/`, served at `/dist/app.html`
+  until the v1 views are ported and it takes over `/`.
+- `src/lib/plan.js` — the **declared test-type schedule**, the answer to the one thing MDM
+  telemetry cannot supply. A declaration is (test type, date window, device group, time
+  window); resolution order is explicit declaration > standing weekly rota > inferred from
+  telemetry > unclassified. Stored in localStorage per group, like `runs.js`.
+- `index.html` + (inline module script) — **the previous dashboard (v1)**, one page, hash-routed:
   Overview (KPIs, weekly runtime trend, needs-attention, bench grid) · Devices (sortable
   table + inspector → device detail with runtime-per-cycle + cycle history) · Test cycles (UI label; code and routes still say "runs")
   (list → run detail) · Settings. Mac document-window shell; styles live in `app.css`
@@ -208,11 +216,18 @@ oversight; don't add restaurant filtering back in without being asked.
 
 ## Conventions
 
-- Plain HTML + vanilla JS modules, no build step, no framework, no bundler, and the
-  backend is plain Node with zero npm dependencies (`package.json` exists only to mark
-  the repo as ESM). Keep it that way — this repo's whole value is "open the file, it
-  works." Detection logic lives once, in `shared/`, and is imported by both the browser
-  and `server/sweep.mjs`.
+- **React 18 + Vite 5, JSX, no TypeScript.** The UI is React components in `.jsx`;
+  everything that is not UI is plain `.js`/`.mjs`. Node runs the tooling only (`npm run
+  dev`, `npm run build`) — it is not part of the frontend. This replaced the original
+  vanilla-JS/no-build setup in Oct 2026, to match `/home/tariq/Projects/T7-Dashboard`.
+- **Detection logic stays framework-free.** `src/lib/` is plain JS with no React import —
+  cycles, profile, plan, fleet, window, format, device — so the browser and
+  `server/sweep.mjs` run the same code, and it stays testable in Node. Only `src/views/`
+  and `src/components/` may import React. `shared/*.js` are thin re-exports of `src/lib/`
+  kept so the legacy page and the demo pages keep working; delete them once nothing
+  imports `./shared/`.
+- The backend (`server/`) is still plain Node with **zero npm dependencies** — the npm
+  deps are build-time only (react, react-dom, vite, @vitejs/plugin-react).
 - Theming matches the MDM dashboard's tokens (coral/periwinkle brand gradient,
   light/dark via `prefers-color-scheme`) — see the `:root` block in `app.css` (`style.css`
   is the old theme, still used by `settings.html` and the demo pages).
@@ -225,8 +240,16 @@ oversight; don't add restaurant filtering back in without being asked.
 
 ## Deploying
 
-Static files, no build/compile step. "Deploy" = get the latest files onto the host
-that serves them and make sure the server process is serving the current code.
+There **is** a build step now, and it runs **on your machine, never on fw2** — fw2's
+default `node` is v10.19.0 and Vite needs >= 18. So `dist/` is **committed on purpose**:
+build locally, commit the result, and fw2 only ever serves static files.
+
+```bash
+npm run build     # -> dist/ (commit it)
+```
+
+"Deploy" = get the latest files onto the host that serves them and make sure the server
+process is serving the current code.
 
 ```bash
 ./deploy.sh
@@ -238,8 +261,9 @@ sweep to run (see `server/README.md`). Run it after pulling new changes. The pag
 the tailnet at `http://100.113.189.96:8090/` (not `localhost` — this box is reached
 over Tailscale from other machines).
 
-There is no CI/CD here and no build artifact — committing to `main` and running
-`./deploy.sh` on the host is the entire release process.
+There is no CI/CD here. `npm run build`, commit (including `dist/`), push, then
+`./deploy.sh` on the host is the entire release process. Forgetting to rebuild ships the
+previous bundle, so build before you commit.
 
 ### Deploying from another machine (Tariq's PC)
 

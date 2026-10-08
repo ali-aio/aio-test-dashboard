@@ -3,7 +3,12 @@
 // The 30-min sweep is too coarse for "temperature today", so these screens pull a 48 h
 // window per device at the 5-min interval. 48 h, not 24, because a bench run can start
 // before midnight and an in-progress discharge has to be found from its start.
+//
+// The window is kept in the browser (IndexedDB, src/lib/db.js), so opening the page draws
+// straight from the last copy and then asks the MDM only for the readings since — one
+// short request per device instead of seven days' worth every time.
 import { fetchHistoryRange, mapLimit } from './data.js';
+import { STORES, withStore, isAvailable } from './db.js';
 import { normalize, detectCycles } from './cycles.js';
 import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
 import { H, MIN, median } from './format.js';
@@ -17,16 +22,51 @@ export const subscribeWindow = f => { subs.add(f); return () => subs.delete(f); 
 export const getWindow = () => snapshot;
 export const rowsFor = serial => state.rows[serial] || [];
 
+// Re-ask for the last half hour each time: the newest buckets may have been partial.
+const OVERLAP = 30 * MIN;
+
+async function readCache(serials) {
+  if (!isAvailable()) return {};
+  try {
+    const all = await withStore(STORES.readings, 'readonly', st => st.getAll());
+    const want = new Set(serials), out = {};
+    for (const r of all || []) if (want.has(r.id)) out[r.id] = r;
+    return out;
+  } catch (e) { return {}; }
+}
+async function writeCache(rows, at) {
+  if (!isAvailable()) return;
+  try { await withStore(STORES.readings, 'readwrite', st => { for (const [id, list] of Object.entries(rows)) st.put({ id, at, rows: list }); }); }
+  catch (e) { /* storage blocked or full — the next visit just fetches the full window */ }
+}
+
+let restored = false;
 export async function loadWindow(DEV, force = false) {
   if (state.loading || !DEV.length) return;
   if (!force && state.at && Date.now() - state.at < 5 * MIN) return;
   state.loading = true; state.err = null; bump();
   try {
+    const cache = force ? {} : await readCache(DEV.map(d => d.serial));
+    // Paint the stored copy first, so the charts are up before the network is asked anything.
+    if (!restored && Object.keys(cache).length) {
+      restored = true;
+      state.rows = Object.fromEntries(Object.entries(cache).map(([k, v]) => [k, v.rows]));
+      state.at = Math.min(...Object.values(cache).map(v => v.at)); bump();
+    }
     const now = Date.now(), from = now - WINDOW_HOURS * H, out = {};
-    await mapLimit(DEV, 3, async d => { out[d.serial] = normalize(await fetchHistoryRange(d.serial, from, now, 300)); });
+    await mapLimit(DEV, 3, async d => {
+      const old = (cache[d.serial]?.rows || []).filter(r => Date.parse(r.timestamp) >= from);
+      const last = old.length ? Date.parse(old[old.length - 1].timestamp) : 0;
+      const since = last ? Math.max(from, last - OVERLAP) : from;
+      const fresh = normalize(await fetchHistoryRange(d.serial, since, now, 300));
+      out[d.serial] = [...old.filter(r => Date.parse(r.timestamp) < since), ...fresh];
+    });
     state.failed = DEV.filter(d => !out[d.serial]).length; // mapLimit swallows per-device errors
     if (state.failed === DEV.length) throw new Error('history unavailable for every device');
+    // a device whose request failed keeps the copy it had rather than going blank
+    for (const d of DEV) if (!out[d.serial] && state.rows[d.serial]) out[d.serial] = state.rows[d.serial];
     state.rows = out; state.at = now;
+    writeCache(out, now);
   } catch (e) { state.err = e.message; }
   finally { state.loading = false; bump(); }
 }

@@ -5,6 +5,7 @@
 
      files   kept CSV imports, so the dashboard opens onto data  (history.js)
      events  hand-written device incidents                        (events.js)
+     readings  the 7-day MDM reading window per device            (window.js)
 
    Both live here because they share a database, and a database shared across
    modules needs one owner for its version and upgrade path.
@@ -16,10 +17,10 @@
    =========================================================================== */
 
 const DB_NAME = 't7-dashboard'
-const DB_VERSION = 2          // v2 added the `events` store
+const DB_VERSION = 3          // v2 added the `events` store, v3 `readings`
 const TIMEOUT_MS = 5000
 
-export const STORES = { files: 'files', events: 'events' }
+export const STORES = { files: 'files', events: 'events', readings: 'readings' }
 
 /** False in Node, in private windows that block storage, and in old browsers. */
 export function isAvailable() {
@@ -61,6 +62,9 @@ export function openDb() {
       }
       if (!db.objectStoreNames.contains(STORES.events)) {
         db.createObjectStore(STORES.events, { keyPath: 'id' })
+      }
+      if (!db.objectStoreNames.contains(STORES.readings)) {
+        db.createObjectStore(STORES.readings, { keyPath: 'id' })
       }
     }
 

@@ -129,6 +129,10 @@ oversight; don't add restaurant filtering back in without being asked.
   `src/App.jsx` (shell, source list, status bar, inspector, v1/v2 picker, theme) ->
   `src/views/*.jsx`. Built with `npm run build` into `dist/`, served at `/dist/app.html`
   until the v1 views are ported and it takes over `/`.
+- `src/lib/window.js` — the 7-day, 5-minute reading window behind Today and the charts. It is
+  kept in the browser's IndexedDB (`readings` store in `src/lib/db.js`), so a page open draws
+  from the stored copy and fetches only the readings since (last stamp − 30 min). "Reload
+  readings" bypasses it and refetches the full window.
 - `src/lib/plan.js` — the **declared test-type schedule**, the answer to the one thing MDM
   telemetry cannot supply. A declaration is (test type, date window, device group, time
   window); resolution order is explicit declaration > standing weekly rota > inferred from

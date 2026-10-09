@@ -28,15 +28,20 @@ export const READING_COLUMNS = [
   { key: 'battery_pct', label: 'Battery %', get: (r) => num(r.battery_pct) },
   { key: 'battery_temp_c', label: 'Battery temp °C', get: (r) => num(extraOf(r).battery_temp_c, 1) },
   { key: 'charging', label: 'Charging', get: (r) => { const v = extraOf(r).charging; return v == null ? '' : v ? 'yes' : 'no' } },
-  { key: 'charger_type', label: 'Charger type', get: (r) => extraOf(r).charger_type ?? '' },
-  { key: 'wlc_status', label: 'Wireless pad status', get: (r) => extraOf(r).wlc_status ?? '' },
-  { key: 'wlc_charging', label: 'Wireless charging', get: (r) => { const v = extraOf(r).wlc_charging; return v == null ? '' : v ? 'yes' : 'no' } },
-  { key: 'charger_voltage_mv', label: 'Charger voltage mV', get: (r) => num(extraOf(r).charger_voltage_mv) },
+  // charger type, wireless charging and charger voltage are only in a device's *latest*
+  // check-in (/testdata/devices), never in its history rows, so they are not offered here;
+  // nor is last_seen_at, which history repeats on every row as the device's current value.
+  { key: 'wlc_status', label: 'Wireless pad', get: (r) => { const v = extraOf(r).wlc_status; return v == null || v === '' ? '' : +v === 0 ? 'off' : +v === 1 ? 'on' : `on (status ${v})` } },
   { key: 'build_id', label: 'Firmware (build)', get: (r) => r.build_id ?? '' },
-  { key: 'last_seen_at', label: 'Last seen (UTC)', get: (r) => r.last_seen_at ?? '' },
+  { key: 'wifi_rssi', label: 'Wi-Fi signal dBm', get: (r) => num(extraOf(r).wifi_rssi) },
+  { key: 'wifi', label: 'Wi-Fi network', get: (r) => String(extraOf(r).wifi ?? '').replace(/^"(.*)"$/, '$1') },
+  { key: 'ram_used_mb', label: 'RAM used MB', get: (r) => num(extraOf(r).ram_usage_mb?.used) },
+  { key: 'ram_total_mb', label: 'RAM total MB', get: (r) => num(extraOf(r).ram_usage_mb?.total) },
+  { key: 'storage_free_gb', label: 'Storage free GB', get: (r) => num(extraOf(r).storage_free_gb) },
+  { key: 'ip_address', label: 'IP address', get: (r) => extraOf(r).ip_address ?? '' },
 ]
 // keys the named columns already cover, so "every other MDM field" doesn't repeat them
-const COVERED = new Set(['battery_temp_c', 'charging', 'charger_type', 'wlc_status', 'wlc_charging', 'charger_voltage_mv'])
+const COVERED = new Set(['battery_temp_c', 'charging', 'wlc_status', 'wifi_rssi', 'wifi', 'ram_usage_mb', 'storage_free_gb', 'ip_address'])
 
 export const CYCLE_COLUMNS = [
   { key: 'serial', label: 'Serial', get: (c) => c.serial },

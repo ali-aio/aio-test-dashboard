@@ -296,8 +296,8 @@ const mdmCases = []
     ]
     const csv = readingsCsv(rows, ['serial', 'time_utc', 'battery_pct', 'battery_temp_c', 'charging', 'wlc_status'], true).trim().split('\r\n')
     want(csv.length === 3, `lines ${csv.length}`)
-    want(csv[0] === 'Serial,"Time (UTC, ISO)",Battery %,Battery temp °C,Charging,Wireless pad status,extra.foo', csv[0])
-    want(csv[1] === 'A,2026-10-09T10:00:00Z,80,31.5,no,1,x' && csv[2] === 'A,2026-10-09T10:10:00Z,79,31.7,yes,,', csv.slice(1).join(' | '))
+    want(csv[0] === 'Serial,"Time (UTC, ISO)",Battery %,Battery temp °C,Charging,Wireless pad,extra.foo', csv[0])
+    want(csv[1] === 'A,2026-10-09T10:00:00Z,80,31.5,no,on,x' && csv[2] === 'A,2026-10-09T10:10:00Z,79,31.7,yes,,', csv.slice(1).join(' | '))
     want(extraKeys(rows).join() === 'foo', 'extra keys')
     const cc = cyclesCsv([{ serial: 'B', testType: 'WLC on Load', start: 1, end: 2, startBattery: 100, endBattery: 20, mdmCycles: null }], ['serial', 'testType', 'batteryCycles', 'cyclesSource']).trim().split('\r\n')
     want(cc[1] === 'B,WLC on Load,0.80,battery drop ÷ 100', cc[1])

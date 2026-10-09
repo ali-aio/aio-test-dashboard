@@ -39,7 +39,7 @@ export default function ExportDialog({ devices, cycles, group, onClose }) {
   const [from, setFrom] = useState(() => toInput(Date.now() - 86400e3))
   const [to, setTo] = useState(() => toInput(Date.now()))
   const [iv, setIv] = useState(300)
-  const [rCols, setRCols] = useState(() => new Set(['serial', 'time_local', 'battery_pct', 'battery_temp_c', 'charging', 'charger_type', 'wlc_status', 'build_id']))
+  const [rCols, setRCols] = useState(() => new Set(['serial', 'time_local', 'battery_pct', 'battery_temp_c', 'charging', 'wlc_status', 'build_id']))
   const [withExtra, setWithExtra] = useState(false)
   const [cCols, setCCols] = useState(() => new Set(CYCLE_COLUMNS.map((c) => c.key)))
   const [busy, setBusy] = useState(null)   // { done, total } while fetching
@@ -112,8 +112,8 @@ export default function ExportDialog({ devices, cycles, group, onClose }) {
               <button type="button" aria-pressed={kind === 'cycles'} className={kind === 'cycles' ? 'is-on' : ''} onClick={() => setKind('cycles')}>Cycles (one row each)</button>
             </div>
             <div className="help">{kind === 'readings'
-              ? 'Every reading the MDM holds for each device in the time span — battery, temperature, charging — at the spacing you pick.'
-              : 'One row per detected cycle: test, start and end, cycle time, battery, drain, peak temperature, battery cycles.'}</div>
+              ? 'The raw log: one row per device per reading time (e.g. 3:00 PM — battery 78%, 49.4 °C, not charging), at the spacing you pick below.'
+              : 'The summary: one row per complete discharge cycle (e.g. 8 Oct 10:06 AM → 7:00 PM, 98% → 6%, 10.13 %/h, peak 44.1 °C, its test).'}</div>
           </section>
 
           <section>

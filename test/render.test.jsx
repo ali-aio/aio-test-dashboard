@@ -281,6 +281,11 @@ const mdmCases = []
     want((h.split(`Every cycle on ${sn}`)[2] || h.split(`Every cycle on ${sn}`)[1]).match(/<tr/g).length - 1 >= n, `fewer than ${n} run rows`)
     want(renderToString(<DeviceView serial="NOPE" d={undefined} cycles={cycles} onOpenTest={nop} />).replace(/<!-- -->/g, '').includes('No device NOPE'), 'unknown serial')
   })
+  check('all tests: lifetime tile shows the average per device', () => {
+    const lt = { value: 100, devices: 4, rows: [], missing: [] }
+    const h = renderToString(<T7Overview cycles={covered} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} lifetime={lt} />).replace(/<!-- -->/g, '')
+    want(h.includes('25.00') && h.includes('average per device') && h.includes('100.00 total across 4'), 'average not shown')
+  })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()
     const h = renderToString(<RangePicker value={null} onChange={nop} daysWithRuns={new Map([[d, 24]])} />)

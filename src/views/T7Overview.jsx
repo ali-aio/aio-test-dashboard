@@ -130,7 +130,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, allS
   // The battery-cycles tile still answers with no runs in range (e.g. "Last hour" mid-run).
   if (!cycles.length) return (
     <div className="view-stack">
-      <div className="stat-row stat-row-lg"><LifetimeStat lifetime={lifetime} hero /></div>
+      <div className="stat-row stat-row-lg"><LifetimeStat lifetime={lifetime} hero average /></div>
       <EmptyNote>No finished cycles match the current filters. A cycle is listed once it ends — the one in progress is on Today.</EmptyNote>
     </div>
   )
@@ -138,7 +138,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, allS
   return (
     <div className="view-stack">
       <div className="stat-row stat-row-lg">
-            <LifetimeStat lifetime={lifetime} hero />
+            <LifetimeStat lifetime={lifetime} hero average />
             <Stat label="Total devices" value={fmtInt(k.serials)}
               breakdown={(lifetime?.rows || []).slice().sort((a, b) => (b.value ?? -1) - (a.value ?? -1))
                 .map((r) => ({ id: r.serial, label: r.serial, value: r.value ?? 0, display: fmtLifetime(r.value),

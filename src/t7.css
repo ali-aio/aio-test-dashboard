@@ -1983,3 +1983,44 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 .export-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 10px; }
 .export-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid var(--border); flex-wrap: wrap; }
 .header-export { display: inline-flex; align-items: center; gap: 6px; height: 32px; }
+
+/* ------------------------------------------------------------ alignment pass
+   One height for every control, one baseline for every tile, so screens line up. */
+:root { --control-h: 36px; }
+
+/* header: tabs, search, Export, Live and the theme button share one height and centre line */
+.app-header { min-height: 64px; }
+.app-header .tabs { height: var(--control-h); align-items: center; padding: 2px; }
+.app-header .tab { padding: 0 14px; height: calc(var(--control-h) - 6px); display: inline-flex; align-items: center; }
+.app-header .dev-search input { height: var(--control-h); }
+.app-header .btn, .app-header .header-export { height: var(--control-h); min-height: var(--control-h); }
+.app-header .btn-icon { width: var(--control-h); justify-content: center; padding: 0; }
+
+/* filter bar: drop-downs and the Serial / Test Date buttons are the same height, labels on
+   one line, and Reset lines up with the controls rather than floating in the middle */
+.filter-bar { align-items: flex-end; }
+.filter-bar select.control, .filter-bar .control-btn, .filter-bar .ver select,
+.control-row select.control, .control-row .control-btn { height: var(--control-h); min-height: var(--control-h); box-sizing: border-box; }
+.filter-bar .btn-reset { height: var(--control-h); min-height: var(--control-h); }
+.filter-field { justify-content: flex-end; }
+
+/* rows of controls outside the filter bar (Comparison's Compare by / to compare) */
+.control-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.control-row .seg { height: var(--control-h); box-sizing: border-box; align-items: stretch; }
+.control-note { display: inline-flex; align-items: center; height: var(--control-h); }
+
+/* stat tiles: label, value and foot sit on shared rows across a row of tiles, so a label
+   that wraps to two lines no longer pushes its number below its neighbours' */
+@supports (grid-template-rows: subgrid) {
+  .stat-row { grid-auto-rows: auto; }
+  .stat-row > .stat, .stat-row > .stat-wrap, .stat-row > .stat-wrap > .stat {
+    grid-row: span 3; display: grid; grid-template-rows: subgrid; row-gap: 3px; align-content: start;
+  }
+  .stat-row > .stat-wrap { row-gap: 0; }
+  .stat-row .stat-label { align-self: end; padding-right: 22px; }
+  .stat-row .stat-value { align-self: start; }
+  .stat-row .stat-foot { align-self: start; }
+}
+
+/* a lone card in a two-column grid takes the full width instead of leaving half empty */
+.grid-fill > :last-child:nth-child(odd) { grid-column: 1 / -1; }

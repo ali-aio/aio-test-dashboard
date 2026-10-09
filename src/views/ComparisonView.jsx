@@ -178,7 +178,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
   if (groups.length < 2) {
     return (
       <div className="view-stack">
-        <div className="row row-wrap" style={{ gap: 12 }}>{compareBySwitch}</div>
+        <div className="row row-wrap control-row">{compareBySwitch}</div>
         <EmptyNote>
           Only one {DIMENSIONS.find((d) => d.id === dimension)?.label.toLowerCase()} in scope — nothing
           to compare. Pick another option in Compare by, or widen the filters.
@@ -192,7 +192,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
 
   return (
     <div className="view-stack">
-      <div className="row row-wrap" style={{ gap: 12 }}>
+      <div className="row row-wrap control-row">
         {compareBySwitch}
         <label className="filter-field">
           <span className="filter-label">
@@ -201,7 +201,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
           <GroupPicker groups={groups} counts={cyclesByGroup} selected={visible.map((g) => g.label)}
             onChange={setPicked} />
         </label>
-        <span className="hint" style={{ alignSelf: 'end', paddingBottom: 8 }}>
+        <span className="hint control-note">
           {visible.length} of {groups.length} side by side.
         </span>
       </div>

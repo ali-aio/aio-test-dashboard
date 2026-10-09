@@ -38,7 +38,8 @@ export default function CyclePlanView({ fleet }) {
   // Confirmed / Inferred.
   const serialOf = useMemo(() => { const m = new Map(); for (const d of DEV) for (const c of d.cycles) m.set(c, d.serial); return m }, [DEV, allCycles])
   const amountOn = key => splitText(allCycles.filter(c => dayKey(c.start) === key)
-    .map(c => ({ mdmCycles: mdmCyclesFor(fleet.readings, serialOf.get(c), c.start, c.end) })))
+    // keep the start: devices that started together are one cycle (splitCycles.js)
+    .map(c => ({ start: c.start, mdmCycles: mdmCyclesFor(fleet.readings, serialOf.get(c), c.start, c.end) })))
   const resolve = key => {
     const r = resolveDay(key, { decls, rota, ran: ranOn(key), devices: DEV.length })
     const src = r.decl || r.rota || null
@@ -68,10 +69,6 @@ export default function CyclePlanView({ fleet }) {
 
   return (
     <div className="view-stack">
-      <div className="view-head">
-        <div><h1>Cycle plan</h1>
-        </div>
-      </div>
 
       {!decls.length && !Object.keys(rota).length && (
         <div className="banner banner-warn">

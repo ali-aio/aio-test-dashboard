@@ -133,6 +133,11 @@ oversight; don't add restaurant filtering back in without being asked.
   screen (`/` focuses it); a match opens `#/nx/device/<serial>` (`src/views/DeviceView.jsx`): status
   now, totals, battery curve per test, tests it has run (click → that test filtered to the device)
   and every run, all tests, newest first. Filters do not apply on that page.
+- **Export CSV** — header button on every screen → `src/components/ExportDialog.jsx` (rendered on
+  `<body>` via a portal; inside the sticky header a fixed overlay is trapped). Readings (the MDM
+  history rows per device, at a chosen interval, `empty` rows dropped) or cycles (one row each);
+  devices, time span and columns are picked by checkbox. Column definitions and CSV text live in
+  `src/lib/csv.js` (tested). Readings fetches retry on the proxy's 429.
 - `src/lib/window.js` — the 7-day, 5-minute reading window behind Today and the charts. It is
   kept in the browser's IndexedDB (`readings` store in `src/lib/db.js`), so a page open draws
   from the stored copy and fetches only the readings since (last stamp − 30 min). "Reload

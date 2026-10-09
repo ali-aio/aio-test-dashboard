@@ -20,6 +20,7 @@ import ThermalView from './views/ThermalView.jsx'
 import DevicesView from './views/DevicesView.jsx'
 import DeviceView from './views/DeviceView.jsx'
 import DeviceSearch from './components/DeviceSearch.jsx'
+import ExportDialog from './components/ExportDialog.jsx'
 import TodayView from './views/TodayView.jsx'
 import CyclePlanView from './views/CyclePlanView.jsx'
 
@@ -61,6 +62,7 @@ export default function App() {
   const hash = useHash()
   const view = ROUTE(hash)
   const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [exporting, setExporting] = useState(false) // the Export CSV dialog
 
   useEffect(() => { boot(); return startPolling() }, [])
   // the Cycle plan is shared through the backend (data/plan.json); without it, per browser
@@ -171,6 +173,10 @@ export default function App() {
         )}
         <div className="header-spacer" />
         {ready && <DeviceSearch devices={DEV} onOpen={sn => { location.hash = `#/nx/device/${encodeURIComponent(sn)}`; window.scrollTo(0, 0) }} />}
+        {ready && <button type="button" className="btn btn-sm header-export" onClick={() => setExporting(true)} title="Download readings or cycles as CSV">
+          <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 2v8M4.5 6.8 8 10.3l3.5-3.5M3 13.5h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          Export CSV</button>}
+        {exporting && <ExportDialog devices={DEV} cycles={cycles} group={GROUP} onClose={() => setExporting(false)} />}
         <span className="hint nowrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span className={`pill ${error ? 'pill-bad' : ready ? 'pill-ok pill-live' : ''}`}>{error ? 'Disconnected' : ready ? 'Live' : 'Connecting'}</span>
           {fleet.server?.lastSweepAt ? <span title={`The server checks the MDM for finished cycles every 30 minutes; last check ${new Date(fleet.server.lastSweepAt).toLocaleString()}. Live device readings update every 30 seconds regardless.`}>

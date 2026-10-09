@@ -17,6 +17,7 @@ import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText } from '../src/lib/splitCycles.js'
 import RangePicker from '../src/components/RangePicker.jsx'
+import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
 import { testTypeFor, temperaturePhases } from '../src/lib/adapt.js'
 import { thermalTimingByDevice } from '../src/lib/thermal.js'
@@ -285,6 +286,22 @@ const mdmCases = []
     const lt = { value: 100, devices: 4, rows: [], missing: [] }
     const h = renderToString(<T7Overview cycles={covered} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} lifetime={lt} />).replace(/<!-- -->/g, '')
     want(h.includes('25.00') && h.includes('average per device') && h.includes('100.00 total across 4'), 'average not shown')
+  })
+  check('csv: escaping, gap rows dropped, extra fields, cycles', () => {
+    want(csvField('a,b') === '"a,b"' && csvField('say "hi"') === '"say ""hi"""' && csvField('=SUM(A1)') === "'=SUM(A1)" && csvField(-3) === '-3', 'escaping')
+    const rows = [
+      { serial_number: 'A', sample_at: '2026-10-09T10:00:00Z', battery_pct: 80, build_id: 'v2', extra: { battery_temp_c: 31.5, charging: false, wlc_status: 1, foo: 'x' } },
+      { serial_number: 'A', sample_at: '2026-10-09T10:05:00Z', battery_pct: 0, empty: true, extra: {} },
+      { serial_number: 'A', sample_at: '2026-10-09T10:10:00Z', battery_pct: 79, extra: '{"battery_temp_c":31.7,"charging":true}' },
+    ]
+    const csv = readingsCsv(rows, ['serial', 'time_utc', 'battery_pct', 'battery_temp_c', 'charging', 'wlc_status'], true).trim().split('\r\n')
+    want(csv.length === 3, `lines ${csv.length}`)
+    want(csv[0] === 'Serial,"Time (UTC, ISO)",Battery %,Battery temp °C,Charging,Wireless pad status,extra.foo', csv[0])
+    want(csv[1] === 'A,2026-10-09T10:00:00Z,80,31.5,no,1,x' && csv[2] === 'A,2026-10-09T10:10:00Z,79,31.7,yes,,', csv.slice(1).join(' | '))
+    want(extraKeys(rows).join() === 'foo', 'extra keys')
+    const cc = cyclesCsv([{ serial: 'B', testType: 'WLC on Load', start: 1, end: 2, startBattery: 100, endBattery: 20, mdmCycles: null }], ['serial', 'testType', 'batteryCycles', 'cyclesSource']).trim().split('\r\n')
+    want(cc[1] === 'B,WLC on Load,0.80,battery drop ÷ 100', cc[1])
+    want(estimateRows(24, 0, 86400e3, 300) === 6912, 'estimate')
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

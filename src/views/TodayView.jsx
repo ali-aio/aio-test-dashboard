@@ -228,7 +228,7 @@ export default function TodayView({ fleet }) {
             : 'every device matches the declared test'} />
       </div>
 
-      {drifting.length > 0 && <Drifters drifting={drifting} tt={T.tt} />}
+
 
 
 

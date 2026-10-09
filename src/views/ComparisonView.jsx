@@ -147,7 +147,14 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
     })), [drawable, colorMap])
   // Average per group (T7's view) or every device on its own line, with the device picker.
   const [curveMode, setCurveMode] = useState('avg')
-  const perDevice = useMemo(() => deviceSeries(cycles, allSerials.length ? allSerials : [...new Set(cycles.map((c) => c.serial))]), [cycles, allSerials])
+  // "Every device" follows the groups chosen above: the ticked devices when comparing by
+  // device (so the chart has no second picker of its own), else the devices inside the
+  // ticked firmwares / builds. Colours still come from the full serial list.
+  const chosenCycles = useMemo(() => {
+    const labels = new Set(visible.map((g) => g.label))
+    return cycles.filter((c) => labels.has(c[dimension] ?? 'Unknown'))
+  }, [cycles, visible, dimension])
+  const perDevice = useMemo(() => deviceSeries(chosenCycles, allSerials.length ? allSerials : [...new Set(cycles.map((c) => c.serial))]), [chosenCycles, cycles, allSerials])
   const picker = useDevicePicker(perDevice)
 
   const maxHour = useMemo(
@@ -198,11 +205,15 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
       </div>
 
       <Card expandable title={curveMode === 'all' ? 'Battery curve, every device' : 'Mean battery curve by group'}
-        sub={`${curveMode === 'all' ? 'Each device’s mean battery' : 'Mean battery'} at each whole hour${testType === '__all__' ? ' across every test type in scope' : ` · ${testType}`}`}
+        sub={`${curveMode === 'all'
+          ? (dimension === 'serial'
+            ? `The ${perDevice.length} device${perDevice.length === 1 ? '' : 's'} chosen above, mean battery`
+            : `${perDevice.length} device${perDevice.length === 1 ? '' : 's'} in the ${visible.length} ${GROUP_PLURAL[dimension]} chosen above, mean battery`)
+          : 'Mean battery'} at each whole hour${testType === '__all__' ? ' across every test type in scope' : ` · ${testType}`}`}
         right={<ModeSwitch value={curveMode} onChange={setCurveMode} avgLabel="Average per group" />}>
         <LineChart
           series={curveMode === 'all' ? perDevice : curves}
-          {...(curveMode === 'all' ? picker : {})}
+          {...(curveMode === 'all' && dimension !== 'serial' ? picker : {})}
           xDomain={[0, maxHour]}
           yDomain={[0, 100]}
           formatX={fmtHourTick}

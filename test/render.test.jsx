@@ -77,7 +77,7 @@ for (const [name, lifetime, want] of checks) {
       const html = renderToString(<T7Overview cycles={tt === '__all__' ? cycles : cycles.filter(c => c.testType === tt)} testType={tt} allSerials={all} onPickTestType={nop} onFilter={nop} lifetime={lifetime} />)
       const i = html.indexOf('Lifetime cycles (MDM)'), tile = html.slice(i, i + 400).replace(/<[^>]+>/g, ' ')
       if (i < 0 || !tile.includes(want)) throw new Error(`expected ${want}, tile read: ${tile.replace(/\s+/g, ' ').slice(0, 120)}`)
-      if (!tile.includes('lifetime, all tests — from MDM')) throw new Error('foot text missing')
+      if (tile.includes('lifetime, all tests')) throw new Error('foot text should be gone')
       // cycles come from the MDM only; the run-derived tile was removed on request
       if (html.includes('Battery cycles in these runs')) throw new Error('run-based tile should be gone')
       console.log('OK  ', name, tt === '__all__' ? '(overview)' : '(test view)')

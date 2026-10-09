@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Style Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<!--
+  Design exploration only — mock data, not wired to the API.
+  Three styles that share nothing with the current Finder shell or the earlier demos:
+    1 · Aurora   — dark, glowing gradient accents, frosted cards, gradient-filled charts
+    2 · Bento    — light, mixed-size rounded tiles, big friendly type, one colour per tile
+    3 · Panel    — lab instrument: slate bezels, amber readouts, condensed labels, grid paper
+-->
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: #0b0b10; color: #f2f2f5; font: 14px/1.5 Manrope, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; }
+svg.ic { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; flex: none; }
+:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 6px; }
+
+.pick { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 24px; background: rgba(11,11,16,.8); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,.08); }
+.pick b { margin-right: 8px; }
+.pick .tab { padding: 6px 14px; border-radius: 999px; background: rgba(255,255,255,.08); font-weight: 600; }
+.pick .tab[aria-pressed="true"] { background: #fff; color: #0b0b10; }
+.pick .sp { flex: 1; }
+.note { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 24px; padding: 18px 24px 0; max-width: 1240px; margin: 0 auto; color: rgba(255,255,255,.7); }
+.note h2 { margin: 0 0 3px; font-size: 16px; color: #fff; } .note p { margin: 0; } .note ul { margin: 0; padding-left: 16px; }
+.note .g li::marker { color: #4ade80; } .note .r li::marker { color: #f87171; }
+.stage { padding: 18px 24px 60px; }
+.opt { display: none; } .opt.on { display: block; }
+.frame { max-width: 1240px; margin: 0 auto; border-radius: 22px; overflow: hidden; }
+@media (max-width: 900px) { .note { grid-template-columns: 1fr; gap: 10px; } .stage { padding: 12px 12px 40px; } }
+
+/* ═══════════════ 1 · Aurora ═══════════════ */
+.o1 { --bg: #0c0f1d; --card: rgba(255,255,255,.045); --line: rgba(255,255,255,.09); --t: #f3f4fb; --t2: rgba(243,244,251,.62); --t3: rgba(243,244,251,.4);
+  --a: #8b7cff; --b: #41d9ff; --c: #ff6b9d; --ok: #3ee9a4; --warn: #ffb547; --bad: #ff5d7a;
+  background: var(--bg); color: var(--t); font-family: Sora, system-ui, sans-serif; position: relative; min-height: 820px; }
+.o1::before { content: ""; position: absolute; inset: -20% -10% auto; height: 70%; pointer-events: none;
+  background: radial-gradient(40% 50% at 20% 30%, rgba(139,124,255,.32), transparent 70%), radial-gradient(35% 45% at 75% 20%, rgba(65,217,255,.22), transparent 70%), radial-gradient(30% 40% at 55% 70%, rgba(255,107,157,.16), transparent 70%); filter: blur(30px); }
+.o1 > * { position: relative; }
+.o1 .top { display: flex; align-items: center; gap: 24px; padding: 22px 32px; }
+.o1 .logo { width: 34px; height: 34px; border-radius: 11px; background: linear-gradient(135deg, var(--a), var(--b)); box-shadow: 0 0 30px rgba(139,124,255,.5); }
+.o1 nav { display: flex; gap: 4px; background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+.o1 nav a { padding: 7px 16px; border-radius: 999px; color: var(--t2); text-decoration: none; font-weight: 500; font-size: 13px; }
+.o1 nav a.on { background: rgba(255,255,255,.1); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+.o1 .sp { flex: 1; }
+.o1 .live { display: flex; align-items: center; gap: 8px; color: var(--t2); font-size: 13px; }
+.o1 .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 12px var(--ok); }
+.o1 .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--c), var(--a)); }
+.o1 .body { padding: 10px 32px 36px; display: grid; gap: 18px; }
+.o1 .head { display: flex; align-items: end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.o1 h1 { margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -.02em; }
+.o1 .head p { margin: 4px 0 0; color: var(--t2); }
+.o1 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.o1 .chip { padding: 8px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); color: var(--t2); font-size: 13px; backdrop-filter: blur(10px); }
+.o1 .chip b { color: var(--t); font-weight: 500; margin-left: 4px; }
+.o1 .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 18px; }
+.o1 .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 22px; backdrop-filter: blur(18px); position: relative; overflow: hidden; }
+.o1 .card.hero { grid-column: span 4; background: linear-gradient(145deg, rgba(139,124,255,.35), rgba(65,217,255,.12) 60%, rgba(255,255,255,.03)); border-color: rgba(139,124,255,.4); }
+.o1 .card.hero::after { content: ""; position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(65,217,255,.35), transparent 70%); }
+.o1 .k { grid-column: span 2; }
+.o1 .l { font-size: 12.5px; color: var(--t2); font-weight: 500; }
+.o1 .v { font-size: 34px; font-weight: 600; letter-spacing: -.03em; line-height: 1.1; margin: 8px 0 2px; }
+.o1 .v small { font-size: 15px; color: var(--t2); font-weight: 500; margin-left: 2px; }
+.o1 .hero .v { font-size: 56px; margin-top: 18px; }
+.o1 .f { font-size: 12px; color: var(--t3); display: flex; justify-content: space-between; align-items: end; gap: 8px; margin-top: 8px; }
+.o1 .up { color: var(--ok); font-weight: 600; } .o1 .dn { color: var(--bad); font-weight: 600; }
+.o1 .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+.o1 .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+.o1 .badge.ok { color: var(--ok); background: rgba(62,233,164,.12); } .o1 .badge.warn { color: var(--warn); background: rgba(255,181,71,.14); } .o1 .badge.bad { color: var(--bad); background: rgba(255,93,122,.14); } .o1 .badge.blue { color: var(--b); background: rgba(65,217,255,.12); }
+.o1 .card.chart { grid-column: span 8; }
+.o1 .card.list { grid-column: span 4; }
+.o1 .ch { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.o1 .ch h3 { margin: 0; font-size: 15px; font-weight: 600; } .o1 .ch span { color: var(--t3); font-size: 12.5px; }
+.o1 .seg { display: inline-flex; background: rgba(255,255,255,.06); border-radius: 10px; padding: 3px; }
+.o1 .seg button { padding: 5px 12px; border-radius: 8px; color: var(--t2); font-size: 12.5px; font-weight: 500; }
+.o1 .seg button[aria-pressed="true"] { background: rgba(255,255,255,.14); color: #fff; }
+.o1 .legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--t2); margin-bottom: 8px; }
+.o1 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; box-shadow: 0 0 10px currentColor; }
+.o1 svg text { fill: var(--t3); font: 11px Sora, sans-serif; }
+.o1 .row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+.o1 .row:first-of-type { border-top: 0; padding-top: 0; }
+.o1 .row .sn { font-size: 13px; font-weight: 500; } .o1 .row .sub { font-size: 11.5px; color: var(--t3); }
+.o1 .row .r { margin-left: auto; text-align: right; font-weight: 600; font-size: 14px; } .o1 .row .r span { display: block; font-size: 11px; color: var(--t3); font-weight: 400; }
+.o1 .ring { position: relative; width: 42px; height: 42px; flex: none; } .o1 .ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 600; }
+.o1 .card.tests { grid-column: span 7; } .o1 .card.devs { grid-column: span 5; }
+.o1 .trow { display: grid; grid-template-columns: 1fr 100px 90px 90px; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.o1 .trow:first-of-type { border-top: 0; padding-top: 0; }
+.o1 .trow .n { font-weight: 600; } .o1 .trow .n span { display: block; font-size: 11.5px; color: var(--t3); font-weight: 400; }
+.o1 .trow .val { text-align: right; font-weight: 600; } .o1 .trow .val span { display: block; font-size: 11px; font-weight: 400; color: var(--t3); }
+.o1 .bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; } .o1 .bar i { display: block; height: 100%; border-radius: 3px; }
+@media (max-width: 1000px) { .o1 .card.hero, .o1 .k, .o1 .card.chart, .o1 .card.list, .o1 .card.tests, .o1 .card.devs { grid-column: span 12; } .o1 .k { grid-column: span 6; } .o1 .top, .o1 .body { padding-inline: 16px; } .o1 nav { display: none; } }
+
+/* ═══════════════ 2 · Bento ═══════════════ */
+.o2 { --bg: #f3f1ec; --tile: #ffffff; --ink: #141414; --ink2: #5c5a55; --ink3: #8d8a83; --line: rgba(0,0,0,.06);
+  --lemon: #f6e76b; --mint: #bfeedd; --sky: #cfe3ff; --peach: #ffd3c2; --lilac: #ddd6ff; --ink-tile: #1a1a1a;
+  --ok: #1f8f52; --warn: #c2640a; --bad: #d1343f;
+  background: var(--bg); color: var(--ink); font-family: Manrope, system-ui, sans-serif; min-height: 820px; padding: 28px 32px 40px; }
+.o2 .top { display: flex; align-items: center; gap: 20px; margin-bottom: 26px; flex-wrap: wrap; }
+.o2 .wordmark { font-weight: 800; font-size: 18px; letter-spacing: -.03em; }
+.o2 .wordmark i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--ink); margin-right: 8px; }
+.o2 nav { display: flex; gap: 2px; }
+.o2 nav a { padding: 8px 14px; border-radius: 999px; color: var(--ink2); text-decoration: none; font-weight: 600; font-size: 13.5px; }
+.o2 nav a.on { background: var(--ink); color: #fff; }
+.o2 .sp { flex: 1; }
+.o2 .pill { padding: 8px 14px; border-radius: 999px; background: var(--tile); font-weight: 600; font-size: 13px; color: var(--ink2); box-shadow: 0 1px 0 var(--line); }
+.o2 .pill b { color: var(--ink); }
+.o2 h1 { font-size: 40px; font-weight: 800; letter-spacing: -.035em; line-height: 1.05; margin: 0 0 6px; max-width: 760px; text-wrap: balance; }
+.o2 h1 em { font-style: normal; color: var(--ink3); }
+.o2 .lead { color: var(--ink2); font-size: 15px; margin: 0 0 24px; font-weight: 500; }
+.o2 .bento { display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 150px; gap: 14px; }
+.o2 .t { background: var(--tile); border-radius: 26px; padding: 22px 24px; display: flex; flex-direction: column; min-width: 0; position: relative; overflow: hidden; transition: transform .2s; }
+.o2 .t:hover { transform: translateY(-2px); }
+.o2 .t .l { font-weight: 700; font-size: 13px; } .o2 .t .l small { display: block; color: var(--ink3); font-weight: 600; font-size: 12px; margin-top: 2px; }
+.o2 .t .v { font-size: 52px; font-weight: 800; letter-spacing: -.045em; line-height: 1; margin-top: auto; }
+.o2 .t .v small { font-size: 18px; letter-spacing: -.02em; margin-left: 2px; color: var(--ink2); }
+.o2 .t .f { font-size: 12.5px; color: var(--ink2); font-weight: 600; margin-top: 6px; }
+.o2 .big { grid-column: span 2; grid-row: span 2; background: var(--ink-tile); color: #fff; }
+.o2 .big .l small, .o2 .big .f, .o2 .big .v small { color: rgba(255,255,255,.6); }
+.o2 .big .v { font-size: 96px; }
+.o2 .lemon { background: var(--lemon); } .o2 .mint { background: var(--mint); } .o2 .sky { background: var(--sky); } .o2 .peach { background: var(--peach); } .o2 .lilac { background: var(--lilac); }
+.o2 .w2 { grid-column: span 2; } .o2 .w3 { grid-column: span 3; } .o2 .w4 { grid-column: span 4; } .o2 .h2 { grid-row: span 2; }
+.o2 .t.chart { padding-bottom: 10px; }
+.o2 .t.chart svg { margin-top: auto; }
+.o2 svg text { fill: var(--ink3); font: 11px Manrope, sans-serif; font-weight: 600; }
+.o2 .arrow { position: absolute; right: 20px; top: 20px; width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.06); display: grid; place-items: center; font-size: 15px; }
+.o2 .big .arrow { background: rgba(255,255,255,.12); }
+.o2 .lst { display: flex; flex-direction: column; gap: 0; margin-top: 10px; overflow: hidden; }
+.o2 .lrow { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-weight: 600; font-size: 13px; }
+.o2 .lrow:first-child { border-top: 0; }
+.o2 .lrow .s { color: var(--ink3); font-weight: 600; font-size: 12px; }
+.o2 .tag { padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+.o2 .tag.ok { background: var(--mint); color: var(--ok); } .o2 .tag.warn { background: var(--peach); color: var(--warn); } .o2 .tag.bad { background: #ffd0d4; color: var(--bad); } .o2 .tag.blue { background: var(--sky); color: #1c56b3; }
+.o2 .stack { display: flex; gap: 6px; margin-top: auto; align-items: end; height: 70px; }
+.o2 .stack i { flex: 1; border-radius: 6px 6px 3px 3px; background: var(--ink); opacity: .85; }
+.o2 .ringwrap { display: flex; align-items: center; gap: 18px; margin-top: auto; }
+@media (max-width: 1000px) { .o2 { padding: 20px 16px; } .o2 .bento { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 140px; } .o2 .w3, .o2 .w4 { grid-column: span 2; } .o2 nav { display: none; } .o2 h1 { font-size: 30px; } .o2 .big .v { font-size: 64px; } }
+
+/* ═══════════════ 3 · Panel ═══════════════ */
+.o3 { --bez: #2b2f36; --bez2: #353a42; --face: #1a1d22; --paper: #12151a; --edge: rgba(255,255,255,.08); --edge2: rgba(0,0,0,.5);
+  --amber: #ffb000; --amber-dim: rgba(255,176,0,.35); --green: #5cff8a; --cyan: #5ad7ff; --red: #ff4d4d; --t: #d9dde3; --t2: #8d949e; --t3: #5f6670;
+  background: #0e1013; color: var(--t); font-family: "IBM Plex Mono", ui-monospace, monospace; min-height: 820px; padding: 24px; }
+.o3 .unit { background: linear-gradient(180deg, var(--bez2), var(--bez)); border-radius: 14px; padding: 14px; box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 20px 50px rgba(0,0,0,.5); }
+.o3 .rail { display: flex; align-items: center; gap: 18px; padding: 4px 8px 14px; }
+.o3 .model { font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 22px; letter-spacing: .06em; text-transform: uppercase; color: #e8ecf1; }
+.o3 .model small { display: block; font-size: 11px; letter-spacing: .18em; color: var(--t2); font-weight: 600; }
+.o3 .keys { display: flex; gap: 6px; }
+.o3 .key { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; padding: 7px 14px; border-radius: 6px; background: linear-gradient(180deg, #454b54, #30353d); color: var(--t); box-shadow: 0 2px 0 #1a1d22, inset 0 1px 0 rgba(255,255,255,.12); }
+.o3 .key.on { background: linear-gradient(180deg, #ffc43d, #e69a00); color: #2a1f00; box-shadow: 0 1px 0 #7a5200, inset 0 1px 0 rgba(255,255,255,.4); }
+.o3 .sp { flex: 1; }
+.o3 .led { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .1em; color: var(--t2); }
+.o3 .led i { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
+.o3 .knob { width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #5a616b, #272b31 70%); box-shadow: 0 2px 4px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.15); position: relative; }
+.o3 .knob::after { content: ""; position: absolute; left: 50%; top: 3px; width: 2px; height: 9px; margin-left: -1px; background: var(--amber); border-radius: 1px; }
+.o3 .face { background: var(--face); border-radius: 10px; box-shadow: inset 0 2px 8px var(--edge2), 0 0 0 1px var(--edge); padding: 16px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+.o3 .read { grid-column: span 3; background: #0a0c0f; border-radius: 8px; padding: 10px 14px 12px; box-shadow: inset 0 0 0 1px #000, inset 0 0 24px rgba(0,0,0,.8), 0 0 0 1px var(--edge); position: relative; }
+.o3 .read .l { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--t2); }
+.o3 .read .v { font-size: 38px; font-weight: 500; color: var(--amber); text-shadow: 0 0 14px var(--amber-dim); letter-spacing: -.02em; line-height: 1.15; margin-top: 2px; }
+.o3 .read .v small { font-size: 14px; color: var(--t2); text-shadow: none; margin-left: 6px; }
+.o3 .read .f { font-size: 11px; color: var(--t3); }
+.o3 .read.g .v { color: var(--green); text-shadow: 0 0 14px rgba(92,255,138,.35); } .o3 .read.r .v { color: var(--red); text-shadow: 0 0 14px rgba(255,77,77,.4); } .o3 .read.c .v { color: var(--cyan); text-shadow: 0 0 14px rgba(90,215,255,.35); }
+.o3 .scope { grid-column: span 8; background: var(--paper); border-radius: 8px; box-shadow: inset 0 0 0 1px #000, 0 0 0 1px var(--edge); padding: 12px 14px; position: relative; }
+.o3 .scope::before { content: ""; position: absolute; inset: 12px 14px 30px 44px; background-image: linear-gradient(rgba(90,215,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(90,215,255,.08) 1px, transparent 1px); background-size: 10% 25%; pointer-events: none; }
+.o3 .scope .hd { display: flex; justify-content: space-between; align-items: center; font-family: "Barlow Condensed", sans-serif; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; font-size: 12px; color: var(--t2); margin-bottom: 6px; position: relative; }
+.o3 .scope .hd b { color: var(--cyan); }
+.o3 svg text { fill: var(--t3); font: 10.5px "IBM Plex Mono", monospace; }
+.o3 .lg { grid-column: span 4; background: var(--paper); border-radius: 8px; box-shadow: inset 0 0 0 1px #000, 0 0 0 1px var(--edge); padding: 12px 14px; }
+.o3 .lg .hd { font-family: "Barlow Condensed", sans-serif; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; font-size: 12px; color: var(--t2); margin-bottom: 8px; display: flex; justify-content: space-between; }
+.o3 .ch { grid-column: span 12; background: var(--paper); border-radius: 8px; box-shadow: inset 0 0 0 1px #000, 0 0 0 1px var(--edge); padding: 12px 14px; }
+.o3 .ch .hd { font-family: "Barlow Condensed", sans-serif; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; font-size: 12px; color: var(--t2); margin-bottom: 8px; display: flex; gap: 20px; }
+.o3 .ch .hd span { color: var(--t3); }
+.o3 .chan { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.o3 .cell { background: #0a0c0f; border-radius: 6px; padding: 8px 10px; box-shadow: inset 0 0 0 1px #000, 0 0 0 1px var(--edge); }
+.o3 .cell .id { font-size: 10.5px; color: var(--t3); letter-spacing: .06em; display: flex; justify-content: space-between; }
+.o3 .cell .p { font-size: 24px; color: var(--amber); text-shadow: 0 0 10px var(--amber-dim); line-height: 1.2; }
+.o3 .cell.lo .p { color: var(--red); text-shadow: 0 0 10px rgba(255,77,77,.4); } .o3 .cell.chg .p { color: var(--green); text-shadow: 0 0 10px rgba(92,255,138,.35); } .o3 .cell.off .p { color: var(--t3); text-shadow: none; }
+.o3 .cell .m { height: 4px; background: #1c2027; border-radius: 2px; margin: 6px 0 4px; overflow: hidden; } .o3 .cell .m i { display: block; height: 100%; background: var(--amber); }
+.o3 .cell.lo .m i { background: var(--red); } .o3 .cell.chg .m i { background: var(--green); }
+.o3 .cell .s { font-size: 10.5px; color: var(--t2); display: flex; justify-content: space-between; }
+.o3 .cell .s em { font-style: normal; color: var(--red); }
+.o3 .lrow { display: grid; grid-template-columns: 1fr 56px 64px; gap: 10px; padding: 6px 0; border-top: 1px dashed #2a2f37; font-size: 12px; }
+.o3 .lrow:first-of-type { border-top: 0; }
+.o3 .lrow .n { color: var(--t); } .o3 .lrow .a { color: var(--amber); text-align: right; } .o3 .lrow .d { text-align: right; color: var(--t2); }
+.o3 .lrow .d.up { color: var(--green); } .o3 .lrow .d.dn { color: var(--red); }
+@media (max-width: 1000px) { .o3 { padding: 12px; } .o3 .read { grid-column: span 6; } .o3 .scope, .o3 .lg { grid-column: span 12; } .o3 .chan { grid-template-columns: repeat(2, 1fr); } .o3 .keys { display: none; } }
+</style>
+</head>
+<body>
+<div class="pick">
+  <b>Style directions</b>
+  <button class="tab" data-o="1" type="button">1 · Aurora</button>
+  <button class="tab" data-o="2" type="button">2 · Bento</button>
+  <button class="tab" data-o="3" type="button">3 · Panel</button>
+  <span class="sp"></span>
+</div>
+<div class="note" id="note"></div>
+<div class="stage">
+  <div class="opt frame o1" id="opt-1"></div>
+  <div class="opt frame o2" id="opt-2"></div>
+  <div class="opt frame o3" id="opt-3"></div>
+</div>
+
+<script>
+/* ───── mock data ───── */
+const DEV = [
+  { sn: 'AT070AABU00231', test: 'Bench run',       pct: 74, temp: 37.1, rate: 5.1, life: 30.97, rt: 19.6, st: 'run' },
+  { sn: 'AT070AABU00387', test: 'Bench run',       pct: 69, temp: 39.4, rate: 6.0, life: 90.64, rt: 16.7, st: 'run' },
+  { sn: 'AT070AABU00790', test: 'Field Discharge', pct: 76, temp: 35.9, rate: 5.5, life: 14.92, rt: 18.2, st: 'run' },
+  { sn: 'AT070AABU00455', test: 'Run-down',        pct: 9,  temp: 44.8, rate: 6.6, life: 41.30, rt: 15.1, st: 'run', flag: ['bad', 'Almost empty'] },
+  { sn: 'AT070AABU00561', test: 'WLC + Discharge', pct: 62, temp: 46.1, rate: 7.2, life: 52.88, rt: 13.9, st: 'run', flag: ['warn', '46.1 °C'] },
+  { sn: 'AT070AABU00518', test: 'Bench run',       pct: 77, temp: 36.4, rate: 4.4, life: 27.40, rt: 22.7, st: 'run' },
+  { sn: 'AT070AABU00502', test: 'Charging Cycle',  pct: 63, temp: 41.2, rate: 0,   life: 18.75, rt: null, st: 'chg' },
+  { sn: 'AT070AABU00577', test: 'Charging Cycle',  pct: 88, temp: 38.0, rate: 0,   life: 12.66, rt: null, st: 'chg' },
+  { sn: 'AT070AABU00533', test: 'Offline 3 h',     pct: 0,  temp: null, rate: 0,   life: 35.02, rt: null, st: 'off', flag: ['bad', 'Offline'] },
+  { sn: 'AT070AABU00590', test: 'Idle · full',     pct: 100, temp: 32.8, rate: 0,  life: 19.30, rt: null, st: 'idle' },
+  { sn: 'AT070AABU00604', test: 'Idle · full',     pct: 96,  temp: 33.0, rate: 0,  life: 8.45,  rt: null, st: 'idle' },
+  { sn: 'AT070AABU00412', test: 'Idle · full',     pct: 100, temp: 32.1, rate: 0,  life: 22.10, rt: null, st: 'idle' },
+];
+const TESTS = [
+  { n: 'Bench run',       runs: 14, devs: 6,  rt: 19.6, d: +0.4 },
+  { n: 'Field Discharge', runs: 39, devs: 23, rt: 27.0, d: -0.8 },
+  { n: 'WLC + Discharge', runs: 9,  devs: 4,  rt: 13.9, d: -1.6 },
+  { n: 'Run-down',        runs: 5,  devs: 3,  rt: 15.1, d: +0.2 },
+];
+const LIFE = DEV.reduce((s, d) => s + d.life, 0);
+const NOW = 15.67;
+const clock = h => { const m = Math.round(((h % 24) + 24) % 24 * 60); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const f1 = v => v.toFixed(1), f2 = v => v.toFixed(2);
+const curve = (rt, end, n) => Array.from({ length: n }, (_, h) => ({ t: h, v: Math.max(end, 100 - 100 / rt * h + Math.sin(h * 1.3) * 1.2) }));
+const WEEK = [3.1, 4.2, 5.0, 4.6, 6.1, 5.8, 6.4];
+
+/* ───── drawing ───── */
+function smooth(p) { let d = `M${p[0][0].toFixed(1)},${p[0][1].toFixed(1)}`; for (let i = 0; i < p.length - 1; i++) { const a = p[i - 1] || p[i], b = p[i], c = p[i + 1], e = p[i + 2] || c; d += ` C${(b[0] + (c[0] - a[0]) / 6).toFixed(1)},${(b[1] + (c[1] - a[1]) / 6).toFixed(1)} ${(c[0] - (e[0] - b[0]) / 6).toFixed(1)},${(c[1] - (e[1] - b[1]) / 6).toFixed(1)} ${c[0].toFixed(1)},${c[1].toFixed(1)}`; } return d; }
+let gid = 0;
+function chart(series, { w = 600, h = 200, xMax = 26, yMax = 100, L = 30, R = 10, T = 10, B = 22, area = true, xlab = v => v + ' h', ylab = v => v + '%', ticks = [0, 50, 100], xstep = 5, grid = 'rgba(255,255,255,.08)', glow = false, sw = 2.2 } = {}) {
+  const X = x => L + x / xMax * (w - L - R), Y = y => T + (1 - y / yMax) * (h - T - B);
+  let g = '';
+  for (const v of ticks) g += `<line x1="${L}" x2="${w - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${grid}"/><text x="${L - 6}" y="${Y(v) + 3.5}" text-anchor="end">${ylab(v)}</text>`;
+  for (let x = 0; x <= xMax; x += xstep) g += `<text x="${X(x)}" y="${h - 6}" text-anchor="middle">${xlab(x)}</text>`;
+  const defs = series.map((s, i) => `<linearGradient id="g${gid}_${i}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${s.c}" stop-opacity=".45"/><stop offset="1" stop-color="${s.c}" stop-opacity="0"/></linearGradient>`).join('') + (glow ? `<filter id="glow${gid}"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>` : '');
+  const lines = series.map((s, i) => { const p = s.pts.map(q => [X(q.t), Y(q.v)]); const d = smooth(p), last = p[p.length - 1];
+    return (area ? `<path d="${d} L${last[0].toFixed(1)},${Y(0)} L${p[0][0].toFixed(1)},${Y(0)} Z" fill="url(#g${gid}_${i})"/>` : '') + `<path d="${d}" fill="none" stroke="${s.c}" stroke-width="${sw}" stroke-linecap="round"${glow ? ` filter="url(#glow${gid})"` : ''}/><circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="${s.c}"${glow ? ` filter="url(#glow${gid})"` : ''}/>`; }).join('');
+  gid++;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" role="img" aria-label="Battery chart"><defs>${defs}</defs>${g}${lines}</svg>`;
+}
+const spark = (vals, c, w = 90, h = 30, o = {}) => chart([{ pts: vals.map((v, t) => ({ t, v })), c }], { w, h, xMax: vals.length - 1, yMax: Math.max(...vals) * 1.1, L: 2, R: 5, T: 4, B: 4, ticks: [], xstep: 1e9, ...o }).replace(/<text[^>]*>[^<]*<\/text>/g, '');
+const ring = (p, c, size = 42, sw = 5, track = 'rgba(255,255,255,.1)') => { const r = size / 2 - sw, L = 2 * Math.PI * r; return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${track}" stroke-width="${sw}"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${L * p / 100} ${L}" transform="rotate(-90 ${size/2} ${size/2})"/></svg>`; };
+
+/* ═══════════════ 1 · Aurora ═══════════════ */
+(() => {
+  const C = ['#8b7cff', '#41d9ff', '#ff6b9d', '#ffb547'];
+  const curves = TESTS.map((t, i) => ({ pts: curve(t.rt, t.n === 'Run-down' ? 2 : 18, Math.ceil(t.rt) + 1), c: C[i] }));
+  const col = d => d.st === 'off' ? 'rgba(255,255,255,.3)' : d.st === 'chg' ? '#41d9ff' : d.pct < 15 ? '#ff5d7a' : d.pct < 40 ? '#ffb547' : '#3ee9a4';
+  const badge = d => d.flag ? `<span class="badge ${d.flag[0]}">${d.flag[1]}</span>` : d.st === 'chg' ? '<span class="badge blue">Charging</span>' : d.st === 'run' ? '<span class="badge ok">Running</span>' : '<span class="badge ok">Full</span>';
+  document.getElementById('opt-1').innerHTML = `
+    <div class="top"><span class="logo"></span><nav><a class="on" href="#">Overview</a><a href="#">Today</a><a href="#">Cycle plan</a><a href="#">Compare</a><a href="#">Thermal</a></nav><span class="sp"></span><span class="live"><i></i>Live · Test Cycles</span><span class="avatar"></span></div>
+    <div class="body">
+      <div class="head"><div><h1>Good afternoon</h1><p>6 units on the bench since 10:32 · last one finishes about 00:40 · 2 need a look</p></div>
+        <div class="chips"><span class="chip">Test<b>All</b></span><span class="chip">Firmware<b>All</b></span><span class="chip">Range<b>7 days</b></span></div></div>
+      <div class="grid">
+        <div class="card hero"><div class="l">Lifetime battery cycles</div><div class="v num">${f1(LIFE)}</div><div class="f"><span>from the MDM · 12 devices · every test</span></div></div>
+        <div class="card k"><div class="l">Cycles in runs</div><div class="v num">54.1</div><div class="f"><span class="up">▲ 6.4</span>${spark(WEEK, '#8b7cff', 90, 30, { glow: true })}</div></div>
+        <div class="card k"><div class="l">Avg runtime</div><div class="v num">19.6<small>h</small></div><div class="f"><span>bench run</span>${spark([18.9, 19.1, 19.4, 19.0, 19.8, 19.5, 19.6], '#41d9ff', 90, 30)}</div></div>
+        <div class="card k"><div class="l">Peak temperature</div><div class="v num" style="color:var(--warn)">46.1<small>°C</small></div><div class="f"><span>…00561</span>${spark([38, 40, 41, 43, 44, 45, 46.1], '#ffb547', 90, 30)}</div></div>
+        <div class="card k"><div class="l">Fleet</div><div class="v num">6<small>/ 12</small></div><div class="f"><span>running</span><span class="badge bad">1 offline</span></div></div>
+        <div class="card chart"><div class="ch"><h3>Mean battery by test</h3><span class="seg"><button type="button" aria-pressed="true">Mean</button><button type="button">Per device</button><button type="button">Every run</button></span></div>
+          <div class="legend">${TESTS.map((t, i) => `<span><i style="background:${C[i]};color:${C[i]}"></i>${t.n}</span>`).join('')}</div>${chart(curves, { w: 760, h: 250, glow: true })}</div>
+        <div class="card list"><div class="ch"><h3>Needs attention</h3><span>2 units</span></div>
+          ${DEV.filter(d => d.flag).map(d => `<div class="row"><span class="ring">${ring(d.pct, col(d))}<b class="num">${d.st === 'off' ? '—' : d.pct}</b></span><div><div class="sn">${d.sn}</div><div class="sub">${d.test}</div></div><div class="r">${badge(d)}</div></div>`).join('')}
+          <div class="ch" style="margin-top:22px"><h3>Running</h3><span>6 units</span></div>
+          ${DEV.filter(d => d.st === 'run' && !d.flag).slice(0, 4).map(d => `<div class="row"><span class="ring">${ring(d.pct, col(d))}<b class="num">${d.pct}</b></span><div><div class="sn">${d.sn}</div><div class="sub">${d.test}</div></div><div class="r num">~${clock(NOW + d.pct / d.rate)}<span>−${d.rate} %/h</span></div></div>`).join('')}</div>
+        <div class="card tests"><div class="ch"><h3>Tests this week</h3><span>runtime to empty · change vs last week</span></div>
+          ${TESTS.map((t, i) => `<div class="trow"><div class="n">${t.n}<span>${t.runs} runs · ${t.devs} devices</span></div><div class="bar"><i style="width:${t.rt / 30 * 100}%;background:linear-gradient(90deg,${C[i]},${C[i]}88);box-shadow:0 0 12px ${C[i]}66"></i></div><div class="val num">${f1(t.rt)} h</div><div class="val num ${t.d >= 0 ? 'up' : 'dn'}">${t.d >= 0 ? '+' : '−'}${f1(Math.abs(t.d))} h<span>vs last week</span></div></div>`).join('')}</div>
+        <div class="card devs"><div class="ch"><h3>Battery wear</h3><span>lifetime cycles · most worn first</span></div>
+          ${[...DEV].sort((a, b) => b.life - a.life).slice(0, 5).map(d => `<div class="row"><div><div class="sn">${d.sn}</div><div class="sub">${d.test}</div></div><div class="bar" style="flex:1;margin:0 10px"><i style="width:${d.life / 91 * 100}%;background:linear-gradient(90deg,#ff6b9d,#8b7cff)"></i></div><div class="r num">${f2(d.life)}</div></div>`).join('')}</div>
+      </div></div>`;
+})();
+
+/* ═══════════════ 2 · Bento ═══════════════ */
+(() => {
+  const curves = TESTS.map((t, i) => ({ pts: curve(t.rt, t.n === 'Run-down' ? 2 : 18, Math.ceil(t.rt) + 1), c: ['#141414', '#1c56b3', '#1f8f52', '#c2640a'][i] }));
+  const tag = d => d.flag ? `<span class="tag ${d.flag[0]}">${d.flag[1]}</span>` : d.st === 'chg' ? '<span class="tag blue">Charging</span>' : d.st === 'run' ? '<span class="tag ok">Running</span>' : '<span class="tag ok">Full</span>';
+  document.getElementById('opt-2').innerHTML = `
+    <div class="top"><span class="wordmark"><i></i>Test Lab</span><nav><a class="on" href="#">Overview</a><a href="#">Today</a><a href="#">Cycle plan</a><a href="#">Compare</a><a href="#">Thermal</a></nav><span class="sp"></span><span class="pill">Test Cycles · <b>live</b></span><span class="pill">7 days ▾</span></div>
+    <h1>Six units on the bench, <em>finishing around 00:40.</em></h1>
+    <p class="lead">Thursday 9 October · bench run since 10:32 · 2 charging · 1 offline</p>
+    <div class="bento">
+      <div class="t big"><span class="arrow">↗</span><div class="l">Lifetime cycles<small>from the MDM · 12 devices · every test</small></div><div class="v num">${f1(LIFE)}</div><div class="f">54.1 of them in this week's runs</div></div>
+      <div class="t lemon"><div class="l">Avg runtime<small>bench run · 14 runs</small></div><div class="v num">19.6<small>h</small></div></div>
+      <div class="t mint"><div class="l">Running<small>of 12 units</small></div><div class="v num">6</div></div>
+      <div class="t w2 chart"><span class="arrow">↗</span><div class="l">Cycles per day<small>this week · ▲ 6.4 on last week</small></div><div class="stack">${WEEK.map(v => `<i style="height:${v / 6.4 * 100}%"></i>`).join('')}</div></div>
+      <div class="t peach"><div class="l">Peak temp<small>…00561 · WLC</small></div><div class="v num">46<small>°C</small></div></div>
+      <div class="t"><div class="l">Attention<small>offline · hot</small></div><div class="v num" style="color:var(--bad)">2</div></div>
+      <div class="t w4 h2 chart"><span class="arrow">↗</span><div class="l">Mean battery by test<small>${TESTS.map((t, i) => `<span style="color:${curves[i].c}">● ${t.n}</span>`).join(' &nbsp; ')}</small></div>${chart(curves, { w: 760, h: 210, grid: 'rgba(0,0,0,.07)', sw: 2.5 })}</div>
+      <div class="t w2 h2 sky"><div class="l">Tests this week<small>runtime to empty</small></div><div class="lst">${TESTS.map(t => `<div class="lrow"><span>${t.n}<br><span class="s">${t.runs} runs</span></span><span class="num">${f1(t.rt)} h</span><span class="num" style="color:${t.d >= 0 ? 'var(--ok)' : 'var(--bad)'}">${t.d >= 0 ? '+' : '−'}${f1(Math.abs(t.d))}</span></div>`).join('')}</div></div>
+      <div class="t w3 h2"><span class="arrow">↗</span><div class="l">Units<small>what each one is doing</small></div><div class="lst">${DEV.slice(0, 6).map(d => `<div class="lrow"><span>${d.sn}<br><span class="s">${d.test}</span></span>${tag(d)}<span class="num">${d.st === 'off' ? '—' : d.pct + '%'}</span></div>`).join('')}</div></div>
+      <div class="t w3 h2 lilac"><span class="arrow">↗</span><div class="l">Battery wear<small>lifetime cycles · most worn first</small></div><div class="lst">${[...DEV].sort((a, b) => b.life - a.life).slice(0, 6).map(d => `<div class="lrow"><span>${d.sn}</span><span></span><span class="num">${f2(d.life)}</span></div>`).join('')}</div></div>
+    </div>`;
+})();
+
+/* ═══════════════ 3 · Panel ═══════════════ */
+(() => {
+  const curves = TESTS.map((t, i) => ({ pts: curve(t.rt, t.n === 'Run-down' ? 2 : 18, Math.ceil(t.rt) + 1), c: ['#ffb000', '#5ad7ff', '#5cff8a', '#ff6ad5'][i] }));
+  document.getElementById('opt-3').innerHTML = `<div class="unit">
+    <div class="rail"><div class="model">AIO Battery Lab<small>Test Cycles · T7 fleet</small></div>
+      <div class="keys"><span class="key on">Overview</span><span class="key">Today</span><span class="key">Plan</span><span class="key">Compare</span><span class="key">Thermal</span></div>
+      <span class="sp"></span><span class="led"><i></i>LINK OK · 40 s</span><span class="knob" title="Range"></span><span class="knob" title="Test"></span></div>
+    <div class="face">
+      <div class="read"><div class="l">Lifetime cycles · MDM</div><div class="v num">${f1(LIFE)}</div><div class="f">12 devices · every test</div></div>
+      <div class="read c"><div class="l">Cycles in runs · 7 d</div><div class="v num">54.1</div><div class="f">+6.4 vs last week</div></div>
+      <div class="read g"><div class="l">Avg runtime to empty</div><div class="v num">19.6<small>h</small></div><div class="f">bench run · 14 runs</div></div>
+      <div class="read r"><div class="l">Peak battery temp</div><div class="v num">46.1<small>°C</small></div><div class="f">…00561 · limit 45</div></div>
+      <div class="scope"><div class="hd"><span>CH 1–4 · mean battery vs elapsed</span><span>${TESTS.map((t, i) => `<b style="color:${curves[i].c};margin-left:12px">■ ${t.n}</b>`).join('')}</span></div>
+        ${chart(curves, { w: 760, h: 230, grid: 'transparent', area: false, sw: 2, glow: true })}</div>
+      <div class="lg"><div class="hd"><span>Tests · 7 d</span><span>runtime · Δ</span></div>
+        ${TESTS.map(t => `<div class="lrow"><span class="n">${t.n}<br><span style="color:var(--t3);font-size:11px">${t.runs} runs · ${t.devs} dev</span></span><span class="a num">${f1(t.rt)}h</span><span class="d num ${t.d >= 0 ? 'up' : 'dn'}">${t.d >= 0 ? '+' : '−'}${f1(Math.abs(t.d))}h</span></div>`).join('')}
+        <div class="hd" style="margin-top:14px"><span>Wear · lifetime</span><span>cycles</span></div>
+        ${[...DEV].sort((a, b) => b.life - a.life).slice(0, 4).map(d => `<div class="lrow"><span class="n">${d.sn.slice(-7)}</span><span></span><span class="a num">${f2(d.life)}</span></div>`).join('')}</div>
+      <div class="ch"><div class="hd">Channels · live<span>● amber discharging · green charging · red below 15% · grey offline</span></div>
+        <div class="chan">${DEV.map(d => `<div class="cell ${d.st === 'off' ? 'off' : d.st === 'chg' ? 'chg' : d.pct < 15 ? 'lo' : ''}"><div class="id"><span>${d.sn.slice(-7)}</span><span>${d.temp ? f1(d.temp) + '°' : '--'}</span></div><div class="p num">${d.st === 'off' ? 'OFF' : d.pct + '%'}</div><div class="m"><i style="width:${d.pct}%"></i></div><div class="s"><span>${d.test.slice(0, 14)}</span><span>${d.st === 'run' ? '→' + clock(NOW + d.pct / d.rate) : d.st === 'chg' ? '⚡' : d.st === 'off' ? '<em>LOST</em>' : 'FULL'}</span></div></div>`).join('')}</div></div>
+    </div></div>`;
+})();
+
+/* ───── notes + switching ───── */
+const NOTES = {
+  1: ['1 · Aurora', 'Dark, with soft colour auroras behind frosted cards, glowing accents and gradient-filled curves. The hero card is lifetime cycles; the rest is a 12-column card grid. What most people picture when they say "a beautiful dashboard".',
+    ['Striking on a wall screen and in screenshots', 'Charts with glow and gradient read as premium', 'Card grid adapts to any page: today, thermal, compare'],
+    ['Dark only (a light version would be a second design)', 'Glow and blur are purely decorative', 'Needs care so it doesn\'t drift into "crypto dashboard"']],
+  2: ['2 · Bento', 'Light, warm off-white ground, mixed-size rounded tiles with big friendly numbers. One pastel per tile, a black hero tile for lifetime cycles, a sentence headline that says what is happening. Apple-keynote / iOS-widget energy.',
+    ['Friendly and very readable; nothing looks technical', 'Headline sentence answers "what\'s happening" before any number', 'Tiles reorder easily per page'],
+    ['Pastels must stay muted or it turns toy-like', 'Fixed tile heights clip long lists; needs "show all" links', 'Less dense than the current app']],
+  3: ['3 · Panel', 'A lab instrument: slate bezel, physical keys and knobs, black readouts with amber numerals, a scope screen on grid paper, and a channel grid for every unit. Built for people who sit next to the bench supplies this dashboard watches.',
+    ['Unmistakably "hardware lab" — nothing generic about it', 'Amber / green / red readouts make state obvious across the room', 'Monospace numerals line up perfectly'],
+    ['Themed looks can wear thin; must stay restrained', 'Dark only', 'Long text (test names) needs abbreviations']],
+};
+function show(o) {
+  document.querySelectorAll('.pick .tab').forEach(b => b.setAttribute('aria-pressed', b.dataset.o === o));
+  document.querySelectorAll('.opt').forEach(el => el.classList.toggle('on', el.id === 'opt-' + o));
+  const [t, d, g, r] = NOTES[o];
+  document.getElementById('note').innerHTML = `<div><h2>${t}</h2><p>${d}</p></div><ul class="g">${g.map(x => `<li>${x}</li>`).join('')}</ul><ul class="r">${r.map(x => `<li>${x}</li>`).join('')}</ul>`;
+  try { localStorage.setItem('styleDemo', o); } catch {}
+  if (location.hash !== '#' + o) history.replaceState(null, '', '#' + o);
+}
+document.querySelectorAll('.pick .tab').forEach(b => b.onclick = () => show(b.dataset.o));
+let start = location.hash.slice(1); try { start = start || localStorage.getItem('styleDemo'); } catch {}
+show(NOTES[start] ? start : '1');
+</script>
+</body>
+</html>

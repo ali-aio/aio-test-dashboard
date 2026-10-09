@@ -15,7 +15,7 @@ export default function LifetimeStat({ lifetime, hero = false }) {
   const miss = missing ? ` · ${missing} device${missing === 1 ? '' : 's'} without readings` : ''
   return (
     <Stat label={lifetime.range ? 'Battery cycles (MDM)' : 'Lifetime cycles (MDM)'} value={fmtLifetime(lifetime.value)} hero={hero}
-      foot={lifetime.range ? `${lifetime.range} — from ${SOURCE[lifetime.source]}${miss}` : `lifetime, all tests — from MDM${miss}`}
+      foot={lifetime.range ? `${lifetime.range} — from ${SOURCE[lifetime.source]}${miss}` : (miss ? miss.replace(/^ · /, '') : undefined)}
       breakdownLabel={lifetime.range ? `Battery cycles per device · ${lifetime.range}` : 'Lifetime cycles per device (MDM)'} breakdownRight
       breakdown={lifetime.rows.slice().sort((a, b) => (b.value ?? -1) - (a.value ?? -1) || compareSerial(a.serial, b.serial))
         .map((r) => ({ id: r.serial, label: r.serial, value: r.value ?? 0, display: fmtLifetime(r.value) }))} />

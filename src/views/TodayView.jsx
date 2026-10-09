@@ -192,7 +192,7 @@ export default function TodayView({ fleet }) {
           <div className="secondary" style={{ fontSize: 12.5 }}>
             {T.tt ? <>{T.source === 'rota' ? 'From the standing weekly rota' : <>Planned{T.src?.by ? <> by <b>{T.src.by}</b></> : null}{T.src?.at ? ` at ${hm(T.src.at)}` : ''}</>}
               {' '}· {T.serials.length} devices · window {hm(T.startMs)}–{hm(T.endMs)}{T.overnight ? ' next day' : ''}</>
-              : <>Telemetry cannot say which test this is — the MDM carries no test type. <a className="link" href="#/nx/plan">Declare one on the Cycle plan</a> and today's rows are stamped with it.</>}
+              : <>The MDM can't tell which test is running. <a className="link" href="#/nx/plan">Set one on the Cycle plan</a>.</>}
           </div>
         </div>
         {/* search, on the right of the day's header: narrows the charts and the device list */}
@@ -234,7 +234,9 @@ export default function TodayView({ fleet }) {
 
 
       {!win.at ? <Stale win={win} n={DEV.length} /> : <>
-        <div className="card" ref={chartsRef} style={{ scrollMarginTop: 80 }}>
+        {/* battery and temperature side by side; stacked again on narrow screens (.grid-2) */}
+        <div className="grid grid-2" ref={chartsRef} style={{ scrollMarginTop: 80 }}>
+        <div className="card">
           <div className="card-head"><div><h2>T7 battery, today</h2><div className="card-sub">from {hm(chartFrom)} · live from MDM · 5-minute rows</div></div>
             <Segmented ariaLabel="Battery chart" options={MODES} value={battMode} onChange={setBattMode} /></div>
           <div className="card-body">
@@ -272,6 +274,7 @@ export default function TodayView({ fleet }) {
               series={tempSeries}
               tip={tempTip} />}
           </div>
+        </div>
         </div>
         <div className="card">
           {/* closed by default; a search opens it, since the search is about these rows */}

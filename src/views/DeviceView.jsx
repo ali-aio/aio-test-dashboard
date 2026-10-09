@@ -179,7 +179,8 @@ function LiveChart({ serial, d }) {
   const long = range && range.to - range.from > 36 * 3600e3
   const xFmt = (t) => new Date(t).toLocaleString([], long ? { month: 'short', day: 'numeric', hour: '2-digit' } : { hour: '2-digit', minute: '2-digit' })
   const when = (t) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-  const tip = (unit) => (t, hits) => tooltipHtml(when(t), hits.filter((h) => h.p).map(({ s: se, p }) => ({ color: se.color, name: se.label, value: unit === '%' ? `${Math.round(p.y)}%` : `${p.y.toFixed(1)} °C` })))
+  const tip = (t, hits) => tooltipHtml(when(t), hits.filter((h) => h.p).map(({ s: se, p }) => ({ color: se.color, name: se.label, value: se.axis === 'right' ? `${p.y.toFixed(1)} °C` : `${Math.round(p.y)}%` })))
+  const tMax = Math.max(60, Math.ceil((temp.reduce((m, p) => Math.max(m, p.y), 0) + 5) / 10) * 10)
   const lastB = batt[batt.length - 1], lastT = temp[temp.length - 1]
   const loading = !win.at || (range && !fromWindow && fetched.loading)
 
@@ -210,14 +211,18 @@ function LiveChart({ serial, d }) {
       {loading ? <div className="empty"><span className="spin" /> Loading readings…</div>
         : fetched.err && !fromWindow ? <div className="empty">Could not load readings: {fetched.err}</div>
         : !range ? <div className="empty">Pick a From and To above, then Apply.</div>
-        : <div className="grid grid-2">
-          <div><h3 className="device-sub">Battery {lastB ? <span className="secondary">· {lastB.y}% now</span> : null}</h3>
-            <MultiLineChart h={240} yMax={100} yFmt={(v) => v + '%'} xFmt={xFmt} x0={range.from} x1={range.to} tip={tip('%')}
-              series={[{ id: 'b', label: 'Battery', pts: batt, color: 'var(--series-1)', width: 2.2 }]} empty="No battery readings in this span." /></div>
-          <div><h3 className="device-sub">Battery temperature {lastT ? <span className="secondary">· {lastT.y.toFixed(1)} °C now</span> : null}</h3>
-            <MultiLineChart h={240} yMax={Math.max(60, Math.ceil(((temp.reduce((m, p) => Math.max(m, p.y), 0)) + 5) / 10) * 10)} yFmt={(v) => v.toFixed(0) + '°'} xFmt={xFmt} x0={range.from} x1={range.to} tip={tip('°C')}
-              series={[{ id: 't', label: 'Temperature', pts: temp, color: 'var(--series-2)', width: 2.2 }]} empty="No temperature readings in this span." /></div>
-        </div>}
+        : <>
+          {/* one chart, two axes: battery % on the left, temperature °C on the right */}
+          <div className="legend" style={{ margin: '0 0 8px' }}>
+            <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Battery %{lastB ? <span className="secondary">&nbsp;· {lastB.y}% now</span> : null}</span>
+            <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-2)' }} />Battery temperature °C (right axis){lastT ? <span className="secondary">&nbsp;· {lastT.y.toFixed(1)} °C now</span> : null}</span>
+          </div>
+          <MultiLineChart h={280} yMax={100} yFmt={(v) => v + '%'} xFmt={xFmt} x0={range.from} x1={range.to} tip={tip}
+            y2={{ min: 0, max: tMax, fmt: (v) => v.toFixed(0) + '°', color: 'var(--series-2)', leftColor: 'var(--series-1)' }}
+            series={[{ id: 'b', label: 'Battery', pts: batt, color: 'var(--series-1)', width: 2.2 },
+              { id: 't', label: 'Temperature', axis: 'right', pts: temp, color: 'var(--series-2)', width: 2 }]}
+            empty="No readings in this span." />
+        </>}
     </Card>
   )
 }

@@ -74,7 +74,9 @@ export function LineChart({ pts, h = 180, yMax = 100, yFmt = v => v, xFmt, tip, 
 // Many lines, one y-axis. Each series carries its own colour/dash; `endLabel` direct-labels
 // it at the right edge, nudged apart so labels never collide (identity is never colour
 // alone — the legend above the chart names every series).
-export function MultiLineChart({ series, h = 220, yMax = 100, yMin = 0, yFmt = v => v, xFmt, refs = [], tip, smooth = true, x0, x1, empty = 'No readings in this window yet.' }) {
+// y2 (optional): a second, right-hand axis { min, max, fmt, color } for series marked
+// `axis: 'right'` — two measures on one chart (battery % left, temperature right).
+export function MultiLineChart({ series, h = 220, yMax = 100, yMin = 0, yFmt = v => v, xFmt, refs = [], tip, smooth = true, x0, x1, empty = 'No readings in this window yet.', y2 = null }) {
   const [ref, W] = useWidth()
   const [hitX, setHitX] = useState(null)
   const live = series.filter(s => s.pts.length > 1)
@@ -85,10 +87,13 @@ export function MultiLineChart({ series, h = 220, yMax = 100, yMin = 0, yFmt = v
   const dx = (xb - xa) || 1, span = (yMax - yMin) || 1
   const X = v => pl + (v - xa) / dx * (W - pl - pr)
   const Y = v => pt + (1 - (Math.min(Math.max(v, yMin), yMax) - yMin) / span) * (h - pt - pb)
+  const y2min = y2?.min ?? 0, span2 = y2 ? ((y2.max - y2min) || 1) : 1
+  const Y2 = v => pt + (1 - (Math.min(Math.max(v, y2min), y2?.max ?? 1) - y2min) / span2) * (h - pt - pb)
+  const Yof = s => (y2 && s.axis === 'right' ? Y2 : Y)
   // a series can opt out (`smooth: false`): a two-point projection averaged with itself goes flat
-  const path = s => { const ys = smoothY(s.pts, smooth && s.smooth !== false); return ys.map((v, i) => `${i ? 'L' : 'M'}${X(s.pts[i].x).toFixed(1)},${Y(v).toFixed(1)}`).join('') }
+  const path = s => { const ys = smoothY(s.pts, smooth && s.smooth !== false), Ys = Yof(s); return ys.map((v, i) => `${i ? 'L' : 'M'}${X(s.pts[i].x).toFixed(1)},${Ys(v).toFixed(1)}`).join('') }
   const xt = (W < 460 ? [0, .5, 1] : [0, .25, .5, .75, 1]).map(f => xa + f * dx)
-  const labs = live.filter(s => s.endLabel).map(s => ({ s, y: Y(s.pts[s.pts.length - 1].y) })).sort((a, b) => a.y - b.y)
+  const labs = live.filter(s => s.endLabel).map(s => ({ s, y: Yof(s)(s.pts[s.pts.length - 1].y) })).sort((a, b) => a.y - b.y)
   for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i - 1].y < 12) labs[i].y = labs[i - 1].y + 12
   const near = (s, t) => s.pts.reduce((b, p) => Math.abs(p.x - t) < Math.abs(b.x - t) ? p : b, s.pts[0])
   return (
@@ -96,7 +101,8 @@ export function MultiLineChart({ series, h = 220, yMax = 100, yMin = 0, yFmt = v
       <svg viewBox={`0 0 ${W} ${h}`} style={{ height: h }}>
         {[0, .5, 1].map(f => { const v = yMin + f * span; return <g key={f}>
           <line x1={pl} x2={W - pr} y1={Y(v)} y2={Y(v)} stroke="var(--grid)" />
-          <text x={pl - 6} y={Y(v) + 3} textAnchor="end">{yFmt(v)}</text>
+          <text x={pl - 6} y={Y(v) + 3} textAnchor="end" fill={y2?.leftColor}>{yFmt(v)}</text>
+          {y2 && <text x={W - pr + 6} y={Y(v) + 3} textAnchor="start" fill={y2.color}>{(y2.fmt || (x => x))(y2min + f * span2)}</text>}
         </g> })}
         {xt.map((x, k) => <text key={k} x={X(x)} y={h - 4} textAnchor={k === 0 ? 'start' : k === xt.length - 1 ? 'end' : 'middle'}>{xFmt(x)}</text>)}
         {refs.map((r, k) => <g key={k}>
@@ -117,7 +123,7 @@ export function MultiLineChart({ series, h = 220, yMax = 100, yMin = 0, yFmt = v
         const slack = 10 * 60e3
         const covering = live.filter(s => hitX >= s.pts[0].x - slack && hitX <= s.pts[s.pts.length - 1].x + slack)
         if (!covering.length) return null
-        return <Tip x={X(hitX)} y={Y(near(covering[0], hitX).y)} html={tip(hitX, covering.map(s => ({ s, p: near(s, hitX) })))} width={W} />
+        return <Tip x={X(hitX)} y={Yof(covering[0])(near(covering[0], hitX).y)} html={tip(hitX, covering.map(s => ({ s, p: near(s, hitX) })))} width={W} />
       })()}
     </div>
   )

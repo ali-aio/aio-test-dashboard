@@ -131,7 +131,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, allS
   if (!cycles.length) return (
     <div className="view-stack">
       <div className="stat-row stat-row-lg"><LifetimeStat lifetime={lifetime} hero /></div>
-      <EmptyNote>No finished runs match the current filters. A run is listed once it ends — the one in progress is on Today.</EmptyNote>
+      <EmptyNote>No finished cycles match the current filters. A cycle is listed once it ends — the one in progress is on Today.</EmptyNote>
     </div>
   )
 
@@ -191,8 +191,8 @@ function OverviewPanel({ p, allSerials, onPickTestType, onOpenDevice }) {
         caption={`Mean battery percentage over elapsed hours for ${p.testType}`}
         tableColumns={[
           mode === 'all' ? { key: 'build', label: 'Device' } : { key: 'build', label: p.groupKey === 'build' ? 'Build' : 'Pad state' },
-          { key: 'n', label: 'Cycles (MDM) or runs' },
-          { key: 'dur', label: 'Avg run time' },
+          { key: 'n', label: 'Cycles' },
+          { key: 'dur', label: 'Avg cycle time' },
           { key: 'drop', label: p.charging ? 'Avg charge rate' : 'Avg drain' },
           { key: 'end', label: p.charging ? 'Avg charged to' : 'Avg end battery' },
           { key: 'temp', label: 'Peak temp' },
@@ -208,7 +208,7 @@ function OverviewPanel({ p, allSerials, onPickTestType, onOpenDevice }) {
           return {
             // a device opens this test's page for just that device: every run, by day
             build: mode === 'all' && onOpenDevice
-              ? <button type="button" className="link-btn" title={`Open ${p.testType} for ${b} — every run`} onClick={() => onOpenDevice(b, p.testType)}>{b}</button>
+              ? <button type="button" className="link-btn" title={`Open ${p.testType} for ${b} — every cycle`} onClick={() => onOpenDevice(b, p.testType)}>{b}</button>
               : b ?? 'Unknown',
             n: p.charging ? runsText(kk.totalCycles) : splitText(own),
             dur: fmtHours(kk.avgDuration),

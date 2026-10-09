@@ -176,7 +176,7 @@ export default function DatePicker({ dates, counts, value, onChange, countText =
             <div className="cal-title">
               <strong>{MONTH_NAMES[cursor.month]} {cursor.year}</strong>
               <span className="hint">
-                {monthDays ? `${monthDays} test day${monthDays === 1 ? '' : 's'} · ${amount(`${cursor.year}-${String(cursor.month + 1).padStart(2, '0')}`, monthTotal)}` : 'no runs this month'}
+                {monthDays ? `${monthDays} test day${monthDays === 1 ? '' : 's'} · ${amount(`${cursor.year}-${String(cursor.month + 1).padStart(2, '0')}`, monthTotal)}` : 'no cycles this month'}
               </span>
             </div>
             <button type="button" className="btn btn-icon btn-sm" onClick={() => step(1)}
@@ -200,7 +200,7 @@ export default function DatePicker({ dates, counts, value, onChange, countText =
                     aria-pressed={value === c.key}
                     aria-label={c.has
                       ? `${fmtDate(c.key)} — ${amount(c.key, c.n)}`
-                      : `${fmtDate(c.key)} — no runs`}
+                      : `${fmtDate(c.key)} — no cycles`}
                     title={c.has ? amount(c.key, c.n) : undefined}
                     onClick={() => pick(c.key)}
                   >
@@ -244,7 +244,7 @@ export default function DatePicker({ dates, counts, value, onChange, countText =
  */
 export function DateList({ dates, counts, value, maxCount, onPick, onClear, listRef, amount = (d, n) => `${n}` }) {
   if (!dates.length) {
-    return <div className="hint" style={{ padding: 10 }}>No dated runs in scope.</div>
+    return <div className="hint" style={{ padding: 10 }}>No dated cycles in scope.</div>
   }
   return (
     <div className="date-list" ref={listRef} role="listbox" aria-label="Test dates">

@@ -184,8 +184,8 @@ export const STATUS = {
   declared:     { glyph: '◆', label: 'Planned' },
   confirmed:    { glyph: '●', label: 'Planned & ran' },
   inferred:     { glyph: '▨', label: 'Ran, no test set' },
-  unclassified: { glyph: '○', label: 'No test, no run' },
-  none:         { glyph: '',  label: 'No run' },
+  unclassified: { glyph: '○', label: 'No test, no cycle' },
+  none:         { glyph: '',  label: 'No cycle' },
 };
 
 // ── device group on a declaration ─────────────────────────────────────────────

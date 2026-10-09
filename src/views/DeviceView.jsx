@@ -54,26 +54,26 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
         </div>
       </div>
 
-      {!mine.length ? <EmptyNote>No finished runs recorded for this device yet.</EmptyNote> : <>
+      {!mine.length ? <EmptyNote>No finished cycles recorded for this device yet.</EmptyNote> : <>
         <div className="stat-row">
-          <Stat label="Runs" value={fmtInt(mine.length)} foot={`${tests.length} test type${tests.length === 1 ? '' : 's'}`} />
+          <Stat label="Cycles" value={fmtInt(mine.length)} foot={`${tests.length} test type${tests.length === 1 ? '' : 's'}`} />
           <Stat label="Test days" value={fmtInt(days)} foot={`${fmtDate(mine[mine.length - 1].date)} → ${fmtDate(mine[0].date)}`} />
-          <Stat label="Avg run time" value={fmtNum(k.avgDuration, 1)} unit="h" foot="per run" />
+          <Stat label="Avg cycle time" value={fmtNum(k.avgDuration, 1)} unit="h" foot="per cycle" />
           <Stat label="Avg drain" value={fmtRate(k.avgDropPerHr)} foot="battery per hour" />
-          <Stat label="Hottest run" value={fmtNum(peakRun?.maxTemp, 1)} unit="°C" foot={peakRun ? `${peakRun.testType} · ${fmtDate(peakRun.date)}` : 'no temperature'} />
+          <Stat label="Hottest cycle" value={fmtNum(peakRun?.maxTemp, 1)} unit="°C" foot={peakRun ? `${peakRun.testType} · ${fmtDate(peakRun.date)}` : 'no temperature'} />
         </div>
 
-        <Card expandable title="Battery over a run, by test" sub="This device’s mean battery at each whole hour, one line per test type">
+        <Card expandable title="Battery over a cycle, by test" sub="This device’s mean battery at each whole hour, one line per test type">
           <LineChart series={curves} xDomain={[0, Math.ceil(plottedMaxHour(mine))]} yDomain={[0, 100]}
             formatX={fmtHourTick} formatY={(v) => `${v}%`} xLabel="elapsed time" xUnit="h" height={260}
             caption={`Battery per hour for ${serial}, by test type`} />
         </Card>
 
-        <Card title="Tests it has run" sub="Click a test to open it for this device — curves, drain by hour and its runs">
+        <Card title="Tests it has run" sub="Click a test to open it for this device — curves, drain by hour and its cycles">
           <div className="table-wrap">
             <SortTable caption={`Tests ${serial} has run`} head={[
-              { label: 'Test', style: { textAlign: 'left' } }, { label: 'Runs' }, { label: 'Avg run time' },
-              { label: 'Avg drain' }, { label: 'Avg peak temp' }, { label: 'Hottest' }, { label: 'Last run' },
+              { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycles' }, { label: 'Avg cycle time' },
+              { label: 'Avg drain' }, { label: 'Avg peak temp' }, { label: 'Hottest' }, { label: 'Last cycle' },
             ]}>
               {tests.map((t) => (
                 <tr key={t.tt} className="row-link" onClick={() => onOpenTest(serial, t.tt)}>
@@ -90,10 +90,10 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
           </div>
         </Card>
 
-        <Card expandable title={`Every run on ${serial}`} sub={`${runsText(mine.length)} on ${fmtInt(days)} days · newest first · click a heading to sort · ≈ = from the run’s battery drop, before the MDM counter was recorded`}>
+        <Card expandable title={`Every cycle on ${serial}`} sub={`${runsText(mine.length)} on ${fmtInt(days)} days · newest first · click a heading to sort · ≈ = from the cycle’s battery drop, before the MDM counter was recorded`}>
           <div className="table-wrap" style={{ maxHeight: 520 }}>
-            <SortTable caption={`Every run on ${serial}`} head={[
-              { label: 'Date' }, { label: 'Started' }, { label: 'Test', style: { textAlign: 'left' } }, { label: 'Run time' },
+            <SortTable caption={`Every cycle on ${serial}`} head={[
+              { label: 'Date' }, { label: 'Started' }, { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycle time' },
               { label: 'Start' }, { label: 'End' }, { label: 'Drain' }, { label: 'Peak temp' }, { label: 'Battery cycles' },
               { label: 'Firmware', style: { textAlign: 'left' } }, { label: 'Wireless pad', style: { textAlign: 'left' } },
             ]}>

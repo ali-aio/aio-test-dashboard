@@ -196,7 +196,7 @@ export default function DevicesView({
                             {r.firmwares.length ? ` · ${fmtInt(r.firmwares.length)} firmware version${r.firmwares.length === 1 ? '' : 's'}` : ''}
                             {r.lastDate ? ` · last ran ${fmtDate(r.lastDate)}` : ''}
                           </>
-                        : <span className="muted">no runs in the current filters</span>}
+                        : <span className="muted">no cycles in the current filters</span>}
                       {` · ${fmtLifetime(lifetimeCycles(snapOf(r.serial)))} lifetime cycles (MDM)`}
                     </span>
 
@@ -211,29 +211,29 @@ export default function DevicesView({
                         <>
                           <dl className="device-figures">
                             <div><dt>Lifetime cycles (MDM)</dt><dd>{fmtLifetime(lifetimeCycles(snapOf(r.serial)))}</dd></div>
-                            <div><dt>Runs</dt><dd>{fmtInt(r.cycles.length)}</dd></div>
+                            <div><dt>Cycles</dt><dd>{fmtInt(r.cycles.length)}</dd></div>
                             <div><dt>Test types</dt><dd>{fmtInt(r.tests.length)}</dd></div>
                             <div><dt>Test days</dt><dd>{fmtInt(r.k.dates)}</dd></div>
-                            <div><dt>First run</dt><dd>{r.firstDate ? fmtDate(r.firstDate) : DASH}</dd></div>
-                            <div><dt>Last run</dt><dd>{r.lastDate ? fmtDate(r.lastDate) : DASH}</dd></div>
-                            <div><dt>Avg run time</dt><dd>{fmtHours(r.k.avgDuration)}</dd></div>
+                            <div><dt>First cycle</dt><dd>{r.firstDate ? fmtDate(r.firstDate) : DASH}</dd></div>
+                            <div><dt>Last cycle</dt><dd>{r.lastDate ? fmtDate(r.lastDate) : DASH}</dd></div>
+                            <div><dt>Avg cycle time</dt><dd>{fmtHours(r.k.avgDuration)}</dd></div>
                             <div><dt>Avg drain</dt><dd>{fmtRate(r.k.avgDropPerHr)}</dd></div>
                             <div><dt>Avg end battery</dt><dd>{fmtPct(r.k.avgEndBattery)}</dd></div>
                             <div><dt>Avg peak temp</dt><dd>{fmtTemp(r.k.avgPeakTemp)}</dd></div>
-                            <div><dt>Hottest run</dt><dd>{Number.isFinite(r.peak) ? fmtTemp(r.peak) : DASH}</dd></div>
+                            <div><dt>Hottest cycle</dt><dd>{Number.isFinite(r.peak) ? fmtTemp(r.peak) : DASH}</dd></div>
                           </dl>
 
                           <h4 className="device-sub">What it has run</h4>
                           <div className="table-wrap">
                             <SortTable caption="Tests this device has run" head={[
-                              { label: 'Test', style: { textAlign: 'left' } }, { label: 'Runs' }, { label: 'Avg run time' },
-                              { label: 'Avg drain' }, { label: 'Avg peak temp' }, { label: 'Hottest' }, { label: 'Last run' },
+                              { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycles' }, { label: 'Avg cycle time' },
+                              { label: 'Avg drain' }, { label: 'Avg peak temp' }, { label: 'Hottest' }, { label: 'Last cycle' },
                             ]}>
                                 {/* a row opens that test's full page for just this device: every run, by day */}
                                 {r.tests.map((tst) => (
                                   <tr key={tst.testType} className={onOpenTest ? 'row-link' : undefined}
                                     onClick={onOpenTest ? () => onOpenTest(r.serial, tst.testType) : undefined}
-                                    title={onOpenTest ? `Open ${tst.testType} for ${r.serial} — every run, with its curves` : undefined}>
+                                    title={onOpenTest ? `Open ${tst.testType} for ${r.serial} — every cycle, with its curves` : undefined}>
                                     <td style={{ textAlign: 'left' }}>
                                       {onOpenTest
                                         ? <button type="button" className="link-btn" onClick={(e) => { e.stopPropagation(); onOpenTest(r.serial, tst.testType) }}>{tst.testType} ›</button>

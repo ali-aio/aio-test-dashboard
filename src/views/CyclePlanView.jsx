@@ -76,7 +76,7 @@ export default function CyclePlanView({ fleet }) {
       {!decls.length && !Object.keys(rota).length && (
         <div className="banner banner-warn">
           <span aria-hidden="true">◆</span>
-          <div><strong>No test types are set up yet, so no run has a test type yet.</strong>
+          <div><strong>No test types are set up yet, so no cycle has a test type yet.</strong>
             <div>The MDM never says which test a run was — this screen does. Pick a day on the calendar
               and set which test ran on it.</div></div>
         </div>
@@ -88,7 +88,7 @@ export default function CyclePlanView({ fleet }) {
             <b>{monthLabel(ym.y, ym.m)}</b>
             <div className="plan-legend">
               <span><i className="declared" />Planned</span><span><i className="confirmed" />Planned &amp; ran</span>
-              <span><i className="inferred" />Ran, no test set</span><span><i className="unclassified" />No test, no run</span>
+              <span><i className="inferred" />Ran, no test set</span><span><i className="unclassified" />No test, no cycle</span>
             </div>
             <div className="plan-nav">
               <button aria-label="Previous month" onClick={() => { const d = new Date(ym.y, ym.m - 1, 1); setYm({ y: d.getFullYear(), m: d.getMonth() }) }}>‹</button>
@@ -130,7 +130,7 @@ export default function CyclePlanView({ fleet }) {
                           <span className="tdev">{r.cycles.length} cycles</span></>
                       : <><Chip r={r} /><span className="tname">{r.tt.name}</span><span className="tdev">{r.serials.length} devices</span></>)
                       : r.status === 'inferred' ? <><Chip r={r} /><span className="tname">No test set</span><span className="tdev">{amountOn(c.key)}</span></>
-                      : c.inMonth && !carried.length ? <span className="declare">{future ? '+ set test' : 'no run'}</span> : null}
+                      : c.inMonth && !carried.length ? <span className="declare">{future ? '+ set test' : 'no cycle'}</span> : null}
                     {carried.length > 0 && c.inMonth && <span className="carry">↪ {testType(carried[0].decl.testType)?.code} until {hm(carried[0].endMs)}{!r.tt && future ? ' · + next cycle' : ''}</span>}
                     {c.inMonth && overlapsOn(decls, c.key, DEV).length > 0 && <span className="overlap-flag" title="Two cycles overlap on this day — open it to see">⚠ cycles overlap</span>}
                   </button>
@@ -168,7 +168,7 @@ export default function CyclePlanView({ fleet }) {
                   {clashes.map((o, i) => (
                     <div className="overlap-warn" key={'o' + i} role="alert">
                       <b>⚠ {label(o.a)} and {label(o.b)} overlap</b> {hm(o.from)}–{hm(o.to)}{dayKey(o.to) !== dayKey(o.from) ? ' next day' : ''} on {o.shared} shared device{o.shared === 1 ? '' : 's'}.
-                      <div>A run starting in that time counts as <b>{nameOf(o.winner)}</b> (set most recently). Edit one of them so their times don't overlap, or untick the shared devices.</div>
+                      <div>A cycle starting in that time counts as <b>{nameOf(o.winner)}</b> (set most recently). Edit one of them so their times don't overlap, or untick the shared devices.</div>
                     </div>
                   ))}
                   {carried.map(c => (
@@ -191,7 +191,7 @@ export default function CyclePlanView({ fleet }) {
                       {c.decl.from === sel
                         ? <span className="cyc-acts">
                             <button className="btn btn-sm" onClick={() => openForm(c.decl.id)}>Edit</button>
-                            <button className="btn btn-sm" onClick={() => { if (confirm('Remove this cycle? Its runs go back to having no test set.')) commit(decls.filter(d => d.id !== c.decl.id)) }}>Delete</button>
+                            <button className="btn btn-sm" onClick={() => { if (confirm('Remove this cycle? What ran in it goes back to having no test set.')) commit(decls.filter(d => d.id !== c.decl.id)) }}>Delete</button>
                           </span>
                         : <span className="cyc-acts secondary" style={{ fontSize: 12 }}>
                             part of the plan set on {dayLabel(c.decl.from).split(',').slice(0, 2).join(',')}{c.decl.repeat === 'weekly' ? ' (repeats weekly)' : ''} ·{' '}
@@ -201,7 +201,7 @@ export default function CyclePlanView({ fleet }) {
                   )) : <p className="secondary" style={{ margin: '4px 0 10px' }}>{carried.length ? 'No new cycle starts on this day yet.' : 'No test set for this day.'}</p>}
                   <dl className="kv" style={{ marginTop: 10 }}>
                     <dt>Devices</dt><dd className="mono">{S.tt ? S.serials.length : '—'}</dd>
-                    <dt>Cycles (MDM) or runs</dt><dd className="mono">{selRan.length ? amountOn(sel) : '—'}</dd>
+                    <dt>Cycles</dt><dd className="mono">{selRan.length ? amountOn(sel) : '—'}</dd>
                   </dl>
                   <div className="acts">
                     <button className="btn btn-primary" onClick={() => openForm(null)}>
@@ -291,7 +291,7 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
             <input className="input" id="f-until" type="date" min={form.from} value={form.to && form.to > form.from ? form.to : ''} onChange={e => set('to', e.target.value)} /></div>}
         </div>
         <div className="field"><label htmlFor="f-by">Set by</label><input className="input" id="f-by" value={form.by || ''} placeholder="optional" onChange={e => set('by', e.target.value)} /></div>
-        <div className="help" style={{ marginBottom: 12 }}>A run belongs to the cycle it starts in, even if it finishes after the cycle ends. Runs starting outside every cycle count as having no test set.</div>
+        <div className="help" style={{ marginBottom: 12 }}>A device's discharge belongs to the planned cycle it starts in, even if it finishes after that cycle ends. Discharges starting outside every planned cycle count as having no test set.</div>
         {(() => {
           // clashes this cycle would make with the cycles already set, on its first day
           const others = decls.filter(d => d.id !== form.id)
@@ -299,7 +299,7 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
           return clash.length ? <div className="overlap-warn" role="alert">
             {clash.map((o, i) => { const other = o.a.decl.id === (form.id || '__new') ? o.b : o.a
               return <div key={i}><b>⚠ Overlaps {testType(other.decl.testType)?.name}</b> ({hm(other.startMs)} → {hm(other.endMs)}) from {hm(o.from)} to {hm(o.to)} on {o.shared} shared device{o.shared === 1 ? '' : 's'}.</div> })}
-            <div>You can still save — runs starting in the overlap will count as this cycle, since it is the newest.</div>
+            <div>You can still save — cycles starting in the overlap will count as this cycle, since it is the newest.</div>
           </div> : null
         })()}
         <div className="form-actions">
@@ -326,7 +326,7 @@ function MonthSummary({ ym, counts, inMonth }) {
           <dt>◆ Planned</dt><dd>{counts.declared || 0}</dd>
           <dt>● Planned &amp; ran</dt><dd style={{ color: 'var(--status-good)' }}>{counts.confirmed || 0}</dd>
           <dt>▨ Ran, no test set</dt><dd style={{ color: counts.inferred ? 'var(--status-warning)' : 'inherit' }}>{counts.inferred || 0}</dd>
-          <dt>○ No test, no run</dt><dd>{counts.unclassified || 0}</dd>
+          <dt>○ No test, no cycle</dt><dd>{counts.unclassified || 0}</dd>
         </dl>
         {upcoming.length ? (
           <div style={{ marginTop: 14 }}>

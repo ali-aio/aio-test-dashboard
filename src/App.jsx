@@ -173,8 +173,8 @@ export default function App() {
         {ready && <DeviceSearch devices={DEV} onOpen={sn => { location.hash = `#/nx/device/${encodeURIComponent(sn)}`; window.scrollTo(0, 0) }} />}
         <span className="hint nowrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span className={`pill ${error ? 'pill-bad' : ready ? 'pill-ok pill-live' : ''}`}>{error ? 'Disconnected' : ready ? 'Live' : 'Connecting'}</span>
-          {fleet.server?.lastSweepAt ? <span title={`The server checks the MDM for finished runs every 30 minutes; last check ${new Date(fleet.server.lastSweepAt).toLocaleString()}. Live device readings update every 30 seconds regardless.`}>
-            {fleet.server.sweeping ? 'checking for new runs…' : `runs checked ${ago(fleet.server.lastSweepAt)}`}</span> : null}
+          {fleet.server?.lastSweepAt ? <span title={`The server checks the MDM for finished cycles every 30 minutes; last check ${new Date(fleet.server.lastSweepAt).toLocaleString()}. Live device readings update every 30 seconds regardless.`}>
+            {fleet.server.sweeping ? 'checking for new cycles…' : `cycles checked ${ago(fleet.server.lastSweepAt)}`}</span> : null}
         </span>
         <ThemeButton />
       </header>

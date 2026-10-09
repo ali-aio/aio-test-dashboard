@@ -57,12 +57,12 @@ export const fmtSerial = (sn) => (sn ? String(sn) : DASH)
 /** One natural ascending order for device IDs throughout the dashboard. */
 export const compareSerial = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })
 
-// Battery cycles — the dashboard's one meaning of "cycles": total % drained ÷ 100. A run
-// that drains 78 points is 0.78 of a cycle. Counts of runs say "runs", never "cycles".
+// Battery cycles — the dashboard's one meaning of "cycles": total % drained ÷ 100. A cycle
+// that drains 78 points is 0.78 of a cycle. Counts of cycles say "cycles", never "cycles".
 export const fmtBC = (v) => (v == null || !Number.isFinite(v) ? DASH
   : v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))
 export const bcText = (v) => `${fmtBC(v)} cycle${v === 1 ? '' : 's'}`
-export const runsText = (n) => `${fmtInt(n)} run${n === 1 ? '' : 's'}`
+export const runsText = (n) => `${fmtInt(n)} cycle${n === 1 ? '' : 's'}`
 
 // The MDM's lifetime battery cycles for one device, two decimals ("—" when not reported).
 export const fmtLifetime = (v) => (v == null || !Number.isFinite(v) ? DASH

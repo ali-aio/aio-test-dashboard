@@ -180,7 +180,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
           label: c.serial,
           value: c.maxTemp,
           display: fmtTemp(c.maxTemp),
-          sub: [c.testType, c.date ? fmtDate(c.date) : null, when, `${fmtNum(c.duration, 1)} h run`]
+          sub: [c.testType, c.date ? fmtDate(c.date) : null, when, `${fmtNum(c.duration, 1)} h cycle`]
             .filter(Boolean).join(' · '),
           onClick: onFilter
             ? () => onFilter({ serials: [c.serial], date: c.date ?? '' })
@@ -197,7 +197,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
   const veryHot = cycles.filter((c) => c.maxTemp != null && c.maxTemp >= 60).length
   const peakOverall = maxOf(peakRows.map((row) => row.value))
 
-  if (!cycles.length) return <EmptyNote>No finished runs match the current filters. A run is listed once it ends — the one in progress is on Today.</EmptyNote>
+  if (!cycles.length) return <EmptyNote>No finished cycles match the current filters. A cycle is listed once it ends — the one in progress is on Today.</EmptyNote>
 
   if (!withTemp.length) {
     return (
@@ -222,26 +222,26 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
             ? `${hottest.serial}${hottest.date ? ` · ${fmtDate(hottest.date)}` : ''}`
             : DASH}
           breakdown={hottestCycles} breakdownWide
-          breakdownLabel="Hottest runs · hottest first — click one to isolate it" />
+          breakdownLabel="Hottest cycles · hottest first — click one to isolate it" />
         <Stat label="Typical hottest point" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
-          foot={`averaged over ${fmtInt(withTemp.length)} runs`} />
+          foot={`averaged over ${fmtInt(withTemp.length)} cycles`} />
         <Stat label="Middle of all readings" value={fmtNum(median(allTemps), 1)} unit="°C"
           foot={`half of the ${fmtInt(allTemps.length)} readings are above this`} />
-        <Stat label="Runs that got hot (55 °C+)" value={fmtInt(hotCycles)}
-          foot={cycles.length ? `${((hotCycles / cycles.length) * 100).toFixed(0)}% of all runs` : DASH}
+        <Stat label="Cycles that got hot (55 °C+)" value={fmtInt(hotCycles)}
+          foot={cycles.length ? `${((hotCycles / cycles.length) * 100).toFixed(0)}% of all cycles` : DASH}
           breakdown={rowsAbove(55)} breakdownWide
-          breakdownLabel="Runs that reached 55 °C" />
-        <Stat label="Runs that got very hot (60 °C+)" value={fmtInt(veryHot)}
+          breakdownLabel="Cycles that reached 55 °C" />
+        <Stat label="Cycles that got very hot (60 °C+)" value={fmtInt(veryHot)}
           foot={veryHot ? 'worth investigating' : 'none recorded'}
           breakdown={rowsAbove(60)} breakdownWide
-          breakdownLabel="Runs that reached 60 °C" />
-        <Stat label="Runs with no temperature recorded" value={fmtInt(cycles.length - withTemp.length)}
+          breakdownLabel="Cycles that reached 60 °C" />
+        <Stat label="Cycles with no temperature recorded" value={fmtInt(cycles.length - withTemp.length)}
           foot="left out of everything on this page" />
       </div>
 
-      <Card expandable title={tempMode === 'avg' ? 'How hot runs get, on average' : 'How hot each device gets during a run'}
+      <Card expandable title={tempMode === 'avg' ? 'How hot cycles get, on average' : 'How hot each device gets during a cycle'}
         sub={tempMode === 'avg' ? 'Mean battery temperature at each whole hour, with the hottest and coolest device'
-          : 'One line per device, following its longest run that recorded temperature'}
+          : 'One line per device, following its longest cycle that recorded temperature'}
         right={<ModeSwitch value={tempMode} onChange={setTempMode} />}>
         <LineChart
           series={tempMode === 'avg' ? avgTemp : curves}
@@ -283,8 +283,8 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
         />
       </Card>
 
-      <Card expandable title="Is a device hot early or late in a run?"
-        sub="Every run is split into three equal parts, and this is the average temperature in each. Click a heading to sort — hottest first, click again for coolest.">
+      <Card expandable title="Is a device hot early or late in a cycle?"
+        sub="Every cycle is split into three equal parts, and this is the average temperature in each. Click a heading to sort — hottest first, click again for coolest.">
         {timing.length ? (
           <div className="table-wrap" style={{ maxHeight: 440 }}>
             <table className="data thermal-timing">
@@ -297,7 +297,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
                   { key: 'middle', label: 'Middle' },
                   { key: 'end', label: 'End' },
                   { key: 'pattern', label: 'Pattern' },
-                  { key: 'cycles', label: 'Runs' },
+                  { key: 'cycles', label: 'Cycles' },
                 ].map((col) => (
                   <th key={col.key} onClick={() => sortTiming(col.key)} style={{ cursor: 'pointer' }}
                     aria-sort={timingSort.key === col.key
@@ -324,15 +324,15 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
               </tbody>
             </table>
           </div>
-        ) : <EmptyNote>No run recorded a temperature in all three parts, so there is nothing to compare.</EmptyNote>}
+        ) : <EmptyNote>No cycle recorded a temperature in all three parts, so there is nothing to compare.</EmptyNote>}
         <p className="hint" style={{ margin: '10px 0 0' }}>
-          Every run counts once, however long it was. {fmtInt(timedCycles)} of {fmtInt(withTemp.length)}
+          Every cycle counts once, however long it was. {fmtInt(timedCycles)} of {fmtInt(withTemp.length)}
           {' '}runs recorded a temperature in all three parts and could be used. Pick a single test above to
           compare like with like.
         </p>
       </Card>
 
-      <Card collapsible expandable title="Which hour of a run each device is hottest"
+      <Card collapsible expandable title="Which hour of a cycle each device is hottest"
         sub="Average temperature at each hour — the darker the square, the hotter it was">
         <Heatmap
           rows={heat.rows}

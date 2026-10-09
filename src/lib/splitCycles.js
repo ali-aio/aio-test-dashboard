@@ -14,7 +14,7 @@ export function splitCycles(cycles) {
 }
 export const splitText = cycles => {
   const { runs, mdm } = splitCycles(cycles);
-  return mdm != null ? `${fmtLifetime(mdm)} cycles (MDM)` : runsText(runs);
+  return mdm != null ? `${fmtLifetime(mdm)} battery cycles (MDM)` : runsText(runs);
 };
 
 /** Rows per distinct value of a field: bar length = runs (one unit for every row, so bars

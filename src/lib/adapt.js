@@ -137,7 +137,7 @@ export function adaptCycle(d, c, rows, ctx) {
     endBattery: c.endPct,
     batteryDelta: c.endPct - c.startPct,
     dropPerHr: round(hourly != null ? hourly : linear, 3),
-    rateBasis: hourly != null ? 'whole hours' : 'straight line over the run',
+    rateBasis: hourly != null ? 'whole hours' : 'straight line over the cycle',
     loadGainPerHr: null,  // the MDM reports the T7's battery, never the load's
     loadType: null,
     charger: null,

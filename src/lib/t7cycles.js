@@ -507,7 +507,7 @@ export function explainNoRate(cycles, label = 'a drain rate') {
   if (tooShort === cycles.length) {
     return {
       reason: `Every cycle in scope is shorter than an hour.`,
-      hint: 'A per-hour rate is measured across whole-hour boundaries, so a run has to span at least two of them.',
+      hint: 'A per-hour rate is measured across whole-hour boundaries, so a cycle has to span at least two of them.',
     }
   }
   return explainEmpty(cycles, 'dropPerHr', label)

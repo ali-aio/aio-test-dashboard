@@ -68,7 +68,7 @@ export default function FilterBar({ cycles, filters, onChange, onReset, allSeria
         <select className="control" value={filters.testType}
           onChange={(e) => set({ testType: e.target.value, loadType: '', charger: '' })}>
           <option value="__all__">All tests</option>
-          {availableTypes.map((t) => <option key={t} value={t}>{t}{typeCounts.get(t) ? '' : ' — no runs yet'}</option>)}
+          {availableTypes.map((t) => <option key={t} value={t}>{t}{typeCounts.get(t) ? '' : ' — no cycles yet'}</option>)}
         </select>
       </Field>
 

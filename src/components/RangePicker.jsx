@@ -87,7 +87,7 @@ export default function RangePicker({ value, onChange, daysWithRuns = new Map() 
               return (
                 <button key={c.t} type="button" disabled={c.future}
                   className={`rp-day${c.inMonth ? '' : ' is-out'}${inSpan ? ' is-in' : ''}${edge ? ' is-edge' : ''}${c.t === today ? ' is-today' : ''}${daysWithRuns.has(c.t) ? ' has-runs' : ''}`}
-                  onClick={() => clickDay(c.t)} title={daysWithRuns.has(c.t) ? 'runs on this day' : undefined}>{c.n}</button>
+                  onClick={() => clickDay(c.t)} title={daysWithRuns.has(c.t) ? 'cycles on this day' : undefined}>{c.n}</button>
               )
             })}
           </div>
@@ -99,9 +99,9 @@ export default function RangePicker({ value, onChange, daysWithRuns = new Map() 
                 className={`rp-date${dateOn(t) ? ' is-on' : ''}`} onClick={(e) => pickDate(t, e)}
                 title="Click to show this day · shift-click to stretch the range to it">
                 <span>{new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                <span className="rp-date-n">{n} run{n === 1 ? '' : 's'}</span>
+                <span className="rp-date-n">{n} cycle{n === 1 ? '' : 's'}</span>
               </button>
-            )) : <div className="muted rp-list-empty">No runs yet</div>}
+            )) : <div className="muted rp-list-empty">No cycles yet</div>}
           </div></div>
           <div className="rp-summary">{span ? `${fmt(span.from)} to ${fmt(span.to)}` : 'Pick a start day, then an end day'}</div>
           <div className="rp-foot">

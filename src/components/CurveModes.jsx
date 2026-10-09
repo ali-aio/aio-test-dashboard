@@ -21,7 +21,7 @@ export function deviceSeries(cycles, allSerials, key = 'series') {
   const styleOf = buildStyleMap([...allSerials].sort(compareSerial))
   const src = key === 'series' ? cycles : cycles.map((c) => ({ ...c, series: c[key] || [] }))
   return avgCurveBy(src, 'serial').map((g) => ({
-    id: g.label, label: g.label, sub: `${g.count} run${g.count === 1 ? '' : 's'}`,
+    id: g.label, label: g.label, sub: `${g.count} cycle${g.count === 1 ? '' : 's'}`,
     ...(styleOf.get(g.label) || { color: 'var(--series-1)' }), points: g.points,
   }))
 }
@@ -31,7 +31,7 @@ export function envelopeSeries(cycles, key = 'series', avgLabel = 'Average') {
   const e = envelopeBy(cycles, key)
   if (!e.avg.length) return []
   return [
-    { id: '__avg', label: avgLabel, sub: `${cycles.length} run${cycles.length === 1 ? '' : 's'}`, color: 'var(--series-1)', points: e.avg },
+    { id: '__avg', label: avgLabel, sub: `${cycles.length} cycle${cycles.length === 1 ? '' : 's'}`, color: 'var(--series-1)', points: e.avg },
     { id: '__max', label: 'Highest', color: 'var(--series-8)', dashed: true, points: e.max },
     { id: '__min', label: 'Lowest', color: 'var(--series-3)', dashed: true, points: e.min },
   ]

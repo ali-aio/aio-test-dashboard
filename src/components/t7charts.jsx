@@ -51,7 +51,7 @@ export function EmptyPlot({ reason, hint, noData = true }) {
       {noData && h ? (
         <>
           <span className="hint">{h.err ? `Loading readings failed: ${h.err}. `
-            : `Curves exist only for runs in the last ${h.days} days of readings — older runs keep their numbers but have no line. `}
+            : `Curves exist only for cycles in the last ${h.days} days of readings — older cycles keep their numbers but have no line. `}
             {h.at ? `Readings loaded ${Math.max(0, Math.round((Date.now() - h.at) / 60000))} min ago.` : ''}</span>
           <button type="button" className="btn btn-sm" style={{ marginTop: 6 }} onClick={h.reload}>Reload readings</button>
         </>
@@ -335,7 +335,7 @@ export function GroupedColumns({
               the bar. "cycles" is reserved for battery cycles across the dashboard. */}
           <div className="tt-time">{hover.group.label}{hover.group.nText
             ? ` · ${hover.group.nText}`
-            : hover.group.n != null ? ` · ${fmtInt(hover.group.n)} run${hover.group.n === 1 ? '' : 's'}` : ''}</div>
+            : hover.group.n != null ? ` · ${fmtInt(hover.group.n)} cycle${hover.group.n === 1 ? '' : 's'}` : ''}</div>
           {measures.map((m) => (
             hover.group.values[m.key] != null && (
               <TooltipRow key={m.key} color={m.color} name={m.label}

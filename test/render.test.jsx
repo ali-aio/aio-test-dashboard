@@ -102,16 +102,16 @@ const mdmCases = []
   const check = (name, fn) => { mdmCases.push(name); try { fn(); console.log('OK  ', name) } catch (e) { failed++; console.log('FAIL', name, '->', e.message) } }
   const want = (cond, msg) => { if (!cond) throw new Error(msg) }
   check('runs covered -> "cycles (MDM)"', () => { const t = splitText(covered.slice(0, 20)); want(/cycles \(MDM\)$/.test(t), t) })
-  check('no readings -> run count', () => { const t = splitText(bare.slice(0, 20)); want(t === '20 runs', t) })
+  check('no readings -> run count', () => { const t = splitText(bare.slice(0, 20)); want(t === '20 cycles', t) })
   check('one uncovered run -> run count, never a partial sum', () => {
-    const mixed = [...covered.slice(0, 5), { ...covered[5], mdmCycles: null }]; const t = splitText(mixed); want(t === '6 runs', t) })
+    const mixed = [...covered.slice(0, 5), { ...covered[5], mdmCycles: null }]; const t = splitText(mixed); want(t === '6 cycles', t) })
   check('overview cards show MDM cycles when covered', () => {
     const h = renderToString(<T7Overview cycles={covered} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} />)
     want(h.includes('cycles (MDM)'), 'no "cycles (MDM)" on the overview')
   })
   check('overview cards show runs without readings', () => {
     const h = renderToString(<T7Overview cycles={bare} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} />)
-    want(!h.includes('cycles (MDM)') && / runs/.test(h), 'expected run counts only')
+    want(!h.includes('cycles (MDM)') && / cycles/.test(h), 'expected cycle counts only')
   })
   check('filter bar + pill render', () => {
     renderToString(<FilterBar cycles={covered} filters={base} onChange={nop} onReset={nop} allSerials={all} declaredTypes={[]} />)
@@ -170,8 +170,8 @@ const mdmCases = []
     const sn = covered[0].serial, tt = covered[0].testType
     const mine = covered.filter((c) => c.serial === sn && c.testType === tt)
     const h = renderToString(<TestDetail cycles={mine} testType={tt} allSerials={all} />)
-    want(h.includes(`Every run on ${sn}`), 'no every-run card')
-    const rows = (h.split('Every run on')[1].match(/<tr/g) || []).length - 1   // minus the heading row
+    want(h.includes(`Every cycle on ${sn}`), 'no every-cycle card')
+    const rows = (h.split('Every cycle on')[1].match(/<tr/g) || []).length - 1   // minus the heading row
     want(rows === mine.length, `rows ${rows} vs runs ${mine.length}`)
   })
   check('overnight window: 10:00 -> 04:00 ends the next morning', () => {
@@ -277,8 +277,8 @@ const mdmCases = []
     const sn = cycles[0].serial, d = DEV.find((x) => x.serial === sn)
     const h = renderToString(<DeviceView serial={sn} d={d} cycles={cycles} onOpenTest={nop} />)
     const n = cycles.filter((c) => c.serial === sn).length
-    want(h.includes(`Every run on ${sn}`) && h.includes('Tests it has run'), 'sections missing')
-    want((h.split(`Every run on ${sn}`)[2] || h.split(`Every run on ${sn}`)[1]).match(/<tr/g).length - 1 >= n, `fewer than ${n} run rows`)
+    want(h.includes(`Every cycle on ${sn}`) && h.includes('Tests it has run'), 'sections missing')
+    want((h.split(`Every cycle on ${sn}`)[2] || h.split(`Every cycle on ${sn}`)[1]).match(/<tr/g).length - 1 >= n, `fewer than ${n} run rows`)
     want(renderToString(<DeviceView serial="NOPE" d={undefined} cycles={cycles} onOpenTest={nop} />).replace(/<!-- -->/g, '').includes('No device NOPE'), 'unknown serial')
   })
   check('range picker lists test dates', () => {

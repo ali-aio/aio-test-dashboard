@@ -213,7 +213,7 @@ export default function TodayView({ fleet }) {
       </div>
 
       <div className="stat-row">
-        <Metric label="Run time"
+        <Metric label="Cycle time"
           value={runStart ? <>{fmtDur(now - runStart)}<span className="secondary" style={{ fontSize: 13 }}> of ~{fmtDur(T.endMs - runStart)}</span></> : 'Not started'}
           delta={runStart ? `off charger ${hm(runStart)} · window opened ${hm(T.startMs)}`
             : `${started.length} of ${all.length} devices off charger · window ${hm(T.startMs)}–${hm(T.endMs)}`} />
@@ -316,7 +316,7 @@ export default function TodayView({ fleet }) {
         </div>
         {T.decl && T.removed?.length > 0 && (
           <div className="card">
-            <div className="card-head"><h2>Taken out of this cycle ({T.removed.length})</h2><span className="secondary">kept on record · their runs from then on don't count toward {T.tt?.name}</span></div>
+            <div className="card-head"><h2>Taken out of this cycle ({T.removed.length})</h2><span className="secondary">kept on record · their cycles from then on don't count toward {T.tt?.name}</span></div>
             <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Taken out' }, { label: 'Reason' }, { label: 'Note' }, { label: 'By' }, { label: '', sortable: false }]}>
               {T.removed.map(r => (
                 <tr key={r.serial}>

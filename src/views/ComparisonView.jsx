@@ -162,7 +162,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
     [cycles],
   )
 
-  if (!cycles.length) return <EmptyNote>No finished runs match the current filters. A run is listed once it ends — the one in progress is on Today.</EmptyNote>
+  if (!cycles.length) return <EmptyNote>No finished cycles match the current filters. A cycle is listed once it ends — the one in progress is on Today.</EmptyNote>
   // The switch stays on screen even when the chosen dimension has one group, so the
   // reader can move to one that splits (e.g. Last 24h: one build, 19 devices).
   const compareBySwitch = (
@@ -236,7 +236,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
       </Card>
 
       <Card expandable title="Measures side by side"
-        sub={`Average run time and ${chargingOnly ? 'charge' : 'drain'} rate for each group`}>
+        sub={`Average cycle time and ${chargingOnly ? 'charge' : 'drain'} rate for each group`}>
         <GroupedColumns
           groups={visible.map((g) => ({
             label: g.label.replace(' Build', ''),
@@ -247,22 +247,22 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
             },
           }))}
           measures={[
-            { key: 'duration', label: 'Avg run time (h)', color: 'var(--series-1)' },
+            { key: 'duration', label: 'Avg cycle time (h)', color: 'var(--series-1)' },
             { key: 'drain', label: chargingOnly ? 'Avg T7 charge rate (%/h)' : 'Avg T7 drain (%/h)', color: 'var(--series-2)' },
           ]}
           formatValue={(v) => `${v}`}
           xLabel={DIMENSIONS.find((d) => d.id === dimension)?.label}
           rotateLabels={groups.length > 5}
           height={280}
-          emptyState={explainEmpty(cycles, 'duration', 'a run time')}
-          caption={`Average run time and ${chargingOnly ? 'charge' : 'drain'} rate by comparison group`}
+          emptyState={explainEmpty(cycles, 'duration', 'a cycle time')}
+          caption={`Average cycle time and ${chargingOnly ? 'charge' : 'drain'} rate by comparison group`}
           tableSortable
           tableFirst
           tableColumns={[
             { key: 'label', label: DIMENSIONS.find((d) => d.id === dimension)?.label ?? 'Group' },
-            { key: 'n', label: 'Cycles (MDM) or runs' },
+            { key: 'n', label: 'Cycles' },
             { key: 'serials', label: 'Devices' },
-            { key: 'dur', label: 'Avg run time', better: 'up' },
+            { key: 'dur', label: 'Avg cycle time', better: 'up' },
             { key: 'drain', label: chargingOnly ? 'Avg charge rate' : 'Avg drain', better: chargingOnly ? 'up' : 'down' },
             { key: 'start', label: 'Avg start' },
             { key: 'end', label: chargingOnly ? 'Avg charged to' : 'Avg end', better: 'up' },

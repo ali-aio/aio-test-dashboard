@@ -213,10 +213,14 @@ export default function TodayView({ fleet }) {
       </div>
 
       <div className="stat-row">
-        <Metric label="Cycle time"
-          value={runStart ? <>{fmtDur(now - runStart)}<span className="secondary" style={{ fontSize: 13 }}> of ~{fmtDur(T.endMs - runStart)}</span></> : 'Not started'}
-          delta={runStart ? `off charger ${hm(runStart)} · window opened ${hm(T.startMs)}`
-            : `${started.length} of ${all.length} devices off charger · window ${hm(T.startMs)}–${hm(T.endMs)}`} />
+        {/* how long the devices have been running since they came off the charger, and how
+            much of the planned cycle is left (to its end time on the Cycle plan) */}
+        <Metric label="Running for"
+          value={runStart ? <>{fmtDur(now - runStart)}{T.endMs > now
+            ? <span className="secondary" style={{ fontSize: 13 }}> · {fmtDur(T.endMs - now)} left</span>
+            : <span className="secondary" style={{ fontSize: 13 }}> · planned end passed</span>}</> : 'Not started'}
+          delta={runStart ? `off charger ${hm(runStart)} · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`
+            : `${started.length} of ${all.length} devices off charger · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`} />
         <Metric label="Battery now" value={medNow != null ? `${medNow}%` : '—'}
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />
         <Metric label="Drain rate" value={rate ? <>{rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}

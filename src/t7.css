@@ -1958,3 +1958,19 @@ tr.takeout-row > td { padding: 0; text-align: left; white-space: normal; }
 tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-warning); }
 .dt-pair { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 6px; }
 .dt-pair .input { min-width: 0; width: 100%; }
+/* Header device search (every screen) and the device page */
+.dev-search { position: relative; display: flex; align-items: center; }
+.dev-search-icon { position: absolute; left: 9px; color: var(--text-muted); pointer-events: none; }
+.dev-search input { width: 210px; height: 32px; padding: 0 10px 0 28px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--surface-1); color: var(--text-primary); font: inherit; font-size: 13px; }
+.dev-search input:focus { outline: 2px solid var(--series-1); outline-offset: 1px; }
+.dev-search-pop { top: calc(100% + 6px); left: auto; right: 0; width: 330px; padding: 4px; }
+.dev-search-row { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; border: 0; background: transparent;
+  text-align: left; padding: 7px 9px; border-radius: var(--radius-xs); cursor: pointer; font-size: 13px; color: var(--text-primary); }
+.dev-search-row .secondary { font-size: 11.5px; }
+.dev-search-row.is-active { background: var(--wash); }
+.dev-now { display: flex; gap: 22px; flex-wrap: wrap; }
+.dev-now > div { display: flex; flex-direction: column; gap: 2px; }
+.dev-now span { font-size: 11.5px; color: var(--text-muted); }
+.dev-now b { font-size: 18px; font-variant-numeric: tabular-nums; }
+@media (max-width: 900px) { .dev-search input { width: 150px; } }

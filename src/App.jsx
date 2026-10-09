@@ -18,6 +18,8 @@ import T7Overview from './views/T7Overview.jsx'
 import ComparisonView from './views/ComparisonView.jsx'
 import ThermalView from './views/ThermalView.jsx'
 import DevicesView from './views/DevicesView.jsx'
+import DeviceView from './views/DeviceView.jsx'
+import DeviceSearch from './components/DeviceSearch.jsx'
 import TodayView from './views/TodayView.jsx'
 import CyclePlanView from './views/CyclePlanView.jsx'
 
@@ -35,7 +37,8 @@ const VIEWS = [
   { id: 'thermal', hash: '#/nx/thermal', label: 'Thermal' },
   { id: 'summary', hash: '#/nx/summary', label: 'Summary' },
 ]
-const ROUTE = h => h.startsWith('#/nx/comparison') ? 'comparison'
+const ROUTE = h => h.startsWith('#/nx/device/') ? 'device'
+  : h.startsWith('#/nx/comparison') ? 'comparison'
   : h.startsWith('#/nx/thermal') ? 'thermal'
   : h.startsWith('#/nx/summary') ? 'summary'
   : h.startsWith('#/nx/today') ? 'today'
@@ -119,6 +122,7 @@ export default function App() {
   const analysis = ['overview', 'comparison', 'thermal', 'summary'].includes(view)
   const body = error ? <ErrorPanel error={error} />
     : !ready ? <div className="empty-note">Loading the fleet from the MDM…</div>
+    : view === 'device' ? (() => { const sn = decodeURIComponent(hash.slice('#/nx/device/'.length)); return <DeviceView key={sn} serial={sn} d={fleet.DMAP.get(sn)} cycles={cycles} onOpenTest={openDeviceTest} /> })()
     : view === 'today' ? <TodayView fleet={fleet} />
     : view === 'plan' ? <CyclePlanView fleet={fleet} />
     : (
@@ -166,6 +170,7 @@ export default function App() {
           </nav>
         )}
         <div className="header-spacer" />
+        {ready && <DeviceSearch devices={DEV} onOpen={sn => { location.hash = `#/nx/device/${encodeURIComponent(sn)}`; window.scrollTo(0, 0) }} />}
         <span className="hint nowrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span className={`pill ${error ? 'pill-bad' : ready ? 'pill-ok pill-live' : ''}`}>{error ? 'Disconnected' : ready ? 'Live' : 'Connecting'}</span>
           {fleet.server?.lastSweepAt ? <span title={`The server checks the MDM for finished runs every 30 minutes; last check ${new Date(fleet.server.lastSweepAt).toLocaleString()}. Live device readings update every 30 seconds regardless.`}>

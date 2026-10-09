@@ -11,6 +11,7 @@ import Thermal from '../src/views/ThermalView.jsx'
 import Devices from '../src/views/DevicesView.jsx'
 import Today from '../src/views/TodayView.jsx'
 import CyclePlan from '../src/views/CyclePlanView.jsx'
+import DeviceView from '../src/views/DeviceView.jsx'
 import { lifetimeOf, cyclesInRange } from '../src/lib/device.js'
 import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
@@ -271,6 +272,14 @@ const mdmCases = []
     ])
     want(out.length === 3, `kept ${out.length}`)
     want(out[1].start === t(5, 8, 0) && out[0].start === t(3, 6, 1), 'kept the longer copy')
+  })
+  check('device page: whole history for one serial', () => {
+    const sn = cycles[0].serial, d = DEV.find((x) => x.serial === sn)
+    const h = renderToString(<DeviceView serial={sn} d={d} cycles={cycles} onOpenTest={nop} />)
+    const n = cycles.filter((c) => c.serial === sn).length
+    want(h.includes(`Every run on ${sn}`) && h.includes('Tests it has run'), 'sections missing')
+    want((h.split(`Every run on ${sn}`)[2] || h.split(`Every run on ${sn}`)[1]).match(/<tr/g).length - 1 >= n, `fewer than ${n} run rows`)
+    want(renderToString(<DeviceView serial="NOPE" d={undefined} cycles={cycles} onOpenTest={nop} />).replace(/<!-- -->/g, '').includes('No device NOPE'), 'unknown serial')
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

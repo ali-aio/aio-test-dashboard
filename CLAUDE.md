@@ -129,6 +129,10 @@ oversight; don't add restaurant filtering back in without being asked.
   `src/App.jsx` (shell, source list, status bar, inspector, v1/v2 picker, theme) ->
   `src/views/*.jsx`. Built with `npm run build` into `dist/`, served at `/dist/app.html`
   until the v1 views are ported and it takes over `/`.
+- **Device search + device page** — `src/components/DeviceSearch.jsx` sits in the header on every
+  screen (`/` focuses it); a match opens `#/nx/device/<serial>` (`src/views/DeviceView.jsx`): status
+  now, totals, battery curve per test, tests it has run (click → that test filtered to the device)
+  and every run, all tests, newest first. Filters do not apply on that page.
 - `src/lib/window.js` — the 7-day, 5-minute reading window behind Today and the charts. It is
   kept in the browser's IndexedDB (`readings` store in `src/lib/db.js`), so a page open draws
   from the stored copy and fetches only the readings since (last stamp − 30 min). "Reload

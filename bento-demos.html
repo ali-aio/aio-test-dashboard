@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bento Variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap">
+<!--
+  Design exploration only — mock data, not wired to the API.
+  Four takes on the Bento direction (style-demos.html › 2), same Overview content in each:
+    A · Warm     — the original: off-white, one pastel per tile, black hero tile
+    B · Mono     — white tiles on grey, black type, coral used once, serif numerals
+    C · Night    — charcoal tiles on black, three vivid tiles for the numbers that matter
+    D · Visual   — graphics first: ring, big curve, dot grid, thermometer; fewer numbers
+-->
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: #e9e7e2; color: #141414; font: 14px/1.5 Manrope, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid #141414; outline-offset: 2px; border-radius: 6px; }
+
+.pick { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 24px; background: rgba(233,231,226,.85); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(0,0,0,.08); }
+.pick b { margin-right: 8px; }
+.pick .tab { padding: 6px 14px; border-radius: 999px; background: rgba(0,0,0,.06); font-weight: 700; }
+.pick .tab[aria-pressed="true"] { background: #141414; color: #fff; }
+.note { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 24px; padding: 18px 24px 0; max-width: 1240px; margin: 0 auto; color: #5c5a55; }
+.note h2 { margin: 0 0 3px; font-size: 16px; color: #141414; } .note p { margin: 0; } .note ul { margin: 0; padding-left: 16px; }
+.note .g li::marker { color: #1f8f52; } .note .r li::marker { color: #d1343f; }
+.stage { padding: 18px 24px 60px; }
+.opt { display: none; } .opt.on { display: block; }
+.frame { max-width: 1240px; margin: 0 auto; border-radius: 28px; overflow: hidden; padding: 28px 32px 36px; min-height: 800px; }
+@media (max-width: 900px) { .note { grid-template-columns: 1fr; gap: 10px; } .stage { padding: 12px 12px 40px; } .frame { padding: 20px 16px; } }
+
+/* ── shared bento grammar; each variant only sets tokens ── */
+.v { --bg: #f3f1ec; --tile: #fff; --ink: #141414; --ink2: #5c5a55; --ink3: #8d8a83; --line: rgba(0,0,0,.07);
+  --hero: #1a1a1a; --hero-ink: #fff; --hero-dim: rgba(255,255,255,.6);
+  --c1: #f6e76b; --c2: #bfeedd; --c3: #cfe3ff; --c4: #ffd3c2; --c5: #ddd6ff;
+  --ok: #1f8f52; --warn: #c2640a; --bad: #d1343f; --blue: #1c56b3;
+  --radius: 26px; --numfont: Manrope, system-ui, sans-serif; --numweight: 800; --numspace: -.045em;
+  background: var(--bg); color: var(--ink); }
+.v .top { display: flex; align-items: center; gap: 20px; margin-bottom: 26px; flex-wrap: wrap; }
+.v .wordmark { font-weight: 800; font-size: 18px; letter-spacing: -.03em; display: flex; align-items: center; gap: 8px; }
+.v .wordmark i { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
+.v nav { display: flex; gap: 2px; }
+.v nav a { padding: 8px 14px; border-radius: 999px; color: var(--ink2); text-decoration: none; font-weight: 600; font-size: 13.5px; }
+.v nav a.on { background: var(--ink); color: var(--bg); }
+.v .sp { flex: 1; }
+.v .pill { padding: 8px 14px; border-radius: 999px; background: var(--tile); font-weight: 600; font-size: 13px; color: var(--ink2); box-shadow: 0 0 0 1px var(--line); }
+.v .pill b { color: var(--ink); }
+.v h1 { font-size: 40px; font-weight: 800; letter-spacing: -.035em; line-height: 1.05; margin: 0 0 6px; max-width: 800px; text-wrap: balance; }
+.v h1 em { font-style: normal; color: var(--ink3); }
+.v .lead { color: var(--ink2); font-size: 15px; margin: 0 0 24px; font-weight: 500; }
+.v .bento { display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 150px; gap: 14px; }
+.v .t { background: var(--tile); border-radius: var(--radius); padding: 22px 24px; display: flex; flex-direction: column; min-width: 0; position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+.v .t .l { font-weight: 700; font-size: 13px; } .v .t .l small { display: block; color: var(--ink3); font-weight: 600; font-size: 12px; margin-top: 2px; }
+.v .t .v { font-family: var(--numfont); font-size: 52px; font-weight: var(--numweight); letter-spacing: var(--numspace); line-height: 1; margin-top: auto; }
+.v .t .v small { font-size: 18px; letter-spacing: -.02em; margin-left: 2px; color: var(--ink2); font-family: Manrope, sans-serif; font-weight: 700; }
+.v .t .f { font-size: 12.5px; color: var(--ink2); font-weight: 600; margin-top: 6px; }
+.v .big { grid-column: span 2; grid-row: span 2; background: var(--hero); color: var(--hero-ink); box-shadow: none; }
+.v .big .l small, .v .big .f, .v .big .v small { color: var(--hero-dim); }
+.v .big .v { font-size: 96px; }
+.v .c1 { background: var(--c1); } .v .c2 { background: var(--c2); } .v .c3 { background: var(--c3); } .v .c4 { background: var(--c4); } .v .c5 { background: var(--c5); }
+.v .w2 { grid-column: span 2; } .v .w3 { grid-column: span 3; } .v .w4 { grid-column: span 4; } .v .h2 { grid-row: span 2; }
+.v .t.chart { padding-bottom: 10px; } .v .t.chart svg { margin-top: auto; }
+.v svg text { fill: var(--ink3); font: 11px Manrope, sans-serif; font-weight: 600; }
+.v .arrow { position: absolute; right: 20px; top: 20px; width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.06); display: grid; place-items: center; font-size: 15px; }
+.v .big .arrow { background: rgba(255,255,255,.12); }
+.v .lst { display: flex; flex-direction: column; margin-top: 10px; overflow: hidden; }
+.v .lrow { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-weight: 600; font-size: 13px; }
+.v .lrow:first-child { border-top: 0; }
+.v .lrow .s { color: var(--ink3); font-weight: 600; font-size: 12px; }
+.v .tag { padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+.v .tag.ok { background: var(--c2); color: var(--ok); } .v .tag.warn { background: var(--c4); color: var(--warn); } .v .tag.bad { background: #ffd0d4; color: var(--bad); } .v .tag.blue { background: var(--c3); color: var(--blue); }
+.v .stack { display: flex; gap: 6px; margin-top: auto; align-items: end; height: 70px; }
+.v .stack i { flex: 1; border-radius: 6px 6px 3px 3px; background: var(--ink); opacity: .85; }
+.v .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; font-weight: 500; }
+@media (max-width: 1000px) { .v .bento { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 140px; } .v .w3, .v .w4 { grid-column: span 2; } .v nav { display: none; } .v h1 { font-size: 30px; } .v .big .v { font-size: 64px; } }
+
+/* ── B · Mono ── */
+.vB { --bg: #ececea; --tile: #fff; --line: rgba(0,0,0,.05); --hero: #f9674e; --hero-ink: #fff; --hero-dim: rgba(255,255,255,.72);
+  --c1: #fff; --c2: #fff; --c3: #fff; --c4: #fff; --c5: #fff; --radius: 22px;
+  --numfont: "Instrument Serif", Georgia, serif; --numweight: 400; --numspace: -.02em; }
+.vB .t .v { font-size: 60px; } .vB .big .v { font-size: 112px; }
+.vB h1 { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; font-size: 46px; letter-spacing: -.02em; }
+.vB h1 em { color: #f9674e; }
+.vB .tag.ok { background: #e7f3ec; } .vB .tag.warn { background: #fbeede; } .vB .tag.blue { background: #e6eefb; }
+.vB .stack i { background: #f9674e; opacity: 1; }
+.vB .wordmark i { background: #f9674e; }
+
+/* ── C · Night ── */
+.vC { --bg: #0d0d0d; --tile: #1a1a1b; --ink: #f5f5f4; --ink2: #b3b3ad; --ink3: #7a7a74; --line: rgba(255,255,255,.07);
+  --hero: #d4ff3f; --hero-ink: #0d0d0d; --hero-dim: rgba(13,13,13,.6);
+  --c1: #d4ff3f; --c2: #1a1a1b; --c3: #3e7bff; --c4: #ff7a45; --c5: #1a1a1b;
+  --ok: #8be28c; --warn: #ffb547; --bad: #ff6b6b; --blue: #9dc0ff; --radius: 24px; }
+.vC .c1, .vC .c3, .vC .c4 { color: #0d0d0d; } .vC .c1 .l small, .vC .c3 .l small, .vC .c4 .l small, .vC .c1 .v small, .vC .c3 .v small, .vC .c4 .v small, .vC .c1 .f, .vC .c3 .f, .vC .c4 .f { color: rgba(13,13,13,.6); }
+.vC .c1 .arrow, .vC .c3 .arrow, .vC .c4 .arrow { background: rgba(13,13,13,.12); }
+.vC .arrow { background: rgba(255,255,255,.08); }
+.vC .tag.ok { background: rgba(139,226,140,.15); } .vC .tag.warn { background: rgba(255,181,71,.15); } .vC .tag.bad { background: rgba(255,107,107,.15); } .vC .tag.blue { background: rgba(157,192,255,.15); }
+.vC .stack i { background: #d4ff3f; opacity: 1; }
+.vC .pill { background: #1a1a1b; }
+.vC .wordmark i { background: #d4ff3f; }
+
+/* ── D · Visual ── */
+.vD { --bg: #f4f2ee; --radius: 30px; --c1: #fff; --c2: #fff; --c3: #fff; --c4: #fff; --c5: #fff; }
+.vD .bento { grid-auto-rows: 160px; }
+.vD .ringbox { display: flex; align-items: center; gap: 22px; margin-top: auto; }
+.vD .ringbox .v { margin: 0; }
+.vD .dots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: auto; }
+.vD .dot { aspect-ratio: 1; border-radius: 10px; display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; }
+.vD .therm { display: flex; gap: 10px; align-items: end; margin-top: auto; height: 84px; }
+.vD .therm i { flex: 1; border-radius: 8px 8px 4px 4px; background: #e5e3de; position: relative; }
+.vD .therm i b { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 8px 8px 4px 4px; }
+.vD .therm i span { position: absolute; left: 0; right: 0; top: -18px; text-align: center; font-size: 11px; font-weight: 700; color: var(--ink2); }
+.vD .range { position: relative; height: 10px; border-radius: 5px; background: #e5e3de; margin: 8px 0 4px; }
+.vD .range i { position: absolute; top: 0; bottom: 0; border-radius: 5px; background: var(--ink); }
+.vD .range b { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px var(--ink); }
+.vD .rr { display: grid; grid-template-columns: 110px 1fr 54px; gap: 12px; align-items: center; font-weight: 700; font-size: 13px; }
+.vD .rr .s { color: var(--ink3); font-weight: 600; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="pick">
+  <b>Bento variants</b>
+  <button class="tab" data-o="A" type="button">A · Warm</button>
+  <button class="tab" data-o="B" type="button">B · Mono</button>
+  <button class="tab" data-o="C" type="button">C · Night</button>
+  <button class="tab" data-o="D" type="button">D · Visual</button>
+</div>
+<div class="note" id="note"></div>
+<div class="stage">
+  <div class="opt frame v vA" id="opt-A"></div>
+  <div class="opt frame v vB" id="opt-B"></div>
+  <div class="opt frame v vC" id="opt-C"></div>
+  <div class="opt frame v vD" id="opt-D"></div>
+</div>
+
+<script>
+/* ───── mock data ───── */
+const DEV = [
+  { sn: 'AT070AABU00231', test: 'Bench run',       pct: 74, temp: 37.1, rate: 5.1, life: 30.97, rt: 19.6, st: 'run' },
+  { sn: 'AT070AABU00387', test: 'Bench run',       pct: 69, temp: 39.4, rate: 6.0, life: 90.64, rt: 16.7, st: 'run' },
+  { sn: 'AT070AABU00790', test: 'Field Discharge', pct: 76, temp: 35.9, rate: 5.5, life: 14.92, rt: 18.2, st: 'run' },
+  { sn: 'AT070AABU00455', test: 'Run-down',        pct: 9,  temp: 44.8, rate: 6.6, life: 41.30, rt: 15.1, st: 'run', flag: ['bad', 'Almost empty'] },
+  { sn: 'AT070AABU00561', test: 'WLC + Discharge', pct: 62, temp: 46.1, rate: 7.2, life: 52.88, rt: 13.9, st: 'run', flag: ['warn', '46.1 °C'] },
+  { sn: 'AT070AABU00518', test: 'Bench run',       pct: 77, temp: 36.4, rate: 4.4, life: 27.40, rt: 22.7, st: 'run' },
+  { sn: 'AT070AABU00502', test: 'Charging Cycle',  pct: 63, temp: 41.2, rate: 0,   life: 18.75, rt: null, st: 'chg' },
+  { sn: 'AT070AABU00577', test: 'Charging Cycle',  pct: 88, temp: 38.0, rate: 0,   life: 12.66, rt: null, st: 'chg' },
+  { sn: 'AT070AABU00533', test: 'Offline 3 h',     pct: 0,  temp: null, rate: 0,   life: 35.02, rt: null, st: 'off', flag: ['bad', 'Offline'] },
+  { sn: 'AT070AABU00590', test: 'Idle · full',     pct: 100, temp: 32.8, rate: 0,  life: 19.30, rt: null, st: 'idle' },
+  { sn: 'AT070AABU00604', test: 'Idle · full',     pct: 96,  temp: 33.0, rate: 0,  life: 8.45,  rt: null, st: 'idle' },
+  { sn: 'AT070AABU00412', test: 'Idle · full',     pct: 100, temp: 32.1, rate: 0,  life: 22.10, rt: null, st: 'idle' },
+];
+const TESTS = [
+  { n: 'Bench run',       runs: 14, devs: 6,  rt: 19.6, lo: 16.7, hi: 22.7, d: +0.4 },
+  { n: 'Field Discharge', runs: 39, devs: 23, rt: 27.0, lo: 23.1, hi: 31.4, d: -0.8 },
+  { n: 'WLC + Discharge', runs: 9,  devs: 4,  rt: 13.9, lo: 12.2, hi: 15.8, d: -1.6 },
+  { n: 'Run-down',        runs: 5,  devs: 3,  rt: 15.1, lo: 14.0, hi: 16.9, d: +0.2 },
+];
+const LIFE = DEV.reduce((s, d) => s + d.life, 0);
+const NOW = 15.67;
+const WEEK = [3.1, 4.2, 5.0, 4.6, 6.1, 5.8, 6.4];
+const clock = h => { const m = Math.round(((h % 24) + 24) % 24 * 60); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const f1 = v => v.toFixed(1), f2 = v => v.toFixed(2);
+const curve = (rt, end, n) => Array.from({ length: n }, (_, h) => ({ t: h, v: Math.max(end, 100 - 100 / rt * h + Math.sin(h * 1.3) * 1.2) }));
+
+/* ───── drawing ───── */
+function smooth(p) { let d = `M${p[0][0].toFixed(1)},${p[0][1].toFixed(1)}`; for (let i = 0; i < p.length - 1; i++) { const a = p[i - 1] || p[i], b = p[i], c = p[i + 1], e = p[i + 2] || c; d += ` C${(b[0] + (c[0] - a[0]) / 6).toFixed(1)},${(b[1] + (c[1] - a[1]) / 6).toFixed(1)} ${(c[0] - (e[0] - b[0]) / 6).toFixed(1)},${(c[1] - (e[1] - b[1]) / 6).toFixed(1)} ${c[0].toFixed(1)},${c[1].toFixed(1)}`; } return d; }
+let gid = 0;
+function chart(series, { w = 760, h = 210, xMax = 26, yMax = 100, L = 30, R = 10, T = 10, B = 22, area = true, grid = 'rgba(0,0,0,.07)', sw = 2.5, ticks = [0, 50, 100], xstep = 5 } = {}) {
+  const X = x => L + x / xMax * (w - L - R), Y = y => T + (1 - y / yMax) * (h - T - B);
+  let g = '';
+  for (const v of ticks) g += `<line x1="${L}" x2="${w - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${grid}"/><text x="${L - 6}" y="${Y(v) + 3.5}" text-anchor="end">${v}%</text>`;
+  for (let x = 0; x <= xMax; x += xstep) g += `<text x="${X(x)}" y="${h - 6}" text-anchor="middle">${x} h</text>`;
+  const defs = series.map((s, i) => `<linearGradient id="g${gid}_${i}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${s.c}" stop-opacity=".22"/><stop offset="1" stop-color="${s.c}" stop-opacity="0"/></linearGradient>`).join('');
+  const lines = series.map((s, i) => { const p = s.pts.map(q => [X(q.t), Y(q.v)]); const d = smooth(p), last = p[p.length - 1];
+    return (area ? `<path d="${d} L${last[0].toFixed(1)},${Y(0)} L${p[0][0].toFixed(1)},${Y(0)} Z" fill="url(#g${gid}_${i})"/>` : '') + `<path d="${d}" fill="none" stroke="${s.c}" stroke-width="${sw}" stroke-linecap="round"/><circle cx="${last[0]}" cy="${last[1]}" r="4" fill="${s.c}"/>`; }).join('');
+  gid++;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" role="img" aria-label="Mean battery by test"><defs>${defs}</defs>${g}${lines}</svg>`;
+}
+const ring = (p, c, size = 120, sw = 14, track = 'rgba(0,0,0,.08)') => { const r = size / 2 - sw, L = 2 * Math.PI * r; return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${track}" stroke-width="${sw}"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${L * p / 100} ${L}" transform="rotate(-90 ${size/2} ${size/2})"/></svg>`; };
+const tag = d => d.flag ? `<span class="tag ${d.flag[0]}">${d.flag[1]}</span>` : d.st === 'chg' ? '<span class="tag blue">Charging</span>' : d.st === 'run' ? '<span class="tag ok">Running</span>' : '<span class="tag ok">Full</span>';
+
+/* ───── the standard tile set (A, B, C) — colours differ per variant via tokens ───── */
+function standard(id, lineColors, chartGrid) {
+  const curves = TESTS.map((t, i) => ({ pts: curve(t.rt, t.n === 'Run-down' ? 2 : 18, Math.ceil(t.rt) + 1), c: lineColors[i] }));
+  document.getElementById('opt-' + id).innerHTML = `
+    <div class="top"><span class="wordmark"><i></i>Test Lab</span><nav><a class="on" href="#">Overview</a><a href="#">Today</a><a href="#">Cycle plan</a><a href="#">Compare</a><a href="#">Thermal</a></nav><span class="sp"></span><span class="pill">Test Cycles · <b>live</b></span><span class="pill">All tests ▾</span><span class="pill">7 days ▾</span></div>
+    <h1>Six units on the bench, <em>finishing around 00:40.</em></h1>
+    <p class="lead">Thursday 9 October · bench run since 10:32 · 2 charging · 1 offline</p>
+    <div class="bento">
+      <div class="t big"><span class="arrow">↗</span><div class="l">Lifetime cycles<small>from the MDM · 12 devices · every test</small></div><div class="v num">${f1(LIFE)}</div><div class="f">54.1 of them in this week's runs</div></div>
+      <div class="t c1"><div class="l">Avg runtime<small>bench run · 14 runs</small></div><div class="v num">19.6<small>h</small></div></div>
+      <div class="t c2"><div class="l">Running<small>of 12 units</small></div><div class="v num">6</div></div>
+      <div class="t w2 chart"><span class="arrow">↗</span><div class="l">Cycles per day<small>this week · ▲ 6.4 on last week</small></div><div class="stack">${WEEK.map(v => `<i style="height:${v / 6.4 * 100}%"></i>`).join('')}</div></div>
+      <div class="t c4"><div class="l">Peak temp<small>…00561 · WLC</small></div><div class="v num">46<small>°C</small></div></div>
+      <div class="t c5"><div class="l">Attention<small>offline · hot</small></div><div class="v num" style="color:var(--bad)">2</div></div>
+      <div class="t w4 h2 chart"><span class="arrow">↗</span><div class="l">Mean battery by test<small>${TESTS.map((t, i) => `<span style="color:${lineColors[i]}">● ${t.n}</span>`).join(' &nbsp; ')}</small></div>${chart(curves, { grid: chartGrid })}</div>
+      <div class="t w2 h2 c3"><div class="l">Tests this week<small>runtime to empty · change vs last week</small></div><div class="lst">${TESTS.map(t => `<div class="lrow"><span>${t.n}<br><span class="s">${t.runs} runs</span></span><span class="num">${f1(t.rt)} h</span><span class="num" style="color:${t.d >= 0 ? 'var(--ok)' : 'var(--bad)'}">${t.d >= 0 ? '+' : '−'}${f1(Math.abs(t.d))}</span></div>`).join('')}</div></div>
+      <div class="t w3 h2"><span class="arrow">↗</span><div class="l">Units<small>what each one is doing</small></div><div class="lst">${DEV.slice(0, 6).map(d => `<div class="lrow"><span class="mono">${d.sn}<br><span class="s" style="font-family:Manrope">${d.test}</span></span>${tag(d)}<span class="num">${d.st === 'off' ? '—' : d.pct + '%'}</span></div>`).join('')}</div></div>
+      <div class="t w3 h2"><span class="arrow">↗</span><div class="l">Battery wear<small>lifetime cycles · most worn first</small></div><div class="lst">${[...DEV].sort((a, b) => b.life - a.life).slice(0, 6).map(d => `<div class="lrow"><span class="mono">${d.sn}</span><span></span><span class="num">${f2(d.life)}</span></div>`).join('')}</div></div>
+    </div>`;
+}
+standard('A', ['#141414', '#1c56b3', '#1f8f52', '#c2640a'], 'rgba(0,0,0,.07)');
+standard('B', ['#141414', '#f9674e', '#8d8a83', '#c9c7c1'], 'rgba(0,0,0,.06)');
+standard('C', ['#d4ff3f', '#3e7bff', '#ff7a45', '#f5f5f4'], 'rgba(255,255,255,.08)');
+
+/* ───── D · Visual ───── */
+(() => {
+  const C = ['#141414', '#1c56b3', '#1f8f52', '#c2640a'];
+  const curves = TESTS.map((t, i) => ({ pts: curve(t.rt, t.n === 'Run-down' ? 2 : 18, Math.ceil(t.rt) + 1), c: C[i] }));
+  const dcol = d => d.st === 'off' ? '#c9c7c1' : d.st === 'chg' ? '#1c56b3' : d.pct < 15 ? '#d1343f' : d.pct < 40 ? '#c2640a' : '#1f8f52';
+  const minRt = 10, maxRt = 32, pos = v => (v - minRt) / (maxRt - minRt) * 100;
+  document.getElementById('opt-D').innerHTML = `
+    <div class="top"><span class="wordmark"><i></i>Test Lab</span><nav><a class="on" href="#">Overview</a><a href="#">Today</a><a href="#">Cycle plan</a><a href="#">Compare</a><a href="#">Thermal</a></nav><span class="sp"></span><span class="pill">Test Cycles · <b>live</b></span><span class="pill">All tests ▾</span><span class="pill">7 days ▾</span></div>
+    <h1>Six units on the bench, <em>finishing around 00:40.</em></h1>
+    <p class="lead">Thursday 9 October · bench run since 10:32 · 2 charging · 1 offline</p>
+    <div class="bento">
+      <div class="t w2"><span class="arrow">↗</span><div class="l">Lifetime cycles<small>from the MDM · 12 devices · every test</small></div>
+        <div class="ringbox" style="gap:16px"><span style="position:relative;flex:none">${ring(Math.min(100, LIFE / 5), '#141414', 78, 9)}</span><div><div class="v num" style="font-size:38px">${f1(LIFE)}</div><div class="f" style="margin-top:2px">54.1 in this week's runs</div></div></div></div>
+      <div class="t w4 h2 chart"><span class="arrow">↗</span><div class="l">Mean battery by test<small>${TESTS.map((t, i) => `<span style="color:${C[i]}">● ${t.n}</span>`).join(' &nbsp; ')}</small></div>${chart(curves, { h: 230 })}</div>
+      <div class="t w2"><div class="l">Units right now<small>green running · blue charging · red low · grey offline</small></div>
+        <div class="dots">${DEV.map(d => `<span class="dot" style="background:${dcol(d)}" title="${d.sn}">${d.st === 'off' ? '' : d.pct}</span>`).join('')}</div></div>
+      <div class="t w2"><div class="l">Finishing<small>6 running · bench run since 10:32</small></div><div class="ringbox" style="gap:14px"><div class="v num" style="font-size:38px">00:40</div><div class="f" style="margin:0">last unit to empty<br>first one ~17:00 (…00455)</div></div></div>
+      <div class="t w2"><div class="l">Cycles per day<small>this week · ▲ 6.4 on last week</small></div><div class="stack">${WEEK.map(v => `<i style="height:${v / 6.4 * 100}%"></i>`).join('')}</div></div>
+      <div class="t w2"><div class="l">Battery temperature<small>peak today · limit 45 °C</small></div>
+        <div class="therm">${DEV.filter(d => d.temp).sort((a, b) => b.temp - a.temp).slice(0, 7).map(d => `<i><span>${Math.round(d.temp)}°</span><b style="height:${(d.temp - 25) / 25 * 100}%;background:${d.temp >= 45 ? '#d1343f' : d.temp >= 40 ? '#c2640a' : '#141414'}"></b></i>`).join('')}</div></div>
+      <div class="t w3 h2"><span class="arrow">↗</span><div class="l">Runtime to empty by test<small>shortest to longest run this week · dot at the mean</small></div>
+        <div class="lst">${TESTS.map(t => `<div class="rr" style="padding:10px 0;border-top:1px solid var(--line)"><span>${t.n}<br><span class="s">${t.runs} runs</span></span><span><span class="range"><i style="left:${pos(t.lo)}%;right:${100 - pos(t.hi)}%"></i><b style="left:${pos(t.rt)}%"></b></span></span><span class="num" style="text-align:right">${f1(t.rt)} h</span></div>`).join('')}</div></div>
+      <div class="t w3 h2"><span class="arrow">↗</span><div class="l">Needs a look<small>and the next three to finish</small></div>
+        <div class="lst">${[...DEV.filter(d => d.flag), ...DEV.filter(d => d.st === 'run' && !d.flag).sort((a, b) => a.pct / a.rate - b.pct / b.rate).slice(0, 3)].map(d => `<div class="lrow"><span class="mono">${d.sn}<br><span class="s" style="font-family:Manrope">${d.test}</span></span>${d.flag ? tag(d) : `<span class="s">finishes ~${clock(NOW + d.pct / d.rate)}</span>`}<span class="num">${d.st === 'off' ? '—' : d.pct + '%'}</span></div>`).join('')}</div></div>
+    </div>`;
+})();
+
+/* ───── notes + switching ───── */
+const NOTES = {
+  A: ['A · Warm', 'The original Bento: warm off-white ground, one pastel per tile, a black hero tile for lifetime cycles, big friendly numbers and a sentence headline.',
+    ['Friendly, readable, nothing looks technical', 'Pastels colour-code the tile kinds at a glance'], ['Pastels must stay muted or it turns toy-like', 'Colour carries no meaning (yellow is not "warning")']],
+  B: ['B · Mono', 'Same grid, all colour removed: white tiles on grey, black type, serif numerals (Instrument Serif), and coral used exactly once for the hero tile. Semantic colours only in the tags.',
+    ['Calm and expensive-looking; colour only ever means something', 'The serif numerals give it a character no other dashboard has', 'Easiest to keep consistent across pages'], ['Less playful than A', 'Serif numerals need the real font loaded (Google Fonts)']],
+  C: ['C · Night', 'Charcoal tiles on black, with three vivid tiles (lime, electric blue, orange) for the numbers that matter most. Lime hero. Nothing-OS / Spotify-Wrapped energy.',
+    ['Looks great on a lab screen left on', 'Vivid tiles make the three key numbers impossible to miss'], ['Dark only', 'Vivid tiles must stay at three or it gets loud']],
+  D: ['D · Visual', 'Same warm ground, but every tile leads with a graphic: a ring for lifetime cycles, a big curve, a dot grid of all twelve units, a temperature bar row, range bars for runtime spread. Numbers are secondary.',
+    ['Reads from across the room; state is shape and colour, not digits', 'The dot grid shows the whole fleet in one glance', 'Range bars show spread, which an average hides'], ['Fewer exact numbers up front; they move into detail pages', 'Each graphic tile is its own small component to build']],
+};
+function show(o) {
+  document.querySelectorAll('.pick .tab').forEach(b => b.setAttribute('aria-pressed', b.dataset.o === o));
+  document.querySelectorAll('.opt').forEach(el => el.classList.toggle('on', el.id === 'opt-' + o));
+  const [t, d, g, r] = NOTES[o];
+  document.getElementById('note').innerHTML = `<div><h2>${t}</h2><p>${d}</p></div><ul class="g">${g.map(x => `<li>${x}</li>`).join('')}</ul><ul class="r">${r.map(x => `<li>${x}</li>`).join('')}</ul>`;
+  try { localStorage.setItem('bentoDemo', o); } catch {}
+  if (location.hash !== '#' + o) history.replaceState(null, '', '#' + o);
+}
+document.querySelectorAll('.pick .tab').forEach(b => b.onclick = () => show(b.dataset.o));
+let start = location.hash.slice(1); try { start = start || localStorage.getItem('bentoDemo'); } catch {}
+show(NOTES[start] ? start : 'D');
+</script>
+</body>
+</html>

@@ -20,7 +20,6 @@ import ThermalView from './views/ThermalView.jsx'
 import DevicesView from './views/DevicesView.jsx'
 import TodayView from './views/TodayView.jsx'
 import CyclePlanView from './views/CyclePlanView.jsx'
-import LegacyView from './views/LegacyView.jsx'
 
 CTX.group = GROUP
 
@@ -41,7 +40,7 @@ const ROUTE = h => h.startsWith('#/nx/comparison') ? 'comparison'
   : h.startsWith('#/nx/summary') ? 'summary'
   : h.startsWith('#/nx/today') ? 'today'
   : h.startsWith('#/nx/plan') ? 'plan'
-  : h.startsWith('#/nx') ? 'overview' : 'legacy'
+  : 'overview' // v2 only now: any other address opens the Overview
 
 function useHash() {
   const [h, setH] = useState(() => location.hash || '#/nx')
@@ -58,14 +57,12 @@ export default function App() {
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
   const hash = useHash()
   const view = ROUTE(hash)
-  const [ver, setVer] = useState(() => { try { return localStorage.getItem('ui:ver') === 'v1' ? 'v1' : 'v2' } catch (e) { return 'v2' } })
   const [filters, setFilters] = useState(EMPTY_FILTERS)
 
   useEffect(() => { boot(); return startPolling() }, [])
   // the Cycle plan is shared through the backend (data/plan.json); without it, per browser
   const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync)
   useEffect(() => (fleet.backend ? startPlanSync(GROUP) : undefined), [fleet.backend])
-  useEffect(() => { try { localStorage.setItem('ui:ver', ver) } catch (e) {} }, [ver])
   useEffect(() => { if (fleet.DEV.length) loadWindow(fleet.DEV) }, [fleet.DEV])
 
   const { DEV, ready, error } = fleet
@@ -124,7 +121,6 @@ export default function App() {
     : !ready ? <div className="empty-note">Loading the fleet from the MDM…</div>
     : view === 'today' ? <TodayView fleet={fleet} />
     : view === 'plan' ? <CyclePlanView fleet={fleet} />
-    : view === 'legacy' ? <LegacyView />
     : (
       <div className="view-stack">
         <FilterBar cycles={inRange} allCycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} declaredTypes={declaredTypes} />
@@ -161,7 +157,7 @@ export default function App() {
           <span><span className="brand-accent">AIO</span> T7</span>
           <span className="brand-sub">Cycle Dashboard</span>
         </div>
-        {ver === 'v2' && (
+        {(
           <nav className="tabs" role="tablist" aria-label="Dashboard views">
             {VIEWS.map(v => (
               <button key={v.id} role="tab" className="tab" aria-selected={view === v.id}
@@ -174,12 +170,6 @@ export default function App() {
           <span className={`pill ${error ? 'pill-bad' : ready ? 'pill-ok pill-live' : ''}`}>{error ? 'Disconnected' : ready ? 'Live' : 'Connecting'}</span>
           {fleet.server?.lastSweepAt ? <span title={`The server checks the MDM for finished runs every 30 minutes; last check ${new Date(fleet.server.lastSweepAt).toLocaleString()}. Live device readings update every 30 seconds regardless.`}>
             {fleet.server.sweeping ? 'checking for new runs…' : `runs checked ${ago(fleet.server.lastSweepAt)}`}</span> : null}
-        </span>
-        <span className="ver-pick">
-          <select value={ver} aria-label="Dashboard version"
-            onChange={e => { setVer(e.target.value); location.hash = e.target.value === 'v2' ? '#/nx' : '#/v1' }}>
-            <option value="v1">v1</option><option value="v2">v2</option>
-          </select>
         </span>
         <ThemeButton />
       </header>

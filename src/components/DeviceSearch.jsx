@@ -46,7 +46,7 @@ export default function DeviceSearch({ devices, onOpen }) {
         <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
         <path d="M10.4 10.4L14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       </svg>
-      <input ref={inputRef} type="search" value={q} placeholder="Find a device… ( / )" aria-label="Find a device by serial"
+      <input ref={inputRef} type="search" value={q} placeholder="Find a device…" title="Press / to search from anywhere" aria-label="Find a device by serial"
         role="combobox" aria-expanded={open && matches.length > 0} aria-controls="dev-search-list" aria-autocomplete="list"
         onChange={(e) => { setQ(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onKeyDown={onKeyDown} />
       {open && q.trim() && (

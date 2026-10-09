@@ -370,19 +370,28 @@ function DeviceDay({ d, from }) {
     </>}
   </>
 }
+// Devices whose readings since the cycle started don't look like the planned test: a
+// discharge test wants the battery down at least 3 points and off the charger, a charging
+// test the battery up 3 or on charge (window.js conform). Each row says which part failed.
 function Drifters({ drifting, tt }) {
+  const why = c => {
+    if (tt?.expect === 'charge') return `battery ${c.delta >= 0 ? 'up' : 'down'} only ${Math.abs(c.delta)}% and not charging`
+    if (c.charging) return c.delta <= -3 ? `on the charger now (battery ${c.delta}%)` : `on the charger — battery ${c.delta > 0 ? '+' : ''}${c.delta}% since the start`
+    return c.delta > 0 ? `battery went up ${c.delta}% — expected it to drain` : `battery moved only ${c.delta}% — expected at least a 3% drop`
+  }
   return (
     <div className="card">
-      <div className="card-head"><h3>Drifting</h3><span className="card-sub">{drifting.length} device{drifting.length === 1 ? '' : 's'}</span></div>
+      <div className="card-head"><h3>Drifting — not behaving like {tt ? tt.name : 'the planned test'}</h3><span className="card-sub">{drifting.length} device{drifting.length === 1 ? '' : 's'}</span></div>
       {drifting.length ? <>
         {drifting.map(c => (
           <div className="row-item" key={c.serial}>
-            <span className="grow mono">{c.serial}</span>
+            <span className="mono">{c.serial}</span>
+            <span className="grow secondary" style={{ fontSize: 12.5 }}>{why(c)}</span>
             <span className="mono" style={{ color: 'var(--status-warning)' }}>{(c.delta > 0 ? '+' : '') + c.delta}%</span>
           </div>
         ))}
-        <div className="card-body"><div className="help">These rows will not be stamped with the declared test type — they count as having no test set.</div></div>
-      </> : <div className="empty">{tt ? 'Every reporting device matches the declared test.' : 'Nothing declared for today, so nothing can drift.'}</div>}
+        <div className="card-body"><div className="help">Checked from the cycle's start: a {tt?.expect === 'charge' ? 'charging test expects the battery to rise at least 3% or the device to be charging' : 'discharge test expects the battery to drop at least 3% with the device off the charger'}. Often it just means the device hasn't been taken off (or put on) charge yet. If it has been taken away, use Take out in the device list.</div></div>
+      </> : <div className="empty">{tt ? 'Every reporting device matches the planned test.' : 'Nothing planned for today, so nothing can drift.'}</div>}
     </div>
   )
 }

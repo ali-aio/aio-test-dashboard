@@ -267,20 +267,17 @@ export function FilterPills({ filters, onChange, onReset, count, allSerials = []
   if (filters.date) chips.push({ k: 'd', text: `Date: ${fmtDate(filters.date)}`, onX: () => clear({ date: '' }) })
   if (filters.range) chips.push({ k: 'r', text: rangeLabel(filters.range), onX: () => clear({ range: null }) })
 
+  // only the active filters, each removable; nothing at all when no filter is set
+  if (!chips.length) return null
   return (
     <div className="row row-wrap" style={{ gap: 6, minHeight: 26 }}>
-      <span className="pill pill-neutral">
-        <strong className="mono">{count}</strong>&nbsp;in scope
-      </span>
       {chips.map((c) => (
         <span key={c.k} className="pill pill-filter">
           {c.text}
           <button className="pill-x" onClick={c.onX} aria-label={`Remove filter ${c.text}`}>×</button>
         </span>
       ))}
-      {chips.length > 0 && (
-        <button className="btn btn-sm btn-reset" onClick={onReset}>Clear all</button>
-      )}
+      <button className="btn btn-sm btn-reset" onClick={onReset}>Clear all</button>
     </div>
   )
 }

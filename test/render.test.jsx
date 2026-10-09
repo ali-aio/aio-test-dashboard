@@ -114,8 +114,7 @@ const mdmCases = []
   })
   check('filter bar + pill render', () => {
     renderToString(<FilterBar cycles={covered} filters={base} onChange={nop} onReset={nop} allSerials={all} declaredTypes={[]} />)
-    const h = renderToString(<FilterPills filters={base} onChange={nop} onReset={nop} count={splitText(covered)} allSerials={all} />)
-    want(h.includes('in scope'), 'pill missing')
+    want(renderToString(<FilterPills filters={base} onChange={nop} onReset={nop} count={splitText(covered)} allSerials={all} />) === '', 'pill row shown with no filter set')
   })
   check('range picker + range chip render', () => {
     want(renderToString(<RangePicker value={{ preset: '24h' }} onChange={nop} />).includes('Last 24h'), 'trigger label')

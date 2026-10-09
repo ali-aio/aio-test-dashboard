@@ -121,7 +121,6 @@ export default function TodayView({ fleet }) {
   const battMin = useMemo(() => buckets(selSerials, chartFrom, winTo, r => r.battery_pct, a => Math.min(...a)), [selSerials.join(','), chartFrom, win.at2])
   const battMax = useMemo(() => buckets(selSerials, chartFrom, winTo, r => r.battery_pct, a => Math.max(...a)), [selSerials.join(','), chartFrom, win.at2])
   const tAvg = useMemo(() => buckets(selSerials, chartFrom, winTo, temp, avg), [selSerials.join(','), chartFrom, win.at2])
-  const tP95 = useMemo(() => buckets(selSerials, chartFrom, winTo, temp, a => pctl(a, .95)), [selSerials.join(','), chartFrom, win.at2])
 
   // The projection starts from the line actually drawn: the average in Average mode, the
   // median of the ticked devices otherwise, at their median drain rate.
@@ -157,7 +156,6 @@ export default function TodayView({ fleet }) {
   const tempSeries = tempMode === 'avg'
     ? [
         { id: 'avg', label: 'Average', pts: tAvg, color: 'var(--series-1)', width: 2, endLabel: tAvg.length ? `avg ${tAvg[tAvg.length - 1].y.toFixed(0)}°` : null },
-        { id: 'p95', label: '95th percentile', pts: tP95, color: 'var(--series-2)', width: 2, dash: '5 3', endLabel: tP95.length ? `p95 ${tP95[tP95.length - 1].y.toFixed(0)}°` : null },
       ]
     : shown.map(c => {
         const pts = ptsOf(c, temp), last = pts[pts.length - 1]
@@ -266,13 +264,10 @@ export default function TodayView({ fleet }) {
             <div className="legend" style={{ margin: '8px 0 10px' }}>
               {tempMode === 'avg' ? <>
                 <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average</span>
-                <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-2)' }} />95th percentile</span>
               </> : <span className="legend-item secondary">one line per device, colours as in the list</span>}
-              <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)' }} />{TEMP_LIMIT} °C review threshold</span>
             </div>
             {noneTicked ? <div className="empty">No devices ticked — pick some above, or choose Select all.</div> :
             <MultiLineChart h={230} yMax={60} yFmt={v => v.toFixed(0) + '°'} xFmt={hm} x0={chartFrom} x1={winTo}
-              refs={[{ v: TEMP_LIMIT, label: `${TEMP_LIMIT} °C review threshold`, color: 'var(--warn)' }]}
               series={tempSeries}
               tip={tempTip} />}
           </div>

@@ -194,7 +194,11 @@ function LiveChart({ serial, d }) {
         {SPANS.map((x) => (
           <button key={x.id} type="button" aria-pressed={span === x.id} disabled={x.id === 'cycle' && !start}
             title={x.id === 'cycle' && !start ? 'No cycle running right now — the device is charging or still full' : undefined}
-            onClick={() => setSpan(x.id)}>{x.label}</button>
+            onClick={() => {
+              setSpan(x.id)
+              // Custom draws at once with the span in the boxes (last 2 days); Apply redraws
+              if (x.id === 'custom' && !applied) setApplied({ from: Date.parse(custom.from), to: Date.parse(custom.to) })
+            }}>{x.label}</button>
         ))}
       </div>}>
       {span === 'custom' && (

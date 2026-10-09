@@ -73,7 +73,7 @@ const checks = [
 ]
 let lifeCases = 0
 for (const [name, lifetime, want] of checks) {
-  for (const tt of ['__all__', tts[0]]) {
+  for (const tt of ['__all__']) { // a single test's page shows that test's cycles, not the lifetime total
     lifeCases++
     try {
       const html = renderToString(<T7Overview cycles={tt === '__all__' ? cycles : cycles.filter(c => c.testType === tt)} testType={tt} allSerials={all} onPickTestType={nop} onFilter={nop} lifetime={lifetime} />)
@@ -319,6 +319,12 @@ const mdmCases = []
     const two = [...bench, ...bench.map((c) => ({ ...c, start: c.start + 24 * h }))]
     want(countCycles(two) === 2, `${countCycles(two)} for two days`)
     want(countCycles([{ testType: 'A', start: at(8, 10) }, { testType: 'B', start: at(8, 10) }]) === 2, 'two tests at once are two cycles')
+  })
+  check('one test: the first tile is that test\'s cycles, not the lifetime total', () => {
+    const tt = covered[0].testType, mine = covered.filter((c) => c.testType === tt)
+    const h = renderToString(<TestDetail cycles={mine} testType={tt} allSerials={all} lifetime={{ value: 1823.03, devices: 18, rows: [], missing: [] }} />).replace(/<!-- -->/g, '')
+    want(!h.includes('1,823.03') && h.includes('battery cycles used'), 'lifetime still shown')
+    want(h.includes(`>${countCycles(mine).toLocaleString('en-US')}<`), 'cycle count missing')
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

@@ -1,7 +1,6 @@
-import { splitText, splitBy, cyclesText, deviceCyclesText } from '../lib/splitCycles.js'
+import { splitText, splitBy, cyclesText, deviceCyclesText, countCycles } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
-import LifetimeStat from '../components/LifetimeStat.jsx'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
 import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING } from '../lib/testtypes.js'
@@ -237,7 +236,16 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
   return (
     <div className="view-stack">
       <div className="stat-row">
-        <LifetimeStat lifetime={lifetime} hero />
+        {/* this test only: bench cycles of it (devices running together count once), the
+            devices in them and the battery used — MDM counter where recorded, else drop ÷ 100 */}
+        {(() => {
+          const n = countCycles(cycles), devs = new Set(cycles.map((c) => c.serial)).size
+          const est = cycles.some((c) => c.mdmCycles == null)
+          const used = cycles.reduce((a, c) => a + (c.mdmCycles != null ? c.mdmCycles
+            : c.startBattery != null && c.endBattery != null && c.startBattery > c.endBattery ? (c.startBattery - c.endBattery) / 100 : 0), 0)
+          return <Stat hero label="Cycles" value={fmtInt(n)}
+            foot={`${fmtInt(devs)} device${devs === 1 ? '' : 's'} · ${est ? '≈ ' : ''}${used.toFixed(2)} battery cycles used`} />
+        })()}
         <Stat label="Avg cycle time" value={fmtNum(k.avgDuration, 1)} unit="h"
           foot="per cycle" />
         {isRestaurant ? restaurantRates.map((mode) => (

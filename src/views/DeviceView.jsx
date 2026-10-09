@@ -141,6 +141,7 @@ function LiveChart({ serial, d }) {
   const [span, setSpan] = useState(null)              // null until the cycle start is known
   const [custom, setCustom] = useState(() => ({ from: toInput(Date.now() - 2 * 86400e3), to: toInput(Date.now()) }))
   const [applied, setApplied] = useState(null)        // the custom span in effect
+  const [pickerOpen, setPickerOpen] = useState(false)  // From / To panel under the Custom button
   const [fetched, setFetched] = useState({ key: null, rows: null, loading: false, err: null })
 
   const winRows = rowsFor(serial)
@@ -190,7 +191,8 @@ function LiveChart({ serial, d }) {
 
   return (
     <Card expandable title="Live readings" sub={sub}
-      right={<div className="seg" role="group" aria-label="Time span">
+      right={<div style={{ position: 'relative' }}>
+        <div className="seg" role="group" aria-label="Time span">
         {SPANS.map((x) => (
           <button key={x.id} type="button" aria-pressed={span === x.id} disabled={x.id === 'cycle' && !start}
             title={x.id === 'cycle' && !start ? 'No cycle running right now — the device is charging or still full' : undefined}
@@ -198,19 +200,21 @@ function LiveChart({ serial, d }) {
               setSpan(x.id)
               // Custom draws at once with the span in the boxes (last 2 days); Apply redraws
               if (x.id === 'custom' && !applied) setApplied({ from: Date.parse(custom.from), to: Date.parse(custom.to) })
+              setPickerOpen(x.id === 'custom' ? (o) => (span === 'custom' ? !o : true) : false)
             }}>{x.label}</button>
         ))}
+      </div>
+        {span === 'custom' && pickerOpen && (
+          <div className="popover popover-right span-picker" role="dialog" aria-label="Custom time span">
+            <label className="filter-field"><span className="filter-label">From</span>
+              <input className="control" type="datetime-local" value={custom.from} onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))} /></label>
+            <label className="filter-field"><span className="filter-label">To</span>
+              <input className="control" type="datetime-local" value={custom.to} onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))} /></label>
+            <button className="btn btn-primary" disabled={!(Date.parse(custom.to) > Date.parse(custom.from))}
+              onClick={() => { setApplied({ from: Date.parse(custom.from), to: Date.parse(custom.to) }); setPickerOpen(false) }}>Apply</button>
+          </div>
+        )}
       </div>}>
-      {span === 'custom' && (
-        <div className="control-row" style={{ marginBottom: 12 }}>
-          <label className="filter-field"><span className="filter-label">From</span>
-            <input className="control" type="datetime-local" value={custom.from} onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))} /></label>
-          <label className="filter-field"><span className="filter-label">To</span>
-            <input className="control" type="datetime-local" value={custom.to} onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))} /></label>
-          <button className="btn btn-primary" style={{ height: 'var(--control-h)' }} disabled={!(Date.parse(custom.to) > Date.parse(custom.from))}
-            onClick={() => setApplied({ from: Date.parse(custom.from), to: Date.parse(custom.to) })}>Apply</button>
-        </div>
-      )}
       {span !== 'cycle' && !start && win.at && <p className="hint" style={{ margin: '0 0 8px' }}>No cycle is running on this device right now (it is charging or still full), so this opens on the last 24 hours.</p>}
       {loading ? <div className="empty"><span className="spin" /> Loading readings…</div>
         : fetched.err && !fromWindow ? <div className="empty">Could not load readings: {fetched.err}</div>

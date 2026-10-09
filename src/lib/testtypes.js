@@ -3,7 +3,8 @@
 // no test type at all. Same names, so the ported views and comparisons read identically.
 import { TEST_TYPES } from './plan.js';
 
-export const FIELD_DISCHARGE = 'Field Discharge';
+// shown as "Old cycles": discharges no Cycle plan entry claimed (mostly history from before planning)
+export const FIELD_DISCHARGE = 'Old cycles';
 export const FIELD_CHARGING = 'Field Charging';
 export const FIELD_TEST_TYPES = new Set([FIELD_DISCHARGE, FIELD_CHARGING]);
 // Declared names, in the fixed palette order, then the two "nobody declared this" buckets

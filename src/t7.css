@@ -2024,3 +2024,8 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 
 /* a lone card in a two-column grid takes the full width instead of leaving half empty */
 .grid-fill > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+/* device page: the Custom span's From / To panel, dropping down under the Custom button */
+.span-picker { width: auto; display: flex; gap: 10px; align-items: flex-end; padding: 12px; }
+.span-picker .control { height: var(--control-h); max-width: none; }
+.span-picker .btn { height: var(--control-h); }
+@media (max-width: 640px) { .span-picker { flex-direction: column; align-items: stretch; } }

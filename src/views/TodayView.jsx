@@ -12,6 +12,8 @@ import { MultiLineChart, Sparkline, tooltipHtml } from '../components/charts.jsx
 import { Segmented } from '../components/Primitives.jsx'
 import { buildStyleMap, keyBackground } from '../lib/palette.js'
 
+// A battery end label that would sit on the 0% / 100% axis mark only repeats the axis.
+const pctLabel = v => { const r = Math.round(v); return r >= 100 || r <= 0 ? null : `${r}%` }
 const CSTATE = { conforming: ['pill-ok', 'On track'], drifting: ['pill-warn', 'Drifting'], silent: ['', 'Not reporting'], untyped: ['', 'No test declared'] }
 const statusBadge = st => <span className={`pill ${{ declared: 'pill-run', confirmed: 'pill-ok', inferred: 'pill-warn', unclassified: '', none: '' }[st]}`}>{STATUS[st].label}</span>
 
@@ -138,9 +140,9 @@ export default function TodayView({ fleet }) {
 
   const series = battMode === 'avg'
     ? [
-        { id: 'max', label: 'Highest', pts: battMax, color: 'var(--series-8)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMax.length ? `${battMax[battMax.length - 1].y}%` : null, labelColor: 'var(--series-8)' },
-        { id: 'min', label: 'Lowest', pts: battMin, color: 'var(--series-3)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMin.length ? `${battMin[battMin.length - 1].y}%` : null, labelColor: 'var(--series-3)' },
-        { id: 'avg', label: 'Average', pts: battAvg, color: 'var(--series-1)', width: 2.4, endLabel: battAvg.length ? `${battAvg[battAvg.length - 1].y.toFixed(0)}%` : null },
+        { id: 'max', label: 'Highest', pts: battMax, color: 'var(--series-8)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMax.length ? pctLabel(battMax[battMax.length - 1].y) : null, labelColor: 'var(--series-8)' },
+        { id: 'min', label: 'Lowest', pts: battMin, color: 'var(--series-3)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMin.length ? pctLabel(battMin[battMin.length - 1].y) : null, labelColor: 'var(--series-3)' },
+        { id: 'avg', label: 'Average', pts: battAvg, color: 'var(--series-1)', width: 2.4, endLabel: battAvg.length ? pctLabel(battAvg[battAvg.length - 1].y) : null },
         ...projSeries,
       ]
     : [
@@ -148,7 +150,7 @@ export default function TodayView({ fleet }) {
           const drift = c.state === 'drifting'
           return { id: c.serial, label: tail(c.serial) + (drift ? ' · drifting' : ''), pts: ptsOf(c), color: colorOf.get(c.serial), width: drift ? 2.8 : 1.5, opacity: few || drift ? 1 : .8,
             dash: styleOf.get(c.serial)?.dash,
-            endLabel: few ? `${c.serial.slice(-4)} ${lastOf(c)}%` : (c === lo || c === hi) ? `${lastOf(c)}%` : null }
+            endLabel: few ? `${c.serial.slice(-4)} ${lastOf(c)}%` : (c === lo || c === hi) ? pctLabel(lastOf(c)) : null }
         }),
         ...projSeries,
       ]

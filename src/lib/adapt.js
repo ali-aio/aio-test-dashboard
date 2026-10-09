@@ -48,6 +48,19 @@ export function testTypeFor(cycle, { decls, rota, DEV }) {
   return tt.name;
 }
 
+// Mean temperature in each third of a run, from its temperature curve ({ t: hours, v }).
+// The Thermal view's "hot early or late" table reads it; T7 built the same from its CSVs.
+export function temperaturePhases(tempSeries, duration) {
+  const sums = [0, 0, 0], counts = [0, 0, 0];
+  if (!(duration > 0)) return [null, null, null];
+  for (const p of tempSeries || []) {
+    if (!Number.isFinite(p.t) || !Number.isFinite(p.v) || p.t < 0 || p.t > duration) continue;
+    const i = Math.min(2, Math.floor((p.t / duration) * 3));
+    sums[i] += p.v; counts[i]++;
+  }
+  return sums.map((s, i) => counts[i] ? Math.round(s / counts[i] * 100) / 100 : null);
+}
+
 // Per-hour battery readings for one cycle, from whatever history rows we hold for it.
 // `rows` are normalized samples ({ timestamp, battery_pct, extra }). Without rows the
 // cycle still carries its summary, and the curve charts simply have one fewer line.
@@ -134,6 +147,8 @@ export function adaptCycle(d, c, rows, ctx) {
     minAbove40: c.thermal?.minAbove40 ?? null,
     minAbove45: c.thermal?.minAbove45 ?? null,
     series, tempSeries, hourly: built,
+    // mean temperature in each third of the run (start / middle / end), as T7 computes it
+    tempPhases: temperaturePhases(tempSeries, duration),
     // T7's views iterate these unconditionally, so they must be arrays even though the MDM
     // has nothing to put in them: the load's battery is never reported, and the sweep
     // keeps no RAM curve. Empty arrays make the charts say "nothing to plot" honestly.

@@ -17,7 +17,8 @@ import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText } from '../src/lib/splitCycles.js'
 import RangePicker from '../src/components/RangePicker.jsx'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
-import { testTypeFor } from '../src/lib/adapt.js'
+import { testTypeFor, temperaturePhases } from '../src/lib/adapt.js'
+import { thermalTimingByDevice } from '../src/lib/thermal.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 
@@ -251,6 +252,14 @@ const mdmCases = []
     want((w.endMs - w.startMs) / 3600e3 === 20, `span ${(w.endMs - w.startMs) / 3600e3} h`)
     want(cyclesOn(decls, '2026-10-11').length === 1, 'still a copy on Oct 11')
     want(!overlapsOn(decls, '2026-10-11', [{ serial: 'A' }]).length, 'Oct 11 still warns')
+  })
+  check('thermal: runs carry start / middle / end temperatures', () => {
+    const ph = temperaturePhases([{ t: 0, v: 30 }, { t: 1, v: 32 }, { t: 4, v: 40 }, { t: 5, v: 42 }, { t: 8, v: 36 }], 9)
+    want(ph.join() === '31,41,36', `phases ${ph}`)
+    // cycles built with real history rows (covered has none, so no temperatures)
+    const withTemp = cycles.filter((c) => c.tempSeries.length), withPh = withTemp.filter((c) => c.tempPhases?.every(Number.isFinite))
+    want(withTemp.length && withPh.length > withTemp.length / 2, `${withPh.length} of ${withTemp.length} runs with temperatures have phases`)
+    want(thermalTimingByDevice(cycles).length > 0, 'timing table empty')
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

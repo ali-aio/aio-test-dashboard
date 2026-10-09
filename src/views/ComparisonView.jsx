@@ -132,6 +132,8 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
      draw, so it drops out here — kept separate from the slice below, because a
      group missing from the chart has to be accounted for rather than vanish. */
   // battery cycles per comparison group — what "cycles" means everywhere on the dashboard
+  // bench cycles per group (devices running together count once), for the picker and sorting
+  const cyclesByGroup = useMemo(() => new Map(splitBy(cycles, dimension).map((r) => [r.label, r.value])), [cycles, dimension])
   const amountByGroup = useMemo(() => new Map(splitBy(cycles, dimension).map((r) => [r.label, r.display])), [cycles, dimension])
   const drawable = useMemo(() => avgCurveBy(cycles, dimension)
     .filter((g) => visibleLabels.has(g.label)), [cycles, dimension, visibleLabels])
@@ -196,7 +198,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
           <span className="filter-label">
             {DIMENSIONS.find((d) => d.id === dimension)?.label ?? 'Groups'} to compare
           </span>
-          <GroupPicker groups={groups} selected={visible.map((g) => g.label)}
+          <GroupPicker groups={groups} counts={cyclesByGroup} selected={visible.map((g) => g.label)}
             onChange={setPicked} />
         </label>
         <span className="hint" style={{ alignSelf: 'end', paddingBottom: 8 }}>
@@ -288,7 +290,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
               /* Raw figures for sorting — the displayed cells are formatted
                  strings, and "9.1 h" against "11.6 h" does not compare. */
               sort: {
-                label: g.label, n: g.cycles, serials: g.serials,
+                label: g.label, n: cyclesByGroup.get(g.label) ?? g.cycles, serials: g.serials,
                 dur: g.avgDuration,
                 drain: g.avgDropPerHr == null ? null : Math.abs(g.avgDropPerHr),
                 start: g.avgStartBattery, end: g.avgEndBattery,
@@ -326,7 +328,7 @@ function firstMeaningful(cycles) {
  * Tick which groups go into the comparison — two firmwares, three devices,
  * whatever the question is. All equal: untick any of them.
  */
-function GroupPicker({ groups, selected, onChange }) {
+function GroupPicker({ groups, selected, onChange, counts }) {
   const [open, setOpen] = useState(false)
   const popRef = useKeepOnScreen(open)
   const [query, setQuery] = useState('')
@@ -384,7 +386,7 @@ function GroupPicker({ groups, selected, onChange }) {
                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {g.label}
                 </span>
-                <span className="hint mono">{g.cycles}</span>
+                <span className="hint mono" title="cycles">{counts?.get(g.label) ?? g.cycles}</span>
               </label>
             ))}
             {!shown.length && <div className="hint" style={{ padding: 8 }}>Nothing matches.</div>}

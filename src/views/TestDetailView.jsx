@@ -1,4 +1,4 @@
-import { splitText, splitBy } from '../lib/splitCycles.js'
+import { splitText, splitBy, cyclesText, deviceCyclesText } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
 import LifetimeStat from '../components/LifetimeStat.jsx'
@@ -129,7 +129,7 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
     return plottedCurves.map((g, i) => ({
       id: g.label,
       label: g.label.replace(' Build', ''),
-      sub: isCharging ? runsText(g.count) : splitText(cycles.filter((c) => (c[key] ?? 'Unknown') === g.label)),
+      sub: isCharging ? cyclesText(cycles.filter((c) => (c[key] ?? 'Unknown') === g.label)) : splitText(cycles.filter((c) => (c[key] ?? 'Unknown') === g.label)),
       color: key === 'build'
         ? (BUILD_COLOR[g.label] ?? SERIES_VARS[i])
         : groupColors.get(g.label),
@@ -183,7 +183,11 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
   const secondary = useMemo(() => compareBy(cycles, isField ? 'padState' : 'build'), [cycles, isField])
   // "cycles" on this page always means battery cycles; these look them up per group.
   const splitByGroup = useMemo(() => new Map(splitBy(cycles, isField ? 'padState' : 'build').map((r) => [r.label, r.display])), [cycles, isField])
-  const groupCount = (label, cycles) => (isCharging ? runsText(cycles) : splitByGroup.get(label) ?? runsText(cycles))
+  // a group's amount: bench cycles (devices running together count once), or its MDM figure
+  const groupCount = (label) => {
+    const own = cycles.filter((c) => (c[isField ? 'padState' : 'build'] ?? 'Unknown') === label)
+    return isCharging ? cyclesText(own) : splitByGroup.get(label) ?? cyclesText(own)
+  }
   const peakBreakdown = useMemo(() => cycles
     .filter((c) => c.maxTemp != null)
     .sort((a, b) => b.maxTemp - a.maxTemp
@@ -281,7 +285,7 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
               foot={`${x.drop == null
                 ? 'T7 loss not measurable'
                 : `T7 loses ${Math.abs(x.drop / 6).toFixed(2)}% per 10 min`
-              } · ${runsText(x.n)}`} />
+              } · ${deviceCyclesText(x.n)}`} />
           ))}
         </div>
       )}
@@ -481,9 +485,9 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
               drop: h.drop != null ? `${h.drop}%` : '—',
               charge: h.drop != null ? fmtSigned(-h.drop, 2, '%') : '—',
               gain: h.gain != null ? `+${h.gain}%` : '—',
-              wireless: h.wirelessDrop != null ? `${h.wirelessDrop}% · ${runsText(h.wirelessN)}` : '—',
+              wireless: h.wirelessDrop != null ? `${h.wirelessDrop}% · ${deviceCyclesText(h.wirelessN)}` : '—',
               withoutWireless: h.withoutWirelessDrop != null
-                ? `${h.withoutWirelessDrop}% · ${runsText(h.withoutWirelessN)}` : '—',
+                ? `${h.withoutWirelessDrop}% · ${deviceCyclesText(h.withoutWirelessN)}` : '—',
             }))}
           />
 
@@ -536,7 +540,7 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
       {/* Every cycle in scope, one row each — with one device picked (Summary → a test row),
           this is that device's history for the test: which days it ran and how each went. */}
       <Card expandable title={serialsHere.length === 1 ? `Every cycle on ${serialsHere[0]}` : 'Every cycle'}
-        sub={`${runsText(cycles.length)} on ${fmtInt(new Set(cycles.map((c) => c.date)).size)} days`
+        sub={`${cyclesText(cycles)} on ${fmtInt(new Set(cycles.map((c) => c.date)).size)} days`
           + `${serialsHere.length === 1 ? '' : ` across ${fmtInt(serialsHere.length)} devices`} · newest first · click a heading to sort · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded`}>
         <div className="table-wrap" style={{ maxHeight: 460 }}>
           <SortTable caption={`Every ${testType} cycle`} head={[

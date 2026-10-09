@@ -39,6 +39,12 @@ export const READING_COLUMNS = [
   { key: 'ram_total_mb', label: 'RAM total MB', get: (r) => num(extraOf(r).ram_usage_mb?.total) },
   { key: 'storage_free_gb', label: 'Storage free GB', get: (r) => num(extraOf(r).storage_free_gb) },
   { key: 'ip_address', label: 'IP address', get: (r) => extraOf(r).ip_address ?? '' },
+  // which cycle each reading belongs to (from the dashboard's own cycles; blank between
+  // cycles, e.g. while charging). Cycle # counts that device's cycles from its first.
+  { key: 'cycle_no', label: 'Cycle #', cycle: true, get: (r, cy) => (cy ? cy.no : '') },
+  { key: 'cycle_test', label: 'Cycle test', cycle: true, get: (r, cy) => (cy ? cy.c.testType ?? '' : '') },
+  { key: 'cycle_start', label: 'Cycle start (local)', cycle: true, get: (r, cy) => (cy ? local(cy.c.start) : '') },
+  { key: 'cycle_hours', label: 'Hours into cycle', cycle: true, get: (r, cy) => (cy ? num((Date.parse(r.sample_at || r.timestamp) - cy.c.start) / 3600e3, 2) : '') },
 ]
 // keys the named columns already cover, so "every other MDM field" doesn't repeat them
 const COVERED = new Set(['battery_temp_c', 'charging', 'wlc_status', 'wifi_rssi', 'wifi', 'ram_usage_mb', 'storage_free_gb', 'ip_address'])
@@ -78,13 +84,33 @@ export function extraKeys(rows) {
   return [...keys].sort()
 }
 
-/** CSV text for reading rows: chosen columns, then (optionally) every other extra field. */
-export function readingsCsv(rows, chosen, withExtra = false) {
+/** Per device, its cycles oldest first, numbered from 1, for looking a reading up by time. */
+export function cycleIndex(cycles) {
+  const by = new Map()
+  for (const c of cycles) { if (!by.has(c.serial)) by.set(c.serial, []); by.get(c.serial).push(c) }
+  for (const [k, list] of by) by.set(k, list.sort((a, b) => a.start - b.start).map((c, i) => ({ c, no: i + 1 })))
+  return by
+}
+const cycleAtTime = (index, serial, t) => {
+  const list = index?.get(serial); if (!list || !Number.isFinite(t)) return null
+  for (const x of list) if (t >= x.c.start && t <= (x.c.end ?? x.c.start)) return x
+  return null
+}
+
+/** CSV text for reading rows: chosen columns, then the chosen other MDM fields (extra.*).
+ *  `cycles` (all of them, any devices) lets the Cycle # / test / start / hours columns fill. */
+export function readingsCsv(rows, chosen, extraWanted = [], cycles = []) {
   const cols = READING_COLUMNS.filter((c) => chosen.includes(c.key))
-  const extra = withExtra ? extraKeys(rows) : []
+  const index = cols.some((c) => c.cycle) ? cycleIndex(cycles) : null
+  // extraWanted: the other MDM fields to add, by name (true = every one found in the rows)
+  const extra = extraWanted === true ? extraKeys(rows) : Array.isArray(extraWanted) ? extraWanted : []
   const flat = (v) => (v != null && typeof v === 'object' ? JSON.stringify(v) : v)
   const lines = [csvLine([...cols.map((c) => c.label), ...extra.map((k) => `extra.${k}`)])]
-  for (const r of rows) { if (r.empty) continue; const e = extraOf(r); lines.push(csvLine([...cols.map((c) => c.get(r)), ...extra.map((k) => flat(e[k]))])) }
+  for (const r of rows) {
+    if (r.empty) continue
+    const e = extraOf(r), cy = index ? cycleAtTime(index, r.serial_number, Date.parse(r.sample_at || r.timestamp)) : null
+    lines.push(csvLine([...cols.map((c) => c.get(r, cy)), ...extra.map((k) => flat(e[k]))]))
+  }
   return lines.join('\r\n') + '\r\n'
 }
 
@@ -98,3 +124,6 @@ export function cyclesCsv(cycles, chosen) {
 
 /** Rough row count for a readings export, to warn before a huge one. */
 export const estimateRows = (devices, fromMs, toMs, intervalSec) => Math.max(0, Math.round(devices * (toMs - fromMs) / (intervalSec * 1000)))
+
+/** A readable name for an MDM field: "storage_free_gb" -> "Storage free gb". */
+export const fieldLabel = (k) => { const t = String(k).replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1) }

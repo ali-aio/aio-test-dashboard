@@ -11,6 +11,7 @@
 //   · build      — the MDM reports one device_class ("t7") for the whole fleet
 //   · android    — no OS/SDK field exists anywhere in the check-in payload
 //   · load gain  — the MDM reports the T7's own battery, never the phone/load's
+import { buildFromSerial } from './device.js';
 import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, windowOn, cycleAt, takenOutDuring, loadDecls, loadRota } from './plan.js';
 import { FIELD_DISCHARGE, FIELD_CHARGING } from './testtypes.js';
 import { perHourRate, HOUR_SNAP } from './t7cycles.js';
@@ -127,7 +128,7 @@ export function adaptCycle(d, c, rows, ctx) {
     id: `${d.serial}@${c.start}`,
     serial: d.serial,
     testType: testTypeFor({ ...c, serial: d.serial, charging }, ctx),
-    build: null,          // not reported by the MDM — one device_class for the whole fleet
+    build: buildFromSerial(d.serial), // from the serial ("BU" = Production), as the MDM reports no build
     android: null,        // not reported by the MDM — no OS/SDK field in the payload
     firmware: firmware || c.buildId || 'Unknown',
     date: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`,

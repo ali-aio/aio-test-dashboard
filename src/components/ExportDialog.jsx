@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { fetchHistoryRange } from '../lib/data.js'
-import { READING_COLUMNS, CYCLE_COLUMNS, readingsCsv, cyclesCsv, estimateRows } from '../lib/csv.js'
+import { READING_COLUMNS, CYCLE_COLUMNS, readingsCsv, cyclesCsv, estimateRows, extraKeys, fieldLabel } from '../lib/csv.js'
 
 // Export CSV, from the header on every screen. Pick what (MDM readings, or one row per
 // cycle), which devices, which time span (and the spacing of readings) and which columns,
@@ -39,8 +39,18 @@ export default function ExportDialog({ devices, cycles, group, onClose }) {
   const [from, setFrom] = useState(() => toInput(Date.now() - 86400e3))
   const [to, setTo] = useState(() => toInput(Date.now()))
   const [iv, setIv] = useState(300)
-  const [rCols, setRCols] = useState(() => new Set(['serial', 'time_local', 'battery_pct', 'battery_temp_c', 'charging', 'wlc_status', 'build_id']))
-  const [withExtra, setWithExtra] = useState(false)
+  const [rCols, setRCols] = useState(() => new Set(['serial', 'time_local', 'battery_pct', 'battery_temp_c', 'charging', 'wlc_status', 'build_id', 'cycle_no', 'cycle_test']))
+  // every other field the MDM's readings carry, found by asking for a small sample (so new
+  // telemetry fields show up here on their own); each one is a checkbox of its own
+  const [extraOpts, setExtraOpts] = useState(null)
+  const [extraCols, setExtraCols] = useState(() => new Set())
+  useEffect(() => {
+    let live = true
+    const sample = all.slice(0, 3), now = Date.now()
+    Promise.all(sample.map((sn) => fetchHistoryRange(sn, now - 6 * 3600e3, now, 3600).catch(() => [])))
+      .then((lists) => { if (live) setExtraOpts(extraKeys(lists.flat().filter((r) => !r.empty))) })
+    return () => { live = false }
+  }, [])
   const [cCols, setCCols] = useState(() => new Set(CYCLE_COLUMNS.map((c) => c.key)))
   const [busy, setBusy] = useState(null)   // { done, total } while fetching
   const [err, setErr] = useState(null)
@@ -65,7 +75,7 @@ export default function ExportDialog({ devices, cycles, group, onClose }) {
   const colDefs = kind === 'readings' ? READING_COLUMNS : CYCLE_COLUMNS
   const inRange = useMemo(() => cycles.filter((c) => picked.has(c.serial) && c.start <= range.to && (c.end ?? c.start) >= range.from), [cycles, picked, range])
   const est = kind === 'readings' && rangeOk && Number.isFinite(range.from) ? estimateRows(serials.length, range.from, range.to, iv) : inRange.length
-  const ready = serials.length > 0 && cols.size > 0 && rangeOk && !busy
+  const ready = serials.length > 0 && (cols.size > 0 || (kind === 'readings' && extraCols.size > 0)) && rangeOk && !busy
 
   const download = (text, name) => {
     const url = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' }))
@@ -89,7 +99,7 @@ export default function ExportDialog({ devices, cycles, group, onClose }) {
         for (const r of got) if (!r.empty) rows.push({ ...r, serial_number: r.serial_number || serials[i] })
         setBusy({ done: i + 1, total: serials.length })
       }
-      download(readingsCsv(rows, READING_COLUMNS.filter((c) => rCols.has(c.key)).map((c) => c.key), withExtra), fileName('readings'))
+      download(readingsCsv(rows, READING_COLUMNS.filter((c) => rCols.has(c.key)).map((c) => c.key), [...extraCols], cycles), fileName('readings'))
       setBusy(null); onClose()
     } catch (e) { setBusy(null); setErr(e.message || String(e)) }
   }
@@ -154,16 +164,19 @@ export default function ExportDialog({ devices, cycles, group, onClose }) {
           </section>
 
           <section>
-            <div className="export-h">Columns <span className="secondary">· {cols.size} of {colDefs.length}</span>
-              <button type="button" className="link-btn" style={{ marginLeft: 10 }} onClick={() => setCols(new Set(colDefs.map((c) => c.key)))}>Select all</button>
-              <button type="button" className="link-btn" style={{ marginLeft: 8 }} onClick={() => setCols(new Set())}>Clear</button></div>
+            <div className="export-h">Columns <span className="secondary">· {cols.size + (kind === 'readings' ? extraCols.size : 0)} of {colDefs.length + (kind === 'readings' ? extraOpts?.length || 0 : 0)}</span>
+              <button type="button" className="link-btn" style={{ marginLeft: 10 }} onClick={() => { setCols(new Set(colDefs.map((c) => c.key))); if (kind === 'readings') setExtraCols(new Set(extraOpts || [])) }}>Select all</button>
+              <button type="button" className="link-btn" style={{ marginLeft: 8 }} onClick={() => { setCols(new Set()); if (kind === 'readings') setExtraCols(new Set()) }}>Clear</button></div>
             <div className="export-cols">
               {colDefs.map((c) => (
                 <label key={c.key} className="dev-pick-item"><input type="checkbox" checked={cols.has(c.key)} onChange={() => toggle(cols, setCols, c.key)} />{c.label}</label>
               ))}
-              {kind === 'readings' && (
-                <label className="dev-pick-item"><input type="checkbox" checked={withExtra} onChange={() => setWithExtra((v) => !v)} />Every other MDM field (extra.*)</label>
-              )}
+              {kind === 'readings' && (extraOpts == null
+                ? <span className="secondary dev-pick-item">finding the other MDM fields…</span>
+                : extraOpts.map((k) => (
+                  <label key={'x.' + k} className="dev-pick-item" title={`MDM field “${k}”`}>
+                    <input type="checkbox" checked={extraCols.has(k)} onChange={() => toggle(extraCols, setExtraCols, k)} />{fieldLabel(k)}</label>
+                )))}
             </div>
           </section>
         </div>

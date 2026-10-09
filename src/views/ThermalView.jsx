@@ -1,3 +1,4 @@
+import { countCycles, deviceCyclesText } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { ModeSwitch, envelopeSeries } from '../components/CurveModes.jsx'
@@ -193,8 +194,9 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
   const hottest = hottestCycles.reduce((best, row) =>
     !best || row.value > best.value ? row : best, null)?.cycle ?? null
 
-  const hotCycles = cycles.filter((c) => c.maxTemp != null && c.maxTemp >= 55).length
-  const veryHot = cycles.filter((c) => c.maxTemp != null && c.maxTemp >= 60).length
+  // hot = bench cycles in which some device reached it; the foot gives how many devices did
+  const hotList = cycles.filter((c) => c.maxTemp != null && c.maxTemp >= 55), veryHotList = cycles.filter((c) => c.maxTemp != null && c.maxTemp >= 60)
+  const hotCycles = countCycles(hotList), veryHot = countCycles(veryHotList)
   const peakOverall = maxOf(peakRows.map((row) => row.value))
 
   if (!cycles.length) return <EmptyNote>No finished cycles match the current filters. A cycle is listed once it ends — the one in progress is on Today.</EmptyNote>
@@ -204,7 +206,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
       <div className="banner banner-warn">
         <span aria-hidden="true">{STATUS_ICON.warning}</span>
         <div>
-          None of the {cycles.length} runs in scope carries a temperature curve, so there is nothing to
+          None of the {cycles.length} device cycles in scope carries a temperature curve, so there is nothing to
           chart. The MDM does report battery temperature, but the 30-minute sweep stores only each
           cycle's summary — the per-sample curve these charts need exists just for runs inside the
           7-day history window this page reads. Narrow the date filter to the last week, or have the
@@ -224,18 +226,18 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
           breakdown={hottestCycles} breakdownWide
           breakdownLabel="Hottest cycles · hottest first — click one to isolate it" />
         <Stat label="Typical hottest point" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
-          foot={`averaged over ${fmtInt(withTemp.length)} cycles`} />
+          foot={`averaged over ${deviceCyclesText(withTemp.length)}`} />
         <Stat label="Middle of all readings" value={fmtNum(median(allTemps), 1)} unit="°C"
           foot={`half of the ${fmtInt(allTemps.length)} readings are above this`} />
         <Stat label="Cycles that got hot (55 °C+)" value={fmtInt(hotCycles)}
-          foot={cycles.length ? `${((hotCycles / cycles.length) * 100).toFixed(0)}% of all cycles` : DASH}
+          foot={`${deviceCyclesText(hotList.length)} · ${countCycles(cycles) ? ((hotCycles / countCycles(cycles)) * 100).toFixed(0) : 0}% of cycles`}
           breakdown={rowsAbove(55)} breakdownWide
           breakdownLabel="Cycles that reached 55 °C" />
         <Stat label="Cycles that got very hot (60 °C+)" value={fmtInt(veryHot)}
-          foot={veryHot ? 'worth investigating' : 'none recorded'}
+          foot={veryHot ? `${deviceCyclesText(veryHotList.length)} · worth investigating` : 'none recorded'}
           breakdown={rowsAbove(60)} breakdownWide
           breakdownLabel="Cycles that reached 60 °C" />
-        <Stat label="Cycles with no temperature recorded" value={fmtInt(cycles.length - withTemp.length)}
+        <Stat label="Device cycles with no temperature" value={fmtInt(cycles.length - withTemp.length)}
           foot="left out of everything on this page" />
       </div>
 
@@ -326,7 +328,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
           </div>
         ) : <EmptyNote>No cycle recorded a temperature in all three parts, so there is nothing to compare.</EmptyNote>}
         <p className="hint" style={{ margin: '10px 0 0' }}>
-          Every cycle counts once, however long it was. {fmtInt(timedCycles)} of {fmtInt(withTemp.length)}
+          Every device cycle counts once, however long it was. {fmtInt(timedCycles)} of {fmtInt(withTemp.length)}
           {' '}runs recorded a temperature in all three parts and could be used. Pick a single test above to
           compare like with like.
         </p>

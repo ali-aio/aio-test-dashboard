@@ -40,9 +40,10 @@ export const BUILD_COLOR = {
   'Validation Build': 'var(--series-1)',
   'OTG Build': 'var(--series-2)',
   'Production Build': 'var(--series-3)',
+  'OTG / Validation Build': 'var(--series-2)',
   Unknown: 'var(--series-4)',
 }
-export const BUILD_ORDER = ['Validation Build', 'OTG Build', 'Production Build', 'Unknown']
+export const BUILD_ORDER = ['Validation Build', 'OTG Build', 'OTG / Validation Build', 'Production Build', 'Unknown']
 
 export const LOAD_TYPE_COLOR = {
   'iPhone 1': 'var(--series-1)',

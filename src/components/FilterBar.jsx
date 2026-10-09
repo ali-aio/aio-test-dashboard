@@ -1,3 +1,4 @@
+import { countCycles } from '../lib/splitCycles.js'
 /* One filter row, above everything it scopes. Every chart, KPI and table in
    every view re-renders against this same slice, so the numbers always agree. */
 
@@ -14,13 +15,14 @@ export default function FilterBar({ cycles, filters, onChange, onReset, allSeria
   // every local day with a run -> how many, whatever range is applied: the calendar's dots
   // and the picker's list of test dates
   const daysWithRuns = useMemo(() => {
-    const m = new Map()
+    // per day, bench cycles (24 devices running one test that day = 1 cycle)
+    const byDay = new Map()
     for (const c of allCycles || cycles) {
       if (c.start == null) continue
       const d = new Date(c.start); d.setHours(0, 0, 0, 0); const t = d.getTime()
-      m.set(t, (m.get(t) || 0) + 1)
+      if (!byDay.has(t)) byDay.set(t, []); byDay.get(t).push(c)
     }
-    return m
+    return new Map([...byDay].map(([t, list]) => [t, countCycles(list)]))
   }, [allCycles, cycles])
   /* Every change is pruned: narrowing one control can strand a selection
      further down the bar, and a stranded selection means an empty dashboard

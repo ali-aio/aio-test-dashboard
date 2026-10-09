@@ -138,6 +138,12 @@ oversight; don't add restaurant filtering back in without being asked.
   history rows per device, at a chosen interval, `empty` rows dropped) or cycles (one row each);
   devices, time span and columns are picked by checkbox. Column definitions and CSV text live in
   `src/lib/csv.js` (tested). Readings fetches retry on the proxy's 429.
+- **What "cycles" counts** (`src/lib/splitCycles.js`): a cycle is one bench run of a test — devices that
+  start the same test within `CYCLE_GAP_H` (3 h) are ONE cycle (`countCycles`/`cyclesText`), so 17
+  devices on WLC on Load = "1 cycle · 17 devices". A single device's entries are its cycles. Counts
+  of per-device entries say "device cycles" (`deviceCyclesText`). The MDM figure reads "battery cycles".
+- **HW build** comes from the serial (`buildFromSerial`, `src/lib/device.js`): "BU" in it = Production
+  Build, otherwise "OTG / Validation Build" (the serial can't tell those two apart).
 - `src/lib/window.js` — the 7-day, 5-minute reading window behind Today and the charts. It is
   kept in the browser's IndexedDB (`readings` store in `src/lib/db.js`), so a page open draws
   from the stored copy and fetches only the readings since (last stamp − 30 min). "Reload

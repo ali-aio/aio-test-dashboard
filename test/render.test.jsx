@@ -15,7 +15,7 @@ import DeviceView from '../src/views/DeviceView.jsx'
 import { lifetimeOf, cyclesInRange } from '../src/lib/device.js'
 import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
-import { splitText } from '../src/lib/splitCycles.js'
+import { splitText, countCycles, cyclesText } from '../src/lib/splitCycles.js'
 import RangePicker from '../src/components/RangePicker.jsx'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
@@ -103,9 +103,9 @@ const mdmCases = []
   const check = (name, fn) => { mdmCases.push(name); try { fn(); console.log('OK  ', name) } catch (e) { failed++; console.log('FAIL', name, '->', e.message) } }
   const want = (cond, msg) => { if (!cond) throw new Error(msg) }
   check('runs covered -> "cycles (MDM)"', () => { const t = splitText(covered.slice(0, 20)); want(/cycles \(MDM\)$/.test(t), t) })
-  check('no readings -> run count', () => { const t = splitText(bare.slice(0, 20)); want(t === '20 cycles', t) })
+  check('no readings -> run count', () => { const t = splitText(bare.slice(0, 20)); want(t === cyclesText(bare.slice(0, 20)) && countCycles(bare.slice(0, 20)) < 20, t) })
   check('one uncovered run -> run count, never a partial sum', () => {
-    const mixed = [...covered.slice(0, 5), { ...covered[5], mdmCycles: null }]; const t = splitText(mixed); want(t === '6 cycles', t) })
+    const mixed = [...covered.slice(0, 5), { ...covered[5], mdmCycles: null }]; const t = splitText(mixed); want(t === cyclesText(mixed), t) })
   check('overview cards show MDM cycles when covered', () => {
     const h = renderToString(<T7Overview cycles={covered} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} />)
     want(h.includes('cycles (MDM)'), 'no "cycles (MDM)" on the overview')
@@ -302,6 +302,23 @@ const mdmCases = []
     const cc = cyclesCsv([{ serial: 'B', testType: 'WLC on Load', start: 1, end: 2, startBattery: 100, endBattery: 20, mdmCycles: null }], ['serial', 'testType', 'batteryCycles', 'cyclesSource']).trim().split('\r\n')
     want(cc[1] === 'B,WLC on Load,0.80,battery drop ÷ 100', cc[1])
     want(estimateRows(24, 0, 86400e3, 300) === 6912, 'estimate')
+  })
+  check('csv: each reading says which cycle it was in', () => {
+    const t = (h) => Date.UTC(2026, 9, 9, h)
+    const cyc = [{ serial: 'A', start: t(1), end: t(3), testType: 'Old run' }, { serial: 'A', start: t(10), end: t(20), testType: 'WLC on Load' }]
+    const rows = [{ serial_number: 'A', sample_at: new Date(t(12)).toISOString(), battery_pct: 70, extra: {} },
+      { serial_number: 'A', sample_at: new Date(t(22)).toISOString(), battery_pct: 40, extra: {} }]
+    const l = readingsCsv(rows, ['serial', 'cycle_no', 'cycle_test', 'cycle_hours'], false, cyc).trim().split('\r\n')
+    want(l[0] === 'Serial,Cycle #,Cycle test,Hours into cycle', l[0])
+    want(l[1] === 'A,2,WLC on Load,2.00' && l[2] === 'A,,,', l.slice(1).join(' | '))
+  })
+  check('devices running a test together are one cycle', () => {
+    const h = 3600e3, at = (d, hh) => Date.UTC(2026, 9, d, hh)
+    const bench = Array.from({ length: 17 }, (_, i) => ({ serial: `S${i}`, testType: 'WLC on Load', start: at(8, 10) + i * 60e3 }))
+    want(countCycles(bench) === 1 && cyclesText(bench) === '1 cycle', cyclesText(bench))
+    const two = [...bench, ...bench.map((c) => ({ ...c, start: c.start + 24 * h }))]
+    want(countCycles(two) === 2, `${countCycles(two)} for two days`)
+    want(countCycles([{ testType: 'A', start: at(8, 10) }, { testType: 'B', start: at(8, 10) }]) === 2, 'two tests at once are two cycles')
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

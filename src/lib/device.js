@@ -69,3 +69,9 @@ export function cyclesInRange(serials, range, src, now = Date.now()) {
     missing: rows.filter(r => r.value == null).map(r => r.serial),
     source: counted === rows.length ? 'counter' : counted ? 'mixed' : 'readings' };
 }
+
+// Hardware build from the serial: the MDM reports none, but the serial encodes it — "BU" in
+// it means a Production unit; without it, an OTG or a Validation unit (the serial cannot
+// tell those two apart, so they share one label).
+export const PRODUCTION_BUILD = 'Production Build', OTG_VALIDATION_BUILD = 'OTG / Validation Build';
+export const buildFromSerial = (serial) => (!serial ? null : /BU/i.test(String(serial)) ? PRODUCTION_BUILD : OTG_VALIDATION_BUILD);

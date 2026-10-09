@@ -166,14 +166,10 @@ export default function App() {
           </nav>
         )}
         <div className="header-spacer" />
-        {ready && (
-          <span className="hint nowrap">
-            {fmtLifetime(lifetimeOf(DEV.map(d => d.serial), sn => fleet.DMAP.get(sn)?.snap).value)} lifetime cycles (MDM) · {DEV.length} devices{latestDate ? ` · through ${fmtDateLong(latestDate)}` : ''}
-          </span>
-        )}
         <span className="hint nowrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span className={`pill ${error ? 'pill-bad' : ready ? 'pill-ok pill-live' : ''}`}>{error ? 'Disconnected' : ready ? 'Live' : 'Connecting'}</span>
-          {fleet.server?.lastSweepAt ? <>sweep {ago(fleet.server.lastSweepAt)}</> : null}
+          {fleet.server?.lastSweepAt ? <span title={`The server checks the MDM for finished runs every 30 minutes; last check ${new Date(fleet.server.lastSweepAt).toLocaleString()}. Live device readings update every 30 seconds regardless.`}>
+            {fleet.server.sweeping ? 'checking for new runs…' : `runs checked ${ago(fleet.server.lastSweepAt)}`}</span> : null}
         </span>
         <span className="ver-pick">
           <select value={ver} aria-label="Dashboard version"

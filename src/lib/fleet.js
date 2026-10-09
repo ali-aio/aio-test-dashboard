@@ -153,9 +153,24 @@ export async function poll() {
   if (!state.ready || document.hidden) return;
   try { setDevices(await fetchDevices({ fresh: true })); derive(); state.error = null; bump(); } catch (e) { /* keep the last snapshot on screen */ }
 }
+// Every 5 min, ask the backend when it last swept the MDM. When a newer sweep has run, pull
+// its finished runs (and the recorded counter / curves) in, so an open page picks up new
+// cycles without a reload and the "runs checked … ago" label stays true.
+let lastStatusAt = 0;
+export async function pollSweep(force = false) {
+  if (!state.ready || !state.backend || (!force && document.hidden)) return;
+  if (!force && Date.now() - lastStatusAt < 5 * 60e3) return;
+  lastStatusAt = Date.now();
+  try {
+    const r = await fetch('/api/status', { cache: 'no-store' }); if (!r.ok) return;
+    const st = await r.json(), before = state.server?.lastSweepAt || 0;
+    state.server = st;
+    if ((st.lastSweepAt || 0) > before) await topUpFromServer(false); else bump();
+  } catch (e) { /* keep what is on screen */ }
+}
 export function startPolling() {
-  const t = setInterval(poll, 30e3);
-  const vis = () => { if (!document.hidden) poll(); };
+  const t = setInterval(() => { poll(); pollSweep(); }, 30e3);
+  const vis = () => { if (!document.hidden) { poll(); pollSweep(); } };
   document.addEventListener('visibilitychange', vis);
   return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis); };
 }

@@ -1,7 +1,7 @@
 import React from 'react'
 import { renderToString } from 'react-dom/server'
 import fs from 'node:fs'
-import { reclassify, DEFAULTS } from '../src/lib/cycles.js'
+import { reclassify, DEFAULTS, dedupeOverlapping } from '../src/lib/cycles.js'
 import { adaptAll } from '../src/lib/adapt.js'
 import { filterCycles, filtersFor, distinct } from '../src/lib/t7cycles.js'
 import T7Overview from '../src/views/T7Overview.jsx'
@@ -259,6 +259,18 @@ const mdmCases = []
     const withTemp = cycles.filter((c) => c.tempSeries.length), withPh = withTemp.filter((c) => c.tempPhases?.every(Number.isFinite))
     want(withTemp.length && withPh.length > withTemp.length / 2, `${withPh.length} of ${withTemp.length} runs with temperatures have phases`)
     want(thermalTimingByDevice(cycles).length > 0, 'timing table empty')
+  })
+  check('the same run found twice (import + sweep) is kept once', () => {
+    const t = (d, h, m = 0) => Date.UTC(2026, 9, d, h, m)
+    const out = dedupeOverlapping([
+      { start: t(5, 8, 4), end: t(6, 9), startPct: 100, endPct: 1 },      // sweep
+      { start: t(5, 8, 0), end: t(6, 9), startPct: 100, endPct: 1 },      // import
+      { start: t(3, 6, 1), end: t(3, 20), startPct: 100, endPct: 20 },
+      { start: t(3, 6, 5), end: t(3, 20), startPct: 100, endPct: 20 },
+      { start: t(6, 10), end: t(6, 22), startPct: 100, endPct: 30 },        // next run, starts after the 5 Oct one ends
+    ])
+    want(out.length === 3, `kept ${out.length}`)
+    want(out[1].start === t(5, 8, 0) && out[0].start === t(3, 6, 1), 'kept the longer copy')
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

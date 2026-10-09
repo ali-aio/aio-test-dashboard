@@ -57,9 +57,9 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
     'Burn-in Test', 'WLC on Load', 'WLC on Phone',
   ].includes(testType)
   const drainLabel = testType === 'Discharging on Ads'
-    ? 'Avg T7 drain · without wireless'
+    ? 'Avg T7 drain · pad off'
     : testType === 'WLC+Discharge on Ads'
-      ? 'Avg T7 drain · with wireless'
+      ? 'Avg T7 drain · pad on (wireless charging)'
       : 'Avg T7 drain'
 
   /* Colour follows the serial across the whole app, so filtering a device out
@@ -218,8 +218,8 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
     return { lt, n: own.length, gain: mean(own.map((c) => c.loadGainPerHr)), drop: mean(own.map((c) => c.dropPerHr)) }
   }).filter((x) => x.n) : []
   const restaurantRates = isRestaurant ? [
-    { label: 'Avg T7 drain · with wireless (WLC)', rateKey: 'wirelessDrainPerHr' },
-    { label: 'Avg T7 drain · without wireless', rateKey: 'withoutWirelessDrainPerHr' },
+    { label: 'Avg T7 drain · pad on (wireless charging)', rateKey: 'wirelessDrainPerHr' },
+    { label: 'Avg T7 drain · pad off', rateKey: 'withoutWirelessDrainPerHr' },
   ].map((mode) => {
     const rated = cycles.filter((c) => c[mode.rateKey] != null)
     return {
@@ -443,8 +443,8 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
                   : isLoadTest ? { drop: h.drop, gain: h.gain } : { drop: h.drop },
             }))}
             measures={isRestaurant ? [
-              { key: 'wireless', label: 'With wireless (WLC)', color: MEASURE_COLOR.wireless },
-              { key: 'withoutWireless', label: 'Without wireless', color: MEASURE_COLOR.withoutWireless },
+              { key: 'wireless', label: 'Pad on (wireless charging)', color: MEASURE_COLOR.wireless },
+              { key: 'withoutWireless', label: 'Pad off', color: MEASURE_COLOR.withoutWireless },
             ] : isCharging ? [
               { key: 'charge', label: 'T7 battery gained (% points)', color: MEASURE_COLOR.gain },
             ] : isLoadTest ? [
@@ -460,15 +460,15 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
             height={280}
             emptyState={explainNoRate(cycles, isCharging ? 'a charge rate' : 'a drain rate')}
             caption={isCharging ? 'Mean T7 battery gained per hour window'
-              : isRestaurant ? 'Mean T7 drain per hour, with and without wireless'
+              : isRestaurant ? 'Mean T7 drain per hour, pad on and pad off'
                 : testType === 'WLC on Phone' ? 'Mean T7 drain and load gain by hour of the run'
                   : 'Mean battery change per hour window'}
             tableColumns={[
               { key: 'window', label: 'Hour' },
               { key: 'n', label: 'Runs' },
               ...(isRestaurant ? [
-                { key: 'wireless', label: 'With wireless (WLC)' },
-                { key: 'withoutWireless', label: 'Without wireless' },
+                { key: 'wireless', label: 'Pad on (wireless charging)' },
+                { key: 'withoutWireless', label: 'Pad off' },
               ] : isCharging ? [
                 { key: 'charge', label: 'Battery gained' },
               ] : [
@@ -537,13 +537,13 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
           this is that device's history for the test: which days it ran and how each went. */}
       <Card expandable title={serialsHere.length === 1 ? `Every run on ${serialsHere[0]}` : 'Every run'}
         sub={`${runsText(cycles.length)} on ${fmtInt(new Set(cycles.map((c) => c.date)).size)} days`
-          + `${serialsHere.length === 1 ? '' : ` across ${fmtInt(serialsHere.length)} devices`} · newest first · click a heading to sort`}>
+          + `${serialsHere.length === 1 ? '' : ` across ${fmtInt(serialsHere.length)} devices`} · newest first · click a heading to sort · ≈ = worked out from the run’s battery drop, before the MDM counter was recorded`}>
         <div className="table-wrap" style={{ maxHeight: 460 }}>
           <SortTable caption={`Every ${testType} run`} head={[
             { label: 'Date' }, { label: 'Started' }, ...(serialsHere.length === 1 ? [] : [{ label: 'Device', style: { textAlign: 'left' } }]),
             { label: 'Run time' }, { label: 'Start' }, { label: isCharging ? 'Charged to' : 'End' },
-            { label: isCharging ? 'Charge rate' : 'Drain' }, { label: 'Peak temp' }, { label: 'Cycles (MDM)' },
-            { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'Charger', style: { textAlign: 'left' } }] : []),
+            { label: isCharging ? 'Charge rate' : 'Drain' }, { label: 'Peak temp' }, { label: 'Battery cycles' },
+            { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'Wireless pad', style: { textAlign: 'left' } }] : []),
           ]}>
             {[...cycles].sort((a, b) => b.start - a.start).map((c) => (
               <tr key={c.id}>
@@ -555,7 +555,10 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
                 <td>{fmtPct(c.endBattery)}</td>
                 <td>{fmtRate(c.dropPerHr)}</td>
                 <td>{fmtTemp(c.maxTemp)}</td>
-                <td>{c.mdmCycles == null ? '—' : c.mdmCycles.toFixed(2)}</td>
+                {/* the MDM counter where it was recorded; before that, the run's own battery drop ÷ 100 (≈) */}
+                <td title={c.mdmCycles != null ? 'From the MDM cycle counter' : 'From this run’s readings: battery drop ÷ 100 (the MDM counter was not recorded yet)'}>
+                  {c.mdmCycles != null ? c.mdmCycles.toFixed(2)
+                    : c.startBattery != null && c.endBattery != null && c.startBattery > c.endBattery ? `≈ ${((c.startBattery - c.endBattery) / 100).toFixed(2)}` : '—'}</td>
                 <td style={{ textAlign: 'left' }}>{c.firmware ?? '—'}</td>
                 {isField && <td style={{ textAlign: 'left' }}>{c.padState ?? '—'}</td>}
               </tr>

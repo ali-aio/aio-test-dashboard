@@ -141,7 +141,8 @@ export function adaptCycle(d, c, rows, ctx) {
     loadGainPerHr: null,  // the MDM reports the T7's battery, never the load's
     loadType: null,
     charger: null,
-    padState: wireless ? 'Wireless' : 'Wired',
+    // the T7's own wireless-charging pad, active (charging a phone / tester on it) or off
+    padState: wireless ? 'Pad on (wireless charging)' : 'Pad off',
     maxTemp: c.maxTemp ?? (temps.length ? Math.max(...temps) : null),
     avgTemp: c.avgTemp ?? null,
     minAbove40: c.thermal?.minAbove40 ?? null,

@@ -83,6 +83,21 @@ function summarize(pts, s, e, reason, endedBy, gapLimit) {
 }
 // Apply the thresholds to already-detected lists (the static import, the server's sweep),
 // so changing `minHours` in Settings reclassifies history without refetching anything.
+// One device cannot run two discharges at once. The static import and the backend sweep
+// (and the sweep against itself, at a 5- vs 10-minute sampling) can each detect the same
+// run with a slightly different start, so of overlapping cycles of one device only the
+// one covering the most time is kept, unchanged (its duration and runtime stay its own).
+// Input sorted or not; output by start.
+export function dedupeOverlapping(cycles) {
+  const out = [];
+  for (const c of [...cycles].sort((a, b) => a.start - b.start)) {
+    const last = out[out.length - 1];
+    if (last && c.start < last.end) { if (c.end - c.start > last.end - last.start) out[out.length - 1] = c; continue; }
+    out.push(c);
+  }
+  return out;
+}
+
 export function reclassify(cycles, interrupted, opts = {}) {
   const o = { ...DEFAULTS, ...opts }, C = [], I = [];
   for (const x of [...cycles, ...interrupted]) {

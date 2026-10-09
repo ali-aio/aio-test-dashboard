@@ -6,7 +6,7 @@
 // from the backend's sweep (data/topup.json) or, served without the backend, from a
 // per-browser top-up cached for 6 h. Live state = /testdata/devices, polled every 30 s.
 import { fetchDevices, fetchHistoryRange, mapLimit, detectBackend, hasConfig, scopeGroup } from './data.js';
-import { detectCycles, aggregate, reclassify, loadOpts } from './cycles.js';
+import { detectCycles, aggregate, reclassify, loadOpts, dedupeOverlapping } from './cycles.js';
 import { batteryHealth, chargeSegments, thermalStats } from './profile.js';
 import { loadRuns, normalize } from './runs.js';
 
@@ -44,6 +44,7 @@ function derive() {
   for (const d of state.DEV) {
     const h = HIST[d.serial] || {}, t = TOP[d.serial] || {};
     ({ cycles: d.cycles, interrupted: d.interrupted } = reclassify([...(h.cycles || []), ...(t.cycles || [])], [...(h.interrupted || []), ...(t.interrupted || [])], O));
+    d.cycles = dedupeOverlapping(d.cycles); // the import and the sweep can both hold the same run
     const th = t.thermal || {}; d.cycles.forEach(c => { if (th[c.start]) c.thermal = th[c.start]; });
     d.charges = t.charges || []; d.health = batteryHealth(d.cycles);
     d.agg = aggregate([d.cycles]); d.lastCycle = d.cycles[d.cycles.length - 1] || null;

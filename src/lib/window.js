@@ -154,6 +154,18 @@ export function runStartOf(rows) {
   return null; // still full, or never fell far enough to call it a run
 }
 
+// When the cycle a device is running NOW began: walk back from its newest reading while the
+// battery keeps falling (1 point of noise allowed) and it was off the charger. Null when it
+// is charging, or has not dropped at least 2 points — i.e. no cycle is running.
+export function currentCycleStart(rows) {
+  if (!rows || rows.length < 2) return null;
+  const last = rows[rows.length - 1];
+  if (last.extra?.charging) return null;
+  let i = rows.length - 1;
+  while (i > 0 && !rows[i - 1].extra?.charging && rows[i - 1].battery_pct >= rows[i].battery_pct - 1) i--;
+  return rows[i].battery_pct - last.battery_pct >= 2 ? { t: Date.parse(rows[i].timestamp), pct: rows[i].battery_pct } : null;
+}
+
 // Drain since the run started, in percentage points per hour, from the device's own
 // first and latest readings. Null until the run is at least 20 minutes old — before that
 // the rate is two samples of noise.

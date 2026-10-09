@@ -235,10 +235,12 @@ export function LineChart({
 export function GroupedColumns({
   groups, measures, formatValue = (v) => String(v), yLabel, xLabel, xUnit,
   height = 260, caption, tableColumns, tableRows, tableNote, tableSortable = true,
-  rotateLabels = false, emptyState, onSelectGroup, selectedGroup,
+  rotateLabels = false, emptyState, onSelectGroup, selectedGroup, tableFirst = false,
 }) {
   const [ref, width] = useMeasure()
   const [hover, setHover] = useState(null)
+  // tableFirst: the table is the main view and the chart sits behind a "Show chart" toggle
+  const [chartOpen, setChartOpen] = useState(!tableFirst)
   const [pt, setPt] = useState({ x: 0, y: 0 })
   const labelDrop = bandLabelDrop(groups.map((g) => g.label), rotateLabels)
   const M = {
@@ -270,8 +272,15 @@ export function GroupedColumns({
 
   return (
     <div className="chart-shell" ref={ref}>
-      <Legend items={measures.map((m) => ({ id: m.key, label: m.label, color: m.color, shape: 'rect' }))} />
-      {width > 0 && (
+      {tableFirst && tableColumns && <TableView columns={tableColumns} rows={tableRows} caption={caption}
+        note={tableNote} sortable={tableSortable} alwaysOpen />}
+      {tableFirst && (
+        <button className="btn btn-sm" style={{ marginTop: 10 }} onClick={() => setChartOpen((o) => !o)} aria-expanded={chartOpen}>
+          <span aria-hidden="true">{chartOpen ? '▾' : '▸'}</span> {chartOpen ? 'Hide chart' : 'Show chart'}
+        </button>
+      )}
+      {chartOpen && <Legend items={measures.map((m) => ({ id: m.key, label: m.label, color: m.color, shape: 'rect' }))} />}
+      {chartOpen && width > 0 && (
         <div className={contentW > width ? 'chart-scroll' : undefined}>
         <svg height={height} viewBox={`0 0 ${contentW} ${height}`}
           style={{ marginTop: 8, width: contentW, maxWidth: 'none' }}
@@ -332,7 +341,7 @@ export function GroupedColumns({
           ))}
         </Tooltip>
       )}
-      {tableColumns && <TableView columns={tableColumns} rows={tableRows} caption={caption}
+      {!tableFirst && tableColumns && <TableView columns={tableColumns} rows={tableRows} caption={caption}
         note={tableNote} sortable={tableSortable} />}
     </div>
   )

@@ -270,9 +270,10 @@ export function Legend({ items, onToggle, hidden, note }) {
  * reachable without hover and without relying on colour.
  */
 export function TableView({
-  columns, rows, caption, maxHeight = 320, label = 'table view', note, sortable = true,
+  columns, rows, caption, maxHeight = 320, label = 'table view', note, sortable = true, alwaysOpen = false,
 }) {
-  const [open, setOpen] = useState(false)
+  const [openState, setOpen] = useState(false)
+  const open = alwaysOpen || openState
   /* Every heading sorts (SortTable.jsx): first click highest first, second lowest first,
      third the table's own order. A row's `sort` values win over its displayed text. */
   const [sort, onSort] = useSort()
@@ -287,9 +288,9 @@ export function TableView({
 
   return (
     <div style={{ marginTop: 10 }}>
-      <button className="btn btn-sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+      {!alwaysOpen && <button className="btn btn-sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <span aria-hidden="true">{open ? '▾' : '▸'}</span> {open ? 'Hide' : 'Show'} {label}
-      </button>
+      </button>}
       {open && note && <p className="hint" style={{ margin: '8px 0 0' }}>{note}</p>}
       {open && sortable && (
         <p className="hint" style={{ margin: '4px 0 0' }}>

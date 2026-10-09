@@ -257,6 +257,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
           emptyState={explainEmpty(cycles, 'duration', 'a run time')}
           caption={`Average run time and ${chargingOnly ? 'charge' : 'drain'} rate by comparison group`}
           tableSortable
+          tableFirst
           tableColumns={[
             { key: 'label', label: DIMENSIONS.find((d) => d.id === dimension)?.label ?? 'Group' },
             { key: 'n', label: 'Cycles (MDM) or runs' },

@@ -1,4 +1,13 @@
-import React, { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect, createContext, useContext } from 'react'
+
+/* Full screen tells the charts inside how tall they may be. A chart keeps its own height in
+   the page; inside a full-screen card it grows to fill the window (minus header, legend and
+   a table toggle), so "full screen" is the whole chart, not the small one on a big blank. */
+const FullContext = createContext(0)
+export function useChartHeight(height) {
+  const avail = useContext(FullContext)
+  return avail ? Math.max(height, avail) : height
+}
 
 /**
  * Keeps an open popover inside the window: after it lays out (left- or right-anchored by
@@ -137,6 +146,14 @@ export function Card({
   const [open, setOpen] = useState(false)
   const [full, setFull] = useState(false)
   const shown = !collapsible || open
+  // room for a chart in full screen: the window, less the card header, legend and controls
+  const [avail, setAvail] = useState(0)
+  useEffect(() => {
+    if (!full) { setAvail(0); return }
+    const fit = () => setAvail(Math.max(300, window.innerHeight - 250))
+    fit(); window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [full])
 
   /* Escape leaves full screen. The charts measure their own width, so growing
      the card is all it takes — they redraw to the new size on their own. */
@@ -184,7 +201,7 @@ export function Card({
           {expandButton}
         </header>
       )}
-      {shown && <div className={`card-body${flush ? ' flush' : ''}`}>{children}</div>}
+      {shown && <div className={`card-body${flush ? ' flush' : ''}`}><FullContext.Provider value={avail}>{children}</FullContext.Provider></div>}
     </section>
   )
 }

@@ -12,6 +12,7 @@
 
 import React, { useContext, useId, useMemo, useRef, useState } from 'react'
 import { HistoryStatus } from './historyStatus.js'
+import { useChartHeight } from './Primitives.jsx'
 import {
   useMeasure, linear, niceDomain, ticksFor, GridY, AxisY, AxisX, AxisXBands, bandLabelDrop,
   Tooltip, TooltipRow, Legend, TableView, usePlotPointer, nearestPoint,
@@ -70,10 +71,11 @@ const empty = (empty) => <EmptyPlot reason={empty?.reason} hint={empty?.hint} />
  */
 export function LineChart({
   series, xDomain, yDomain, xTicks: xTicksProp, formatX = (v) => v, formatY = (v) => v,
-  xLabel, xUnit, yLabel, valueLabel, height = 280, caption, tableColumns, tableRows, area = false,
+  xLabel, xUnit, yLabel, valueLabel, height: heightProp = 280, caption, tableColumns, tableRows, area = false,
   legendNote, legendDisclosure, selectedSeries, onToggleSeries,
   onSelectAllSeries, onClearAllSeries, markers = true, emptyState,
 }) {
+  const height = useChartHeight(heightProp) // grows to fill a full-screen card
   const [ref, width] = useMeasure()
   const svgRef = useRef(null)
   const clipId = `clip${useId().replace(/:/g, '')}`
@@ -234,9 +236,10 @@ export function LineChart({
  */
 export function GroupedColumns({
   groups, measures, formatValue = (v) => String(v), yLabel, xLabel, xUnit,
-  height = 260, caption, tableColumns, tableRows, tableNote, tableSortable = true,
+  height: heightProp = 260, caption, tableColumns, tableRows, tableNote, tableSortable = true,
   rotateLabels = false, emptyState, onSelectGroup, selectedGroup, tableFirst = false,
 }) {
+  const height = useChartHeight(heightProp) // grows to fill a full-screen card
   const [ref, width] = useMeasure()
   const [hover, setHover] = useState(null)
   // tableFirst: the table is the main view and the chart sits behind a "Show chart" toggle
@@ -414,9 +417,10 @@ export function BarRows({
 /* ================================================================ histogram */
 
 export function Histogram({
-  bins, total, color = 'var(--series-1)', xLabel, formatBin, caption, height = 190, yMax,
+  bins, total, color = 'var(--series-1)', xLabel, formatBin, caption, height: heightProp = 190, yMax,
   emptyState,
 }) {
+  const height = useChartHeight(heightProp) // grows to fill a full-screen card
   const [ref, width] = useMeasure()
   const [hover, setHover] = useState(null)
   const [pt, setPt] = useState({ x: 0, y: 0 })
@@ -490,8 +494,9 @@ export function Histogram({
  */
 export function ScatterChart({
   series, xLabel, yLabel, formatX = (v) => v, formatY = (v) => v,
-  height = 280, caption, tableColumns, tableRows, xDomain, yDomain, emptyState,
+  height: heightProp = 280, caption, tableColumns, tableRows, xDomain, yDomain, emptyState,
 }) {
+  const height = useChartHeight(heightProp) // grows to fill a full-screen card
   const [ref, width] = useMeasure()
   const [hover, setHover] = useState(null)
   const [pt, setPt] = useState({ x: 0, y: 0 })

@@ -9,6 +9,8 @@
 //       GET /api/history/:serial?start&end&interval_sec (60 s cache, 7-day max window)
 //   · GET  /api/status   → sweep state + client stats
 //   · POST /api/sweep    → run a sweep now (the Settings "Check for new cycles" button)
+//   · GET/PUT /api/plan  → the shared Cycle plan, data/plan.json (server/plan.mjs) — our own
+//     file, the one thing a browser can write; never anything on the MDM
 //
 // Every upstream call goes through server/mdm.mjs (3 in flight, 120 ms apart, coalesced).
 // Browsers are rate-limited per IP on /api/* (RATE_PER_MIN, default 120) — 429 + Retry-After.
@@ -21,6 +23,7 @@ import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { sweep, loadTopup } from './sweep.mjs';
 import { createClient } from './mdm.mjs';
+import { createPlanStore, readPlanBody } from './plan.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cfgFile = path.join(ROOT, 'server', 'config.json');
@@ -98,6 +101,8 @@ function serveStatic(req, res, rel) {
   });
 }
 
+const plan = createPlanStore(ROOT);
+
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'), p = url.pathname;
   if (p.startsWith('/api/')) {
@@ -106,6 +111,14 @@ http.createServer(async (req, res) => {
     try {
       if (p === '/api/status') return json(req, res, 200, { ...state, client: mdm.stats() });
       if (p === '/api/sweep') { if (req.method !== 'POST') return json(req, res, 405, { error: 'POST' }); await runSweep('manual'); return json(req, res, state.lastError ? 502 : 200, state); }
+      if (p === '/api/plan') {
+        const g = (url.searchParams.get('group') || CFG.group).slice(0, 120);
+        if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, plan.get(g));
+        if (req.method !== 'PUT') return json(req, res, 405, { error: 'GET or PUT' });
+        let body; try { body = await readPlanBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
+        const r = plan.put(g, body);
+        return r.conflict ? json(req, res, 409, { error: 'the plan changed since you loaded it', current: r.current }) : json(req, res, 200, r);
+      }
       if (req.method !== 'GET' && req.method !== 'HEAD') return json(req, res, 405, { error: 'GET' });
       if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
       if (p === '/api/devices') {

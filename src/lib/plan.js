@@ -94,15 +94,32 @@ export function loadDecls(group) {
 }
 export function saveDecls(group, decls) {
   try { localStorage.setItem(DKEY(group), JSON.stringify(decls.filter(validDecl))); } catch (e) {}
+  planSink?.(group);
 }
 export function loadRota(group) {
   try { const r = JSON.parse(localStorage.getItem(RKEY(group)) || '{}'); return r && typeof r === 'object' ? r : {}; } catch (e) { return {}; }
 }
-export function saveRota(group, rota) { try { localStorage.setItem(RKEY(group), JSON.stringify(rota)); } catch (e) {} }
+export function saveRota(group, rota) { try { localStorage.setItem(RKEY(group), JSON.stringify(rota)); } catch (e) {} planSink?.(group); }
+// The browser copy above is a cache; planSync.js (when a backend is present) registers a
+// sink here so every save also goes to the shared copy on the server, and writes what the
+// server holds back into these keys. Raw strings, so nothing is reinterpreted on the way.
+let planSink = null;
+export const setPlanSink = fn => { planSink = fn; };
+export const rawPlan = group => {
+  let decls = [], rota = {};
+  try { decls = JSON.parse(localStorage.getItem(DKEY(group)) || '[]'); } catch (e) {}
+  try { rota = JSON.parse(localStorage.getItem(RKEY(group)) || '{}'); } catch (e) {}
+  return { decls: Array.isArray(decls) ? decls : [], rota: rota && typeof rota === 'object' ? rota : {} };
+};
+export const writeRawPlan = (group, { decls, rota }) => {
+  try { localStorage.setItem(DKEY(group), JSON.stringify(decls || [])); localStorage.setItem(RKEY(group), JSON.stringify(rota || {})); } catch (e) {}
+};
 
+// Ids must be unique across browsers now that the plan is shared, so not a per-browser
+// counter (two browsers would both make "D-001"): time + random.
 export function newDecl(decls, d) {
-  const n = decls.reduce((m, x) => Math.max(m, +String(x.id).slice(2) || 0), 0) + 1;
-  return { id: 'D-' + String(n).padStart(3, '0'), at: Date.now(), repeat: 'none', ...d, to: d.to || d.from };
+  let id; do { id = 'D-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); } while (decls.some(x => x.id === id));
+  return { id, at: Date.now(), repeat: 'none', ...d, to: d.to || d.from };
 }
 
 // ── which days a declaration covers ───────────────────────────────────────────

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import {
   TEST_TYPES, testType, ttSlot, loadDecls, saveDecls, loadRota, saveRota, newDecl,
@@ -18,6 +19,9 @@ export default function CyclePlanView({ fleet }) {
   const { DEV, allCycles } = fleet
   const [decls, setDecls] = useState(() => loadDecls(GROUP))
   const [rota, setRota] = useState(() => loadRota(GROUP))
+  // re-read when the shared plan changes (another device saved, or the first pull landed)
+  const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync)
+  useEffect(() => { setDecls(loadDecls(GROUP)); setRota(loadRota(GROUP)) }, [planSync.v])
   const now = new Date()
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() })
   const [sel, setSel] = useState(todayKey())

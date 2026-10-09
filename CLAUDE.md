@@ -140,7 +140,11 @@ oversight; don't add restaurant filtering back in without being asked.
 - `src/lib/plan.js` — the **declared test-type schedule**, the answer to the one thing MDM
   telemetry cannot supply. A declaration is (test type, date window, device group, time
   window); resolution order is explicit declaration > standing weekly rota > inferred from
-  telemetry > unclassified. Stored in localStorage per group, like `runs.js`.
+  telemetry > unclassified. **Shared through our own backend** (owner's OK, Oct 2026): `data/plan.json`
+  on fw2 (gitignored), `GET/PUT /api/plan?group=` in `server/plan.mjs`, synced by `src/lib/planSync.js`
+  (pull every minute and on tab focus, push on every save, 409 + merge by id on a concurrent save,
+  a browser's own plans merged in once on its first sync). localStorage is the per-browser cache;
+  served without the backend it falls back to per-browser only.
   A declaration is one **cycle**: start date + time to end date + time (`spanDays` = days from
   start to end). Plans saved by the first From/To form have no `spanDays`; `loadDecls` reads them
   as one continuous cycle ending on their To date, which is how the lab used that form.

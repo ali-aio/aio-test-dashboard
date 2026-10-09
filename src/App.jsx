@@ -3,6 +3,7 @@ import { subscribe, getSnapshot, boot, startPolling, GROUP } from './lib/fleet.j
 import { loadWindow, subscribeWindow, getWindow, rowsFor, WINDOW_HOURS } from './lib/window.js'
 import { adaptAll, CTX } from './lib/adapt.js'
 import { loadDecls, loadRota, testType as ttById } from './lib/plan.js'
+import { startPlanSync, subscribePlan, getPlanSync } from './lib/planSync.js'
 import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials, batteryCycles } from './lib/t7cycles.js'
 import { initThemeToggle } from './lib/theme.js'
 import { fmtInt, fmtDateLong, fmtBC, fmtLifetime } from './lib/fmt.js'
@@ -61,6 +62,9 @@ export default function App() {
   const [filters, setFilters] = useState(EMPTY_FILTERS)
 
   useEffect(() => { boot(); return startPolling() }, [])
+  // the Cycle plan is shared through the backend (data/plan.json); without it, per browser
+  const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync)
+  useEffect(() => (fleet.backend ? startPlanSync(GROUP) : undefined), [fleet.backend])
   useEffect(() => { try { localStorage.setItem('ui:ver', ver) } catch (e) {} }, [ver])
   useEffect(() => { if (fleet.DEV.length) loadWindow(fleet.DEV) }, [fleet.DEV])
 
@@ -68,7 +72,7 @@ export default function App() {
   // Cycles in T7's shape. The curve on each one comes from the history window, so cycles
   // older than it carry their summary but no per-hour series — the charts say so.
   const cycles = useMemo(() => (DEV.length ? adaptAll(DEV, rowsFor, fleet.readings, fleet.curves) : []),
-    [DEV, fleet.allCycles, win.at2, fleet.readings, fleet.curves])
+    [DEV, fleet.allCycles, win.at2, fleet.readings, fleet.curves, planSync.v])
   const allSerials = useMemo(() => distinct(cycles, 'serial'), [cycles])
   // The Test Date range applies first (a run is in if any part of it falls inside); the
   // rest of the bar then cascades within it. A preset like "Last 24h" is re-evaluated

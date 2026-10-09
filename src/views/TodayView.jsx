@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, buckets, dayStats, conform, temp, runStartOf, drainSince, WINDOW_HOURS } from '../lib/window.js'
 import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, loadDecls, loadRota } from '../lib/plan.js'
@@ -24,6 +25,7 @@ export default function TodayView({ fleet }) {
 
   const now = Date.now()
   const [planRev, setPlanRev] = useState(0) // bumped after a take-out / put-back, to re-read the plan
+  const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync) // shared plan changed elsewhere
   // The day whose run is on now. A run planned 10:00 → 04:00 belongs to the day it started,
   // so until yesterday's overnight window closes (and today's has not opened) Today stays
   // on yesterday's run.
@@ -44,7 +46,7 @@ export default function TodayView({ fleet }) {
       // devices taken out of this cycle leave its charts and table from the moment they left
       serials: activeSerials(src, DEV, now), removed: removedFrom(src), startMs: pick.startMs, endMs: pick.endMs, overnight: pick.overnight,
       cycleNo: cyclesOn(decls, pick.key).findIndex(c => c.decl.id === src.id) + 1, cycleCount: cyclesOn(decls, pick.key).length }
-  }, [DEV, allCycles, win.at2, todayKey(), planRev])
+  }, [DEV, allCycles, win.at2, todayKey(), planRev, planSync.v])
   const key = T.key
   const [takingOut, setTakingOut] = useState(null) // serial whose take-out form is open
 

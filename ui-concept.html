@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bench Concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Fragment+Mono&display=swap">
+<!--
+  Design exploration only — mock data, not wired to the API.
+  One direction for the v2 app: the home screen is the bench timeline (what is running,
+  where each unit is, when it finishes); tests and devices sit underneath as quiet lists.
+-->
+<style>
+/* Layout: one calm column; the bench timeline is the only framed object, everything else is type on the page. */
+:root {
+  --bg: #f7f7f8; --panel: #ffffff; --ink: #18181b; --ink-2: #52525b; --ink-3: #8a8a93;
+  --line: #e7e7ea; --line-2: #f0f0f2; --track: #eeeef1;
+  --accent: #f9674e; --accent-soft: rgba(249,103,78,.10);
+  --good: #16a34a; --mid: #d97706; --low: #dc2626; --chg: #2563eb; --idle: #a1a1aa;
+  --good-bg: rgba(22,163,74,.10); --mid-bg: rgba(217,119,6,.12); --low-bg: rgba(220,38,38,.10); --chg-bg: rgba(37,99,235,.10);
+  --sans: "Hanken Grotesk", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono: "Fragment Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111113; --panel: #18181b; --ink: #f4f4f5; --ink-2: #b4b4bb; --ink-3: #7c7c86;
+  --line: #27272a; --line-2: #1f1f22; --track: #26262a;
+  --accent-soft: rgba(249,103,78,.16);
+  --good: #4ade80; --mid: #fbbf24; --low: #f87171; --chg: #60a5fa; --idle: #63636b;
+  --good-bg: rgba(74,222,128,.12); --mid-bg: rgba(251,191,36,.12); --low-bg: rgba(248,113,113,.12); --chg-bg: rgba(96,165,250,.12);
+  color-scheme: dark;
+}}
+:root[data-theme="dark"] {
+  --bg: #111113; --panel: #18181b; --ink: #f4f4f5; --ink-2: #b4b4bb; --ink-3: #7c7c86;
+  --line: #27272a; --line-2: #1f1f22; --track: #26262a;
+  --accent-soft: rgba(249,103,78,.16);
+  --good: #4ade80; --mid: #fbbf24; --low: #f87171; --chg: #60a5fa; --idle: #63636b;
+  --good-bg: rgba(74,222,128,.12); --mid-bg: rgba(251,191,36,.12); --low-bg: rgba(248,113,113,.12); --chg-bg: rgba(96,165,250,.12);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased; padding: 0 24px 64px; }
+.num, .mono { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); font-size: 12.5px; letter-spacing: -.01em; }
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.wrap { max-width: 1120px; margin: 0 auto; }
+
+/* top bar */
+.top { display: flex; align-items: center; gap: 28px; height: 60px; border-bottom: 1px solid var(--line); }
+.mark { width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(135deg, var(--accent), #8b8cf6); flex: none; }
+.top nav { display: flex; gap: 22px; flex-wrap: wrap; }
+.top nav a { text-decoration: none; color: var(--ink-3); font-weight: 500; padding: 19px 0; }
+.top nav a[aria-current] { color: var(--ink); box-shadow: inset 0 -2px var(--ink); }
+.top .sp { flex: 1; }
+.scope { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 13px; }
+.scope b { color: var(--ink); font-weight: 600; }
+.live { width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px var(--good-bg); }
+.theme { color: var(--ink-3); font-size: 13px; }
+
+/* page head */
+.head { display: flex; align-items: end; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding: 40px 0 28px; }
+.head h1 { margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -.025em; line-height: 1.1; text-wrap: balance; }
+.head p { margin: 6px 0 0; color: var(--ink-2); }
+.facts { display: flex; gap: 36px; flex-wrap: wrap; }
+.fact { display: flex; flex-direction: column; gap: 2px; }
+.fact b { font-size: 26px; font-weight: 600; letter-spacing: -.02em; line-height: 1; }
+.fact span { color: var(--ink-3); font-size: 12.5px; }
+.fact.alert b { color: var(--low); }
+.fact small { font-size: 13px; color: var(--ink-3); font-weight: 500; }
+
+/* bench timeline */
+.bench { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.bench-h { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.bench-h h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--ink-3); font-size: 12.5px; }
+.legend i { display: inline-block; width: 14px; height: 6px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+.seg { display: inline-flex; background: var(--line-2); border-radius: 8px; padding: 2px; }
+.seg button { padding: 4px 11px; border-radius: 6px; color: var(--ink-3); font-size: 13px; font-weight: 500; }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.tl { overflow-x: auto; }
+.tl-inner { min-width: 760px; }
+.tl-row { display: grid; grid-template-columns: 170px 1fr 150px; align-items: center; height: 46px; padding: 0 20px; border-bottom: 1px solid var(--line-2); cursor: pointer; }
+.tl-row:last-child { border-bottom: 0; }
+.tl-row:hover { background: var(--line-2); }
+.tl-row.sel { background: var(--accent-soft); }
+.tl-axis { height: 32px; cursor: default; border-bottom: 1px solid var(--line); }
+.tl-axis:hover { background: none; }
+.who { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.who .t { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lane { position: relative; height: 100%; }
+.lane .grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line-2); }
+.lane .now { position: absolute; top: -1px; bottom: -1px; width: 2px; background: var(--accent); z-index: 2; }
+.tick { position: absolute; top: 9px; transform: translateX(-50%); color: var(--ink-3); font-size: 11.5px; }
+.tick.now-l { color: var(--accent); font-weight: 600; }
+.bar { position: absolute; top: 15px; height: 16px; border-radius: 5px; overflow: hidden; }
+.bar .done { position: absolute; inset: 0; right: auto; }
+.bar .proj { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(-45deg, var(--track) 0 4px, transparent 4px 8px); border: 1px dashed var(--line); border-left: 0; border-radius: 0 5px 5px 0; }
+.dot { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; border: 2px solid var(--panel); z-index: 3; }
+.end { text-align: right; line-height: 1.25; }
+.end b { font-weight: 600; }
+.end span { display: block; font-size: 12px; color: var(--ink-3); }
+.flag { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 999px; }
+.flag.low { color: var(--low); background: var(--low-bg); }
+.flag.mid { color: var(--mid); background: var(--mid-bg); }
+.flag.chg { color: var(--chg); background: var(--chg-bg); }
+
+/* lower sections */
+.cols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 48px; margin-top: 48px; }
+.sec h2 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+.sec .cap { margin: 0 0 14px; color: var(--ink-3); font-size: 13px; }
+.list { border-top: 1px solid var(--line); }
+.item { display: grid; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.tests .item { grid-template-columns: minmax(0, 1fr) 120px 88px; }
+.item .n { font-weight: 600; }
+.item .s { font-size: 12.5px; color: var(--ink-3); }
+.item .v { text-align: right; }
+.item .v b { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.item .v span { display: block; font-size: 12px; color: var(--ink-3); }
+.up { color: var(--good); } .down { color: var(--low); }
+.devs .item { grid-template-columns: 128px minmax(0, 1fr) 70px; }
+.meter { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 3px; }
+.devs .item .s { margin-top: 4px; }
+.more { display: inline-block; margin-top: 12px; color: var(--ink-2); font-weight: 500; font-size: 13px; text-decoration: none; }
+.more:hover { color: var(--ink); }
+svg text { fill: var(--ink-3); font: 10.5px var(--sans); }
+
+/* inspector drawer */
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 100%); background: var(--panel); border-left: 1px solid var(--line);
+  box-shadow: -12px 0 40px rgba(0,0,0,.08); padding: 22px 24px; transform: translateX(105%); transition: transform .25s cubic-bezier(.2,0,0,1); z-index: 20; overflow-y: auto; }
+.drawer.open { transform: none; }
+.drawer .x { float: right; color: var(--ink-3); font-size: 20px; line-height: 1; }
+.drawer h3 { margin: 0; font-family: var(--mono); font-size: 15px; font-weight: 400; }
+.drawer .big { font-size: 44px; font-weight: 600; letter-spacing: -.03em; line-height: 1; margin: 18px 0 4px; }
+.drawer dl { display: grid; grid-template-columns: 1fr auto; margin: 18px 0 0; border-top: 1px solid var(--line); }
+.drawer dt, .drawer dd { padding: 9px 0; border-bottom: 1px solid var(--line-2); margin: 0; }
+.drawer dt { color: var(--ink-3); } .drawer dd { text-align: right; font-weight: 500; }
+.drawer .why { font-size: 12px; color: var(--ink-3); margin-top: 14px; }
+@media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
+
+@media (max-width: 900px) {
+  body { padding: 0 16px 48px; }
+  .cols { grid-template-columns: 1fr; gap: 36px; }
+  .top { gap: 16px; overflow-x: auto; } .top nav { flex-wrap: nowrap; } .scope span.g, .theme { display: none; }
+  .facts { gap: 24px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="mark" aria-hidden="true"></span>
+    <nav>
+      <a href="#" aria-current="page">Bench</a><a href="#">Tests</a><a href="#">Devices</a><a href="#">Cycle plan</a><a href="#">Thermal</a>
+    </nav>
+    <span class="sp"></span>
+    <span class="scope"><span class="live" aria-hidden="true"></span><span class="g">Group</span> <b>Test Cycles</b></span>
+    <button class="theme" id="theme" type="button">Theme</button>
+  </header>
+
+  <section class="head">
+    <div>
+      <h1>Thursday, 9 October</h1>
+      <p>6 units running · bench run started 10:32 · last reading 40 s ago</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><b class="num">6<small> / 12</small></b><span>running now</span></div>
+      <div class="fact"><b class="num">00:40</b><span>last unit finishes</span></div>
+      <div class="fact alert"><b class="num">2</b><span>need attention</span></div>
+      <div class="fact"><b class="num" id="life"></b><span>lifetime cycles (MDM)</span></div>
+    </div>
+  </section>
+
+  <section class="bench" aria-label="Bench timeline">
+    <div class="bench-h">
+      <h2>Bench timeline</h2>
+      <div class="legend">
+        <span><i style="background:var(--good)"></i>above 40%</span>
+        <span><i style="background:var(--mid)"></i>15–40%</span>
+        <span><i style="background:var(--low)"></i>below 15%</span>
+        <span><i style="background:repeating-linear-gradient(-45deg,var(--ink-3) 0 2px,transparent 2px 4px)"></i>projected</span>
+      </div>
+      <div class="seg" role="group" aria-label="Sort">
+        <button type="button" aria-pressed="true" data-sort="end">By finish</button>
+        <button type="button" aria-pressed="false" data-sort="sn">By serial</button>
+      </div>
+    </div>
+    <div class="tl"><div class="tl-inner" id="tl"></div></div>
+  </section>
+
+  <div class="cols">
+    <section class="sec tests">
+      <h2>Tests this week</h2>
+      <p class="cap">Runtime to empty, projected from each run's drain. Change is against last week.</p>
+      <div class="list" id="tests"></div>
+      <a class="more" href="#">Compare tests →</a>
+    </section>
+    <section class="sec devs">
+      <h2>Battery wear</h2>
+      <p class="cap">Lifetime cycles from the MDM, most worn first.</p>
+      <div class="list" id="devs"></div>
+      <a class="more" href="#">All 12 devices →</a>
+    </section>
+  </div>
+</div>
+
+<aside class="drawer" id="drawer" aria-label="Device details"></aside>
+
+<script>
+/* ---- mock data: one bench run, started 10:32, now 15:40 ---- */
+const T0 = 10, T1 = 28, NOW = 15 + 40 / 60;          // hours on today's clock; 28 = 04:00 tomorrow
+const DEV = [
+  { sn: 'AT070AABU00231', test: 'Bench run', start: 10.53, pct: 74, rate: 5.1, temp: 37.1, life: 30.97, rt: 19.6 },
+  { sn: 'AT070AABU00387', test: 'Bench run', start: 10.53, pct: 69, rate: 6.0, temp: 39.4, life: 90.64, rt: 16.7 },
+  { sn: 'AT070AABU00790', test: 'Field Discharge', start: 11.40, pct: 76, rate: 5.5, temp: 35.9, life: 14.92, rt: 18.2 },
+  { sn: 'AT070AABU00455', test: 'Run-down', start: 2.0, pct: 9, rate: 6.6, temp: 44.8, life: 41.30, rt: 15.1, flag: ['low', 'Almost empty'] },
+  { sn: 'AT070AABU00561', test: 'WLC + Discharge', start: 10.53, pct: 62, rate: 7.2, temp: 46.1, life: 52.88, rt: 13.9, flag: ['mid', '46.1 °C'] },
+  { sn: 'AT070AABU00518', test: 'Bench run', start: 10.53, pct: 77, rate: 4.4, temp: 36.4, life: 27.40, rt: 22.7 },
+  { sn: 'AT070AABU00502', test: 'Charging Cycle', start: 14.2, pct: 63, charging: true, end: 17.1, temp: 41.2, life: 18.75 },
+  { sn: 'AT070AABU00533', test: 'Offline since 12:41', start: 10.53, pct: 0, off: 12.68, temp: null, life: 35.02, flag: ['low', 'Offline 3 h'] },
+];
+const WEAR = [...DEV, { sn: 'AT070AABU00577', life: 12.66, rt: 21.0 }, { sn: 'AT070AABU00604', life: 8.45, rt: 23.1 }, { sn: 'AT070AABU00590', life: 19.30, rt: 20.4 }, { sn: 'AT070AABU00412', life: 22.10, rt: 20.9 }];
+const TESTS = [
+  { n: 'Bench run', runs: 14, devs: 6, rt: 19.6, d: +0.4, pts: [100, 95, 89, 84, 79, 74, 69, 64, 58, 53, 48, 43, 38, 33, 28, 23] },
+  { n: 'Field Discharge', runs: 39, devs: 23, rt: 27.0, d: -0.8, pts: [100, 97, 94, 90, 87, 83, 80, 77, 73, 70, 66, 62, 58, 55, 51, 47] },
+  { n: 'WLC + Discharge', runs: 9, devs: 4, rt: 13.9, d: -1.6, pts: [100, 93, 86, 79, 71, 64, 57, 50, 43, 36, 29, 22, 15, 8] },
+  { n: 'Charging Cycle', runs: 11, devs: 5, rt: null, chg: '2.4 h to 95%', pts: [12, 30, 48, 64, 78, 88, 94, 96] },
+];
+const lifeTotal = WEAR.reduce((s, d) => s + d.life, 0);
+document.getElementById('life').textContent = lifeTotal.toFixed(1);
+
+const clock = h => { const m = Math.round((h % 24) * 60); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const col = p => p < 15 ? 'var(--low)' : p < 40 ? 'var(--mid)' : 'var(--good)';
+const X = h => ((Math.max(T0, Math.min(T1, h)) - T0) / (T1 - T0)) * 100;
+const endOf = d => d.charging ? d.end : d.off ? d.off : NOW + d.pct / d.rate;
+
+/* ---- bench timeline ---- */
+function renderTimeline(sort) {
+  const rows = [...DEV].sort(sort === 'sn' ? (a, b) => a.sn.localeCompare(b.sn) : (a, b) => endOf(a) - endOf(b));
+  let grid = '', ticks = '';
+  for (let h = T0; h <= T1; h += 2) { grid += `<span class="grid" style="left:${X(h)}%"></span>`; if (Math.abs(h - NOW) > 0.9) ticks += `<span class="tick num" style="left:${X(h)}%">${clock(h)}</span>`; }
+  const axis = `<div class="tl-row tl-axis"><span class="who t" style="font-size:12px;color:var(--ink-3)">Unit</span>
+    <div class="lane">${ticks}<span class="tick now-l num" style="left:${X(NOW)}%">Now ${clock(NOW)}</span></div><span class="end" style="font-size:12px;color:var(--ink-3)">Finishes</span></div>`;
+  const body = rows.map(d => {
+    const s = X(d.start), n = X(d.off || NOW), e = X(endOf(d));
+    let bar, end;
+    if (d.charging) {
+      bar = `<div class="bar" style="left:${s}%;width:${e - s}%"><span class="done" style="width:${(n - s) / (e - s) * 100}%;background:var(--chg)"></span><span class="proj" style="left:${(n - s) / (e - s) * 100}%;right:0"></span></div><span class="dot" style="left:${n}%;background:var(--chg)"></span>`;
+      end = `<span class="flag chg">Charging ${d.pct}%</span><span>full ~${clock(d.end)}</span>`;
+    } else if (d.off) {
+      bar = `<div class="bar" style="left:${s}%;width:${n - s}%"><span class="done" style="width:100%;background:var(--idle)"></span></div><span class="dot" style="left:${n}%;background:var(--low)"></span>`;
+      end = `<span class="flag low">${d.flag[1]}</span><span>last seen ${clock(d.off)}</span>`;
+    } else {
+      const grad = `linear-gradient(90deg, var(--good) 0%, ${col(d.pct)} 100%)`;
+      bar = `<div class="bar" style="left:${s}%;width:${e - s}%"><span class="done" style="width:${(n - s) / (e - s) * 100}%;background:${grad}"></span><span class="proj" style="left:${(n - s) / (e - s) * 100}%;right:0"></span></div><span class="dot" style="left:${n}%;background:${col(d.pct)}"></span>`;
+      end = d.flag ? `<span class="flag ${d.flag[0]}">${d.flag[1]}</span><span>${d.pct}% · ~${clock(endOf(d))}</span>` : `<b class="num">~${clock(endOf(d))}</b><span class="num">${d.pct}% · −${d.rate}%/h</span>`;
+    }
+    return `<div class="tl-row" tabindex="0" data-sn="${d.sn}"><span class="who"><span class="mono">${d.sn}</span><span class="t">${d.test}</span></span>
+      <div class="lane">${grid}<span class="now" style="left:${X(NOW)}%"></span>${bar}</div><span class="end">${end}</span></div>`;
+  }).join('');
+  document.getElementById('tl').innerHTML = axis + body;
+  document.querySelectorAll('.tl-row[data-sn]').forEach(r => {
+    r.onclick = () => openDev(r.dataset.sn);
+    r.onkeydown = e => { if (e.key === 'Enter') openDev(r.dataset.sn); };
+  });
+}
+
+/* ---- tests list with one mini curve each ---- */
+function mini(pts, c) {
+  const w = 120, h = 34, n = pts.length - 1;
+  const p = pts.map((v, i) => [i / n * (w - 4) + 2, 2 + (1 - v / 100) * (h - 4)]);
+  const d = p.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ');
+  const last = p[p.length - 1];
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Mean battery curve">
+    <path d="${d} L${last[0]},${h} L2,${h} Z" fill="${c}" opacity=".12"/><path d="${d}" fill="none" stroke="${c}" stroke-width="1.8" stroke-linejoin="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="2.6" fill="${c}"/></svg>`;
+}
+document.getElementById('tests').innerHTML = TESTS.map(t => `<div class="item">
+  <div><div class="n">${t.n}</div><div class="s">${t.runs} runs · ${t.devs} devices</div></div>
+  ${mini(t.pts, t.chg ? 'var(--chg)' : 'var(--ink-2)')}
+  <div class="v">${t.rt ? `<b class="num">${t.rt.toFixed(1)} h</b><span class="num ${t.d >= 0 ? 'up' : 'down'}">${t.d >= 0 ? '+' : '−'}${Math.abs(t.d).toFixed(1)} h</span>` : `<b class="num">2.4 h</b><span>to 95%</span>`}</div></div>`).join('');
+
+/* ---- battery wear ---- */
+const maxLife = Math.max(...WEAR.map(d => d.life));
+document.getElementById('devs').innerHTML = [...WEAR].sort((a, b) => b.life - a.life).slice(0, 6).map(d => {
+  const c = d.life > 60 ? 'var(--low)' : d.life > 35 ? 'var(--mid)' : 'var(--ink-3)';
+  return `<div class="item"><span class="mono">${d.sn}</span>
+    <div><div class="meter"><i style="width:${d.life / maxLife * 100}%;background:${c}"></i></div></div>
+    <div class="v"><b class="num">${d.life.toFixed(1)}</b></div></div>`;
+}).join('');
+
+/* ---- device drawer ---- */
+const drawer = document.getElementById('drawer');
+function openDev(sn) {
+  const d = DEV.find(x => x.sn === sn);
+  document.querySelectorAll('.tl-row[data-sn]').forEach(r => r.classList.toggle('sel', r.dataset.sn === sn));
+  const state = d.off ? 'Offline' : d.charging ? 'Charging' : 'Discharging';
+  drawer.innerHTML = `<button class="x" type="button" aria-label="Close">×</button><h3>${d.sn}</h3>
+    <div style="color:var(--ink-3);margin-top:2px">${d.test}</div>
+    <div class="big num" style="color:${d.off ? 'var(--ink-3)' : d.charging ? 'var(--chg)' : col(d.pct)}">${d.off ? '—' : d.pct + '%'}</div>
+    <div style="color:var(--ink-2)">${state}${d.off ? '' : d.charging ? ` · full ~${clock(d.end)}` : ` · empty ~${clock(endOf(d))}`}</div>
+    <dl>
+      <dt>Run started</dt><dd class="num">${clock(d.start)}</dd>
+      ${d.rate ? `<dt>Drain</dt><dd class="num">${d.rate} %/h</dd><dt>Runtime to empty</dt><dd class="num">${d.rt} h</dd>` : ''}
+      <dt>Battery temp</dt><dd class="num">${d.temp ? d.temp.toFixed(1) + ' °C' : '—'}</dd>
+      <dt>Lifetime cycles (MDM)</dt><dd class="num">${d.life.toFixed(2)}</dd>
+      <dt>Firmware</dt><dd class="mono">v2.1.022</dd><dt>Pad</dt><dd>Wired</dd>
+    </dl>
+    <p class="why">Lifetime cycles count every percent this battery has ever drained, across all tests. They don't change with the filters.</p>`;
+  drawer.classList.add('open');
+  drawer.querySelector('.x').onclick = closeDev;
+  drawer.querySelector('.x').focus();
+}
+function closeDev() { drawer.classList.remove('open'); document.querySelectorAll('.tl-row.sel').forEach(r => r.classList.remove('sel')); }
+addEventListener('keydown', e => { if (e.key === 'Escape') closeDev(); });
+
+document.querySelectorAll('[data-sort]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-sort]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  renderTimeline(b.dataset.sort);
+});
+document.getElementById('theme').onclick = () => {
+  const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme = dark ? 'light' : 'dark';
+};
+renderTimeline('end');
+</script>
+</body>
+</html>

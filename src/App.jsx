@@ -142,7 +142,7 @@ export default function App() {
         {win.loading && !Object.keys(win.rows || {}).length && <div className="banner"><span aria-hidden="true">●</span>
           <div><span className="spin" /> Reading {Math.round(WINDOW_HOURS / 24)} days of history for {DEV.length} devices — the curve charts fill in as it lands.</div></div>}
         <ErrorBoundary resetKey={`${view}|${JSON.stringify(filters)}`} onReset={resetFilters}>
-          {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} testType={filters.testType} allSerials={allSerials} lifetime={lifetime} />}
+          {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} onOpenDevice={openDeviceTest} testType={filters.testType} allSerials={allSerials} lifetime={lifetime} />}
           {view === 'comparison' && <ComparisonView cycles={scoped} testType={filters.testType} allSerials={allSerials} />}
           {view === 'thermal' && <ThermalView cycles={scoped} allSerials={allSerials} onFilter={applyFilter} />}
           {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={[]} onEventsChanged={() => {}} onFilter={applyFilter} onOpenTest={openDeviceTest} issues={[]} files={[]} snapOf={sn => fleet.DMAP.get(sn)?.snap} />}

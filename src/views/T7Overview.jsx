@@ -10,11 +10,11 @@ import { kpis, fullDischargeCycles, compareFirmwareNewest, avgCurveBy, maxOf, ex
 import { BUILD_COLOR, SERIES_VARS, MAX_SERIES } from '../lib/palette.js'
 import { fmtLifetime, fmtBC, bcText, runsText, fmtInt, fmtNum, fmtHours, fmtPct, fmtTemp, fmtRate, fmtHourTick, fmtDate, compareSerial } from '../lib/fmt.js'
 
-export default function OverviewView({ cycles, onPickTestType, onFilter, testType = '__all__', allSerials = [], lifetime = null }) {
+export default function OverviewView({ cycles, onPickTestType, onFilter, onOpenDevice, testType = '__all__', allSerials = [], lifetime = null }) {
   if (testType !== '__all__') {
     return <TestDetailView cycles={cycles} testType={testType} allSerials={allSerials} lifetime={lifetime} />
   }
-  return <AllTestsOverview cycles={cycles} onPickTestType={onPickTestType} onFilter={onFilter} allSerials={allSerials} lifetime={lifetime} />
+  return <AllTestsOverview cycles={cycles} onPickTestType={onPickTestType} onFilter={onFilter} onOpenDevice={onOpenDevice} allSerials={allSerials} lifetime={lifetime} />
 }
 
 /** Cycle counts per distinct value of a field, biggest first. */
@@ -50,7 +50,7 @@ function inventory(cycles, key) {
  * The stat row describes what the full dataset covers. Selecting a test type
  * switches OverviewView to the full TestDetailView above.
  */
-function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [], lifetime = null }) {
+function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, allSerials = [], lifetime = null }) {
   const k = useMemo(() => kpis(cycles), [cycles])
   // every serial in the app, not just the filtered ones, so a device's colour never shifts
   const allSerialsHere = useMemo(() => (allSerials.length ? allSerials : [...new Set(cycles.map((c) => c.serial))]), [allSerials, cycles])
@@ -155,7 +155,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [], l
       </div>
 
       <div className="grid grid-2">
-        {panels.map((p) => <OverviewPanel key={p.testType} p={p} allSerials={allSerialsHere} onPickTestType={onPickTestType} />)}
+        {panels.map((p) => <OverviewPanel key={p.testType} p={p} allSerials={allSerialsHere} onPickTestType={onPickTestType} onOpenDevice={onOpenDevice} />)}
       </div>
     </div>
   )
@@ -163,7 +163,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, allSerials = [], l
 
 // One test-type card. Average = T7's mean curve per pad state (or build); Every device =
 // one line per device with the Devices picker, colours shared with every other chart.
-function OverviewPanel({ p, allSerials, onPickTestType }) {
+function OverviewPanel({ p, allSerials, onPickTestType, onOpenDevice }) {
   const [mode, setMode] = useState('avg')
   const perDevice = useMemo(() => deviceSeries(p.cycles, allSerials), [p.cycles, allSerials])
   const picker = useDevicePicker(perDevice)
@@ -206,7 +206,10 @@ function OverviewPanel({ p, allSerials, onPickTestType }) {
           const own = p.cycles.filter((c) => (mode === 'all' ? c.serial : c[p.groupKey]) === b)
           const kk = kpis(own)
           return {
-            build: b ?? 'Unknown',
+            // a device opens this test's page for just that device: every run, by day
+            build: mode === 'all' && onOpenDevice
+              ? <button type="button" className="link-btn" title={`Open ${p.testType} for ${b} — every run`} onClick={() => onOpenDevice(b, p.testType)}>{b}</button>
+              : b ?? 'Unknown',
             n: p.charging ? runsText(kk.totalCycles) : splitText(own),
             dur: fmtHours(kk.avgDuration),
             drop: fmtRate(kk.avgDropPerHr),

@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bento Screens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<!--
+  Design exploration only — mock data, not wired to the API.
+  Every screen of the v2 app in the chosen style (bento-demos.html › D · Visual):
+  Overview · Test · Today · Cycle plan · Comparison · Thermal · Devices · Device.
+  The top nav switches screens like the real app's hash routes would.
+-->
+<style>
+/* Layout: warm off-white ground, 6-column bento of white tiles, every tile leads with a graphic. */
+:root { --bg: #f4f2ee; --tile: #fff; --ink: #141414; --ink2: #5c5a55; --ink3: #8d8a83; --line: rgba(0,0,0,.07); --track: #e5e3de;
+  --ok: #1f8f52; --warn: #c2640a; --bad: #d1343f; --blue: #1c56b3; --mint: #bfeedd; --peach: #ffd3c2; --sky: #cfe3ff; --rose: #ffd0d4;
+  --c1: #141414; --c2: #1c56b3; --c3: #1f8f52; --c4: #c2640a; --radius: 30px; color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 Manrope, system-ui, sans-serif; -webkit-font-smoothing: antialiased; padding: 0 32px 48px; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; font-weight: 500; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+svg text { fill: var(--ink3); font: 11px Manrope, sans-serif; font-weight: 600; }
+.wrap { max-width: 1240px; margin: 0 auto; }
+
+.top { display: flex; align-items: center; gap: 20px; padding: 24px 0 26px; flex-wrap: wrap; position: sticky; top: 0; background: var(--bg); z-index: 5; }
+.wordmark { font-weight: 800; font-size: 18px; letter-spacing: -.03em; display: flex; align-items: center; gap: 8px; }
+.wordmark i { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
+nav { display: flex; gap: 2px; flex-wrap: wrap; }
+nav button { padding: 8px 14px; border-radius: 999px; color: var(--ink2); font-weight: 600; font-size: 13.5px; }
+nav button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.sp { flex: 1; }
+.pill { padding: 8px 14px; border-radius: 999px; background: var(--tile); font-weight: 600; font-size: 13px; color: var(--ink2); box-shadow: 0 0 0 1px var(--line); white-space: nowrap; }
+.pill b { color: var(--ink); } .pill.x { background: var(--ink); color: #fff; }
+h1 { font-size: 40px; font-weight: 800; letter-spacing: -.035em; line-height: 1.05; margin: 0 0 6px; max-width: 820px; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--ink3); }
+.lead { color: var(--ink2); font-size: 15px; margin: 0 0 24px; font-weight: 500; }
+.screen { display: none; } .screen.on { display: block; }
+.bento { display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 160px; gap: 14px; }
+.t { background: var(--tile); border-radius: var(--radius); padding: 22px 24px; display: flex; flex-direction: column; min-width: 0; position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+.t .l { font-weight: 700; font-size: 13px; } .t .l small { display: block; color: var(--ink3); font-weight: 600; font-size: 12px; margin-top: 2px; }
+.t .v { font-size: 44px; font-weight: 800; letter-spacing: -.045em; line-height: 1; margin-top: auto; }
+.t .v small { font-size: 17px; letter-spacing: -.02em; margin-left: 2px; color: var(--ink2); font-weight: 700; }
+.t .f { font-size: 12.5px; color: var(--ink2); font-weight: 600; margin-top: 6px; }
+.t.dark { background: var(--ink); color: #fff; box-shadow: none; } .t.dark .l small, .t.dark .f, .t.dark .v small { color: rgba(255,255,255,.6); }
+.t.mintbg { background: var(--mint); } .t.peachbg { background: var(--peach); } .t.skybg { background: var(--sky); } .t.rosebg { background: var(--rose); }
+.w2 { grid-column: span 2; } .w3 { grid-column: span 3; } .w4 { grid-column: span 4; } .w6 { grid-column: span 6; } .h2 { grid-row: span 2; } .h3 { grid-row: span 3; }
+.t.chart { padding-bottom: 10px; } .t.chart svg { margin-top: auto; }
+.arrow { position: absolute; right: 20px; top: 20px; width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.06); display: grid; place-items: center; font-size: 15px; }
+.seg { position: absolute; right: 20px; top: 18px; display: inline-flex; background: rgba(0,0,0,.05); border-radius: 999px; padding: 3px; }
+.seg button { padding: 4px 11px; border-radius: 999px; color: var(--ink2); font-size: 12px; font-weight: 700; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.lst { display: flex; flex-direction: column; margin-top: 10px; overflow: hidden; }
+.lrow { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-weight: 600; font-size: 13px; }
+.lrow:first-child { border-top: 0; }
+.s { color: var(--ink3); font-weight: 600; font-size: 12px; }
+.tag { padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.tag.ok { background: var(--mint); color: var(--ok); } .tag.warn { background: var(--peach); color: var(--warn); } .tag.bad { background: var(--rose); color: var(--bad); } .tag.blue { background: var(--sky); color: var(--blue); } .tag.grey { background: var(--track); color: var(--ink2); }
+.stack { display: flex; gap: 6px; margin-top: auto; align-items: end; height: 70px; }
+.stack i { flex: 1; border-radius: 6px 6px 3px 3px; background: var(--ink); opacity: .85; position: relative; }
+.stack i span { position: absolute; left: 0; right: 0; top: -18px; text-align: center; font-size: 11px; font-weight: 700; color: var(--ink2); }
+.ringbox { display: flex; align-items: center; gap: 16px; margin-top: auto; } .ringbox .v { margin: 0; }
+.dots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: auto; }
+.dot { aspect-ratio: 1; border-radius: 10px; display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff; }
+.therm { display: flex; gap: 10px; align-items: end; margin-top: auto; height: 84px; }
+.therm i { flex: 1; border-radius: 8px 8px 4px 4px; background: var(--track); position: relative; }
+.therm i b { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 8px 8px 4px 4px; }
+.therm i span { position: absolute; left: 0; right: 0; top: -18px; text-align: center; font-size: 11px; font-weight: 700; color: var(--ink2); }
+.range { position: relative; height: 10px; border-radius: 5px; background: var(--track); margin: 8px 0 4px; }
+.range i { position: absolute; top: 0; bottom: 0; border-radius: 5px; background: var(--ink); }
+.range b { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px var(--ink); }
+.rr { display: grid; grid-template-columns: 120px 1fr 54px; gap: 12px; align-items: center; font-weight: 700; font-size: 13px; padding: 10px 0; border-top: 1px solid var(--line); }
+.bar { height: 10px; border-radius: 5px; background: var(--track); overflow: hidden; } .bar i { display: block; height: 100%; border-radius: 5px; background: var(--ink); }
+.prog { height: 14px; border-radius: 7px; background: var(--track); overflow: hidden; margin-top: auto; position: relative; }
+.prog i { display: block; height: 100%; border-radius: 7px; background: var(--ink); }
+.prog b { position: absolute; top: -20px; font-size: 11px; font-weight: 700; color: var(--ink2); transform: translateX(-50%); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.chip { padding: 5px 10px; border-radius: 999px; background: var(--track); font-size: 12px; font-weight: 700; font-family: "JetBrains Mono", monospace; }
+.chip.on { background: var(--ink); color: #fff; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 12px; flex: 1; }
+.cal .dow { font-size: 11px; font-weight: 700; color: var(--ink3); text-align: center; }
+.cal .day { border-radius: 12px; background: var(--bg); padding: 6px 8px; font-size: 12px; font-weight: 700; display: flex; flex-direction: column; gap: 3px; min-height: 0; }
+.cal .day.out { opacity: .35; } .cal .day.today { box-shadow: 0 0 0 2px var(--ink); }
+.cal .day .ev { font-size: 10.5px; font-weight: 700; border-radius: 6px; padding: 1px 6px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal .day .ev.c1 { background: var(--c1); } .cal .day .ev.c2 { background: var(--c2); } .cal .day .ev.c3 { background: var(--c3); } .cal .day .ev.c4 { background: var(--c4); }
+.form { display: grid; gap: 10px; margin-top: 12px; }
+.form label { font-size: 12px; font-weight: 700; color: var(--ink2); display: grid; gap: 4px; }
+.form .in { background: var(--bg); border-radius: 12px; padding: 9px 12px; font-weight: 600; color: var(--ink); font-size: 13px; }
+.form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn { background: var(--ink); color: #fff; border-radius: 999px; padding: 10px 16px; font-weight: 700; text-align: center; }
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto; }
+.cmp div { border-radius: 14px; padding: 10px 12px; background: var(--bg); } .cmp b { display: block; font-size: 24px; font-weight: 800; letter-spacing: -.03em; } .cmp span { font-size: 11.5px; color: var(--ink3); font-weight: 700; }
+.cmp div.win { background: var(--mint); }
+.grid-dev { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+.dcard { background: var(--bg); border-radius: 18px; padding: 12px 14px; display: flex; gap: 12px; align-items: center; }
+.dcard .r { position: relative; flex: none; } .dcard .r b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+.dcard .x { margin-left: auto; text-align: right; font-size: 11.5px; color: var(--ink3); font-weight: 700; } .dcard .x b { display: block; color: var(--ink); font-size: 14px; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; font-weight: 600; font-size: 13px; }
+th { text-align: left; color: var(--ink3); font-size: 11.5px; font-weight: 700; padding: 6px 0; border-bottom: 1px solid var(--line); }
+td { padding: 8px 0; border-bottom: 1px solid var(--line); } .r { text-align: right; }
+@media (max-width: 1000px) { body { padding: 0 16px 40px; } .bento { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 150px; } .w3, .w4, .w6 { grid-column: span 2; } h1 { font-size: 30px; } .grid-dev { grid-template-columns: 1fr; } nav { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="wordmark"><i></i>Test Lab</span>
+    <nav id="nav">
+      <button data-s="overview" type="button">Overview</button><button data-s="test" type="button">Bench run</button><button data-s="today" type="button">Today</button><button data-s="plan" type="button">Cycle plan</button><button data-s="compare" type="button">Compare</button><button data-s="thermal" type="button">Thermal</button><button data-s="devices" type="button">Devices</button><button data-s="device" type="button">…00790</button>
+    </nav>
+    <span class="sp"></span><span class="pill">Test Cycles · <b>live</b></span><span class="pill">7 days ▾</span>
+  </header>
+  <div id="screens"></div>
+</div>
+
+<script>
+/* ───── mock data ───── */
+const DEV = [
+  { sn: 'AT070AABU00231', test: 'Bench run',       pct: 74, temp: 37.1, rate: 5.1, life: 30.97, rt: 19.6, st: 'run', fw: 'v2.1.022' },
+  { sn: 'AT070AABU00387', test: 'Bench run',       pct: 69, temp: 39.4, rate: 6.0, life: 90.64, rt: 16.7, st: 'run', fw: 'v2.1.022' },
+  { sn: 'AT070AABU00790', test: 'Field Discharge', pct: 76, temp: 35.9, rate: 5.5, life: 14.92, rt: 18.2, st: 'run', fw: 'v2.1.022' },
+  { sn: 'AT070AABU00455', test: 'Run-down',        pct: 9,  temp: 44.8, rate: 6.6, life: 41.30, rt: 15.1, st: 'run', fw: 'v2.1.019', flag: ['bad', 'Almost empty'] },
+  { sn: 'AT070AABU00561', test: 'WLC + Discharge', pct: 62, temp: 46.1, rate: 7.2, life: 52.88, rt: 13.9, st: 'run', fw: 'v2.1.019', flag: ['warn', '46.1 °C'] },
+  { sn: 'AT070AABU00518', test: 'Bench run',       pct: 77, temp: 36.4, rate: 4.4, life: 27.40, rt: 22.7, st: 'run', fw: 'v2.1.022' },
+  { sn: 'AT070AABU00502', test: 'Charging Cycle',  pct: 63, temp: 41.2, rate: 0,   life: 18.75, rt: null, st: 'chg', fw: 'v2.1.022' },
+  { sn: 'AT070AABU00577', test: 'Charging Cycle',  pct: 88, temp: 38.0, rate: 0,   life: 12.66, rt: null, st: 'chg', fw: 'v2.1.019' },
+  { sn: 'AT070AABU00533', test: 'Offline 3 h',     pct: 0,  temp: null, rate: 0,   life: 35.02, rt: null, st: 'off', fw: 'v2.1.019', flag: ['bad', 'Offline'] },
+  { sn: 'AT070AABU00590', test: 'Idle · full',     pct: 100, temp: 32.8, rate: 0,  life: 19.30, rt: null, st: 'idle', fw: 'v2.1.022' },
+  { sn: 'AT070AABU00604', test: 'Idle · full',     pct: 96,  temp: 33.0, rate: 0,  life: 8.45,  rt: null, st: 'idle', fw: 'v2.1.022' },
+  { sn: 'AT070AABU00412', test: 'Idle · full',     pct: 100, temp: 32.1, rate: 0,  life: 22.10, rt: null, st: 'idle', fw: 'v2.1.019' },
+];
+const TESTS = [
+  { n: 'Bench run',       runs: 14, devs: 6,  rt: 19.6, lo: 16.7, hi: 22.7, d: +0.4, c: 'c1' },
+  { n: 'Field Discharge', runs: 39, devs: 23, rt: 27.0, lo: 23.1, hi: 31.4, d: -0.8, c: 'c2' },
+  { n: 'WLC + Discharge', runs: 9,  devs: 4,  rt: 13.9, lo: 12.2, hi: 15.8, d: -1.6, c: 'c3' },
+  { n: 'Run-down',        runs: 5,  devs: 3,  rt: 15.1, lo: 14.0, hi: 16.9, d: +0.2, c: 'c4' },
+];
+const C = ['#141414', '#1c56b3', '#1f8f52', '#c2640a', '#8d8a83', '#d1343f'];
+const LIFE = DEV.reduce((s, d) => s + d.life, 0);
+const NOW = 15.67, WEEK = [3.1, 4.2, 5.0, 4.6, 6.1, 5.8, 6.4];
+const clock = h => { const m = Math.round(((h % 24) + 24) % 24 * 60); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const f1 = v => v.toFixed(1), f2 = v => v.toFixed(2);
+const curve = (rt, end, n, wob = 1.2) => Array.from({ length: n }, (_, h) => ({ t: h, v: Math.max(end, 100 - 100 / rt * h + Math.sin(h * 1.3) * wob) }));
+const dcol = d => d.st === 'off' ? '#c9c7c1' : d.st === 'chg' ? '#1c56b3' : d.pct < 15 ? '#d1343f' : d.pct < 40 ? '#c2640a' : '#1f8f52';
+const tag = d => d.flag ? `<span class="tag ${d.flag[0]}">${d.flag[1]}</span>` : d.st === 'chg' ? '<span class="tag blue">Charging</span>' : d.st === 'run' ? '<span class="tag ok">Running</span>' : '<span class="tag grey">Full</span>';
+
+/* ───── drawing ───── */
+function smooth(p) { let d = `M${p[0][0].toFixed(1)},${p[0][1].toFixed(1)}`; for (let i = 0; i < p.length - 1; i++) { const a = p[i - 1] || p[i], b = p[i], c = p[i + 1], e = p[i + 2] || c; d += ` C${(b[0] + (c[0] - a[0]) / 6).toFixed(1)},${(b[1] + (c[1] - a[1]) / 6).toFixed(1)} ${(c[0] - (e[0] - b[0]) / 6).toFixed(1)},${(c[1] - (e[1] - b[1]) / 6).toFixed(1)} ${c[0].toFixed(1)},${c[1].toFixed(1)}`; } return d; }
+let gid = 0;
+function chart(series, { w = 760, h = 210, xMax = 26, yMin = 0, yMax = 100, L = 30, R = 10, T = 10, B = 22, area = true, sw = 2.5, ticks = [0, 50, 100], xstep = 5, ylab = v => v + '%', xlab = v => v + ' h', now = null } = {}) {
+  const X = x => L + x / xMax * (w - L - R), Y = y => T + (1 - (y - yMin) / (yMax - yMin)) * (h - T - B);
+  let g = '';
+  for (const v of ticks) g += `<line x1="${L}" x2="${w - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="rgba(0,0,0,.07)"/><text x="${L - 6}" y="${Y(v) + 3.5}" text-anchor="end">${ylab(v)}</text>`;
+  for (let x = 0; x <= xMax; x += xstep) g += `<text x="${X(x)}" y="${h - 6}" text-anchor="middle">${xlab(x)}</text>`;
+  if (now != null) g += `<line x1="${X(now)}" x2="${X(now)}" y1="${T}" y2="${h - B}" stroke="#141414" stroke-dasharray="3 3"/><text x="${X(now)}" y="${T - 2}" text-anchor="middle">now</text>`;
+  const defs = series.map((s, i) => `<linearGradient id="g${gid}_${i}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${s.c}" stop-opacity=".2"/><stop offset="1" stop-color="${s.c}" stop-opacity="0"/></linearGradient>`).join('');
+  const lines = series.map((s, i) => { const p = s.pts.map(q => [X(q.t), Y(q.v)]); const d = smooth(p), last = p[p.length - 1];
+    return (area ? `<path d="${d} L${last[0].toFixed(1)},${Y(yMin)} L${p[0][0].toFixed(1)},${Y(yMin)} Z" fill="url(#g${gid}_${i})"/>` : '') + `<path d="${d}" fill="none" stroke="${s.c}" stroke-width="${s.w || sw}" stroke-linecap="round" opacity="${s.o || 1}"/><circle cx="${last[0]}" cy="${last[1]}" r="4" fill="${s.c}"/>`; }).join('');
+  gid++;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" role="img" aria-label="Chart"><defs>${defs}</defs>${g}${lines}</svg>`;
+}
+const ring = (p, c, size = 78, sw = 9) => { const r = size / 2 - sw, L = 2 * Math.PI * r; return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(0,0,0,.08)" stroke-width="${sw}"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${L * p / 100} ${L}" transform="rotate(-90 ${size/2} ${size/2})"/></svg>`; };
+function heat(rows, cols, val, { w = 760, h = 230, L = 90, T = 8, B = 24 } = {}) {
+  const cw = (w - L - 8) / cols.length, rh = (h - T - B) / rows.length;
+  let s = '';
+  rows.forEach((r, i) => { s += `<text x="${L - 8}" y="${T + i * rh + rh / 2 + 4}" text-anchor="end">${r}</text>`; cols.forEach((c, j) => { const v = val(i, j); const col = v == null ? '#f0eee9' : v >= 45 ? '#d1343f' : v >= 40 ? '#e8a060' : `rgba(20,20,20,${.08 + (v - 30) / 15 * .35})`; s += `<rect x="${L + j * cw + 1.5}" y="${T + i * rh + 1.5}" width="${cw - 3}" height="${rh - 3}" rx="5" fill="${col}"/>`; }); });
+  cols.forEach((c, j) => { if (j % 2 === 0) s += `<text x="${L + j * cw + cw / 2}" y="${h - 6}" text-anchor="middle">${c}</text>`; });
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" role="img" aria-label="Heat map">${s}</svg>`;
+}
+const header = (h1, lead, pills = '') => `<div style="display:flex;align-items:end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:24px"><div><h1>${h1}</h1><p class="lead" style="margin:0">${lead}</p></div><div style="display:flex;gap:6px;flex-wrap:wrap">${pills}</div></div>`;
+
+const S = {};
+
+/* ───── Overview ───── */
+S.overview = () => { const curves = TESTS.map((t, i) => ({ pts: curve(t.rt, t.n === 'Run-down' ? 2 : 18, Math.ceil(t.rt) + 1), c: C[i] })); const minRt = 10, maxRt = 32, pos = v => (v - minRt) / (maxRt - minRt) * 100;
+  return header('Six units on the bench, <em>finishing around 00:40.</em>', 'Thursday 9 October · bench run since 10:32 · 2 charging · 1 offline', '<span class="pill">All tests ▾</span><span class="pill">All firmware ▾</span>') + `<div class="bento">
+    <div class="t w2"><span class="arrow">↗</span><div class="l">Lifetime cycles<small>from the MDM · 12 devices · every test</small></div><div class="ringbox"><span style="flex:none">${ring(Math.min(100, LIFE / 5), '#141414')}</span><div><div class="v num" style="font-size:38px">${f1(LIFE)}</div><div class="f" style="margin-top:2px">54.1 in this week's runs</div></div></div></div>
+    <div class="t w4 h2 chart"><span class="seg"><button type="button" aria-pressed="true">Mean</button><button type="button">Per device</button><button type="button">Every run</button></span><div class="l">Mean battery by test<small>${TESTS.map((t, i) => `<span style="color:${C[i]}">● ${t.n}</span>`).join(' &nbsp; ')}</small></div>${chart(curves, { h: 230 })}</div>
+    <div class="t w2"><div class="l">Units right now<small>green running · blue charging · red low · grey offline</small></div><div class="dots">${DEV.map(d => `<span class="dot" style="background:${dcol(d)}">${d.st === 'off' ? '' : d.pct}</span>`).join('')}</div></div>
+    <div class="t w2"><div class="l">Finishing<small>6 running · bench run since 10:32</small></div><div class="ringbox" style="gap:14px"><div class="v num" style="font-size:38px">00:40</div><div class="f" style="margin:0">last unit to empty<br>first one ~17:00 (…00455)</div></div></div>
+    <div class="t w2"><div class="l">Cycles per day<small>this week · ▲ 6.4 on last week</small></div><div class="stack">${WEEK.map(v => `<i style="height:${v / 6.4 * 100}%"></i>`).join('')}</div></div>
+    <div class="t w2"><div class="l">Battery temperature<small>peak today · limit 45 °C</small></div><div class="therm">${DEV.filter(d => d.temp).sort((a, b) => b.temp - a.temp).slice(0, 7).map(d => `<i><span>${Math.round(d.temp)}°</span><b style="height:${(d.temp - 25) / 25 * 100}%;background:${d.temp >= 45 ? '#d1343f' : d.temp >= 40 ? '#c2640a' : '#141414'}"></b></i>`).join('')}</div></div>
+    <div class="t w3 h2"><span class="arrow">↗</span><div class="l">Runtime to empty by test<small>shortest to longest run this week · dot at the mean</small></div><div class="lst">${TESTS.map(t => `<div class="rr"><span>${t.n}<br><span class="s">${t.runs} runs</span></span><span><span class="range"><i style="left:${pos(t.lo)}%;right:${100 - pos(t.hi)}%"></i><b style="left:${pos(t.rt)}%"></b></span></span><span class="num" style="text-align:right">${f1(t.rt)} h</span></div>`).join('')}</div></div>
+    <div class="t w3 h2"><span class="arrow">↗</span><div class="l">Needs a look<small>and the next three to finish</small></div><div class="lst">${[...DEV.filter(d => d.flag), ...DEV.filter(d => d.st === 'run' && !d.flag).sort((a, b) => a.pct / a.rate - b.pct / b.rate).slice(0, 3)].map(d => `<div class="lrow"><span class="mono">${d.sn}<br><span class="s" style="font-family:Manrope">${d.test}</span></span>${d.flag ? tag(d) : `<span class="s">finishes ~${clock(NOW + d.pct / d.rate)}</span>`}<span class="num">${d.st === 'off' ? '—' : d.pct + '%'}</span></div>`).join('')}</div></div>
+  </div>`; };
+
+/* ───── Test detail (Bench run) ───── */
+S.test = () => { const bench = DEV.filter(d => d.test === 'Bench run' || d.sn.endsWith('790') || d.sn.endsWith('604') || d.sn.endsWith('590')).slice(0, 6);
+  const per = bench.map((d, i) => ({ pts: curve(d.rt || 20, 18, 15, 2), c: i === 1 ? '#141414' : C[1], o: i === 1 ? 1 : .35, w: i === 1 ? 3 : 2 }));
+  return header('Bench run: <em>19.6 h to empty, 14 runs, 6 units.</em>', 'Off the charger 10:30, back on ~00:30 · this week vs last: +0.4 h', '<span class="pill x">Bench run ✕</span><span class="pill">All firmware ▾</span><span class="pill">All 6 devices ▾</span>') + `<div class="bento">
+    <div class="t w2"><div class="l">Battery cycles<small>in these 14 runs · lifetime 219.8 on these units</small></div><div class="v num">11.2</div></div>
+    <div class="t w4 h2 chart"><span class="seg"><button type="button">Mean</button><button type="button" aria-pressed="true">Per device</button><button type="button">Every run</button></span><div class="l">T7 battery over elapsed time<small>…00387 highlighted · click a line to pin it</small></div>${chart(per, { h: 230, xMax: 14, xstep: 2 })}</div>
+    <div class="t w2"><div class="l">Avg start → end<small>per run</small></div><div class="ringbox" style="gap:10px"><div class="v num" style="font-size:38px">99<small>%</small></div><span style="font-size:28px;color:var(--ink3)">→</span><div class="v num" style="font-size:38px">21<small>%</small></div></div></div>
+    <div class="t w2"><div class="l">Avg peak battery temp<small>hottest run reached 44.9 °C</small></div><div class="v num">40.3<small>°C</small></div></div>
+    <div class="t w2"><div class="l">Runs rated by straight line<small>shorter than two whole hours</small></div><div class="v num">2<small>of 14</small></div></div>
+    <div class="t w2 mintbg"><div class="l">Runs on a misplaced pad<small>pad reported misplaced for most of the run</small></div><div class="v num">0</div></div>
+    <div class="t w3 h2"><span class="arrow">↗</span><div class="l">Runtime to empty by unit<small>mean of its runs · lifetime cycles on the right</small></div><div class="lst">${bench.sort((a, b) => (b.rt || 18) - (a.rt || 18)).map(d => `<div class="rr" style="grid-template-columns:130px 1fr 54px"><span class="mono">${d.sn}</span><span class="bar"><i style="width:${(d.rt || 18) / 24 * 100}%"></i></span><span class="num" style="text-align:right">${f1(d.rt || 18)} h</span></div>`).join('')}</div></div>
+    <div class="t w3 h2"><span class="arrow">↗</span><div class="l">Runs<small>newest first</small></div><table><tr><th>Started</th><th>Unit</th><th class="r">Duration</th><th class="r">Battery</th><th class="r">To empty</th></tr>
+      ${[['Thu 10:32', '…00387', '5 h 08 m', '99 → 69%', '16.7 h'], ['Wed 10:30', '…00387', '14 h 02 m', '100 → 23%', '18.2 h'], ['Wed 10:30', '…00231', '14 h 05 m', '100 → 28%', '19.6 h'], ['Tue 10:35', '…00518', '13 h 55 m', '100 → 39%', '22.7 h'], ['Tue 10:35', '…00387', '14 h 00 m', '100 → 25%', '18.5 h']].map(r => `<tr><td>${r[0]}</td><td class="mono">${r[1]}</td><td class="r num">${r[2]}</td><td class="r num">${r[3]}</td><td class="r num">${r[4]}</td></tr>`).join('')}</table></div>
+  </div>`; };
+
+/* ───── Today ───── */
+S.today = () => { const run = DEV.filter(d => d.st === 'run' && d.test !== 'Run-down');
+  const lines = run.map((d, i) => ({ pts: Array.from({ length: 12 }, (_, k) => ({ t: 10.5 + k * 0.47, v: Math.max(d.pct, 100 - (k * 0.47) * d.rate + Math.sin(k) * .8) })), c: d.sn.endsWith('561') ? '#c2640a' : C[i % 4], w: d.sn.endsWith('561') ? 3 : 2 }));
+  const temps = run.map((d, i) => ({ pts: Array.from({ length: 12 }, (_, k) => ({ t: 10.5 + k * 0.47, v: 32 + (d.temp - 32) * Math.min(1, k / 9) + Math.sin(k * 2) * .6 })), c: d.sn.endsWith('561') ? '#c2640a' : C[i % 4], w: d.sn.endsWith('561') ? 3 : 2, o: d.sn.endsWith('561') ? 1 : .6 }));
+  return header('Bench run, day 1: <em>5 h in, five of six on track.</em>', 'Started 10:32 · plan says back on the charger at 00:30 · …00561 is drifting', '<span class="pill">Bench run · 9 Oct</span>') + `<div class="bento">
+    <div class="t w2"><div class="l">Run time<small>of a planned 14 h · ends 00:30</small></div><div class="prog"><b style="left:${5.13 / 14 * 100}%">5 h 08 m</b><i style="width:${5.13 / 14 * 100}%"></i></div><div class="f">8 h 52 m to go</div></div>
+    <div class="t w2"><div class="l">Battery now<small>mean of 6 · planned 72% at this point</small></div><div class="ringbox"><span style="flex:none">${ring(71, '#1f8f52')}</span><div><div class="v num" style="font-size:38px">71<small>%</small></div><div class="f" style="margin-top:2px">on plan, within 1%</div></div></div></div>
+    <div class="t w2"><div class="l">Drain rate<small>mean · planned 5.4 %/h</small></div><div class="v num">5.6<small>%/h</small></div><div class="f">…00561 at 7.2, everyone else 4.4–6.0</div></div>
+    <div class="t w4 h2 chart"><div class="l">T7 battery, today<small>one line per unit · dashed line is now · …00561 highlighted</small></div>${chart([...lines, { pts: [{ t: 10.5, v: 100 }, { t: 24.5, v: 24 }], c: '#8d8a83', w: 1.5, o: .8 }], { h: 230, xMax: 25, xstep: 2, xlab: v => clock(v), now: NOW, area: false })}</div>
+    <div class="t w2 h2 chart"><div class="l">Battery temperature, today<small>limit 45 °C</small></div>${chart(temps, { h: 230, xMax: 25, yMin: 30, yMax: 50, ticks: [30, 40, 45, 50], ylab: v => v + '°', xstep: 5, xlab: v => clock(v), area: false })}</div>
+    <div class="t w2 peachbg"><div class="l">Drifting<small>not behaving like a bench run</small></div><div class="lst"><div class="lrow"><span class="mono">AT070AABU00561<br><span class="s" style="font-family:Manrope">draining 7.2 %/h · 46.1 °C</span></span><span class="tag warn">Hot</span><span class="num">62%</span></div></div><div class="f" style="margin-top:auto">Take it out of this cycle ↗</div></div>
+    <div class="t w2"><div class="l">On track with plan<small>of 6 in this cycle</small></div><div class="v num">5<small>of 6</small></div></div>
+    <div class="t w2"><div class="l">Devices to show on the charts<small>tap to toggle</small></div><div class="chips">${run.map(d => `<span class="chip${d.sn.endsWith('561') ? ' on' : ''}">${d.sn.slice(-5)}</span>`).join('')}<span class="chip" style="font-family:Manrope">All</span></div></div>
+  </div>`; };
+
+/* ───── Cycle plan ───── */
+S.plan = () => { const first = 4; // Oct 2026 starts on a Thursday
+  const ev = { 1: ['c1', 'Bench run'], 2: ['c1', 'Bench run'], 5: ['c1', 'Bench run'], 6: ['c3', 'WLC + Disch.'], 7: ['c1', 'Bench run'], 8: ['c4', 'Run-down'], 9: ['c1', 'Bench run'], 12: ['c1', 'Bench run'], 13: ['c2', 'Charging'], 14: ['c1', 'Bench run'], 15: ['c1', 'Bench run'], 16: ['c3', 'WLC + Disch.'] };
+  let cells = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => `<span class="dow">${d}</span>`).join('');
+  for (let i = 0; i < 35; i++) { const d = i - first + 1 + 1; const out = d < 1 || d > 31; const n = out ? (d < 1 ? 30 + d : d - 31) : d;
+    cells += `<div class="day${out ? ' out' : ''}${d === 9 ? ' today' : ''}"><span>${n}</span>${!out && ev[d] ? `<span class="ev ${ev[d][0]}">${ev[d][1]}</span>` : ''}${d === 8 ? '<span class="ev c1">Bench run</span>' : ''}</div>`; }
+  return header('October: <em>bench runs every weekday, two WLC days.</em>', 'A declaration is one cycle: start, end, devices · shared with the whole team', '<span class="pill">‹ September</span><span class="pill">November ›</span>') + `<div class="bento">
+    <div class="t w4 h3"><div class="l">October 2026<small>today outlined · two chips on a day means two cycles</small></div><div class="cal">${cells}</div></div>
+    <div class="t w2 h2"><div class="l">Set a test<small>Thursday 9 October</small></div><div class="form"><label>Test type<span class="in">Bench run ▾</span></label><div class="two"><label>From<span class="in">9 Oct · 10:30</span></label><label>To<span class="in">10 Oct · 00:30</span></label></div><label>Devices<span class="in">All 12 in Test Cycles ▾</span></label><label>Repeat<span class="in">Every weekday until 30 Oct ▾</span></label><span class="btn">Save cycle</span></div></div>
+    <div class="t w2"><div class="l">This cycle<small>Bench run · 10:32 → 00:30</small></div><div class="lst"><div class="lrow"><span>6 units running</span><span class="tag ok">on plan</span><span></span></div><div class="lrow"><span class="mono">…00561</span><span class="tag warn">drifting</span><span class="s">46 °C</span></div><div class="lrow"><span class="mono">…00533</span><span class="tag bad">taken out</span><span class="s">offline</span></div></div></div>
+  </div>`; };
+
+/* ───── Comparison ───── */
+S.compare = () => { const a = curve(19.6, 18, 15), b = curve(18.1, 18, 15, 1.6);
+  const M = [['Runtime to empty', '19.6 h', '18.1 h', 1], ['Avg drain', '5.1 %/h', '5.5 %/h', 1], ['Peak temp', '40.3 °C', '42.8 °C', 1], ['Battery cycles', '7.1', '4.1', 0], ['Runs', '9', '5', 0], ['Time ≥ 40 °C', '18 min', '41 min', 1]];
+  return header('v2.1.022 lasts <em>1.5 h longer</em> than v2.1.019 on the bench run.', 'Bench run · this week · 9 runs vs 5 runs · same 6 units', '<span class="pill x">v2.1.022</span><span class="pill">vs</span><span class="pill x">v2.1.019</span><span class="pill">Bench run ▾</span>') + `<div class="bento">
+    <div class="t w4 h2 chart"><div class="l">Mean battery over elapsed time<small><span style="color:#141414">● v2.1.022</span> &nbsp; <span style="color:#c2640a">● v2.1.019</span></small></div>${chart([{ pts: a, c: '#141414', w: 3 }, { pts: b, c: '#c2640a', w: 3 }], { h: 230, xMax: 14, xstep: 2 })}</div>
+    <div class="t w2 h2"><div class="l">Measures side by side<small>green cell is the better one</small></div><div class="lst">${M.map(m => `<div class="lrow" style="grid-template-columns:1fr auto auto"><span>${m[0]}</span><span class="num" style="padding:2px 8px;border-radius:8px;background:${m[3] === 0 ? 'var(--mint)' : 'transparent'}">${m[1]}</span><span class="num" style="padding:2px 8px;border-radius:8px;background:${m[3] === 1 ? 'transparent' : 'transparent'};color:var(--ink2)">${m[2]}</span></div>`).join('')}</div></div>
+    ${[['Runtime to empty', '19.6', '18.1', 'h', true], ['Peak temp', '40.3', '42.8', '°C', true], ['Avg drain', '5.1', '5.5', '%/h', true]].map(m => `<div class="t w2"><div class="l">${m[0]}<small>v2.1.022 vs v2.1.019</small></div><div class="cmp"><div class="${m[4] ? 'win' : ''}"><b class="num">${m[1]}<small style="font-size:13px;color:var(--ink2)"> ${m[3]}</small></b><span>v2.1.022</span></div><div><b class="num">${m[2]}<small style="font-size:13px;color:var(--ink2)"> ${m[3]}</small></b><span>v2.1.019</span></div></div></div>`).join('')}
+  </div>`; };
+
+/* ───── Thermal ───── */
+S.thermal = () => { const units = DEV.filter(d => d.temp).slice(0, 8).map(d => d.sn.slice(-5)); const hours = Array.from({ length: 14 }, (_, i) => i + 1);
+  return header('Nothing above 55 °C this week; <em>…00561 runs hot from hour 3.</em>', 'All tests · 67 runs · 2 runs with no temperature recorded', '<span class="pill">All tests ▾</span><span class="pill">7 days ▾</span>') + `<div class="bento">
+    <div class="t w2"><div class="l">Hottest it ever got<small>…00561 · WLC + Discharge · Tue</small></div><div class="v num">49.2<small>°C</small></div></div>
+    <div class="t w2"><div class="l">Typical hottest point<small>median of each run's peak</small></div><div class="v num">41.0<small>°C</small></div></div>
+    <div class="t w2"><div class="l">Middle of all readings<small>median, every sample</small></div><div class="v num">37.4<small>°C</small></div></div>
+    <div class="t w4 h2 chart"><div class="l">Is a device hot early or late in a run?<small>mean temperature per hour of a run · red ≥ 45 · orange ≥ 40</small></div>${heat(units, hours, (i, j) => { const d = DEV.filter(x => x.temp)[i]; return Math.min(d.temp, 31 + (d.temp - 31) * Math.min(1, j / 6) + Math.sin(j + i) * 1.2); }, { h: 230 })}</div>
+    <div class="t w2 h2"><div class="l">Which hour each unit is hottest<small>hour of the run</small></div><div class="stack" style="height:150px;gap:8px">${DEV.filter(d => d.temp).slice(0, 8).map((d, i) => { const h = [4, 6, 9, 3, 3, 7, 2, 5][i]; return `<i style="height:${h / 10 * 100}%;background:${d.temp >= 45 ? '#d1343f' : d.temp >= 40 ? '#c2640a' : '#141414'}"><span>${h} h</span></i>`; }).join('')}</div></div>
+    <div class="t w2 mintbg"><div class="l">Runs that got hot<small>55 °C or more</small></div><div class="v num">0<small>of 67</small></div></div>
+    <div class="t w2 mintbg"><div class="l">Runs that got very hot<small>60 °C or more</small></div><div class="v num">0</div></div>
+    <div class="t w2"><div class="l">No temperature recorded<small>older firmware didn't report it</small></div><div class="v num">2<small>runs</small></div></div>
+  </div>`; };
+
+/* ───── Devices ───── */
+S.devices = () => header('Twelve units, <em>three with an event this week.</em>', '…00387 has done the most work: 90.6 lifetime cycles', '<span class="pill">Search serial, build, firmware…</span><span class="pill">All firmware ▾</span>') + `<div class="bento">
+    <div class="t w2"><div class="l">Devices<small>in Test Cycles</small></div><div class="v num">12</div></div>
+    <div class="t w2"><div class="l">With a recorded event<small>this week</small></div><div class="v num">3</div></div>
+    <div class="t w2 rosebg"><div class="l">Critical events<small>offline during a run</small></div><div class="v num">1</div></div>
+    <div class="t w6 h3"><div class="l">Every unit<small>ring is battery now · number on the right is lifetime cycles from the MDM</small></div><div class="grid-dev">${DEV.map(d => `<div class="dcard"><span class="r">${ring(d.st === 'off' ? 0 : d.pct, dcol(d), 46, 5)}<b class="num">${d.st === 'off' ? '—' : d.pct}</b></span><div><div class="mono">${d.sn}</div><div class="s">${d.test} · ${d.fw}</div><div style="margin-top:4px">${tag(d)}</div></div><div class="x"><b class="num">${f2(d.life)}</b>lifetime</div></div>`).join('')}</div></div>
+  </div>`;
+
+/* ───── Device ───── */
+S.device = () => { const d = DEV[2]; const hist = [18.2, 18.5, 27.0, 18.4, 18.1, 17.9, 18.6, 18.0, 18.3, 19.1];
+  return header('AT070AABU00790: <em>76%, draining 5.5 %/h, empty around 05:30.</em>', 'Field Discharge since 11:24 · v2.1.022 · wired · last seen 40 s ago', '<span class="pill">‹ Devices</span><span class="pill">Open in Today</span>') + `<div class="bento">
+    <div class="t w2"><div class="l">Battery now<small>discharging</small></div><div class="ringbox"><span style="flex:none">${ring(d.pct, '#1f8f52')}</span><div><div class="v num" style="font-size:38px">${d.pct}<small>%</small></div><div class="f" style="margin-top:2px">−${d.rate} %/h · 35.9 °C</div></div></div></div>
+    <div class="t w2 dark"><div class="l">Lifetime cycles<small>from the MDM · every test, ever</small></div><div class="v num">${f2(d.life)}</div><div class="f">5.5 in this week's 7 runs</div></div>
+    <div class="t w2"><div class="l">Runtime to empty<small>mean of its last 10 runs</small></div><div class="v num">18.2<small>h</small></div><div class="f">bench runs; one run-down at 27 h</div></div>
+    <div class="t w4 h2 chart"><div class="l">Cycle history<small>battery, last 7 days · dashed line is now</small></div>${chart([{ pts: Array.from({ length: 60 }, (_, i) => { const t = i / 60 * 168; const x = t % 24; return { t: t / 168 * 7, v: x < 14 ? Math.max(22, 100 - x * 5.5) : Math.min(100, 22 + (x - 14) * 10) }; }), c: '#141414', w: 2 }], { h: 230, xMax: 7, xstep: 1, xlab: v => ['Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', ''][v], now: 6.2 })}</div>
+    <div class="t w2 h2"><div class="l">Runtime per cycle<small>last 10 runs · hours to empty</small></div><div class="stack" style="height:150px;gap:6px">${hist.map(h => `<i style="height:${h / 28 * 100}%;background:${h > 24 ? '#1c56b3' : '#141414'}"><span>${Math.round(h)}</span></i>`).join('')}</div></div>
+    <div class="t w6 h2"><div class="l">Runs<small>newest first</small></div><table><tr><th>Started</th><th>Test</th><th class="r">Duration</th><th class="r">Battery</th><th class="r">Drain</th><th class="r">To empty</th><th class="r">Peak temp</th></tr>
+      ${[['Thu 11:24', 'Field Discharge', '4 h 16 m', '99 → 76%', '5.5 %/h', '18.2 h', '35.9 °C'], ['Wed 10:30', 'Bench run', '14 h 02 m', '100 → 23%', '5.5 %/h', '18.2 h', '41.0 °C'], ['Tue 10:35', 'Bench run', '13 h 55 m', '100 → 25%', '5.4 %/h', '18.5 h', '40.2 °C'], ['Mon 10:31', 'Run-down', '26 h 10 m', '100 → 3%', '3.7 %/h', '27.0 h', '44.6 °C'], ['Sun 10:40', 'Bench run', '14 h 00 m', '100 → 24%', '5.4 %/h', '18.4 h', '39.9 °C']].map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td>${r.slice(2).map(v => `<td class="r num">${v}</td>`).join('')}</tr>`).join('')}</table></div>
+  </div>`; };
+
+/* ───── mount + nav ───── */
+const root = document.getElementById('screens');
+root.innerHTML = Object.keys(S).map(k => `<section class="screen" id="s-${k}">${S[k]()}</section>`).join('');
+function show(k) {
+  document.querySelectorAll('#nav button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === k));
+  document.querySelectorAll('.screen').forEach(el => el.classList.toggle('on', el.id === 's-' + k));
+  try { localStorage.setItem('bentoScreen', k); } catch {}
+  if (location.hash !== '#' + k) history.replaceState(null, '', '#' + k);
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => show(b.dataset.s));
+let start = location.hash.slice(1); try { start = start || localStorage.getItem('bentoScreen'); } catch {}
+show(S[start] ? start : 'overview');
+</script>
+</body>
+</html>

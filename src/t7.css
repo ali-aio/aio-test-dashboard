@@ -2029,3 +2029,11 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 .span-picker .control { height: var(--control-h); max-width: none; }
 .span-picker .btn { height: var(--control-h); }
 @media (max-width: 640px) { .span-picker { flex-direction: column; align-items: stretch; } }
+/* a serial that opens something but reads as plain text (Today's device list) */
+.link-btn.plain-link { color: var(--text-primary); }
+.link-btn.plain-link:hover { color: var(--series-1); text-decoration: underline; }
+/* Today: which devices the charts are narrowed to, with the way back */
+.pick-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--series-1) 35%, var(--border)); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1)); font-size: 13px; }
+.series-legend-actions { flex-wrap: wrap; align-items: center; }

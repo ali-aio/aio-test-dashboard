@@ -94,6 +94,7 @@ export default function TodayView({ fleet }) {
   const q = query.trim().toLowerCase()
   const matches = sn => !q || sn.toLowerCase().includes(q)
   const [listOpen, setListOpen] = useState(false)
+  const [listQ, setListQ] = useState('') // search inside the Devices today list
   const listShown = listOpen || !!q
   // A device clicked in the table is ticked alone in the two charts above (Every device),
   // and the page scrolls up to them; clicking it again ticks every device again.
@@ -177,7 +178,8 @@ export default function TodayView({ fleet }) {
       + (rows.length > 6 ? `<div class="tt-time" style="margin:4px 0 0">+${rows.length - 6} more, all cooler</div>` : '')
   }
   const picker = <DevicePicker serials={sorted} picked={picked} colorOf={colorOf} styleOf={styleOf} drifting={new Set(drifting.map(d => d.serial))}
-    onToggle={toggle} onAll={() => setPicked(null)} onNone={() => setPicked(new Set())} />
+    onToggle={toggle} onAll={() => setPicked(null)} onNone={() => setPicked(new Set())}
+    onSet={set => setPicked(set.size === sorted.length ? null : set)} />
   const noneTicked = picked != null && picked.size === 0
   const silent = T.serials.length - reporting.length
 
@@ -240,6 +242,15 @@ export default function TodayView({ fleet }) {
 
 
       {!win.at ? <Stale win={win} n={DEV.length} /> : <>
+        {/* after picking devices (a click in the list, or the Devices picker), one click back to all */}
+        {picked != null && (
+          <div className="pick-bar">
+            <span>{picked.size === 0 ? 'No devices ticked'
+              : picked.size <= 3 ? <>Showing only <b className="mono">{[...picked].join(', ')}</b></>
+              : <>Showing <b>{picked.size}</b> of {sorted.length} devices</>}</span>
+            <button type="button" className="btn btn-sm" onClick={() => setPicked(null)}>Show all devices</button>
+          </div>
+        )}
         {/* battery and temperature side by side; stacked again on narrow screens (.grid-2) */}
         <div className="grid grid-2" ref={chartsRef} style={{ scrollMarginTop: 80 }}>
         <div className="card">
@@ -286,17 +297,20 @@ export default function TodayView({ fleet }) {
             <h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{listShown ? '▾' : '▸'}</span>Devices today ({conf.filter(c => matches(c.serial)).length})</h2>
             <span className="secondary">{reporting.length} reporting · {listShown ? 'click to hide' : 'click to show every device — click one to chart it alone'}</span>
           </div>
+          {listShown && <div className="card-body" style={{ paddingBottom: 0 }}>
+            <input className="control" type="search" placeholder="Search this list… (e.g. 044)" value={listQ} onChange={e => setListQ(e.target.value)} style={{ width: 280, maxWidth: '100%' }} />
+          </div>}
           {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' },
               { label: 'Drain', className: 'r' }, { label: 'Lifetime cycles (MDM)', className: 'r' }, { label: 'Temp now', className: 'r' },
               { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Today', className: 'r', sortable: false },
               ...(T.decl ? [{ label: '', sortable: false }] : [])]}>
-              {conf.filter(c => matches(c.serial)).sort((a, b) => ((b.state === 'drifting') - (a.state === 'drifting')) || ((fleet.DMAP.get(a.serial)?.snap?.battery_pct ?? 999) - (fleet.DMAP.get(b.serial)?.snap?.battery_pct ?? 999))).map(c => {
+              {conf.filter(c => matches(c.serial) && c.serial.toLowerCase().includes(listQ.trim().toLowerCase())).sort((a, b) => ((b.state === 'drifting') - (a.state === 'drifting')) || ((fleet.DMAP.get(a.serial)?.snap?.battery_pct ?? 999) - (fleet.DMAP.get(b.serial)?.snap?.battery_pct ?? 999))).map(c => {
                 const r = runs.get(c.serial)
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
                 const st = status(d), s = dayStats(c.serial, T.startMs), cs = CSTATE[c.state]
                 const row = <tr key={c.serial} className={`row-link${only === c.serial ? ' is-selected' : ''}`} onClick={() => focusDevice(c.serial)}
                   title={only === c.serial ? 'Click to show every device again' : `Show only ${c.serial} in the charts above`}>
-                  <td className="mono"><button type="button" className="link-btn mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button></td>
+                  <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button></td>
                   <td><span className={`pill ${cs[0]}`}>{cs[1]}</span></td>
                   <td className="r">{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span> : <span className="secondary">—</span>}</td>
                   <td className="r mono">{r?.start ? hm(r.start.t) : <span className="secondary">still full</span>}</td>
@@ -353,7 +367,7 @@ const Metric = ({ label, value, delta, color }) => (
 )
 const Stale = ({ win, n }) => (
   <div className="banner">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5" /><path d="M8 7v4M8 5h.01" /></svg>
+    <svg viewBox="0 0 16 16" width="16" height="16" style={{ flex: "none", marginTop: 2 }} aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5" /><path d="M8 7v4M8 5h.01" /></svg>
     <div>{win.loading ? <><span className="spin" /> Reading the last {WINDOW_HOURS} h of history for {n} devices…</> : win.err ? `Could not read recent history: ${win.err}` : 'No recent history loaded yet.'}</div>
   </div>
 )
@@ -404,23 +418,30 @@ function Drifters({ drifting, tt }) {
 
 // T7's own device picker markup (chart-legend-details / series-legend), so it looks and
 // behaves like the one on the Overview's single-test view. Drifting devices are marked.
-function DevicePicker({ serials, picked, colorOf, styleOf, drifting, onToggle, onAll, onNone }) {
+function DevicePicker({ serials, picked, colorOf, styleOf, drifting, onToggle, onAll, onNone, onSet }) {
   const n = picked == null ? serials.length : picked.size
+  const [q, setQ] = useState('')
+  const shown = serials.filter(sn => sn.toLowerCase().includes(q.trim().toLowerCase()))
+  const ticked = new Set(picked ?? serials)
+  // with a search typed, Select all / Clear all act on the serials it shows
+  const selectShown = () => q.trim() ? onSet(new Set([...ticked, ...shown])) : onAll()
+  const clearShown = () => { if (!q.trim()) return onNone(); const n2 = new Set(ticked); shown.forEach(sn => n2.delete(sn)); onSet(n2) }
   return (
     <details className="chart-legend-details">
       <summary>Devices ({n}/{serials.length})</summary>
       <div className="series-legend-actions">
-        <button type="button" className="btn" onClick={onAll}>Select all</button>
-        <button type="button" className="btn" onClick={onNone}>Clear all</button>
+        <input className="control" type="search" placeholder="Search serials… (e.g. 044)" value={q} onChange={e => setQ(e.target.value)} style={{ flex: '1 1 200px', maxWidth: 280 }} />
+        <button type="button" className="btn" onClick={selectShown}>Select all</button>
+        <button type="button" className="btn" onClick={clearShown}>Clear all</button>
       </div>
       <div className="legend series-legend" role="group" aria-label="Devices to show on the charts">
-        {serials.map(sn => (
+        {shown.length ? shown.map(sn => (
           <label className="series-legend-item" key={sn}>
             <input type="checkbox" checked={picked == null || picked.has(sn)} onChange={() => onToggle(sn)} />
             <span className="legend-key-line" style={{ background: keyBackground(colorOf.get(sn), styleOf.get(sn)?.dash) }} aria-hidden="true" />
             <span>{sn}{drifting.has(sn) ? <span className="secondary"> · drifting</span> : null}</span>
           </label>
-        ))}
+        )) : <span className="secondary">No serial matches “{q.trim()}”.</span>}
       </div>
     </details>
   )

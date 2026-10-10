@@ -213,7 +213,7 @@ export default function TodayView({ fleet }) {
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />
         <Metric label="Drain rate" value={rate ? <>{rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
           delta={rate ? `${(rate / 6).toFixed(2)}% per 10 min · median of ${rates.length}` : 'needs 20 min of running'} />
-        <Metric label={`Reaches ${END_BAND}%`} value={etaEnd ? when(etaEnd) : medNow != null && medNow <= END_BAND ? 'Done' : '—'}
+        <Metric label={`Reaches ${END_BAND}%`} value={etaEnd ? <>{hm(etaEnd)}{dayKey(etaEnd) !== key && <span className="secondary" style={{ fontSize: 13, fontWeight: 500 }}> {new Date(etaEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</> : medNow != null && medNow <= END_BAND ? 'Done' : '—'}
           delta={etaEnd ? `${fmtDur(etaEnd - now)} from now${etaEmpty ? ` · empty ≈ ${when(etaEmpty)}` : ''}` : medNow != null && medNow <= END_BAND ? 'median is in the end band' : 'at the current rate'} />
         <Metric label="On track with plan" color={T.tt && conforming.length === T.serials.length ? 'var(--ok)' : drifting.length ? 'var(--warn)' : null}
           value={<>{conforming.length}<span className="secondary" style={{ fontSize: 13 }}> / {T.serials.length}</span></>}

@@ -251,8 +251,6 @@ export default function TodayView({ fleet }) {
                 <span className="legend-item"><i className="legend-key-line" style={{ background: keyBackground('var(--series-8)', '3 3') }} />Highest device</span>
                 <span className="legend-item"><i className="legend-key-line" style={{ background: keyBackground('var(--series-3)', '3 3') }} />Lowest device</span>
               </> : <>
-                <span className="legend-item secondary">One line per device — each colour matches that device in the Devices list above.</span>
-                <span className="legend-item secondary">{few ? 'Each line ends with its device and battery now.' : 'The numbers at the right end are the lowest and highest battery now.'}</span>
                 {drifting.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)', height: 3 }} />Thicker line = not following the planned test</span> : null}
               </>}
             </div>

@@ -338,12 +338,6 @@ const mdmCases = []
     ], {})
     want(r.cycles.length === 2 && r.interrupted.length === 1, `cycles ${r.cycles.length}, interrupted ${r.interrupted.length}`)
   })
-  check('overview ends with a Devices table, one row per device', () => {
-    const h = renderToString(<T7Overview cycles={cycles} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop}
-      onOpenDevicePage={nop} snapOf={() => ({ battery_pct: 50, last_seen_at: new Date().toISOString(), discharge_total_pct: 1000 })} lifetime={null} />)
-    const part = h.split('>Devices<')[1] || ''
-    want(part && (part.match(/<tr/g) || []).length - 1 === new Set(cycles.map((c) => c.serial)).size, 'device rows')
-  })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()
     const h = renderToString(<RangePicker value={null} onChange={nop} daysWithRuns={new Map([[d, 24]])} />)

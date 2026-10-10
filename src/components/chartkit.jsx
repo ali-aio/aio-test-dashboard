@@ -141,15 +141,22 @@ export function AxisX({ scale, ticks, y, format = (v) => v, label, unit }) {
     <g aria-hidden="true">
       <line x1={scale.range[0]} x2={scale.range[1]} y1={y} y2={y}
         stroke="var(--axis)" strokeWidth="1" shapeRendering="crispEdges" />
-      {/* the unit rides on the last tick ("8 h"), on the same row as the numbers */}
-      {ticks.map((v, i) => (
-        <g key={v} transform={`translate(${scale(v)},${y})`}>
-          <line y1="0" y2="4" stroke="var(--axis)" strokeWidth="1" shapeRendering="crispEdges" />
-          <text y="15" textAnchor={unit && i === ticks.length - 1 ? 'end' : 'middle'} dx={unit && i === ticks.length - 1 ? 4 : 0}
-            fontSize="10.5" fill="var(--text-muted)"
-            style={{ fontVariantNumeric: 'tabular-nums' }}>{format(v)}{unit && i === ticks.length - 1 ? ` ${unit}` : ''}</text>
-        </g>
-      ))}
+      {/* the unit sits on the numbers row at the axis end; when the last tick is right at the
+          end it joins that number instead ("35 h") so the two don't overlap */}
+      {ticks.map((v, i) => {
+        const joined = unit && i === ticks.length - 1 && scale.range[1] - scale(v) < 26
+        return (
+          <g key={v} transform={`translate(${scale(v)},${y})`}>
+            <line y1="0" y2="4" stroke="var(--axis)" strokeWidth="1" shapeRendering="crispEdges" />
+            <text y="15" textAnchor={joined ? 'end' : 'middle'} dx={joined ? 4 : 0}
+              fontSize="10.5" fill="var(--text-muted)"
+              style={{ fontVariantNumeric: 'tabular-nums' }}>{format(v)}{joined ? ` ${unit}` : ''}</text>
+          </g>
+        )
+      })}
+      {unit && ticks.length > 0 && scale.range[1] - scale(ticks[ticks.length - 1]) >= 26 && (
+        <text x={scale.range[1]} y={y + 15} textAnchor="end" fontSize="10.5" fill="var(--text-muted)">{unit}</text>
+      )}
       {label && (
         <text x={(scale.range[0] + scale.range[1]) / 2} y={y + 30} textAnchor="middle"
           fontSize="10.5" fill="var(--text-muted)">{label}</text>

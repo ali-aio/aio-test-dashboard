@@ -10,7 +10,7 @@ import { online, status, lifetimeCycles } from '../lib/device.js'
 import { fmtLifetime } from '../lib/fmt.js'
 import { GROUP } from '../lib/fleet.js'
 import { MultiLineChart, Sparkline, tooltipHtml } from '../components/charts.jsx'
-import { Segmented } from '../components/Primitives.jsx'
+import { Segmented, Stat } from '../components/Primitives.jsx'
 import { buildStyleMap, keyBackground } from '../lib/palette.js'
 
 // A battery end label that would sit on the 0% / 100% axis mark only repeats the axis.
@@ -220,6 +220,23 @@ export default function TodayView({ fleet }) {
           delta={!T.tt ? 'nothing declared to match' : drifting.length || silent
             ? [drifting.length && `${drifting.length} drifting`, silent && `${silent} not reporting`].filter(Boolean).join(' · ')
             : 'every device matches the declared test'} />
+        {/* wireless charging: devices whose pad is active now (a load placed on it), from the
+            latest check-in; the drop-down lists every device, active ones first and highlighted */}
+        {(() => {
+          const rows = DEV.map(d => {
+            const e = typeof d.snap?.extra === 'string' ? (() => { try { return JSON.parse(d.snap.extra) } catch (x) { return {} } })() : (d.snap?.extra || {})
+            // wlc_status 1/2 = a load placed and being charged (seen during WLC on Load);
+            // wlc_charging alone = the pad switched on, nothing on it
+            const on = e.wlc_status != null && +e.wlc_status !== 0, padOn = e.wlc_charging === true
+            return { d, on, padOn, live: online(d) }
+          }).sort((a, b) => (b.on - a.on) || (b.padOn - a.padOn) || (a.d.serial < b.d.serial ? -1 : 1))
+          const n = rows.filter(r => r.on).length
+          return <Stat label="Wireless charging · load placed" value={<>{n}<span className="secondary" style={{ fontSize: 13 }}> / {rows.length}</span></>}
+            foot={`load placed on the pad · ${rows.filter(r => r.padOn && !r.on).length} more with the pad on, no load`}
+            breakdownLabel="Wireless pad, every device (latest check-in)" breakdownRight breakdownWide
+            breakdown={rows.map(r => ({ id: r.d.serial, label: r.d.serial, value: r.on ? 1 : 0, highlight: r.on,
+              display: r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'Off', hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial) }))} />
+        })()}
       </div>
 
 

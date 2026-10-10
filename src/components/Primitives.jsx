@@ -102,7 +102,7 @@ export function Stat({ label, value, unit, foot, hero = false, breakdown, breakd
               const Tag = row.onClick ? 'button' : 'div'
               return (
                 <Tag key={row.id ?? row.label} type={row.onClick ? 'button' : undefined}
-                  className={`sb-row${row.onClick ? ' is-clickable' : ''}`}
+                  className={`sb-row${row.onClick ? ' is-clickable' : ''}${row.highlight ? ' is-highlight' : ''}`}
                   onClick={row.onClick ? () => { row.onClick(); setOpen(false) } : undefined}>
                   <span className="sb-label">
                     <span className="sb-main">

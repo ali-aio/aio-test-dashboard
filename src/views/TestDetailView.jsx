@@ -1,5 +1,5 @@
 import { splitText, splitBy, cyclesText, deviceCyclesText, countCycles } from '../lib/splitCycles.js'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
@@ -34,7 +34,15 @@ const DEVICE_VIEWS = [
   { id: 'all', label: 'Every cycle' },
 ]
 
-export default function TestDetailView({ cycles, testType, allSerials, lifetime = null }) {
+export default function TestDetailView({ cycles: allCycles, testType, allSerials, lifetime = null }) {
+  // A device clicked in the Every cycle table narrows the charts and tiles above to it (as
+  // on Today); the table keeps every device so another can be picked, and Show all restores.
+  const [focus, setFocus] = useState(null)
+  const chartsRef = useRef(null)
+  useEffect(() => { setFocus(null) }, [testType])
+  const cycles = useMemo(() => (focus ? allCycles.filter((c) => c.serial === focus) : allCycles), [allCycles, focus])
+  const pickDevice = (sn) => { setFocus((f) => (f === sn ? null : sn)); chartsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+  const tableSerials = [...new Set(allCycles.map((c) => c.serial))]
   /* null until the reader picks one, so the default can follow the data rather
      than being baked in — a grouped mean is the first useful read, and the
      per-device tangle is a step you take once you know what to look for. */
@@ -298,7 +306,13 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
         </div>
       )}
 
-      <div className={showSecondaryChart ? 'grid grid-2 detail-charts-with-secondary' : 'grid grid-2'}>
+      {focus && (
+        <div className="pick-bar">
+          <span>Showing only <b className="mono">{focus}</b> — its {cyclesText(cycles)} of {testType}</span>
+          <button type="button" className="btn btn-sm" onClick={() => setFocus(null)}>Show all devices</button>
+        </div>
+      )}
+      <div ref={chartsRef} style={{ scrollMarginTop: 80 }} className={showSecondaryChart ? 'grid grid-2 detail-charts-with-secondary' : 'grid grid-2'}>
       <Card expandable
         title="T7 battery over elapsed time"
         sub={activeMode === 'serial'
@@ -547,21 +561,22 @@ export default function TestDetailView({ cycles, testType, allSerials, lifetime 
 
       {/* Every cycle in scope, one row each — with one device picked (Summary → a test row),
           this is that device's history for the test: which days it ran and how each went. */}
-      <Card expandable title={serialsHere.length === 1 ? `Every cycle on ${serialsHere[0]}` : 'Every cycle'}
-        sub={`${cyclesText(cycles)} on ${fmtInt(new Set(cycles.map((c) => c.date)).size)} days`
-          + `${serialsHere.length === 1 ? '' : ` across ${fmtInt(serialsHere.length)} devices`} · newest first · click a heading to sort · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded`}>
+      <Card expandable title={tableSerials.length === 1 ? `Every cycle on ${tableSerials[0]}` : 'Every cycle'}
+        sub={`${cyclesText(allCycles)} on ${fmtInt(new Set(allCycles.map((c) => c.date)).size)} days`
+          + `${tableSerials.length === 1 ? '' : ` across ${fmtInt(tableSerials.length)} devices`} · newest first · click a device to show only it in the charts above · click a heading to sort · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded`}>
         <div className="table-wrap" style={{ maxHeight: 460 }}>
           <SortTable caption={`Every ${testType} cycle`} head={[
-            { label: 'Date' }, { label: 'Started' }, ...(serialsHere.length === 1 ? [] : [{ label: 'Device', style: { textAlign: 'left' } }]),
+            { label: 'Date' }, { label: 'Started' }, ...(tableSerials.length === 1 ? [] : [{ label: 'Device', style: { textAlign: 'left' } }]),
             { label: 'Cycle time' }, { label: 'Start' }, { label: isCharging ? 'Charged to' : 'End' },
             { label: isCharging ? 'Charge rate' : 'Drain' }, { label: 'Peak temp' }, { label: 'Battery cycles' },
             { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'Wireless pad', style: { textAlign: 'left' } }] : []),
           ]}>
-            {[...cycles].sort((a, b) => b.start - a.start).map((c) => (
-              <tr key={c.id}>
+            {[...allCycles].sort((a, b) => b.start - a.start).map((c) => (
+              <tr key={c.id} className={tableSerials.length > 1 ? `row-link${focus === c.serial ? ' is-selected' : ''}` : undefined}
+                onClick={tableSerials.length > 1 ? () => pickDevice(c.serial) : undefined}>
                 <td>{c.date ? fmtDate(c.date) : '—'}</td>
                 <td>{c.start != null ? new Date(c.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                {serialsHere.length !== 1 && <td className="serial" style={{ textAlign: 'left' }}>{fmtSerial(c.serial)}</td>}
+                {tableSerials.length !== 1 && <td style={{ textAlign: 'left' }}><button type="button" className="link-btn plain-link mono" onClick={(e) => { e.stopPropagation(); pickDevice(c.serial) }}>{fmtSerial(c.serial)}</button></td>}
                 <td>{fmtHours(c.duration)}</td>
                 <td>{fmtPct(c.startBattery)}</td>
                 <td>{fmtPct(c.endBattery)}</td>

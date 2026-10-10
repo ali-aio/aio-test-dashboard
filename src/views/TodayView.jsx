@@ -234,7 +234,7 @@ export default function TodayView({ fleet }) {
             <span>{picked.size === 0 ? 'No devices ticked'
               : picked.size <= 3 ? <>Showing only <b className="mono">{[...picked].join(', ')}</b></>
               : <>Showing <b>{picked.size}</b> of {sorted.length} devices</>}</span>
-            <button type="button" className="btn btn-sm" onClick={() => setPicked(null)}>Show all devices</button>
+            <button type="button" className="btn btn-sm" onClick={() => setPicked(null)}>× Clear selection</button>
           </div>
         )}
         {/* battery and temperature side by side; stacked again on narrow screens (.grid-2) */}

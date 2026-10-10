@@ -309,7 +309,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
       {focus && (
         <div className="pick-bar">
           <span>Showing only <b className="mono">{focus}</b> — its {cyclesText(cycles)} of {testType}</span>
-          <button type="button" className="btn btn-sm" onClick={() => setFocus(null)}>Show all devices</button>
+          <button type="button" className="btn btn-sm" onClick={() => setFocus(null)}>× Clear selection</button>
         </div>
       )}
       <div ref={chartsRef} style={{ scrollMarginTop: 80 }} className={showSecondaryChart ? 'grid grid-2 detail-charts-with-secondary' : 'grid grid-2'}>

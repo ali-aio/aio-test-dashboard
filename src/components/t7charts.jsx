@@ -192,7 +192,8 @@ export function LineChart({
           </g>
           {/* markers only when the series is sparse enough for them to read */}
           {markers && live.map((s) => (
-            s.points.length <= 40 ? s.points.map((p, i) => (
+            // a point past the axis end (the line is clipped there) gets no dot either
+            s.points.length <= 40 ? s.points.filter((p) => sx(p.t) >= M.left - 1 && sx(p.t) <= M.left + plotW + 1).map((p, i) => (
               <circle key={`${s.id}-${i}`} cx={sx(p.t)} cy={sy(p.v)} r="4" fill={s.color}
                 stroke="var(--surface-1)" strokeWidth="2" />
             )) : null

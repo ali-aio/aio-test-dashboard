@@ -141,20 +141,18 @@ export function AxisX({ scale, ticks, y, format = (v) => v, label, unit }) {
     <g aria-hidden="true">
       <line x1={scale.range[0]} x2={scale.range[1]} y1={y} y2={y}
         stroke="var(--axis)" strokeWidth="1" shapeRendering="crispEdges" />
-      {ticks.map((v) => (
+      {/* the unit rides on the last tick ("8 h"), on the same row as the numbers */}
+      {ticks.map((v, i) => (
         <g key={v} transform={`translate(${scale(v)},${y})`}>
           <line y1="0" y2="4" stroke="var(--axis)" strokeWidth="1" shapeRendering="crispEdges" />
-          <text y="15" textAnchor="middle" fontSize="10.5" fill="var(--text-muted)"
-            style={{ fontVariantNumeric: 'tabular-nums' }}>{format(v)}</text>
+          <text y="15" textAnchor={unit && i === ticks.length - 1 ? 'end' : 'middle'} dx={unit && i === ticks.length - 1 ? 4 : 0}
+            fontSize="10.5" fill="var(--text-muted)"
+            style={{ fontVariantNumeric: 'tabular-nums' }}>{format(v)}{unit && i === ticks.length - 1 ? ` ${unit}` : ''}</text>
         </g>
       ))}
       {label && (
         <text x={(scale.range[0] + scale.range[1]) / 2} y={y + 30} textAnchor="middle"
           fontSize="10.5" fill="var(--text-muted)">{label}</text>
-      )}
-      {unit && (
-        <text x={scale.range[1]} y={y + 30} textAnchor="end" fontSize="10.5"
-          fill="var(--text-muted)">{unit}</text>
       )}
     </g>
   )

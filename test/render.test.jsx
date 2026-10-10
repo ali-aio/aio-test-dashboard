@@ -186,8 +186,11 @@ const mdmCases = []
     const at = (d, h) => new Date(2026, 9, d, h).getTime()
     const late = testTypeFor({ start: at(11, 23), end: at(12, 4), serial: 'A' }, { decls, rota: {}, DEV: [] })
     want(late === 'WLC on Load', `late start -> ${late}`)
+    // off the charger up to 2 h before the planned start still counts; 3 h early does not
     const early = testTypeFor({ start: at(11, 8), end: at(11, 20), serial: 'A' }, { decls, rota: {}, DEV: [] })
-    want(early !== 'WLC on Load', `before window -> ${early}`)
+    want(early === 'WLC on Load', `2 h early -> ${early}`)
+    const tooEarly = testTypeFor({ start: at(11, 7), end: at(11, 20), serial: 'A' }, { decls, rota: {}, DEV: [] })
+    want(tooEarly !== 'WLC on Load', `3 h early -> ${tooEarly}`)
   })
   check('two cycles back to back: overnight, then the next one the same afternoon', () => {
     const decls = [
@@ -325,6 +328,21 @@ const mdmCases = []
     const h = renderToString(<TestDetail cycles={mine} testType={tt} allSerials={all} lifetime={{ value: 1823.03, devices: 18, rows: [], missing: [] }} />).replace(/<!-- -->/g, '')
     want(!h.includes('1,823.03') && h.includes('battery cycles used'), 'lifetime still shown')
     want(h.includes(`>${countCycles(mine).toLocaleString('en-US')}<`), 'cycle count missing')
+  })
+  check('a WLC run that went on charge at 7% after 7.5 h is a cycle', () => {
+    const h = 3600e3, t0 = Date.UTC(2026, 9, 9, 8)
+    const r = reclassify([], [
+      { start: t0, end: t0 + 7.5 * h, durationMs: 7.5 * h, startPct: 100, endPct: 7, reason: 'recharged' },
+      { start: t0 + 24 * h, end: t0 + 31 * h, durationMs: 7 * h, startPct: 100, endPct: 13, reason: 'offline' },
+      { start: t0 + 48 * h, end: t0 + 52 * h, durationMs: 4 * h, startPct: 100, endPct: 60, reason: 'recharged' },
+    ], {})
+    want(r.cycles.length === 2 && r.interrupted.length === 1, `cycles ${r.cycles.length}, interrupted ${r.interrupted.length}`)
+  })
+  check('overview ends with a Devices table, one row per device', () => {
+    const h = renderToString(<T7Overview cycles={cycles} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop}
+      onOpenDevicePage={nop} snapOf={() => ({ battery_pct: 50, last_seen_at: new Date().toISOString(), discharge_total_pct: 1000 })} lifetime={null} />)
+    const part = h.split('>Devices<')[1] || ''
+    want(part && (part.match(/<tr/g) || []).length - 1 === new Set(cycles.map((c) => c.serial)).size, 'device rows')
   })
   check('range picker lists test dates', () => {
     const d = new Date(2026, 9, 6).getTime()

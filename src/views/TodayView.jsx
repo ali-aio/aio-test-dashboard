@@ -145,7 +145,6 @@ export default function TodayView({ fleet }) {
         { id: 'max', label: 'Highest', pts: battMax, color: 'var(--series-8)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMax.length ? pctLabel(battMax[battMax.length - 1].y) : null, labelColor: 'var(--series-8)' },
         { id: 'min', label: 'Lowest', pts: battMin, color: 'var(--series-3)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMin.length ? pctLabel(battMin[battMin.length - 1].y) : null, labelColor: 'var(--series-3)' },
         { id: 'avg', label: 'Average', pts: battAvg, color: 'var(--series-1)', width: 2.4, endLabel: battAvg.length ? pctLabel(battAvg[battAvg.length - 1].y) : null },
-        ...projSeries,
       ]
     : [
         ...shown.map(c => {
@@ -154,7 +153,6 @@ export default function TodayView({ fleet }) {
             dash: styleOf.get(c.serial)?.dash,
             endLabel: few ? `${c.serial.slice(-4)} ${lastOf(c)}%` : (c === lo || c === hi) ? pctLabel(lastOf(c)) : null }
         }),
-        ...projSeries,
       ]
   const tempSeries = tempMode === 'avg'
     ? [
@@ -198,18 +196,6 @@ export default function TodayView({ fleet }) {
               {' '}· {T.serials.length} devices · window {hm(T.startMs)}–{hm(T.endMs)}{T.overnight ? ' next day' : ''}</>
               : <>The MDM can't tell which test is running. <a className="link" href="#/nx/plan">Set one on the Cycle plan</a>.</>}
           </div>
-        </div>
-        {/* search, on the right of the day's header: narrows the charts and the device list */}
-        <div className="today-search">
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input className="control" type="search" placeholder="Search devices… (e.g. 044)" value={query} aria-label="Search devices"
-              onChange={e => setQuery(e.target.value)} style={{ flex: 1, maxWidth: 'none' }} />
-            {q && <button className="btn btn-sm" onClick={() => setQuery('')}>Clear</button>}
-          </div>
-          <span className="secondary" style={{ fontSize: 12 }}>
-            {q ? `${conf.filter(c => matches(c.serial)).length} of ${conf.length} devices match — charts and list show only these`
-              : 'Narrows the charts and the device list'}
-          </span>
         </div>
         </div>
       </div>
@@ -258,18 +244,20 @@ export default function TodayView({ fleet }) {
             <Segmented ariaLabel="Battery chart" options={MODES} value={battMode} onChange={setBattMode} /></div>
           <div className="card-body">
             {picker}
+            {/* what each line is, with swatches that match the lines drawn */}
             <div className="legend" style={{ margin: '8px 0 10px' }}>
               {battMode === 'avg' ? <>
-                <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average of {shown.length} device{shown.length === 1 ? '' : 's'}</span>
-                <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--text-3)', opacity: .5 }} />Highest and lowest</span>
+                <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average battery of {shown.length} device{shown.length === 1 ? '' : 's'}</span>
+                <span className="legend-item"><i className="legend-key-line" style={{ background: keyBackground('var(--series-8)', '3 3') }} />Highest device</span>
+                <span className="legend-item"><i className="legend-key-line" style={{ background: keyBackground('var(--series-3)', '3 3') }} />Lowest device</span>
               </> : <>
-                {drifting.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)' }} />thick line = drifting</span> : null}
-                <span className="legend-item secondary">{few ? 'every line is labelled' : 'labels mark the lowest and highest'}</span>
+                <span className="legend-item secondary">One line per device — each colour matches that device in the Devices list above.</span>
+                <span className="legend-item secondary">{few ? 'Each line ends with its device and battery now.' : 'The numbers at the right end are the lowest and highest battery now.'}</span>
+                {drifting.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)', height: 3 }} />Thicker line = not following the planned test</span> : null}
               </>}
-              {projection.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--text-3)' }} />Projected, at {selRate.toFixed(1)} %/h</span> : null}
             </div>
             {noneTicked ? <div className="empty">No devices ticked — pick some above, or choose Select all.</div> :
-            <MultiLineChart series={series} h={230} yMax={100} yFmt={v => v + '%'} xFmt={hm} x0={chartFrom} x1={projTo || winTo}
+            <MultiLineChart series={series} h={230} yMax={100} yFmt={v => v + '%'} xFmt={hm} x0={chartFrom} x1={winTo}
               tip={battTip} />}
           </div>
         </div>
@@ -280,8 +268,8 @@ export default function TodayView({ fleet }) {
             {picker}
             <div className="legend" style={{ margin: '8px 0 10px' }}>
               {tempMode === 'avg' ? <>
-                <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average</span>
-              </> : <span className="legend-item secondary">one line per device, colours as in the list</span>}
+                <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average temperature of {shown.length} device{shown.length === 1 ? '' : 's'}</span>
+              </> : <span className="legend-item secondary">One line per device — each colour matches that device in the Devices list above. {few ? 'Each line ends with its device and temperature now.' : `The numbers at the right end mark devices at ${TEMP_WARN} °C or hotter now.`}</span>}
             </div>
             {noneTicked ? <div className="empty">No devices ticked — pick some above, or choose Select all.</div> :
             <MultiLineChart h={230} yMax={60} yFmt={v => v.toFixed(0) + '°'} xFmt={hm} x0={chartFrom} x1={winTo}
@@ -295,11 +283,14 @@ export default function TodayView({ fleet }) {
           <div className="card-head" role="button" tabIndex={0} aria-expanded={listShown} style={{ cursor: 'pointer' }}
             onClick={() => setListOpen(o => !o)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setListOpen(o => !o) } }}>
             <h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{listShown ? '▾' : '▸'}</span>Devices today ({conf.filter(c => matches(c.serial)).length})</h2>
-            <span className="secondary">{reporting.length} reporting · {listShown ? 'click to hide' : 'click to show every device — click one to chart it alone'}</span>
+            {/* the list's search sits in its title row, only while the list is open */}
+            {listShown
+              ? <span style={{ display: 'flex', alignItems: 'center', gap: 10 }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+                  <input className="control" type="search" placeholder="Search this list… (e.g. 044)" value={listQ} onChange={e => setListQ(e.target.value)} style={{ width: 240 }} aria-label="Search the device list" />
+                  <span className="secondary">{reporting.length} reporting</span>
+                </span>
+              : <span className="secondary">{reporting.length} reporting · click to show every device — click one to chart it alone</span>}
           </div>
-          {listShown && <div className="card-body" style={{ paddingBottom: 0 }}>
-            <input className="control" type="search" placeholder="Search this list… (e.g. 044)" value={listQ} onChange={e => setListQ(e.target.value)} style={{ width: 280, maxWidth: '100%' }} />
-          </div>}
           {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' },
               { label: 'Drain', className: 'r' }, { label: 'Lifetime cycles (MDM)', className: 'r' }, { label: 'Temp now', className: 'r' },
               { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Today', className: 'r', sortable: false },

@@ -166,6 +166,22 @@ export function currentCycleStart(rows) {
   return rows[i].battery_pct - last.battery_pct >= 2 ? { t: Date.parse(rows[i].timestamp), pct: rows[i].battery_pct } : null;
 }
 
+// The discharge a device is running now, shaped like a detected cycle so the Overview can
+// show a test in progress: from when it came off the charger full to its latest reading.
+// Only when it started full (>= 95%), reported in the last hour, and is not a cycle that
+// has already been detected (the last finished one ends before it starts).
+export function runningCycle(rows, lastFinished, now = Date.now()) {
+  if (!rows || rows.length < 2) return null;
+  const st = currentCycleStart(rows);
+  if (!st || st.pct < 95) return null;
+  const last = rows[rows.length - 1], lastT = Date.parse(last.timestamp);
+  if (now - lastT > 3600e3) return null;
+  if (lastFinished && lastFinished.end >= st.t) return null;
+  const durationMs = lastT - st.t, drained = st.pct - last.battery_pct;
+  return { start: st.t, end: lastT, startPct: st.pct, endPct: last.battery_pct, durationMs, reason: 'running', inProgress: true,
+    fullMs: drained >= 1 ? durationMs / drained * 100 : null };
+}
+
 // Drain since the run started, in percentage points per hour, from the device's own
 // first and latest readings. Null until the run is at least 20 minutes old — before that
 // the rate is two samples of noise.

@@ -16,7 +16,8 @@ import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, windo
 import { FIELD_DISCHARGE, FIELD_CHARGING } from './testtypes.js';
 import { perHourRate, HOUR_SNAP } from './t7cycles.js';
 import { mdmCyclesFor } from './mdmTrack.js';
-import { curveKey, curveSeries } from './curves.js';
+import { curveKey, curveSeries, resampleRun } from './curves.js';
+import { runningCycle } from './window.js';
 import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
 
 const H = 3600e3;
@@ -107,7 +108,10 @@ export function adaptCycle(d, c, rows, ctx) {
   if (!(duration > 0)) return null;
   // Prefer the run's stored curve (every run, even months old); fall back to the browser's
   // 7-day window for runs the sweep has not curved yet.
-  const stored = ctx.curves?.[curveKey(d.serial, c.start)] || null;
+  // no stored curve (e.g. the cycle running now, or one newer than the last sweep): resample
+  // the live readings the way the sweep does, onto an even 10-min grid, so the averaged
+  // curves get a point at every whole hour instead of only where a reading happened to land
+  const stored = ctx.curves?.[curveKey(d.serial, c.start)] || (rows && rows.length ? resampleRun(rows, c.start, c.end) : null);
   const fromWindow = seriesFor(rows, c);
   const { series, tempSeries } = stored ? curveSeries(stored) : fromWindow;
   const firmware = (stored && stored.fw) || fromWindow.firmware;
@@ -157,6 +161,7 @@ export function adaptCycle(d, c, rows, ctx) {
     loadSeries: [], ramSeries: [],
     avgRam: null, maxRam: null,
     reason: c.reason,
+    inProgress: !!c.inProgress, // the discharge running now (window.js runningCycle), not finished yet
     fullMs: c.fullMs,
     // the MDM's own cycles for this run (recorded counter end − start), null before recording began
     mdmCycles: mdmCyclesFor(readings, d.serial, c.start, c.end),
@@ -172,7 +177,10 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
   const out = [];
   for (const d of DEV) {
     const rows = rowsFor(d.serial);
-    for (const c of d.cycles) {
+    // finished cycles, plus the one running now (from the live readings) so a test in
+    // progress shows on the Overview before it ends
+    const run = runningCycle(rows, d.cycles[d.cycles.length - 1]);
+    for (const c of run ? [...d.cycles, run] : d.cycles) {
       const a = adaptCycle(d, c, rows, ctx);
       if (a) out.push(a);
     }

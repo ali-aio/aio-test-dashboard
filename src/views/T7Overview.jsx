@@ -5,17 +5,18 @@ import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { LineChart } from '../components/t7charts.jsx'
 import { ModeSwitch, deviceSeries, useDevicePicker } from '../components/CurveModes.jsx'
 import LifetimeStat from '../components/LifetimeStat.jsx'
+import DeviceTable from '../components/DeviceTable.jsx'
 import TestDetailView from './TestDetailView.jsx'
 import { ALL_TEST_TYPES, FIELD_TEST_TYPES } from '../lib/testtypes.js'
 import { kpis, fullDischargeCycles, compareFirmwareNewest, avgCurveBy, maxOf, explainEmpty, plottedMaxHour, batteryCycles, batteryCyclesBy } from '../lib/t7cycles.js'
 import { BUILD_COLOR, SERIES_VARS, MAX_SERIES } from '../lib/palette.js'
 import { fmtLifetime, fmtBC, bcText, runsText, fmtInt, fmtNum, fmtHours, fmtPct, fmtTemp, fmtRate, fmtHourTick, fmtDate, compareSerial } from '../lib/fmt.js'
 
-export default function OverviewView({ cycles, onPickTestType, onFilter, onOpenDevice, testType = '__all__', allSerials = [], lifetime = null }) {
+export default function OverviewView({ cycles, onPickTestType, onFilter, onOpenDevice, onOpenDevicePage, snapOf, testType = '__all__', allSerials = [], lifetime = null }) {
   if (testType !== '__all__') {
     return <TestDetailView cycles={cycles} testType={testType} allSerials={allSerials} lifetime={lifetime} />
   }
-  return <AllTestsOverview cycles={cycles} onPickTestType={onPickTestType} onFilter={onFilter} onOpenDevice={onOpenDevice} allSerials={allSerials} lifetime={lifetime} />
+  return <AllTestsOverview cycles={cycles} onPickTestType={onPickTestType} onFilter={onFilter} onOpenDevice={onOpenDevice} onOpenDevicePage={onOpenDevicePage} snapOf={snapOf} allSerials={allSerials} lifetime={lifetime} />
 }
 
 /** Cycle counts per distinct value of a field, biggest first. */
@@ -51,7 +52,7 @@ function inventory(cycles, key) {
  * The stat row describes what the full dataset covers. Selecting a test type
  * switches OverviewView to the full TestDetailView above.
  */
-function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, allSerials = [], lifetime = null }) {
+function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOpenDevicePage, snapOf, allSerials = [], lifetime = null }) {
   const k = useMemo(() => kpis(cycles), [cycles])
   // every serial in the app, not just the filtered ones, so a device's colour never shifts
   const allSerialsHere = useMemo(() => (allSerials.length ? allSerials : [...new Set(cycles.map((c) => c.serial))]), [allSerials, cycles])
@@ -158,6 +159,9 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, allS
       <div className="grid grid-2 grid-fill">
         {panels.map((p) => <OverviewPanel key={p.testType} p={p} allSerials={allSerialsHere} onPickTestType={onPickTestType} onOpenDevice={onOpenDevice} />)}
       </div>
+
+      {/* every device in scope, at the bottom: its state now and its cycles in scope */}
+      {snapOf && onOpenDevicePage && <DeviceTable cycles={cycles} serials={[...new Set(cycles.map((c) => c.serial))]} snapOf={snapOf} onOpen={onOpenDevicePage} />}
     </div>
   )
 }

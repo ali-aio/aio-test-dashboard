@@ -23,11 +23,15 @@
 // number to compare across cycles, since a 14 h / 80% run and a 26 h / 98% run are the
 // same battery.
 //
+// A discharge recharged at or below `endPct` (20%) counts as `timed` whatever its length:
+// it ran its course. Fast tests (WLC on Load drains ~12%/h) reach the lab's 15–25% end
+// band in 7–8 h, under `minHours`, and were wrongly dropped as interrupted.
+//
 // Anything else that starts from full is reported as an `interrupted` discharge, never
 // counted: it went silent above deadPct and never came back discharging, or it was put
 // back on charge too early. Dips shallower than `minDepth` points are noise (charger
 // top-up flicker) and are dropped entirely.
-export const DEFAULTS = { fullPct: 95, deadPct: 5, offlineMin: 30, minDepth: 10, minHours: 8 };
+export const DEFAULTS = { fullPct: 95, deadPct: 5, offlineMin: 30, minDepth: 10, minHours: 8, endPct: 20 };
 const H = 3600e3;
 // Thresholds the user set in Settings (localStorage `cycleOpts`), over the defaults.
 export function loadOpts() {
@@ -98,12 +102,20 @@ export function dedupeOverlapping(cycles) {
   return out;
 }
 
+// A recharged discharge counts when it ran long enough, or went down to the end band.
+function ranItsCourse(c, o) {
+  if (c.startPct - c.endPct < o.minDepth) return false;
+  if (o.minHours > 0 && c.durationMs >= o.minHours * H) return true;
+  return o.endPct > 0 && c.endPct <= o.endPct;
+}
 export function reclassify(cycles, interrupted, opts = {}) {
   const o = { ...DEFAULTS, ...opts }, C = [], I = [];
   for (const x of [...cycles, ...interrupted]) {
     const c = { ...x }, depth = c.startPct - c.endPct;
     if (c.reason === 'died') { c.fullMs = projected(c); C.push(c); continue; }
-    if ((c.reason === 'recharged' || c.reason === 'timed') && o.minHours > 0 && c.durationMs >= o.minHours * H && depth >= o.minDepth) { c.reason = 'timed'; c.fullMs = projected(c); C.push(c); continue; }
+    if ((c.reason === 'recharged' || c.reason === 'timed') && ranItsCourse(c, o)) { c.reason = 'timed'; c.fullMs = projected(c); C.push(c); continue; }
+    // went silent already in the end band (often the hour before the charger goes on): ran its course too
+    if (c.reason === 'offline' && o.endPct > 0 && c.endPct <= o.endPct && depth >= o.minDepth) { c.reason = 'timed'; c.fullMs = projected(c); C.push(c); continue; }
     if (c.reason === 'timed') c.reason = 'recharged';
     if (depth >= o.minDepth) I.push(c);
   }
@@ -125,7 +137,8 @@ export function detectCycles(rows, opts = {}) {
   const close = (e, reason, endedBy) => {
     const c = summarize(pts, start, e, reason, endedBy, gap);
     if (reason === 'died') cycles.push(c);
-    else if (reason === 'recharged' && o.minHours > 0 && c.durationMs >= o.minHours * H && c.startPct - c.endPct >= o.minDepth) { c.reason = 'timed'; c.fullMs = projected(c); cycles.push(c); }
+    else if (reason === 'recharged' && ranItsCourse(c, o)) { c.reason = 'timed'; c.fullMs = projected(c); cycles.push(c); }
+    else if (reason === 'offline' && o.endPct > 0 && c.endPct <= o.endPct && c.startPct - c.endPct >= o.minDepth) { c.reason = 'timed'; c.fullMs = projected(c); cycles.push(c); }
     else if (c.startPct - c.endPct >= o.minDepth) interrupted.push(c);
     start = -1;
   };

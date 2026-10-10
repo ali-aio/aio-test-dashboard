@@ -147,13 +147,16 @@ export function carriedInto(decls, key) {
   for (let n = 1; n <= 7; n++) out.push(...cyclesOn(decls, addDays(key, -n)).filter(c => c.endMs > dayStart));
   return out.sort((a, b) => a.startMs - b.startMs);
 }
-/** The cycle whose window holds time t — today's, or yesterday's still running overnight.
+/** The cycle whose window holds time t — today's, or yesterday's still running overnight —
+ *  or, failing that, one starting up to EARLY_START_H later (a run started a bit early).
  *  Overlaps go to the most recently declared, so a correction beats the earlier booking. */
+export const EARLY_START_H = 2; // devices are often taken off the charger a little before the planned start
 export function cycleAt(decls, t) {
-  const key = dayKey(t);
-  return [...carriedInto(decls, key), ...cyclesOn(decls, key)]
-    .filter(c => t >= c.startMs && t <= c.endMs)
-    .sort((a, b) => (a.decl.at || 0) - (b.decl.at || 0)).pop() || null;
+  const key = dayKey(t), latest = list => list.sort((a, b) => (a.decl.at || 0) - (b.decl.at || 0)).pop() || null;
+  const all = [...carriedInto(decls, key), ...cyclesOn(decls, key)];
+  // inside a cycle's window first; else a cycle starting within EARLY_START_H after t
+  return latest(all.filter(c => t >= c.startMs && t <= c.endMs))
+    || latest(all.filter(c => t < c.startMs && c.startMs - t <= EARLY_START_H * 3600e3));
 }
 /** Start and end times for the next cycle on a day: it starts where the last one ending on
  *  that day stops, and runs as long as that one did. */

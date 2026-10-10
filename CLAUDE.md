@@ -142,6 +142,11 @@ oversight; don't add restaurant filtering back in without being asked.
   start the same test within `CYCLE_GAP_H` (3 h) are ONE cycle (`countCycles`/`cyclesText`), so 17
   devices on WLC on Load = "1 cycle · 17 devices". A single device's entries are its cycles. Counts
   of per-device entries say "device cycles" (`deviceCyclesText`). The MDM figure reads "battery cycles".
+- **Counted cycles** (`src/lib/cycles.js`): besides run-downs and >= `minHours` timed runs, a discharge
+  that went on charge (or went silent) at or below `endPct` (20%) counts too — fast tests like WLC on Load
+  finish in 7–8 h. A running discharge is added to the Overview from the live window (`runningCycle`,
+  `inProgress: true`); cycles with no stored curve are resampled from the live readings. A run started up
+  to 2 h before a planned cycle's window still belongs to it (`EARLY_START_H`, `cycleAt`).
 - **HW build** comes from the serial (`buildFromSerial`, `src/lib/device.js`): "BU" in it = Production
   Build, otherwise "OTG / Validation Build" (the serial can't tell those two apart).
 - `src/lib/window.js` — the 7-day, 5-minute reading window behind Today and the charts. It is

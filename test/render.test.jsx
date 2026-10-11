@@ -107,9 +107,9 @@ const mdmCases = []
   check('no readings -> run count', () => { const t = splitText(bare.slice(0, 20)); want(t === cyclesText(bare.slice(0, 20)) && countCycles(bare.slice(0, 20)) < 20, t) })
   check('one uncovered run -> run count, never a partial sum', () => {
     const mixed = [...covered.slice(0, 5), { ...covered[5], mdmCycles: null }]; const t = splitText(mixed); want(t === cyclesText(mixed), t) })
-  check('overview cards show MDM cycles when covered', () => {
-    const h = renderToString(<T7Overview cycles={covered} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} />)
-    want(h.includes('cycles (MDM)'), 'no "cycles (MDM)" on the overview')
+  check('overview cards count cycles (bench runs), not battery cycles', () => {
+    const h = renderToString(<T7Overview cycles={covered} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} />).replace(/<!-- -->/g, '')
+    want(!h.includes('battery cycles (MDM) ·') && / cycles? · \d+ devices/.test(h), 'panel subtitle is not "N cycles · M devices"')
   })
   check('overview cards show runs without readings', () => {
     const h = renderToString(<T7Overview cycles={bare} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} />)

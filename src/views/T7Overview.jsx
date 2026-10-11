@@ -1,4 +1,4 @@
-import { splitText, splitBy } from '../lib/splitCycles.js'
+import { splitBy } from '../lib/splitCycles.js'
 import { cyclesText } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
@@ -117,9 +117,8 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOp
       series: curves.slice(0, MAX_SERIES).map((c, i) => ({
         id: `${tt}-${c.label}`,
         label: c.label.replace(' Build', ''),
-        // charging tests drain nothing, so their legend counts runs
-        sub: tt === 'Charging Cycle' || tt === 'Field Charging' ? cyclesText(own.filter((x) => (x[groupKey] ?? 'Unknown') === c.label))
-          : splitText(own.filter((x) => (x[groupKey] ?? 'Unknown') === c.label)),
+        // how many cycles (bench runs; devices running together count once), never battery cycles
+        sub: cyclesText(own.filter((x) => (x[groupKey] ?? 'Unknown') === c.label)),
         color: groupKey === 'build'
           ? (BUILD_COLOR[c.label] ?? SERIES_VARS[i % MAX_SERIES])
           : SERIES_VARS[i % MAX_SERIES],
@@ -171,7 +170,7 @@ function OverviewPanel({ p, allSerials, onPickTestType, onOpenDevice }) {
   return (
     <Card expandable
       title={p.testType}
-      sub={`${p.charging ? cyclesText(p.cycles) : splitText(p.cycles)} · ${p.k.serials} devices · ${mode === 'all' ? 'one line per device' : `mean battery by ${p.groupKey === 'build' ? 'build' : 'pad state'}`}`}
+      sub={`${cyclesText(p.cycles)} · ${p.k.serials} devices · ${mode === 'all' ? 'one line per device' : `mean battery by ${p.groupKey === 'build' ? 'build' : 'pad state'}`}`}
       right={<>
         <ModeSwitch value={mode} onChange={setMode} />
         <button className="btn btn-sm" onClick={() => onPickTestType(p.testType)}>
@@ -211,7 +210,7 @@ function OverviewPanel({ p, allSerials, onPickTestType, onOpenDevice }) {
             build: mode === 'all' && onOpenDevice
               ? <button type="button" className="link-btn" title={`Open ${p.testType} for ${b} — every cycle`} onClick={() => onOpenDevice(b, p.testType)}>{b}</button>
               : b ?? 'Unknown',
-            n: p.charging ? cyclesText(own) : splitText(own),
+            n: cyclesText(own),
             dur: fmtHours(kk.avgDuration),
             drop: fmtRate(kk.avgDropPerHr),
             end: fmtPct(kk.avgEndBattery),

@@ -16,7 +16,7 @@ import { lifetimeOf, cyclesInRange } from '../src/lib/device.js'
 import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
-import { chargingOddOnes, mergeAlerts } from '../src/lib/alerts.js'
+import { findOddOnes, mergeAlerts } from '../src/lib/alerts.js'
 import RangePicker from '../src/components/RangePicker.jsx'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
@@ -324,22 +324,29 @@ const mdmCases = []
     want(countCycles(two) === 2, `${countCycles(two)} for two days`)
     want(countCycles([{ testType: 'A', start: at(8, 10) }, { testType: 'B', start: at(8, 10) }]) === 2, 'two tests at once are two cycles')
   })
-  check('bell: a device still on charge while its cycle runs on battery', () => {
+  check('bell: one or two devices that differ from the rest of the running cycle', () => {
     const now = Date.now(), d = new Date(now), key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     const hhmm = (t) => { const x = new Date(t); return `${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}` }
     const decl = { id: 'D-T', at: 1, repeat: 'none', testType: 'restaurant', from: key, to: key, group: { kind: 'all' }, startTime: hhmm(now - 60 * 60e3), endTime: hhmm(Math.min(now + 60 * 60e3, new Date(key + 'T23:59').getTime())) }
-    const dev = (sn, charging) => ({ serial: sn, snap: { last_seen_at: new Date(now - 30e3).toISOString(), charging, battery_pct: 80 } })
-    const DEVS = [dev('A', false), dev('B', false), dev('C', false), dev('D', true)]
-    const f = chargingOddOnes([decl], DEVS, now)
-    want(f && f.odd.join() === 'D' && f.onBattery === 3, JSON.stringify(f && { odd: f.odd, on: f.onBattery }))
-    // not started yet (most still charging): nothing to report
-    want(chargingOddOnes([decl], [dev('A', true), dev('B', true), dev('C', false)], now).odd.length === 0, 'before the start')
+    const dev = (sn, o = {}) => ({ serial: sn, snap: { last_seen_at: new Date(now - (o.silent ? 3600e3 : 30e3)).toISOString(), charging: !!o.charging,
+      battery_pct: o.pct ?? 70, battery_temp_c: o.temp ?? 38, extra: { wlc_status: o.load === false ? 0 : 1, wlc_charging: true } } })
+    const kinds = (devs) => findOddOnes([decl], devs, now).odd.map((o) => `${o.serial}:${o.kind}`).sort().join(' ')
+    const base = ['A', 'B', 'C', 'E', 'F'].map((sn) => dev(sn))
+    want(kinds([...base, dev('D', { charging: true })]) === 'D:charging:on', kinds([...base, dev('D', { charging: true })]))
+    want(kinds([...base, dev('D', { load: false })]) === 'D:wlc-load:off', 'no load while the rest have one')
+    want(kinds([...base, dev('D', { silent: true })]) === 'D:silent', 'stopped reporting')
+    want(kinds([...base, dev('D', { pct: 40 })]) === 'D:battery:low', 'battery far below the rest')
+    want(kinds([...base, dev('D', { temp: 52 })]) === 'D:hot', 'running hot')
+    want(kinds(base) === '', 'all alike: nothing')
+    // half the cycle differing is not "one or two odd ones"
+    want(kinds([...base.slice(0, 3), dev('X', { charging: true }), dev('Y', { charging: true }), dev('Z', { charging: true })]) === '', 'a split is not an outlier')
+    const f = findOddOnes([decl], [...base, dev('D', { charging: true })], now)
     let log = mergeAlerts([], f, now)
-    want(log.length === 1 && !log[0].read && !log[0].resolvedAt, 'raised unread')
+    want(log.length === 1 && !log[0].read && !log[0].resolvedAt && log[0].title === 'on charge', 'raised unread')
     log = mergeAlerts(log, f, now + 30e3)
     want(log.length === 1, 'not raised twice')
     log = mergeAlerts(log, { ...f, odd: [] }, now + 60e3)
-    want(log[0].resolvedAt === now + 60e3, 'resolved when it comes off the charger')
+    want(log[0].resolvedAt === now + 60e3, 'resolved when it falls back in line')
   })
   check('the Cycles drop-down lists each bench cycle with its devices', () => {
     const at = (d, hh) => Date.UTC(2026, 9, d, hh)

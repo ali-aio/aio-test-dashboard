@@ -141,9 +141,11 @@ oversight; don't add restaurant filtering back in without being asked.
 - **Header tools** (`src/components/HeaderTools.jsx`): the Live pill opens the last sweep time
   (no "cycles checked" text in the bar) and a Reload button (`location.reload()`), and the
   notification bell. The bell's rule is `src/lib/alerts.js` (tested): in the planned cycle running now
-  (`cycleAt`), once most of its online devices are on battery, any still charging is raised ("still on
-  charge"); re-checked on every 30 s snapshot, so it works on every screen. The log, with read state, is
-  per browser (localStorage `alertsLog`, 3 days). Clicking one opens Today.
+  (`cycleAt`), a device is raised when it is one of the few (1–2, or up to a fifth: `oddLimit`) that differ
+  from the rest — on charge / on battery, wireless load (`wlc_status`), pad on/off (`wlc_charging`), not
+  reporting, battery ≥ 15 points from the median, ≥ 8 °C hotter. Re-checked on every 30 s snapshot, so it
+  works on every screen. The log, with read state, is per browser (localStorage `alertsLog`, 3 days).
+  Clicking one opens Today.
 - **What "cycles" counts** (`src/lib/splitCycles.js`): a cycle is one bench run of a test — devices that
   start the same test within `CYCLE_GAP_H` (3 h) are ONE cycle (`countCycles`/`cyclesText`), so 17
   devices on WLC on Load = "1 cycle · 17 devices". A single device's entries are its cycles. Counts

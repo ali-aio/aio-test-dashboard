@@ -35,18 +35,16 @@ export function NotificationBell({ log, onRead, onReadAll, onOpen }) {
             <strong>Notifications</strong>
             {unread > 0 && <button type="button" className="link-btn" onClick={onReadAll}>Mark all as read</button>}
           </div>
-          {!log.length ? <div className="hdr-empty">Nothing to report. You will be told here when a device of a running cycle is still on charge while the others are on battery.</div>
+          {!log.length ? <div className="hdr-empty">Nothing to report. You will be told here when one or two devices of a running cycle behave differently from all the others — on charge, wireless pad and load, not reporting, battery level or temperature.</div>
             : <ul className="notif-list">
               {log.map((a) => (
                 <li key={a.id} className={`notif${a.read ? '' : ' is-unread'}`}>
                   <button type="button" className="notif-body" onClick={() => { onRead(a.id); setOpen(false); onOpen(a) }}>
                     <span className="notif-dot" aria-hidden="true" />
                     <span>
-                      <span className="notif-title"><b className="mono">{a.serial}</b> {a.resolvedAt ? 'was on charge' : 'is still on charge'}</span>
-                      <span className="notif-sub">
-                        {a.test} started {hm(a.cycleStart)} · {a.onBattery} of {a.live} devices on battery
-                        {a.resolvedAt ? ` · off the charger since ${hm(a.resolvedAt)}` : ''}
-                      </span>
+                      <span className="notif-title"><b className="mono">{a.serial}</b> · {a.title}</span>
+                      <span className="notif-sub">Others: {a.others}</span>
+                      <span className="notif-sub">{a.test} started {hm(a.cycleStart)}{a.resolvedAt ? ` · back in line since ${hm(a.resolvedAt)}` : ''}</span>
                       <span className="notif-time">{ago(a.at)}</span>
                     </span>
                   </button>

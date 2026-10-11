@@ -1,9 +1,10 @@
 // Notifications: a device of a running cycle behaving unlike the rest of its cycle.
 //
-// Today the one case is "still on charge": the cycle has started (most of its reporting
-// devices are off the charger) but one or two are still charging — left on the charger when
-// the others were pulled, or put back on early. Read from the live snapshot (every 30 s), so
-// the bell works on every screen without the 7-day reading window.
+// The devices of one cycle are set up alike, so one or two that differ from all the others
+// are worth a look: still on charge while the rest run on battery, no load on the wireless
+// pad while the rest have one, silent while the rest report, a battery far from the rest,
+// running much hotter. Read from the live snapshot (every 30 s), so the bell works on every
+// screen without the 7-day reading window.
 //
 // The log (what was raised, when, whether it was read) is per browser, in localStorage:
 // "read" is one person's state, not the lab's.
@@ -11,45 +12,107 @@ import { cycleAt, activeSerials, testType, loadDecls } from './plan.js';
 import { online } from './device.js';
 
 const KEY = 'alertsLog';
-const KEEP_MS = 3 * 86400e3, MAX = 60;
+const KEEP_MS = 3 * 86400e3, MAX = 80;
+const MIN_DEVICES = 3;      // fewer than this and there is no "rest" to differ from
+const BATTERY_GAP = 15;     // points from the cycle's median battery
+const TEMP_GAP = 8, TEMP_FLOOR = 40; // °C above the median, and hot in its own right
 
-/** The running cycle's devices that are still charging while most of it is on battery. */
-export function chargingOddOnes(decls, DEV, now = Date.now()) {
+/** How many may differ and still be "the odd ones": 1 or 2, or a fifth of a big cycle. */
+export const oddLimit = n => Math.max(2, Math.floor(n * 0.2));
+
+const extraOf = s => {
+  const e = s?.extra;
+  if (!e) return {};
+  if (typeof e === 'string') { try { return JSON.parse(e) || {}; } catch (err) { return {}; } }
+  return e;
+};
+
+// Two-state behaviours. `get` returns true / false, or null when the device does not report it.
+export const FEATURES = [
+  { kind: 'charging', get: s => (s.charging == null ? null : !!s.charging),
+    say: v => (v ? 'on charge' : 'on battery') },
+  { kind: 'wlc-load', get: s => { const v = extraOf(s).wlc_status; return v == null || v === '' ? null : +v !== 0; },
+    say: v => (v ? 'load on the wireless pad' : 'no load on the wireless pad') },
+  { kind: 'wlc-pad', get: s => { const v = extraOf(s).wlc_charging; return typeof v === 'boolean' ? v : null; },
+    say: v => (v ? 'wireless pad on' : 'wireless pad off') },
+];
+
+const median = xs => { const a = [...xs].sort((x, y) => x - y), m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+
+/** Every device of the cycle running now that differs from the rest. */
+export function findOddOnes(decls, DEV, now = Date.now()) {
   const cyc = cycleAt(decls, now);
   if (!cyc || now < cyc.startMs) return null; // not started yet (cycleAt also returns one about to start)
   const serials = new Set(activeSerials(cyc.decl, DEV, now));
-  const live = DEV.filter(d => serials.has(d.serial) && online(d));
-  const charging = live.filter(d => d.snap.charging), onBattery = live.length - charging.length;
-  // started = more than half of the reporting devices off the charger
-  if (!live.length || onBattery <= live.length / 2 || !charging.length) return { cyc, live: live.length, onBattery, odd: [] };
-  return { cyc, live: live.length, onBattery, odd: charging.map(d => d.serial) };
+  const mine = DEV.filter(d => serials.has(d.serial) && d.snap);
+  const live = mine.filter(online);
+  const out = [], n = live.length;
+  if (n < MIN_DEVICES) return { cyc, live: n, odd: out };
+
+  for (const f of FEATURES) {
+    const vals = live.map(d => ({ d, v: f.get(d.snap) })).filter(x => x.v != null);
+    if (vals.length < MIN_DEVICES) continue;
+    const yes = vals.filter(x => x.v), no = vals.filter(x => !x.v);
+    const [few, most] = yes.length < no.length ? [yes, no] : [no, yes];
+    if (!few.length || few.length > oddLimit(vals.length)) continue;
+    for (const { d, v } of few) out.push({ serial: d.serial, kind: `${f.kind}:${v ? 'on' : 'off'}`,
+      title: f.say(v), others: `${f.say(!v)} (${most.length} of ${vals.length})` });
+  }
+
+  // silent while the rest report
+  const silent = mine.filter(d => !online(d));
+  if (silent.length && silent.length <= oddLimit(mine.length)) for (const d of silent) {
+    const mins = Math.round((now - Date.parse(d.snap.last_seen_at)) / 60e3);
+    out.push({ serial: d.serial, kind: 'silent', title: 'stopped reporting',
+      others: `last seen ${mins < 120 ? `${mins} min` : `${Math.round(mins / 60)} h`} ago · ${n} of ${mine.length} still reporting` });
+  }
+
+  const pcts = live.map(d => d.snap.battery_pct).filter(v => typeof v === 'number');
+  if (pcts.length >= MIN_DEVICES) {
+    const med = median(pcts);
+    const far = live.filter(d => typeof d.snap.battery_pct === 'number' && Math.abs(d.snap.battery_pct - med) >= BATTERY_GAP);
+    if (far.length && far.length <= oddLimit(pcts.length)) for (const d of far) {
+      const low = d.snap.battery_pct < med;
+      out.push({ serial: d.serial, kind: `battery:${low ? 'low' : 'high'}`, title: `battery ${d.snap.battery_pct}% (${low ? 'well below' : 'well above'} the rest)`,
+        others: `the rest around ${Math.round(med)}%` });
+    }
+  }
+
+  const temps = live.map(d => d.snap.battery_temp_c).filter(v => typeof v === 'number' && v > 0);
+  if (temps.length >= MIN_DEVICES) {
+    const med = median(temps);
+    const hot = live.filter(d => d.snap.battery_temp_c >= Math.max(TEMP_FLOOR, med + TEMP_GAP));
+    if (hot.length && hot.length <= oddLimit(temps.length)) for (const d of hot)
+      out.push({ serial: d.serial, kind: 'hot', title: `running hot, ${d.snap.battery_temp_c.toFixed(1)} °C`, others: `the rest around ${med.toFixed(1)} °C` });
+  }
+  return { cyc, live: n, odd: out };
 }
 
-/** Fold the current odd ones into the log: new ones are added unread, ones that stopped are
+/** Fold what is odd now into the log: new ones are added unread, ones that stopped are
  *  marked resolved (and stay listed until read or old). Pure — returns a new log. */
 export function mergeAlerts(log, found, now = Date.now()) {
-  const out = log.filter(a => now - a.at < KEEP_MS).map(a => ({ ...a }));
+  const out = log.filter(a => now - a.at < KEEP_MS && a.title).map(a => ({ ...a }));
   const cur = new Set();
   if (found && found.odd.length) {
-    const tt = testType(found.cyc.decl.testType)?.name || 'the cycle';
-    for (const serial of found.odd) {
-      const id = `${found.cyc.decl.id}@${found.cyc.startMs}:${serial}:charging`;
+    const test = testType(found.cyc.decl.testType)?.name || 'the cycle';
+    for (const o of found.odd) {
+      const id = `${found.cyc.decl.id}@${found.cyc.startMs}:${o.serial}:${o.kind}`;
       cur.add(id);
       const had = out.find(a => a.id === id);
-      if (!had) out.push({ id, serial, kind: 'charging', test: tt, cycleStart: found.cyc.startMs, onBattery: found.onBattery, live: found.live, at: now, read: false });
-      else { had.onBattery = found.onBattery; had.live = found.live; if (had.resolvedAt) { delete had.resolvedAt; had.read = false; } }
+      if (!had) out.push({ id, ...o, test, cycleStart: found.cyc.startMs, at: now, read: false });
+      else { had.title = o.title; had.others = o.others; if (had.resolvedAt) { delete had.resolvedAt; had.read = false; } }
     }
   }
   for (const a of out) if (!cur.has(a.id) && !a.resolvedAt) a.resolvedAt = now;
   return out.sort((a, b) => b.at - a.at).slice(0, MAX);
 }
 
-export const loadAlerts = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } };
+export const loadAlerts = () => { try { return (JSON.parse(localStorage.getItem(KEY)) || []).filter(a => a.title); } catch (e) { return []; } };
 export const saveAlerts = log => { try { localStorage.setItem(KEY, JSON.stringify(log)); } catch (e) { /* private window */ } };
 
 /** One pass: read the plan, check the fleet, update and return the stored log. */
 export function checkAlerts(group, DEV, now = Date.now()) {
-  const log = mergeAlerts(loadAlerts(), chargingOddOnes(loadDecls(group), DEV, now), now);
+  const log = mergeAlerts(loadAlerts(), findOddOnes(loadDecls(group), DEV, now), now);
   saveAlerts(log);
   return log;
 }

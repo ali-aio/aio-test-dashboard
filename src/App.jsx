@@ -6,8 +6,9 @@ import { loadDecls, loadRota, testType as ttById } from './lib/plan.js'
 import { startPlanSync, subscribePlan, getPlanSync } from './lib/planSync.js'
 import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials, batteryCycles } from './lib/t7cycles.js'
 import { initThemeToggle } from './lib/theme.js'
+import { checkAlerts, loadAlerts, saveAlerts } from './lib/alerts.js'
+import { NotificationBell, LiveBadge, ReloadButton } from './components/HeaderTools.jsx'
 import { fmtInt, fmtDateLong, fmtBC, fmtLifetime } from './lib/fmt.js'
-import { ago } from './lib/format.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { HistoryStatus } from './components/historyStatus.js'
 import { lifetimeOf, cyclesInRange } from './lib/device.js'
@@ -71,6 +72,10 @@ export default function App() {
   useEffect(() => { if (fleet.DEV.length) loadWindow(fleet.DEV) }, [fleet.DEV])
 
   const { DEV, ready, error } = fleet
+  // the bell: re-checked on every live snapshot (30 s) and whenever the shared plan changes
+  const [alerts, setAlerts] = useState(loadAlerts)
+  useEffect(() => { if (ready && DEV.length) setAlerts(checkAlerts(GROUP, DEV)) }, [DEV, ready, planSync.v])
+  const markRead = ids => setAlerts(log => { const next = log.map(a => (ids === true || ids.includes(a.id) ? { ...a, read: true } : a)); saveAlerts(next); return next })
   // Cycles in T7's shape. The curve on each one comes from the history window, so cycles
   // older than it carry their summary but no per-hour series — the charts say so.
   const cycles = useMemo(() => (DEV.length ? adaptAll(DEV, rowsFor, fleet.readings, fleet.curves) : []),
@@ -181,11 +186,10 @@ export default function App() {
           <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 2v8M4.5 6.8 8 10.3l3.5-3.5M3 13.5h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
           Export CSV</button>}
         {exporting && <ExportDialog devices={DEV} cycles={cycles} group={GROUP} onClose={() => setExporting(false)} />}
-        <span className="hint nowrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className={`pill ${error ? 'pill-bad' : ready ? 'pill-ok pill-live' : ''}`}>{error ? 'Disconnected' : ready ? 'Live' : 'Connecting'}</span>
-          {fleet.server?.lastSweepAt ? <span title={`The server checks the MDM for finished cycles every 30 minutes; last check ${new Date(fleet.server.lastSweepAt).toLocaleString()}. Live device readings update every 30 seconds regardless.`}>
-            {fleet.server.sweeping ? 'checking for new cycles…' : `cycles checked ${ago(fleet.server.lastSweepAt)}`}</span> : null}
-        </span>
+        <LiveBadge error={error} ready={ready} server={fleet.server} />
+        <ReloadButton />
+        <NotificationBell log={alerts} onRead={id => markRead([id])} onReadAll={() => markRead(true)}
+          onOpen={() => { location.hash = '#/nx/today'; window.scrollTo(0, 0) }} />
         <ThemeButton />
       </header>
       <main className="app-main">

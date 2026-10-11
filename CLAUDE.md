@@ -138,6 +138,12 @@ oversight; don't add restaurant filtering back in without being asked.
   history rows per device, at a chosen interval, `empty` rows dropped) or cycles (one row each);
   devices, time span and columns are picked by checkbox. Column definitions and CSV text live in
   `src/lib/csv.js` (tested). Readings fetches retry on the proxy's 429.
+- **Header tools** (`src/components/HeaderTools.jsx`): the Live pill opens the last sweep time
+  (no "cycles checked" text in the bar), a reload button (`location.reload()`), and the
+  notification bell. The bell's rule is `src/lib/alerts.js` (tested): in the planned cycle running now
+  (`cycleAt`), once most of its online devices are on battery, any still charging is raised ("still on
+  charge"); re-checked on every 30 s snapshot, so it works on every screen. The log, with read state, is
+  per browser (localStorage `alertsLog`, 3 days). Clicking one opens Today.
 - **What "cycles" counts** (`src/lib/splitCycles.js`): a cycle is one bench run of a test — devices that
   start the same test within `CYCLE_GAP_H` (3 h) are ONE cycle (`countCycles`/`cyclesText`), so 17
   devices on WLC on Load = "1 cycle · 17 devices". A single device's entries are its cycles. Counts

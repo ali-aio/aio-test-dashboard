@@ -67,3 +67,12 @@ export const runsText = (n) => `${fmtInt(n)} cycle${n === 1 ? '' : 's'}`
 // The MDM's lifetime battery cycles for one device, two decimals ("—" when not reported).
 export const fmtLifetime = (v) => (v == null || !Number.isFinite(v) ? DASH
   : v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+
+// When a cycle ended: the time, with the date added when it ended on a later day than it
+// started (an overnight run). "running" for the cycle still in progress.
+export const fmtEnded = (c) => {
+  if (c?.inProgress) return 'running'
+  if (c?.end == null) return DASH
+  const e = new Date(c.end), t = e.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date(c.start).toDateString() === e.toDateString() ? t : `${e.getDate()} ${e.toLocaleDateString('en-US', { month: 'short' })}, ${t}`
+}

@@ -10,7 +10,7 @@ import { kpis, avgCurveBy, maxOf, plottedMaxHour } from '../lib/t7cycles.js'
 import { buildStyleMap } from '../lib/palette.js'
 import { status, online, lifetimeCycles } from '../lib/device.js'
 import { ago } from '../lib/format.js'
-import { fmtLifetime, fmtInt, fmtNum, fmtPct, fmtTemp, fmtHours, fmtRate, fmtDate, fmtHourTick, runsText, DASH } from '../lib/fmt.js'
+import { fmtLifetime, fmtInt, fmtNum, fmtPct, fmtTemp, fmtHours, fmtRate, fmtDate, fmtHourTick, runsText, DASH, fmtEnded } from '../lib/fmt.js'
 
 // One device's whole history, opened from the header search (#/nx/device/<serial>):
 // how it is right now, what it has run (every test, every run, newest first) and its
@@ -101,7 +101,7 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
         <Card expandable title={`Every cycle on ${serial}`} sub={`${runsText(mine.length)} on ${fmtInt(days)} days · newest first · click a heading to sort · ≈ = from the cycle’s battery drop, before the MDM counter was recorded`}>
           <div className="table-wrap" style={{ maxHeight: 520 }}>
             <SortTable caption={`Every cycle on ${serial}`} head={[
-              { label: 'Date' }, { label: 'Started' }, { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycle time' },
+              { label: 'Date' }, { label: 'Started' }, { label: 'Ended' }, { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycle time' },
               { label: 'Start' }, { label: 'End' }, { label: 'Drain' }, { label: 'Peak temp' }, { label: 'Battery cycles' },
               { label: 'Firmware', style: { textAlign: 'left' } }, { label: 'Wireless pad', style: { textAlign: 'left' } },
             ]}>
@@ -109,6 +109,7 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
                 <tr key={c.id}>
                   <td>{c.date ? fmtDate(c.date) : DASH}</td>
                   <td>{new Date(c.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                  <td>{fmtEnded(c)}</td>
                   <td style={{ textAlign: 'left' }}>{c.testType}</td>
                   <td>{fmtHours(c.duration)}</td>
                   <td>{fmtPct(c.startBattery)}</td>

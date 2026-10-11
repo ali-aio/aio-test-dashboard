@@ -10,8 +10,7 @@ import {
   explainEmpty, explainNoRate, plottedMaxHour } from '../lib/t7cycles.js'
 import { buildColorMap, buildStyleMap, MAX_SERIES, SERIES_VARS, BUILD_COLOR, MEASURE_COLOR } from '../lib/palette.js'
 import {
-  fmtBC, bcText, runsText, fmtInt, fmtNum, fmtPct, fmtHours, fmtTemp, fmtRate, fmtSigned, fmtHourTick, fmtDate, fmtSerial, compareSerial,
-} from '../lib/fmt.js'
+  fmtBC, bcText, runsText, fmtInt, fmtNum, fmtPct, fmtHours, fmtTemp, fmtRate, fmtSigned, fmtHourTick, fmtDate, fmtSerial, compareSerial, fmtEnded } from '../lib/fmt.js'
 
 const BENCH_CURVE_MODES = [
   { id: 'serial', label: 'Per device' },
@@ -566,7 +565,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           + `${tableSerials.length === 1 ? '' : ` across ${fmtInt(tableSerials.length)} devices`} · newest first · click a device to show only it in the charts above · click a heading to sort · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded`}>
         <div className="table-wrap" style={{ maxHeight: 460 }}>
           <SortTable caption={`Every ${testType} cycle`} head={[
-            { label: 'Date' }, { label: 'Started' }, ...(tableSerials.length === 1 ? [] : [{ label: 'Device', style: { textAlign: 'left' } }]),
+            { label: 'Date' }, { label: 'Started' }, { label: 'Ended' }, ...(tableSerials.length === 1 ? [] : [{ label: 'Device', style: { textAlign: 'left' } }]),
             { label: 'Cycle time' }, { label: 'Start' }, { label: isCharging ? 'Charged to' : 'End' },
             { label: isCharging ? 'Charge rate' : 'Drain' }, { label: 'Peak temp' }, { label: 'Battery cycles' },
             { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'Wireless pad', style: { textAlign: 'left' } }] : []),
@@ -576,6 +575,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                 onClick={tableSerials.length > 1 ? () => pickDevice(c.serial) : undefined}>
                 <td>{c.date ? fmtDate(c.date) : '—'}</td>
                 <td>{c.start != null ? new Date(c.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                <td>{fmtEnded(c)}</td>
                 {tableSerials.length !== 1 && <td style={{ textAlign: 'left' }}><button type="button" className="link-btn plain-link mono" onClick={(e) => { e.stopPropagation(); pickDevice(c.serial) }}>{fmtSerial(c.serial)}</button></td>}
                 <td>{fmtHours(c.duration)}</td>
                 <td>{fmtPct(c.startBattery)}</td>

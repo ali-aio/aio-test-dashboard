@@ -333,7 +333,7 @@ const mdmCases = []
   check('one test: the first tile is that test\'s cycles, not the lifetime total', () => {
     const tt = covered[0].testType, mine = covered.filter((c) => c.testType === tt)
     const h = renderToString(<TestDetail cycles={mine} testType={tt} allSerials={all} lifetime={{ value: 1823.03, devices: 18, rows: [], missing: [] }} />).replace(/<!-- -->/g, '')
-    want(!h.includes('1,823.03') && h.includes('battery cycles used'), 'lifetime still shown')
+    want(!h.includes('1,823.03') && h.includes('every cycle, newest first'), 'lifetime still shown')
     want(h.includes(`>${countCycles(mine).toLocaleString('en-US')}<`), 'cycle count missing')
   })
   check('a WLC run that went on charge at 7% after 7.5 h is a cycle', () => {

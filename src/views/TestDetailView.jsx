@@ -251,14 +251,10 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
         {/* this test only: bench cycles of it (devices running together count once), the
             devices in them and the battery used — MDM counter where recorded, else drop ÷ 100 */}
         {(() => {
-          const n = countCycles(cycles), devs = new Set(cycles.map((c) => c.serial)).size
-          const est = cycles.some((c) => c.mdmCycles == null)
-          const used = cycles.reduce((a, c) => a + (c.mdmCycles != null ? c.mdmCycles
-            : c.startBattery != null && c.endBattery != null && c.startBattery > c.endBattery ? (c.startBattery - c.endBattery) / 100 : 0), 0)
+          const n = countCycles(cycles)
           const day = (t) => new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).replace('Sept', 'Sep')
           const hm = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           return <Stat hero label="Cycles" value={fmtInt(n)}
-            foot={`${fmtInt(devs)} device${devs === 1 ? '' : 's'} · ${est ? '≈ ' : ''}${used.toFixed(2)} battery cycles used`}
             breakdownLabel={`${testType} — every cycle, newest first · click one to show only it`} breakdownNoun="cycle" breakdownWide
             breakdown={[...benches].reverse().map((b) => {
               const nd = new Set(b.list.map((c) => c.serial)).size, avg = b.list.reduce((a, c) => a + (c.duration || 0), 0) / b.list.length

@@ -45,7 +45,16 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const benchSel = bench ? benches.find((b) => b.key === bench) : null
   const inBench = useMemo(() => (benchSel ? benchSel.list : allCycles), [allCycles, benchSel])
   const cycles = useMemo(() => (focus ? inBench.filter((c) => c.serial === focus) : inBench), [inBench, focus])
-  const pickDevice = (sn) => { setFocus((f) => (f === sn ? null : sn)); chartsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+  // Picking a device also switches the battery chart to Per device with only it ticked, so
+  // its picker reads "1/22" and the other devices of the cycle stay a tick away.
+  const pickDevice = (sn) => {
+    const on = focus !== sn
+    setFocus(on ? sn : null)
+    if (on) setMode('serial')
+    setDeviceChoice({ testType, selected: on ? new Set([sn]) : null })
+    chartsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const clearPick = () => { setFocus(null); setBench(null); setDeviceChoice({ testType, selected: null }) }
   const tableSerials = [...new Set(inBench.map((c) => c.serial))]
   /* null until the reader picks one, so the default can follow the data rather
      than being baked in — a grouped mean is the first useful read, and the
@@ -77,7 +86,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
      never repaints the others. */
   const styleMap = useMemo(() => buildStyleMap([...allSerials].sort(compareSerial)), [allSerials])
 
-  const bySerial = useMemo(() => batteryBySerial(cycles), [cycles])
+  const bySerial = useMemo(() => batteryBySerial(inBench), [inBench])
   const selectedDevices = deviceChoice.testType === testType ? deviceChoice.selected : null
   const toggleDevice = (serial) => setDeviceChoice((current) => {
     const previous = current.testType === testType ? current.selected : null
@@ -103,7 +112,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
          one run at several times the median stretches the hour axis and
          flattens everything else into the left margin. */
       const limit = bySerial.medianDuration ? bySerial.medianDuration * 3 : null
-      const inScope = cycles.filter((c) => c.series.length
+      const inScope = inBench.filter((c) => c.series.length
         && (limit == null || c.duration == null || c.duration <= limit))
 
       if (deviceView === 'all') {
@@ -146,7 +155,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
         : groupColors.get(g.label),
       points: g.points,
     }))
-  }, [activeMode, deviceView, selectedDevices, bySerial, cycles, styleMap])
+  }, [activeMode, deviceView, selectedDevices, bySerial, cycles, inBench, styleMap])
   // The axis ends at the furthest point actually drawn. "Every cycle" plots every sample,
   // not just whole hours, so sizing it like the averaged views let lines cycle off the edge.
   const curveMaxHour = useMemo(() => {
@@ -261,7 +270,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               const running = b.list.some((c) => c.inProgress)
               return { id: b.key, label: day(b.start), sub: `off the charger ${hm(b.start)} · ${running ? 'running now' : `avg ${avg.toFixed(1)} h`}`,
                 value: nd, display: `${nd} device${nd === 1 ? '' : 's'}`, highlight: b.key === bench,
-                onClick: () => { setBench((k) => (k === b.key ? null : b.key)); setFocus(null) } }
+                onClick: () => { setBench((k) => (k === b.key ? null : b.key)); setFocus(null); setDeviceChoice({ testType, selected: null }) } }
             })} />
         })()}
         <Stat label="Avg cycle time" value={fmtNum(k.avgDuration, 1)} unit="h"
@@ -320,7 +329,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
         <div className="pick-bar">
           <span>Showing only {benchSel ? <>the cycle of <b>{new Date(benchSel.start).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</b> ({new Set(benchSel.list.map((c) => c.serial)).size} devices)</> : null}
             {benchSel && focus ? ', ' : ''}{focus ? <><b className="mono">{focus}</b>{benchSel ? '' : <> — its {cyclesText(cycles)} of {testType}</>}</> : null}</span>
-          <button type="button" className="btn btn-sm" onClick={() => { setFocus(null); setBench(null) }}>× Clear selection</button>
+          <button type="button" className="btn btn-sm" onClick={clearPick}>× Clear selection</button>
         </div>
       )}
       <div ref={chartsRef} style={{ scrollMarginTop: 80 }} className={showSecondaryChart ? 'grid grid-2 detail-charts-with-secondary' : 'grid grid-2'}>

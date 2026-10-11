@@ -502,7 +502,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             formatValue={(v) => `${v}%`}
             xLabel="hour of the cycle"
             xUnit="h"
-            rotateLabels={hourly.length > 10}
+            rotateLabels={false}
             height={280}
             emptyState={explainNoRate(cycles, isCharging ? 'a charge rate' : 'a drain rate')}
             caption={isCharging ? 'Mean T7 battery gained per hour window'

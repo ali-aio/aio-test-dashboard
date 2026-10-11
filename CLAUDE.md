@@ -139,7 +139,7 @@ oversight; don't add restaurant filtering back in without being asked.
   devices, time span and columns are picked by checkbox. Column definitions and CSV text live in
   `src/lib/csv.js` (tested). Readings fetches retry on the proxy's 429.
 - **Header tools** (`src/components/HeaderTools.jsx`): the Live pill opens the last sweep time
-  (no "cycles checked" text in the bar), a reload button (`location.reload()`), and the
+  (no "cycles checked" text in the bar) and a Reload button (`location.reload()`), and the
   notification bell. The bell's rule is `src/lib/alerts.js` (tested): in the planned cycle running now
   (`cycleAt`), once most of its online devices are on battery, any still charging is raised ("still on
   charge"); re-checked on every 30 s snapshot, so it works on every screen. The log, with read state, is

@@ -73,7 +73,10 @@ export function LiveBadge({ error, ready, server }) {
         onClick={() => setOpen((o) => !o)}>{label}</button>
       {open && (
         <div className="popover popover-right hdr-panel hdr-panel-sm" role="dialog" aria-label="Connection">
-          <div className="hdr-panel-head"><strong>{label}</strong></div>
+          <div className="hdr-panel-head"><strong>{label}</strong>
+            <button type="button" className="btn btn-sm hdr-reload" title="Reload the dashboard (like Ctrl+R)" onClick={() => location.reload()}>
+              <ReloadIcon /> Reload</button>
+          </div>
           <div className="hdr-info">
             {error ? <p>{error}</p> : null}
             <p>Live device readings update every 30 seconds.</p>
@@ -86,8 +89,6 @@ export function LiveBadge({ error, ready, server }) {
   )
 }
 
-export const ReloadButton = () => (
-  <button type="button" className="btn btn-icon" title="Reload the dashboard" aria-label="Reload the dashboard" onClick={() => location.reload()}>
-    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.6v3.2H9.8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-  </button>
+const ReloadIcon = () => (
+  <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.6v3.2H9.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
 )

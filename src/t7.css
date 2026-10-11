@@ -2081,3 +2081,4 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 .notif-read { appearance: none; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); border-radius: 50%;
   width: 24px; height: 24px; display: inline-grid; place-items: center; margin: 8px 6px 0 0; cursor: pointer; flex: none; }
 .notif-read:hover { color: var(--status-good); border-color: var(--status-good); }
+.hdr-reload { display: inline-flex; align-items: center; gap: 5px; }

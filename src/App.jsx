@@ -7,7 +7,7 @@ import { startPlanSync, subscribePlan, getPlanSync } from './lib/planSync.js'
 import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials, batteryCycles } from './lib/t7cycles.js'
 import { initThemeToggle } from './lib/theme.js'
 import { checkAlerts, loadAlerts, saveAlerts } from './lib/alerts.js'
-import { NotificationBell, LiveBadge, ReloadButton } from './components/HeaderTools.jsx'
+import { NotificationBell, LiveBadge } from './components/HeaderTools.jsx'
 import { fmtInt, fmtDateLong, fmtBC, fmtLifetime } from './lib/fmt.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { HistoryStatus } from './components/historyStatus.js'
@@ -187,7 +187,6 @@ export default function App() {
           Export CSV</button>}
         {exporting && <ExportDialog devices={DEV} cycles={cycles} group={GROUP} onClose={() => setExporting(false)} />}
         <LiveBadge error={error} ready={ready} server={fleet.server} />
-        <ReloadButton />
         <NotificationBell log={alerts} onRead={id => markRead([id])} onReadAll={() => markRead(true)}
           onOpen={() => { location.hash = '#/nx/today'; window.scrollTo(0, 0) }} />
         <ThemeButton />

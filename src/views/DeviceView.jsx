@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react
 import { subscribeWindow, getWindow, rowsFor, currentCycleStart } from '../lib/window.js'
 import { fetchHistoryRange } from '../lib/data.js'
 import { normalize } from '../lib/cycles.js'
-import { MultiLineChart, tooltipHtml } from '../components/charts.jsx'
+import { BatteryAreaChart } from '../components/charts.jsx'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { LineChart } from '../components/t7charts.jsx'
 import { SortTable } from '../components/SortTable.jsx'
@@ -133,8 +133,9 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
 // or last 6 h / 24 h / 7 days, or a custom span. The last 7 days come from the stored
 // 5-minute window (window.js) and update as it does, plus the latest live check-in; older
 // or longer spans are fetched from the MDM history for this device only.
-const SPANS = [{ id: 'cycle', label: 'Current cycle' }, { id: '6h', label: 'Last 6 h', ms: 6 * 3600e3 },
-  { id: '24h', label: 'Last 24 h', ms: 86400e3 }, { id: '7d', label: 'Last 7 days', ms: 7 * 86400e3 }, { id: 'custom', label: 'Custom' }]
+const SPANS = [{ id: 'cycle', label: 'Cycle' }, { id: '1h', label: '1h', ms: 3600e3 }, { id: '6h', label: '6h', ms: 6 * 3600e3 },
+  { id: '12h', label: '12h', ms: 12 * 3600e3 }, { id: '24h', label: '24h', ms: 86400e3 }, { id: '48h', label: '48h', ms: 2 * 86400e3 },
+  { id: '7d', label: '7d', ms: 7 * 86400e3 }, { id: 'custom', label: 'Custom' }]
 const toInput = (t) => new Date(t - new Date(t).getTimezoneOffset() * 60e3).toISOString().slice(0, 16)
 const tempOf = (r) => { const t = r.extra?.battery_temp_c; return typeof t === 'number' && t > 0 ? t : null }
 
@@ -145,6 +146,7 @@ function LiveChart({ serial, d }) {
   const [applied, setApplied] = useState(null)        // the custom span in effect
   const [pickerOpen, setPickerOpen] = useState(false)  // From / To panel under the Custom button
   const [fetched, setFetched] = useState({ key: null, rows: null, loading: false, err: null })
+  const [showTemp, setShowTemp] = useState(true)
 
   const winRows = rowsFor(serial)
   const start = useMemo(() => currentCycleStart(winRows), [winRows, win.at2])
@@ -179,12 +181,11 @@ function LiveChart({ serial, d }) {
     rows = [...rows, { timestamp: s.last_seen_at, battery_pct: s.battery_pct, extra: { battery_temp_c: s.battery_temp_c, charging: s.charging } }]
   const batt = rows.filter((r) => r.battery_pct != null).map((r) => ({ x: Date.parse(r.timestamp), y: r.battery_pct }))
   const temp = rows.map((r) => ({ x: Date.parse(r.timestamp), y: tempOf(r) })).filter((p) => p.y != null)
-  const long = range && range.to - range.from > 36 * 3600e3
-  const xFmt = (t) => new Date(t).toLocaleString([], long ? { month: 'short', day: 'numeric', hour: '2-digit' } : { hour: '2-digit', minute: '2-digit' })
   const when = (t) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-  const tip = (t, hits) => tooltipHtml(when(t), hits.filter((h) => h.p).map(({ s: se, p }) => ({ color: se.color, name: se.label, value: se.axis === 'right' ? `${p.y.toFixed(1)} °C` : `${Math.round(p.y)}%` })))
-  const tMax = Math.max(60, Math.ceil((temp.reduce((m, p) => Math.max(m, p.y), 0) + 5) / 10) * 10)
-  const lastB = batt[batt.length - 1], lastT = temp[temp.length - 1]
+  // the right scale shares the 20 % gridlines, so its top is a multiple of 5 ticks: 50 → 10° steps
+  const hot = temp.reduce((m, p) => Math.max(m, p.y), 0) + 3, tMax = hot <= 50 ? 50 : hot <= 75 ? 75 : 100
+  const chg = rows.filter((r) => r.extra?.charging != null).map((r) => ({ x: Date.parse(r.timestamp), on: !!r.extra.charging }))
+  const lastB = batt[batt.length - 1], lastT = temp[temp.length - 1], lastC = chg[chg.length - 1]
   const loading = !win.at || (range && !fromWindow && fetched.loading)
 
   const sub = !range ? (span === 'custom' ? 'pick a span and apply' : 'loading readings…')
@@ -194,7 +195,7 @@ function LiveChart({ serial, d }) {
   return (
     <Card expandable title="Live readings" sub={sub}
       right={<div style={{ position: 'relative' }}>
-        <div className="seg" role="group" aria-label="Time span">
+        <div className="seg seg-pill" role="group" aria-label="Time span">
         {SPANS.map((x) => (
           <button key={x.id} type="button" aria-pressed={span === x.id} disabled={x.id === 'cycle' && !start}
             title={x.id === 'cycle' && !start ? 'No cycle running right now — the device is charging or still full' : undefined}
@@ -217,21 +218,21 @@ function LiveChart({ serial, d }) {
           </div>
         )}
       </div>}>
-      {span !== 'cycle' && !start && win.at && <p className="hint" style={{ margin: '0 0 8px' }}>No cycle is running on this device right now (it is charging or still full), so this opens on the last 24 hours.</p>}
+      {span !== 'cycle' && !start && !!win.at && <p className="hint" style={{ margin: '0 0 8px' }}>No cycle is running on this device right now (it is charging or still full), so this opens on the last 24 hours.</p>}
       {loading ? <div className="empty"><span className="spin" /> Loading readings…</div>
         : fetched.err && !fromWindow ? <div className="empty">Could not load readings: {fetched.err}</div>
         : !range ? <div className="empty">Pick a From and To above, then Apply.</div>
         : <>
-          {/* one chart, two axes: battery % on the left, temperature °C on the right */}
-          <div className="legend" style={{ margin: '0 0 8px' }}>
-            <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Battery %{lastB ? <span className="secondary">&nbsp;· {lastB.y}% now</span> : null}</span>
-            <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-2)' }} />Battery temperature °C (right axis){lastT ? <span className="secondary">&nbsp;· {lastT.y.toFixed(1)} °C now</span> : null}</span>
+          <div className="live-legend">
+            <span className="live-now"><b>{lastB ? `${lastB.y}%` : '—'}</b>{lastC ? <span className={`pill ${lastC.on ? 'pill-ok' : ''}`}>{lastC.on ? 'Charging' : 'On battery'}</span> : null}</span>
+            <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-7)' }} />Battery %</span>
+            <span className="legend-item"><i className="live-key" style={{ background: 'var(--series-3)' }} />Charging</span>
+            <span className="legend-item"><i className="live-key" style={{ background: 'var(--gridline)' }} />On battery</span>
+            {temp.length > 1 && <button type="button" className={`legend-item legend-toggle${showTemp ? '' : ' is-off'}`} aria-pressed={showTemp} onClick={() => setShowTemp((v) => !v)}
+              title={showTemp ? 'Hide temperature' : 'Show temperature'}>
+              <i className="legend-key-line" style={{ background: 'var(--series-2)' }} />Temperature °C (right){lastT ? <span className="secondary">&nbsp;· {lastT.y.toFixed(1)} °C</span> : null}</button>}
           </div>
-          <MultiLineChart h={280} yMax={100} yFmt={(v) => v + '%'} xFmt={xFmt} x0={range.from} x1={range.to} tip={tip}
-            y2={{ min: 0, max: tMax, fmt: (v) => v.toFixed(0) + '°', color: 'var(--series-2)', leftColor: 'var(--series-1)' }}
-            series={[{ id: 'b', label: 'Battery', pts: batt, color: 'var(--series-1)', width: 2.2 },
-              { id: 't', label: 'Temperature', axis: 'right', pts: temp, color: 'var(--series-2)', width: 2 }]}
-            empty="No readings in this span." />
+          <BatteryAreaChart batt={batt} temp={temp} charging={chg} x0={range.from} x1={range.to} h={300} showTemp={showTemp} tMax={tMax} />
         </>}
     </Card>
   )

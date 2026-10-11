@@ -140,3 +140,110 @@ export function Sparkline({ vals }) {
     </svg>
   )
 }
+
+// Catmull-Rom through the points as cubic Béziers (the same spline shared/chart.js draws),
+// clamped to the plot so an overshoot never pokes past 0 or 100 %.
+const spline = (P, lo, hi) => {
+  if (P.length < 3) return P.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('')
+  const c = v => Math.min(hi, Math.max(lo, v))
+  let d = `M${P[0][0].toFixed(1)},${P[0][1].toFixed(1)}`
+  for (let i = 0; i < P.length - 1; i++) {
+    const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || p2
+    d += `C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${c(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${c(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`
+  }
+  return d
+}
+// Split a time series where readings stop (device offline): a line across a gap would
+// invent readings that never happened.
+const splitGaps = (pts, gap) => {
+  const out = []; let cur = []
+  for (const p of pts) { if (cur.length && p.x - cur[cur.length - 1].x > gap) { out.push(cur); cur = [] } cur.push(p) }
+  if (cur.length) out.push(cur)
+  return out
+}
+const TICK_STEPS = [5, 10, 15, 30, 60, 120, 180, 360, 720, 1440, 2880].map(m => m * 60e3)
+
+/** One device's battery over time, the MDM's look: a line with a soft fill under it, and a
+ *  strip under the plot — green while charging, grey on battery. Temperature, when given and
+ *  switched on, is a thin dashed line on its own right-hand scale. */
+export function BatteryAreaChart({ batt, temp = [], charging = [], x0, x1, h = 300, showTemp = true, tMax = 60, empty = 'No readings in this span.' }) {
+  const [ref, W] = useWidth()
+  const [hitX, setHitX] = useState(null)
+  const gid = React.useId().replace(/:/g, '')
+  if (batt.length < 2) return <div className="chart" ref={ref}><div className="empty">{empty}</div></div>
+  const withT = showTemp && temp.length > 1
+  const pl = 44, pr = withT ? 44 : 14, pt = 12, stripH = 6, pb = 26, plotB = h - pb - stripH - 10
+  const dx = (x1 - x0) || 1
+  const X = v => pl + (v - x0) / dx * (W - pl - pr)
+  const Y = v => pt + (1 - Math.min(100, Math.max(0, v)) / 100) * (plotB - pt)
+  const YT = v => pt + (1 - Math.min(tMax, Math.max(0, v)) / tMax) * (plotB - pt)
+  // a gap is three missed readings, never less than 20 min
+  const steps = batt.slice(1).map((p, i) => p.x - batt[i].x).sort((a, b) => a - b)
+  const gap = Math.max(20 * 60e3, 3 * (steps[steps.length >> 1] || 0))
+  const segs = splitGaps(batt, gap).filter(s => s.length > 1)
+  const ys = s => smoothY(s, true)
+  const line = s => spline(s.map((p, i) => [X(p.x), Y(ys(s)[i])]), pt, plotB)
+  const area = s => `${line(s)}L${X(s[s.length - 1].x).toFixed(1)},${plotB}L${X(s[0].x).toFixed(1)},${plotB}Z`
+  const tSegs = withT ? splitGaps(temp, gap).filter(s => s.length > 1) : []
+  // x ticks on round local times, as many as fit ~110 px apart
+  const step = TICK_STEPS.find(s => dx / s <= Math.max(2, (W - pl - pr) / 110)) || TICK_STEPS[TICK_STEPS.length - 1]
+  const off = new Date(x0).getTimezoneOffset() * 60e3
+  // on round local times: (t − off) is local wall-clock ms
+  const ticks = []
+  for (let t = Math.ceil((x0 - off) / step) * step + off; t <= x1; t += step) ticks.push(t)
+  const fmtTick = t => {
+    const d = new Date(t)
+    if (step >= 864e5 || (dx > 36 * 3600e3 && d.getHours() === 0 && d.getMinutes() === 0)) return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+  // the charging strip: one rect per run of the same state, broken at gaps
+  const strip = []
+  for (let i = 0; i < charging.length - 1; i++) {
+    const a = charging[i], b = charging[i + 1]
+    if (b.x - a.x > gap) continue
+    const last = strip[strip.length - 1]
+    if (last && last.on === a.on && last.b === a.x) last.b = b.x
+    else strip.push({ a: a.x, b: b.x, on: a.on })
+  }
+  const near = (pts, t) => pts.reduce((b, p) => (Math.abs(p.x - t) < Math.abs(b.x - t) ? p : b), pts[0])
+  const hb = hitX != null ? near(batt, hitX) : null
+  const live = hb && Math.abs(hb.x - hitX) <= gap / 2
+  const ht = live && withT ? near(temp, hitX) : null, hc = live && charging.length ? near(charging, hitX) : null
+  const when = t => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return (
+    <div className="chart live-chart" ref={ref}>
+      <svg viewBox={`0 0 ${W} ${h}`} style={{ height: h }}>
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="var(--series-8)" stopOpacity=".26" />
+            <stop offset="1" stopColor="var(--series-8)" stopOpacity=".03" />
+          </linearGradient>
+        </defs>
+        {[0, 20, 40, 60, 80, 100].map(v => <g key={v}>
+          <line x1={pl} x2={W - pr} y1={Y(v)} y2={Y(v)} stroke="var(--gridline)" strokeWidth="1" />
+          <text x={pl - 8} y={Y(v) + 4} textAnchor="end">{v}%</text>
+          {withT && <text x={W - pr + 8} y={Y(v) + 4} textAnchor="start" style={{ fill: 'var(--series-2)' }}>{Math.round(tMax * v / 100)}°</text>}
+        </g>)}
+        {segs.map((s, k) => <path key={'a' + k} d={area(s)} fill={`url(#${gid})`} stroke="none" />)}
+        {tSegs.map((s, k) => <path key={'t' + k} d={spline(s.map((p, i) => [X(p.x), YT(smoothY(s, true)[i])]), pt, plotB)}
+          fill="none" stroke="var(--series-2)" strokeWidth="1.4" strokeDasharray="4 3" opacity=".85" />)}
+        {segs.map((s, k) => <path key={'l' + k} d={line(s)} fill="none" stroke="var(--series-7)" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />)}
+        {strip.map((r, k) => <rect key={k} x={X(r.a)} y={plotB + 8} width={Math.max(1, X(r.b) - X(r.a))} height={stripH}
+          fill={r.on ? 'var(--series-3)' : 'var(--gridline)'} />)}
+        {ticks.map(t => <text key={t} x={X(t)} y={h - 6} textAnchor={X(t) > W - pr - 30 ? 'end' : X(t) < pl + 30 ? 'start' : 'middle'}>{fmtTick(t)}</text>)}
+        {live && <g pointerEvents="none">
+          <line x1={X(hb.x)} x2={X(hb.x)} y1={pt} y2={plotB} stroke="var(--border-strong)" />
+          <circle cx={X(hb.x)} cy={Y(hb.y)} r="4" fill="var(--surface-1)" stroke="var(--series-7)" strokeWidth="2" />
+        </g>}
+        <rect x={pl} y={0} width={W - pl - pr} height={h} fill="transparent" className="hit"
+          onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); setHitX(x0 + (e.clientX - r.left) / (W - pl - pr) * dx) }}
+          onMouseLeave={() => setHitX(null)} />
+      </svg>
+      {live && <Tip x={X(hb.x)} y={Y(hb.y)} width={W} html={tooltipHtml(when(hb.x), [
+        { color: 'var(--series-7)', name: 'Battery', value: `${Math.round(hb.y)}%` },
+        ...(ht ? [{ color: 'var(--series-2)', name: 'Temperature', value: `${ht.y.toFixed(1)} °C` }] : []),
+        ...(hc ? [{ color: hc.on ? 'var(--series-3)' : 'var(--gridline)', name: hc.on ? 'Charging' : 'On battery', value: '' }] : []),
+      ])} />}
+    </div>
+  )
+}

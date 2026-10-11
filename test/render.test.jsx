@@ -15,7 +15,7 @@ import DeviceView from '../src/views/DeviceView.jsx'
 import { lifetimeOf, cyclesInRange } from '../src/lib/device.js'
 import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
-import { splitText, countCycles, cyclesText } from '../src/lib/splitCycles.js'
+import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
 import RangePicker from '../src/components/RangePicker.jsx'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
@@ -322,6 +322,13 @@ const mdmCases = []
     const two = [...bench, ...bench.map((c) => ({ ...c, start: c.start + 24 * h }))]
     want(countCycles(two) === 2, `${countCycles(two)} for two days`)
     want(countCycles([{ testType: 'A', start: at(8, 10) }, { testType: 'B', start: at(8, 10) }]) === 2, 'two tests at once are two cycles')
+  })
+  check('the Cycles drop-down lists each bench cycle with its devices', () => {
+    const at = (d, hh) => Date.UTC(2026, 9, d, hh)
+    const day = (d, n) => Array.from({ length: n }, (_, i) => ({ serial: `S${i}`, testType: 'WLC on Load', start: at(d, 10) + i * 60e3 }))
+    const b = benchCycles([...day(9, 6), ...day(8, 17)])
+    want(b.length === 2 && b[0].list.length === 17 && b[1].list.length === 6 && b[0].start < b[1].start, b.map((x) => x.list.length).join(','))
+    want(b.length === countCycles([...day(9, 6), ...day(8, 17)]), 'same count as the tile')
   })
   check('one test: the first tile is that test\'s cycles, not the lifetime total', () => {
     const tt = covered[0].testType, mine = covered.filter((c) => c.testType === tt)

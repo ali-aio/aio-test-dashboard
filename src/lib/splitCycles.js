@@ -23,6 +23,23 @@ export function countCycles(list) {
   }
   return n;
 }
+/** The bench cycles themselves, by the same rule as countCycles: per test, entries starting
+ *  within CYCLE_GAP_H of a cycle's first start belong to it. Oldest first; `key` is
+ *  "<test>@<first start>", stable while the data reloads. */
+export function benchCycles(list) {
+  const byTest = new Map();
+  for (const c of list) { const k = c.testType ?? ''; if (!byTest.has(k)) byTest.set(k, []); byTest.get(k).push(c); }
+  const out = [];
+  for (const [tt, entries] of byTest) {
+    entries.sort((a, b) => a.start - b.start);
+    let cur = null;
+    for (const c of entries) {
+      if (!cur || !(c.start - cur.start <= CYCLE_GAP_H * 3600e3)) { cur = { key: `${tt}@${c.start}`, testType: tt, start: c.start, list: [] }; out.push(cur); }
+      cur.list.push(c);
+    }
+  }
+  return out.sort((a, b) => a.start - b.start);
+}
 export const cyclesText = list => { const n = countCycles(list); return `${fmtInt(n)} cycle${n === 1 ? '' : 's'}`; };
 /** Per-device entries (one device's share of a cycle) when only a count is at hand. */
 export const deviceCyclesText = n => `${fmtInt(n)} device cycle${n === 1 ? '' : 's'}`;

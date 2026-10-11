@@ -1,4 +1,4 @@
-import { splitText, splitBy, cyclesText, deviceCyclesText, countCycles } from '../lib/splitCycles.js'
+import { splitText, splitBy, cyclesText, deviceCyclesText, countCycles, benchCycles } from '../lib/splitCycles.js'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
@@ -37,11 +37,16 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   // A device clicked in the Every cycle table narrows the charts and tiles above to it (as
   // on Today); the table keeps every device so another can be picked, and Show all restores.
   const [focus, setFocus] = useState(null)
+  // one bench cycle picked from the Cycles tile: charts, tiles and the table show only its runs
+  const [bench, setBench] = useState(null)
   const chartsRef = useRef(null)
-  useEffect(() => { setFocus(null) }, [testType])
-  const cycles = useMemo(() => (focus ? allCycles.filter((c) => c.serial === focus) : allCycles), [allCycles, focus])
+  useEffect(() => { setFocus(null); setBench(null) }, [testType])
+  const benches = useMemo(() => benchCycles(allCycles), [allCycles])
+  const benchSel = bench ? benches.find((b) => b.key === bench) : null
+  const inBench = useMemo(() => (benchSel ? benchSel.list : allCycles), [allCycles, benchSel])
+  const cycles = useMemo(() => (focus ? inBench.filter((c) => c.serial === focus) : inBench), [inBench, focus])
   const pickDevice = (sn) => { setFocus((f) => (f === sn ? null : sn)); chartsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
-  const tableSerials = [...new Set(allCycles.map((c) => c.serial))]
+  const tableSerials = [...new Set(inBench.map((c) => c.serial))]
   /* null until the reader picks one, so the default can follow the data rather
      than being baked in — a grouped mean is the first useful read, and the
      per-device tangle is a step you take once you know what to look for. */
@@ -250,8 +255,18 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           const est = cycles.some((c) => c.mdmCycles == null)
           const used = cycles.reduce((a, c) => a + (c.mdmCycles != null ? c.mdmCycles
             : c.startBattery != null && c.endBattery != null && c.startBattery > c.endBattery ? (c.startBattery - c.endBattery) / 100 : 0), 0)
+          const day = (t) => new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).replace('Sept', 'Sep')
+          const hm = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           return <Stat hero label="Cycles" value={fmtInt(n)}
-            foot={`${fmtInt(devs)} device${devs === 1 ? '' : 's'} · ${est ? '≈ ' : ''}${used.toFixed(2)} battery cycles used`} />
+            foot={`${fmtInt(devs)} device${devs === 1 ? '' : 's'} · ${est ? '≈ ' : ''}${used.toFixed(2)} battery cycles used`}
+            breakdownLabel={`${testType} — every cycle, newest first · click one to show only it`} breakdownNoun="cycle" breakdownWide
+            breakdown={[...benches].reverse().map((b) => {
+              const nd = new Set(b.list.map((c) => c.serial)).size, avg = b.list.reduce((a, c) => a + (c.duration || 0), 0) / b.list.length
+              const running = b.list.some((c) => c.inProgress)
+              return { id: b.key, label: day(b.start), sub: `off the charger ${hm(b.start)} · ${running ? 'running now' : `avg ${avg.toFixed(1)} h`}`,
+                value: nd, display: `${nd} device${nd === 1 ? '' : 's'}`, highlight: b.key === bench,
+                onClick: () => { setBench((k) => (k === b.key ? null : b.key)); setFocus(null) } }
+            })} />
         })()}
         <Stat label="Avg cycle time" value={fmtNum(k.avgDuration, 1)} unit="h"
           foot="per cycle" />
@@ -305,10 +320,11 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
         </div>
       )}
 
-      {focus && (
+      {(focus || benchSel) && (
         <div className="pick-bar">
-          <span>Showing only <b className="mono">{focus}</b> — its {cyclesText(cycles)} of {testType}</span>
-          <button type="button" className="btn btn-sm" onClick={() => setFocus(null)}>× Clear selection</button>
+          <span>Showing only {benchSel ? <>the cycle of <b>{new Date(benchSel.start).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</b> ({new Set(benchSel.list.map((c) => c.serial)).size} devices)</> : null}
+            {benchSel && focus ? ', ' : ''}{focus ? <><b className="mono">{focus}</b>{benchSel ? '' : <> — its {cyclesText(cycles)} of {testType}</>}</> : null}</span>
+          <button type="button" className="btn btn-sm" onClick={() => { setFocus(null); setBench(null) }}>× Clear selection</button>
         </div>
       )}
       <div ref={chartsRef} style={{ scrollMarginTop: 80 }} className={showSecondaryChart ? 'grid grid-2 detail-charts-with-secondary' : 'grid grid-2'}>
@@ -561,7 +577,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
       {/* Every cycle in scope, one row each — with one device picked (Summary → a test row),
           this is that device's history for the test: which days it ran and how each went. */}
       <Card expandable title={tableSerials.length === 1 ? `Every cycle on ${tableSerials[0]}` : 'Every cycle'}
-        sub={`${cyclesText(allCycles)} on ${fmtInt(new Set(allCycles.map((c) => c.date)).size)} days`
+        sub={`${cyclesText(inBench)} on ${fmtInt(new Set(inBench.map((c) => c.date)).size)} days`
           + `${tableSerials.length === 1 ? '' : ` across ${fmtInt(tableSerials.length)} devices`} · newest first · click a device to show only it in the charts above · click a heading to sort · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded`}>
         <div className="table-wrap" style={{ maxHeight: 460 }}>
           <SortTable caption={`Every ${testType} cycle`} head={[
@@ -570,7 +586,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             { label: isCharging ? 'Charge rate' : 'Drain' }, { label: 'Peak temp' }, { label: 'Battery cycles' },
             { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'Wireless pad', style: { textAlign: 'left' } }] : []),
           ]}>
-            {[...allCycles].sort((a, b) => b.start - a.start).map((c) => (
+            {[...inBench].sort((a, b) => b.start - a.start).map((c) => (
               <tr key={c.id} className={tableSerials.length > 1 ? `row-link${focus === c.serial ? ' is-selected' : ''}` : undefined}
                 onClick={tableSerials.length > 1 ? () => pickDevice(c.serial) : undefined}>
                 <td>{c.date ? fmtDate(c.date) : '—'}</td>

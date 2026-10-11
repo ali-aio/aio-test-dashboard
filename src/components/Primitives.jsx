@@ -42,7 +42,7 @@ import { STATUS_ICON } from '../lib/palette.js'
  * made of: [{ id, label, value, hint?, onClick? }]. The tile stays readable as
  * a plain figure; the detail is one click away rather than another six cards.
  */
-export function Stat({ label, value, unit, foot, hero = false, breakdown, breakdownLabel, breakdownWide, breakdownRight }) {
+export function Stat({ label, value, unit, foot, hero = false, breakdown, breakdownLabel, breakdownWide, breakdownRight, breakdownNoun = 'group' }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const popRef = useKeepOnScreen(open)
@@ -95,7 +95,7 @@ export function Stat({ label, value, unit, foot, hero = false, breakdown, breakd
         <div ref={popRef} className={`popover stat-popover${breakdownWide ? ' is-wide' : ''}${breakdownRight ? ' popover-right' : ''}`} role="dialog" aria-label={breakdownLabel ?? `${label} breakdown`}>
           <div className="files-head">
             <strong>{breakdownLabel ?? label}</strong>
-            <span className="hint">{breakdown.length} group{breakdown.length === 1 ? '' : 's'}</span>
+            <span className="hint">{breakdown.length} {breakdownNoun}{breakdown.length === 1 ? '' : 's'}</span>
           </div>
           <div className="stat-breakdown">
             {breakdown.map((row) => {

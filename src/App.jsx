@@ -167,7 +167,11 @@ export default function App() {
           <nav className="tabs" role="tablist" aria-label="Dashboard views">
             {VIEWS.map(v => (
               <button key={v.id} role="tab" className="tab" aria-selected={view === v.id}
-                onClick={() => { location.hash = v.hash }}>{v.label}</button>
+                onClick={() => {
+                  // Overview always lands on the all-tests overview: an opened test closes
+                  if (v.id === 'overview') setFilters(f => ({ ...f, testType: EMPTY_FILTERS.testType }))
+                  location.hash = v.hash
+                }}>{v.label}</button>
             ))}
           </nav>
         )}

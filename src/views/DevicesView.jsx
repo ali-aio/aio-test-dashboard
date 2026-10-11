@@ -189,15 +189,15 @@ export default function DevicesView({
                     {/* Counts only. Spelling out every firmware string here ran
                         the row off the screen; the full lists are a click away. */}
                     <span className="device-meta">
+                      {`${fmtLifetime(lifetimeCycles(snapOf(r.serial)))} cycles (MDM) · `}
                       {r.cycles.length
                         ? <>
-                            {runsText(r.cycles.length)}
+                            {runsText(r.cycles.length).replace('cycle', 'test run')}
                             {r.builds.length ? ` · ${fmtInt(r.builds.length)} build${r.builds.length === 1 ? '' : 's'}` : ''}
                             {r.firmwares.length ? ` · ${fmtInt(r.firmwares.length)} firmware version${r.firmwares.length === 1 ? '' : 's'}` : ''}
                             {r.lastDate ? ` · last ran ${fmtDate(r.lastDate)}` : ''}
                           </>
-                        : <span className="muted">no cycles in the current filters</span>}
-                      {` · ${fmtLifetime(lifetimeCycles(snapOf(r.serial)))} lifetime cycles (MDM)`}
+                        : <span className="muted">no test runs in the current filters</span>}
                     </span>
 
                     {Number.isFinite(r.peak) && (

@@ -53,16 +53,16 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
             <div><span>Battery</span><b>{s?.battery_pct != null ? `${s.battery_pct}%` : DASH}</b></div>
             <div><span>Temp</span><b>{on && s?.battery_temp_c ? `${s.battery_temp_c.toFixed(1)} °C` : DASH}</b></div>
             <div><span>{s?.charging ? 'Charging' : 'On battery'}</span><b>{s?.charging ? (s.charging_pad ? 'pad' : 'cable') : '—'}</b></div>
-            <div><span title="discharge_total_pct ÷ 100: every % drained since the device was new, test or not">Battery cycles, lifetime (MDM)</span><b>{fmtLifetime(lifetimeCycles(s))}</b></div>
+            <div><span>Cycles (MDM)</span><b>{fmtLifetime(lifetimeCycles(s))}</b></div>
           </div>
         </div>
       </div>
 
       {!mine.length ? <><LiveChart serial={serial} d={d} /><EmptyNote>No finished cycles recorded for this device yet.</EmptyNote></> : <>
         <div className="stat-row">
-          {/* test runs this dashboard recorded — not the MDM's lifetime battery cycles (header), which count every % drained since the device was new */}
-          <Stat label="Test cycles recorded" value={fmtInt(mine.length)}
-            foot={`since ${fmtDate(mine[mine.length - 1].date)} · ${tests.length} test type${tests.length === 1 ? '' : 's'} · ≈ ${fmtLifetime(mine.reduce((a, c) => a + (c.mdmCycles ?? (c.startBattery > c.endBattery ? (c.startBattery - c.endBattery) / 100 : 0)), 0))} battery cycles used`} />
+          {/* the MDM's own count (discharge_total_pct ÷ 100), the figure the MDM shows for this device */}
+          <Stat label="Cycles" value={fmtLifetime(lifetimeCycles(s))}
+            foot={`battery cycles (MDM) · ${runsText(mine.length).replace('cycle', 'test run')} recorded since ${fmtDate(mine[mine.length - 1].date)}`} />
           <Stat label="Test days" value={fmtInt(days)} foot={`${fmtDate(mine[mine.length - 1].date)} → ${fmtDate(mine[0].date)}`} />
           <Stat label="Avg cycle time" value={fmtNum(k.avgDuration, 1)} unit="h" foot="per cycle" />
           <Stat label="Avg drain" value={fmtRate(k.avgDropPerHr)} foot="battery per hour" />

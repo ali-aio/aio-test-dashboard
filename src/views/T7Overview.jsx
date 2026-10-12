@@ -154,7 +154,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOp
               breakdown={breakdowns.os} breakdownLabel="Battery cycles per OS version" />
       </div>
 
-      <div className="grid grid-2 grid-fill">
+      <div className="grid grid-2">
         {panels.map((p) => <OverviewPanel key={p.testType} p={p} allSerials={allSerialsHere} onPickTestType={onPickTestType} onOpenDevice={onOpenDevice} />)}
       </div>
     </div>

@@ -1,14 +1,15 @@
 import { splitBy } from '../lib/splitCycles.js'
-import { cyclesText } from '../lib/splitCycles.js'
+import { cyclesText, benchCycles } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { LineChart } from '../components/t7charts.jsx'
-import { ModeSwitch, deviceSeries, useDevicePicker } from '../components/CurveModes.jsx'
+import { useDevicePicker } from '../components/CurveModes.jsx'
+import { Segmented } from '../components/Primitives.jsx'
 import LifetimeStat from '../components/LifetimeStat.jsx'
 import TestDetailView from './TestDetailView.jsx'
 import { ALL_TEST_TYPES, FIELD_TEST_TYPES } from '../lib/testtypes.js'
 import { kpis, fullDischargeCycles, compareFirmwareNewest, avgCurveBy, maxOf, explainEmpty, plottedMaxHour, batteryCycles, batteryCyclesBy } from '../lib/t7cycles.js'
-import { BUILD_COLOR, SERIES_VARS, MAX_SERIES } from '../lib/palette.js'
+import { BUILD_COLOR, SERIES_VARS, MAX_SERIES, buildStyleMap } from '../lib/palette.js'
 import { fmtLifetime, fmtBC, bcText, runsText, fmtInt, fmtNum, fmtHours, fmtPct, fmtTemp, fmtRate, fmtHourTick, fmtDate, compareSerial } from '../lib/fmt.js'
 
 export default function OverviewView({ cycles, onPickTestType, onFilter, onOpenDevice, onOpenDevicePage, snapOf, testType = '__all__', allSerials = [], lifetime = null }) {
@@ -161,25 +162,41 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOp
   )
 }
 
-// One test-type card. Average = T7's mean curve per pad state (or build); Every device =
-// one line per device with the Devices picker, colours shared with every other chart.
+// One test-type card. Average = T7's mean curve per pad state (or build); Every cycle = one
+// line per bench cycle (its devices averaged), with a Cycles picker to tick which are drawn.
+const MODES = [{ id: 'avg', label: 'Average' }, { id: 'cycles', label: 'Every cycle' }]
+const cycleName = (t) => new Date(t).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('Sept', 'Sep')
+
+/** One averaged curve per bench cycle, oldest first; styles assigned over all of them so
+ *  ticking cycles off never repaints the rest. */
+function cycleSeries(cycles) {
+  const benches = benchCycles(cycles)
+  const style = buildStyleMap(benches.map((b) => b.key))
+  return benches.map((b) => {
+    const curve = avgCurveBy(b.list.map((c) => ({ ...c, __b: b.key })), '__b')[0]
+    const nd = new Set(b.list.map((c) => c.serial)).size
+    return { id: b.key, label: cycleName(b.start), sub: `${nd} device${nd === 1 ? '' : 's'}`, list: b.list, ...(style.get(b.key) || {}), points: curve?.points || [] }
+  }).filter((s) => s.points.length)
+}
+
 function OverviewPanel({ p, allSerials, onPickTestType, onOpenDevice }) {
   const [mode, setMode] = useState('avg')
-  const perDevice = useMemo(() => deviceSeries(p.cycles, allSerials), [p.cycles, allSerials])
-  const picker = useDevicePicker(perDevice)
+  const perCycle = useMemo(() => cycleSeries(p.cycles), [p.cycles])
+  const picker = { ...useDevicePicker(perCycle), legendDisclosure: 'Cycles' }
+  const shown = perCycle.filter((s) => !picker.selectedSeries || picker.selectedSeries.has(s.id))
   return (
     <Card expandable
       title={p.testType}
-      sub={`${cyclesText(p.cycles)} · ${p.k.serials} devices · ${mode === 'all' ? 'one line per device' : `mean battery by ${p.groupKey === 'build' ? 'build' : 'pad state'}`}`}
+      sub={`${cyclesText(p.cycles)} · ${p.k.serials} devices · ${mode === 'cycles' ? 'one line per cycle, its devices averaged' : `mean battery by ${p.groupKey === 'build' ? 'build' : 'pad state'}`}`}
       right={<>
-        <ModeSwitch value={mode} onChange={setMode} />
+        <Segmented ariaLabel="Curve view" value={mode} onChange={setMode} options={MODES} />
         <button className="btn btn-sm" onClick={() => onPickTestType(p.testType)}>
           Open ›
         </button>
       </>}>
       <LineChart
-        series={mode === 'all' ? perDevice : p.series}
-        {...(mode === 'all' ? picker : {})}
+        series={mode === 'cycles' ? perCycle : p.series}
+        {...(mode === 'cycles' ? picker : {})}
         xDomain={[0, p.maxHour]}
         yDomain={[0, 100]}
         formatX={fmtHourTick}
@@ -190,27 +207,25 @@ function OverviewPanel({ p, allSerials, onPickTestType, onOpenDevice }) {
         emptyState={explainEmpty(p.cycles, (c) => c.series.length, 'a battery reading')}
         caption={`Mean battery percentage over elapsed hours for ${p.testType}`}
         tableColumns={[
-          mode === 'all' ? { key: 'build', label: 'Device' } : { key: 'build', label: p.groupKey === 'build' ? 'Build' : 'Pad state' },
-          { key: 'n', label: 'Cycles' },
+          mode === 'cycles' ? { key: 'build', label: 'Cycle' } : { key: 'build', label: p.groupKey === 'build' ? 'Build' : 'Pad state' },
+          { key: 'n', label: mode === 'cycles' ? 'Devices' : 'Cycles' },
           { key: 'dur', label: 'Avg cycle time' },
           { key: 'drop', label: p.charging ? 'Avg charge rate' : 'Avg drain' },
           { key: 'end', label: p.charging ? 'Avg charged to' : 'Avg end battery' },
           { key: 'temp', label: 'Peak temp' },
         ]}
-        // Average: one row per build / pad state. Every device: one row per device ticked in
-        // the Devices picker, in serial order, so the table matches the lines on the chart.
-        tableRows={(mode === 'all'
-          ? perDevice.map((s) => s.id).filter((sn) => !picker.selectedSeries || picker.selectedSeries.has(sn)).sort(compareSerial)
-          : [...new Set(p.cycles.map((c) => c[p.groupKey]))]
-        ).map((b) => {
-          const own = p.cycles.filter((c) => (mode === 'all' ? c.serial : c[p.groupKey]) === b)
+        // Average: one row per build / pad state. Every cycle: one row per cycle ticked in the
+        // Cycles picker, oldest first, so the table matches the lines on the chart.
+        tableRows={(mode === 'cycles'
+          ? shown.map((s) => ({ label: s.label, own: s.list, n: s.sub }))
+          : [...new Set(p.cycles.map((c) => c[p.groupKey]))].map((b) => {
+            const own = p.cycles.filter((c) => c[p.groupKey] === b)
+            return { label: b ?? 'Unknown', own, n: cyclesText(own) }
+          })
+        ).map(({ label, own, n }) => {
           const kk = kpis(own)
           return {
-            // a device opens this test's page for just that device: every run, by day
-            build: mode === 'all' && onOpenDevice
-              ? <button type="button" className="link-btn" title={`Open ${p.testType} for ${b} — every cycle`} onClick={() => onOpenDevice(b, p.testType)}>{b}</button>
-              : b ?? 'Unknown',
-            n: cyclesText(own),
+            build: label, n,
             dur: fmtHours(kk.avgDuration),
             drop: fmtRate(kk.avgDropPerHr),
             end: fmtPct(kk.avgEndBattery),

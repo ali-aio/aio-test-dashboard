@@ -329,7 +329,9 @@ export default function TodayView({ fleet }) {
                   <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button></td>
                   <td><span className={`pill ${cs[0]}`}>{cs[1]}</span></td>
                   <td className="r">{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span> : <span className="secondary">—</span>}</td>
-                  <td className="r mono">{r?.start ? hm(r.start.t) : <span className="secondary">still full</span>}</td>
+                  <td className="r mono" title={r?.start?.firstOff ? `last check-in on charge ${new Date(r.start.after).toLocaleTimeString()} · first off charge ${new Date(r.start.firstOff).toLocaleTimeString()} — the MDM has no reading in between` : undefined}>
+                    {r?.start ? hm(r.start.t) : <span className="secondary">still full</span>}
+                    {r?.start?.firstOff && r.start.firstOff - r.start.t > 5 * MIN ? <span className="secondary" style={{ fontSize: 11 }}> – {hm(r.start.firstOff)}</span> : null}</td>
                   <td className="r mono" style={{ color: c.state === 'drifting' ? 'var(--warn)' : 'inherit' }}>{r?.rate != null ? r.rate.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td>
                   <td className="r mono">{fmtLifetime(lifetimeCycles(d.snap))}</td>
                   <td className="r mono" style={{ color: online(d) && d.snap.battery_temp_c >= TEMP_LIMIT ? 'var(--bad)' : online(d) && d.snap.battery_temp_c >= TEMP_WARN ? 'var(--warn)' : 'inherit' }}>{online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td>

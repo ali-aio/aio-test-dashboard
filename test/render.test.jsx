@@ -355,14 +355,15 @@ const mdmCases = []
     // 875 on 12 Oct: on charge at 100%, unplugged 09:46, still 100% until 10:14
     const rows = [row(9, 30, 100, true), row(9, 40, 100, true), row(9, 46, 100, false), row(10, 0, 100, false), row(10, 10, 100, false), row(10, 14, 98, false), row(10, 22, 97, false)]
     const s = runStartOf(rows)
-    want(s && s.t === Date.parse(at(9, 46)) && s.pct === 100, s ? new Date(s.t).toISOString() : 'null')
+    // dated from the last check-in on charge (09:40); the first one off (09:46) is kept beside it
+    want(s && s.t === Date.parse(at(9, 40)) && s.firstOff === Date.parse(at(9, 46)) && s.pct === 100, s ? new Date(s.t).toISOString() : 'null')
     // no charging flag at all: falls back to the last reading at the peak
     const bare = rows.map((r) => ({ ...r, extra: {} }))
     want(runStartOf(bare).t === Date.parse(at(10, 10)), 'fallback to the last peak reading')
     // just unplugged, still at 100%: the run starts at the switch-off, no 2-point drop needed
     const fresh = [row(9, 50, 100, true), row(9, 55, 100, true), row(10, 0, 100, true), row(10, 1, 100, false), row(10, 3, 100, false)]
     const f = runStartOf(fresh)
-    want(f && f.t === Date.parse(at(10, 1)) && f.after === Date.parse(at(10, 0)), 'switch-off without a drop')
+    want(f && f.t === Date.parse(at(10, 0)) && f.firstOff === Date.parse(at(10, 1)), 'switch-off without a drop')
     want(runStartOf(fresh.slice(0, 3)) === null, 'still on charge: no run')
   })
   check('the Cycles drop-down lists each bench cycle with its devices', () => {

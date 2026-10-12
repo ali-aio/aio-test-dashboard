@@ -173,6 +173,12 @@ export function running(DEV, opts) {
 // charging flag went off before that drop — a device pulled at 100% reads 100% for a good
 // while (875: unplugged 09:46, still 100% at 10:10). Without a charging flag to go by, the
 // LAST sample at the peak.
+// The switch-off lies between the last check-in on charge and the first one off it — and a
+// device can go 10 minutes without checking in (232: on charge 10:01:25, next check-in 10:11:30,
+// off). The MDM records nothing in between, so the run is dated from the LAST check-in on
+// charge: the lab pulls the devices right after it. Both stamps are kept (`after`, `firstOff`)
+// so the screen can show the gap.
+const offAt = (on, off) => ({ t: Date.parse(on.timestamp), pct: off.battery_pct, after: Date.parse(on.timestamp), firstOff: Date.parse(off.timestamp) });
 export function runStartOf(rows) {
   if (!rows || rows.length < 2) return null;
   let peak = 0;
@@ -182,17 +188,14 @@ export function runStartOf(rows) {
       let j = peak;
       while (j > 0 && rows[j - 1].extra?.charging === false) j--;
       const flag = j > 0 && rows[j - 1].extra?.charging === true && rows[j].extra?.charging === false;
-      const r = flag ? rows[j] : rows[peak];
-      // `after`: the last reading still on charge — the switch-off lies between it and `t`
-      return { t: Date.parse(r.timestamp), pct: r.battery_pct, ...(flag ? { after: Date.parse(rows[j - 1].timestamp) } : {}) };
+      return flag ? offAt(rows[j - 1], rows[j]) : { t: Date.parse(rows[peak].timestamp), pct: rows[peak].battery_pct };
     }
   }
   // No drop yet, but it is off the charger now (a device pulled at 100% reads 100% for 10–15
   // minutes): the run starts at the switch-off, as long as it has stayed off since.
   let k = rows.length - 1;
   while (k >= 0 && rows[k].extra?.charging === false) k--;
-  if (k >= 0 && k < rows.length - 1 && rows[k].extra?.charging === true)
-    return { t: Date.parse(rows[k + 1].timestamp), pct: rows[k + 1].battery_pct, after: Date.parse(rows[k].timestamp) };
+  if (k >= 0 && k < rows.length - 1 && rows[k].extra?.charging === true) return offAt(rows[k], rows[k + 1]);
   return null; // still on charge, or never fell far enough to call it a run
 }
 
@@ -211,11 +214,14 @@ export async function refineStarts(list) {
   await mapLimit(todo, 4, async ({ serial, start }) => {
     const key = rkey(serial, start);
     try {
-      const rows = normalize(await fetchHistoryRange(serial, start.after, start.t + 60e3, 60));
-      const off = rows.find(r => Date.parse(r.timestamp) > start.after && r.extra?.charging === false);
-      // the earliest reading off the charger wins; an empty answer (history not written yet) is
-      // asked again after RETRY_MS rather than on every 30 s snapshot
-      if (off) refined.set(key, Date.parse(off.timestamp) < start.t ? { ...start, t: Date.parse(off.timestamp), pct: off.battery_pct } : start);
+      // between the last on-charge reading we hold and the first one off: any check-ins the
+      // window does not have yet (the newest reading may be the live snapshot)
+      const rows = normalize(await fetchHistoryRange(serial, start.after, (start.firstOff ?? start.t) + 60e3, 60))
+        .filter(r => Date.parse(r.timestamp) >= start.after && Date.parse(r.timestamp) <= (start.firstOff ?? start.t));
+      const i = rows.findIndex(r => r.extra?.charging === false);
+      // an empty answer (history not written yet) is asked again after RETRY_MS, not every 30 s
+      if (i > 0 && rows[i - 1].extra?.charging === true) refined.set(key, { ...start, ...offAt(rows[i - 1], rows[i]) });
+      else if (i === 0) refined.set(key, start);
       else tried.set(key, Date.now());
     } catch (e) { tried.set(key, Date.now()); }
   });

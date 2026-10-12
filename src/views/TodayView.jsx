@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
-import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, drainSince, WINDOW_HOURS } from '../lib/window.js'
+import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, refineStarts, refinedStart, drainSince, WINDOW_HOURS } from '../lib/window.js'
 import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, loadDecls, loadRota } from '../lib/plan.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
@@ -58,11 +58,18 @@ export default function TodayView({ fleet }) {
 
   // Each device's own run: when it came off the charger and how fast it is draining. The
   // window opens when the plan says (07:00); the run starts when someone pulls the devices.
-  const runs = useMemo(() => new Map(conf.filter(c => c.rows?.length).map(c => {
+  const coarse = useMemo(() => conf.filter(c => c.rows?.length).map(c => ({ c,
     // from 2 h before the window, so a device pulled early (09:46 for a 10:00 window) is seen leaving the charger
-    const start = runStartOf(rowsFor(c.serial).filter(r => { const t = Date.parse(r.timestamp); return t >= T.startMs - 2 * H && t <= winTo }))
+    start: runStartOf(rowsFor(c.serial).filter(r => { const t = Date.parse(r.timestamp); return t >= T.startMs - 2 * H && t <= winTo })) })), [conf])
+  // then pin each switch-off to the minute (the window's 5-minute rows put 10:01 at 10:06)
+  const [refineRev, setRefineRev] = useState(0)
+  useEffect(() => { let live = true
+    refineStarts(coarse.map(x => ({ serial: x.c.serial, start: x.start }))).then(n => { if (live && n) setRefineRev(v => v + 1) })
+    return () => { live = false } }, [coarse])
+  const runs = useMemo(() => new Map(coarse.map(({ c, start: s0 }) => {
+    const start = refinedStart(c.serial, s0) || s0
     return [c.serial, { start, rate: drainSince(c.rows, start), now: c.rows[c.rows.length - 1].battery_pct }]
-  })), [conf])
+  })), [coarse, refineRev])
   const all = [...runs.values()], started = all.filter(r => r.start)
   const runStart = started.length ? median(started.map(r => r.start.t)) : null
   const nows = all.map(r => r.now), medNow = nows.length ? median(nows) : null

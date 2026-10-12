@@ -153,11 +153,31 @@ export function runStartOf(rows) {
     else if (rows[peak].battery_pct - rows[i].battery_pct >= 2) {
       let j = peak;
       while (j > 0 && rows[j - 1].extra?.charging === false) j--;
-      const r = j > 0 && rows[j - 1].extra?.charging === true && rows[j].extra?.charging === false ? rows[j] : rows[peak];
-      return { t: Date.parse(r.timestamp), pct: r.battery_pct };
+      const flag = j > 0 && rows[j - 1].extra?.charging === true && rows[j].extra?.charging === false;
+      const r = flag ? rows[j] : rows[peak];
+      // `after`: the last reading still on charge — the switch-off lies between it and `t`
+      return { t: Date.parse(r.timestamp), pct: r.battery_pct, ...(flag ? { after: Date.parse(rows[j - 1].timestamp) } : {}) };
     }
   }
   return null; // still full, or never fell far enough to call it a run
+}
+
+// The window keeps one reading per 5 minutes, so a switch-off at 10:01:46 first shows at the
+// 10:06 reading. Narrow it down: fetch just that gap at 1-minute spacing and take the first
+// reading off the charger. One small request per device and run, remembered for the session.
+const refined = new Map();
+export const refinedStart = (serial, start) => (start ? refined.get(`${serial}@${start.t}`) || null : null);
+export async function refineStarts(list) {
+  const todo = list.filter(({ serial, start }) => start?.after && !refined.has(`${serial}@${start.t}`));
+  await mapLimit(todo, 4, async ({ serial, start }) => {
+    const key = `${serial}@${start.t}`;
+    try {
+      const rows = normalize(await fetchHistoryRange(serial, start.after, start.t + 60e3, 60));
+      const off = rows.find(r => Date.parse(r.timestamp) > start.after && r.extra?.charging === false);
+      refined.set(key, off && Date.parse(off.timestamp) < start.t ? { ...start, t: Date.parse(off.timestamp), pct: off.battery_pct } : start);
+    } catch (e) { /* keep the 5-minute answer; try again on the next page open */ }
+  });
+  return todo.length;
 }
 
 // When the cycle a device is running NOW began: walk back from its newest reading while the

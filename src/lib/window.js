@@ -47,6 +47,9 @@ export const rowsFor = serial => {
   return out;
 };
 
+// Every check-in the MDM holds (devices check in about every 3 min; 60 s spacing returns each
+// one), so times, peaks and levels are the MDM's own readings, not a 5-minute sample of them.
+const IV = 60;
 // Re-ask for the last half hour each time: the newest buckets may have been partial.
 const OVERLAP = 30 * MIN;
 
@@ -55,13 +58,13 @@ async function readCache(serials) {
   try {
     const all = await withStore(STORES.readings, 'readonly', st => st.getAll());
     const want = new Set(serials), out = {};
-    for (const r of all || []) if (want.has(r.id)) out[r.id] = r;
+    for (const r of all || []) if (want.has(r.id) && r.iv === IV) out[r.id] = r; // an older, coarser copy is re-read
     return out;
   } catch (e) { return {}; }
 }
 async function writeCache(rows, at) {
   if (!isAvailable()) return;
-  try { await withStore(STORES.readings, 'readwrite', st => { for (const [id, list] of Object.entries(rows)) st.put({ id, at, rows: list }); }); }
+  try { await withStore(STORES.readings, 'readwrite', st => { for (const [id, list] of Object.entries(rows)) st.put({ id, at, iv: IV, rows: list }); }); }
   catch (e) { /* storage blocked or full — the next visit just fetches the full window */ }
 }
 
@@ -86,7 +89,7 @@ export async function loadWindow(DEV, force = false) {
       const old = (cache[d.serial]?.rows || []).filter(r => Date.parse(r.timestamp) >= from);
       const last = old.length ? Date.parse(old[old.length - 1].timestamp) : 0;
       const since = last ? Math.max(from, last - OVERLAP) : from;
-      const fresh = normalize(await fetchHistoryRange(d.serial, since, now, 300));
+      const fresh = normalize(await fetchHistoryRange(d.serial, since, now, IV));
       out[d.serial] = [...old.filter(r => Date.parse(r.timestamp) < since), ...fresh];
     });
     state.failed = DEV.filter(d => !out[d.serial]).length; // mapLimit swallows per-device errors
@@ -193,9 +196,10 @@ export function runStartOf(rows) {
   return null; // still on charge, or never fell far enough to call it a run
 }
 
-// The window keeps one reading per 5 minutes, so a switch-off at 10:01:46 first shows at the
-// 10:06 reading. Narrow it down: fetch just that gap at 1-minute spacing and take the first
-// reading off the charger. One small request per device and run, remembered for the session.
+// The window holds every check-in (about every 3 min), and the newest reading can be the live
+// snapshot, so the switch-off can still sit in a gap of a few minutes. Narrow it down: fetch just
+// that gap and take the first reading off the charger. One small request per device and run,
+// remembered for the session.
 const refined = new Map(), tried = new Map(); // tried: when a lookup last came back empty
 const RETRY_MS = 2 * MIN;
 // Keyed on the last reading still on charge: it stays put while the newest (live) reading moves.

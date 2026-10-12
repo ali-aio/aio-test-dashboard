@@ -157,7 +157,7 @@ oversight; don't add restaurant filtering back in without being asked.
   to 2 h before a planned cycle's window still belongs to it (`EARLY_START_H`, `cycleAt`).
 - **HW build** comes from the serial (`buildFromSerial`, `src/lib/device.js`): "BU" in it = Production
   Build, otherwise "OTG / Validation Build" (the serial can't tell those two apart).
-- `src/lib/window.js` — the 7-day, 5-minute reading window behind Today and the charts. It is
+- `src/lib/window.js` — the 7-day reading window (every check-in: `interval_sec=60`, the MDM stores one per ~3 min) behind Today and the charts. It is
   kept in the browser's IndexedDB (`readings` store in `src/lib/db.js`), so a page open draws
   from the stored copy and fetches only the readings since (last stamp − 30 min). "Reload
   readings" bypasses it and refetches the full window.

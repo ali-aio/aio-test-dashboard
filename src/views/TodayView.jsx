@@ -61,7 +61,7 @@ export default function TodayView({ fleet }) {
   const coarse = useMemo(() => conf.filter(c => c.rows?.length).map(c => ({ c,
     // from 2 h before the window, so a device pulled early (09:46 for a 10:00 window) is seen leaving the charger
     start: runStartOf(rowsFor(c.serial).filter(r => { const t = Date.parse(r.timestamp); return t >= T.startMs - 2 * H && t <= winTo })) })), [conf])
-  // then pin each switch-off to the minute (the window's 5-minute rows put 10:01 at 10:06)
+    // then pin each switch-off to the minute between the last reading on charge and the first off it
   const [refineRev, setRefineRev] = useState(0)
   useEffect(() => { let live = true
     refineStarts(coarse.map(x => ({ serial: x.c.serial, start: x.start }))).then(n => { if (live && n) setRefineRev(v => v + 1) })
@@ -267,7 +267,7 @@ export default function TodayView({ fleet }) {
         {/* battery and temperature side by side; stacked again on narrow screens (.grid-2) */}
         <div className="grid grid-2" ref={chartsRef} style={{ scrollMarginTop: 80 }}>
         <div className="card">
-          <div className="card-head"><div><h2>T7 battery, today</h2><div className="card-sub">from {hm(chartFrom)} · live from MDM · 5-minute rows</div></div>
+          <div className="card-head"><div><h2>T7 battery, today</h2><div className="card-sub">from {hm(chartFrom)} · live from MDM · every check-in</div></div>
             <Segmented ariaLabel="Battery chart" options={MODES} value={battMode} onChange={setBattMode} /></div>
           <div className="card-body">
             {picker}

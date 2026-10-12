@@ -15,18 +15,27 @@ import { resampleRun, curveKey } from '../src/lib/curves.js';
 import { chargeSegments, thermalStats } from '../shared/profile.js';
 
 const H = 3600e3, DAY = 24 * H, CHUNK = 7 * DAY;
-const OPTS = { offlineMin: 45, intervalSec: 600 }; // matches the import and the browser top-up
+// The MDM keeps one reading per check-in (about every 3 min); 60 s spacing returns every one of
+// them, the same readings the MDM's own screen shows. The last RECENT_DAYS (running and recent
+// cycles: start/end times, peaks) are read at that full detail; older days, re-read on every
+// sweep only to keep the window continuous, at 10 min so a sweep stays a few MB.
+const OPTS = { offlineMin: 45, intervalSec: 600, recentIntervalSec: 60, recentDays: 3 };
 
 function readJson(file) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { return null; } }
 export function loadTopup(root, group) { const t = readJson(path.join(root, 'data', 'topup.json')); return t && t.group === group ? t : null; }
 
-async function history(get, serial, from, to) {
+async function history(get, serial, from, to, iv = OPTS.intervalSec) {
   const out = [];
   for (let s = from; s < to; s += CHUNK) {
     const e = Math.min(s + CHUNK, to);
-    out.push(...await get(`/api/v1/testdata/devices/${encodeURIComponent(serial)}/history?start=${new Date(s).toISOString()}&end=${new Date(e).toISOString()}&interval_sec=${OPTS.intervalSec}`));
+    out.push(...await get(`/api/v1/testdata/devices/${encodeURIComponent(serial)}/history?start=${new Date(s).toISOString()}&end=${new Date(e).toISOString()}&interval_sec=${iv}`));
   }
   return out;
+}
+// older days at 10 min, the recent ones at every check-in
+async function sweepHistory(get, serial, from, to) {
+  const cut = Math.max(from, to - OPTS.recentDays * DAY);
+  return [...(cut > from ? await history(get, serial, from, cut) : []), ...await history(get, serial, cut, to, OPTS.recentIntervalSec)];
 }
 async function mapLimit(items, limit, fn) {
   const results = new Array(items.length); let next = 0;
@@ -48,7 +57,7 @@ export async function sweep({ base, group, root, get, log = () => {} }) {
   const out = {}, failed = [];
   const results = await mapLimit(devices, 3, async d => {
     const serial = d.serial_number;
-    const rows = normalize(await history(get, serial, from, now)), res = detectCycles(rows, { nowMs: now, offlineMin: OPTS.offlineMin });
+    const rows = normalize(await sweepHistory(get, serial, from, now)), res = detectCycles(rows, { nowMs: now, offlineMin: OPTS.offlineMin });
     const h = HIST[serial] || {}, p = PREV[serial] || {};
     const lastC = h.cycles?.length ? h.cycles[h.cycles.length - 1].end : from, lastI = h.interrupted?.length ? h.interrupted[h.interrupted.length - 1].end : from;
     const keep = list => (list || []).filter(x => x.start < from);
@@ -114,7 +123,8 @@ export async function buildCurves({ root, devices, topup, get, log = () => {} })
       else ranges.push({ start: c.start, end: c.end, runs: [c] });
     }
     for (const r of ranges) {
-      const rows = normalize(await history(get, serial, r.start - 30 * 60e3, r.end + 30 * 60e3));
+      // every check-in, so a run's curve and peaks are the MDM's own readings
+      const rows = normalize(await history(get, serial, r.start - 30 * 60e3, r.end + 30 * 60e3, OPTS.recentIntervalSec));
       calls += Math.ceil((r.end - r.start + 60 * 60e3) / CHUNK);
       for (const c of r.runs) {
         const curve = resampleRun(rows, c.start, c.end);

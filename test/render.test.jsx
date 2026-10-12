@@ -17,6 +17,7 @@ import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
 import { findOddOnes, mergeAlerts } from '../src/lib/alerts.js'
+import { runStartOf } from '../src/lib/window.js'
 import RangePicker from '../src/components/RangePicker.jsx'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
@@ -347,6 +348,17 @@ const mdmCases = []
     want(log.length === 1, 'not raised twice')
     log = mergeAlerts(log, { ...f, odd: [] }, now + 60e3)
     want(log[0].resolvedAt === now + 60e3, 'resolved when it falls back in line')
+  })
+  check('off charger = when charging went off, not the last 100% reading', () => {
+    const at = (h, m) => new Date(Date.UTC(2026, 9, 12, h, m)).toISOString()
+    const row = (h, m, pct, charging) => ({ timestamp: at(h, m), battery_pct: pct, extra: { charging } })
+    // 875 on 12 Oct: on charge at 100%, unplugged 09:46, still 100% until 10:14
+    const rows = [row(9, 30, 100, true), row(9, 40, 100, true), row(9, 46, 100, false), row(10, 0, 100, false), row(10, 10, 100, false), row(10, 14, 98, false), row(10, 22, 97, false)]
+    const s = runStartOf(rows)
+    want(s && s.t === Date.parse(at(9, 46)) && s.pct === 100, s ? new Date(s.t).toISOString() : 'null')
+    // no charging flag at all: falls back to the last reading at the peak
+    const bare = rows.map((r) => ({ ...r, extra: {} }))
+    want(runStartOf(bare).t === Date.parse(at(10, 10)), 'fallback to the last peak reading')
   })
   check('the Cycles drop-down lists each bench cycle with its devices', () => {
     const at = (d, hh) => Date.UTC(2026, 9, d, hh)

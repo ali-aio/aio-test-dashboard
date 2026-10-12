@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
-import { loadWindow, subscribeWindow, getWindow, buckets, dayStats, conform, temp, runStartOf, drainSince, WINDOW_HOURS } from '../lib/window.js'
+import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, drainSince, WINDOW_HOURS } from '../lib/window.js'
 import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, loadDecls, loadRota } from '../lib/plan.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
@@ -59,7 +59,8 @@ export default function TodayView({ fleet }) {
   // Each device's own run: when it came off the charger and how fast it is draining. The
   // window opens when the plan says (07:00); the run starts when someone pulls the devices.
   const runs = useMemo(() => new Map(conf.filter(c => c.rows?.length).map(c => {
-    const start = runStartOf(c.rows)
+    // from 2 h before the window, so a device pulled early (09:46 for a 10:00 window) is seen leaving the charger
+    const start = runStartOf(rowsFor(c.serial).filter(r => { const t = Date.parse(r.timestamp); return t >= T.startMs - 2 * H && t <= winTo }))
     return [c.serial, { start, rate: drainSince(c.rows, start), now: c.rows[c.rows.length - 1].battery_pct }]
   })), [conf])
   const all = [...runs.values()], started = all.filter(r => r.start)

@@ -139,16 +139,22 @@ export function running(DEV, opts) {
 
 // When did this device's run actually start? The declared window opens at, say, 07:00,
 // but devices sit full on the charger until someone pulls them — 11:00 on a typical day.
-// Elapsed time, drain rate and the chart's left edge should all count from the moment
-// the battery started to fall, not from the window. That moment is the LAST sample at
-// the run's peak before the level dropped by 2+ points (one point is charger wobble).
+// Elapsed time, drain rate and the chart's left edge should all count from the moment it
+// came off the charger, not from the window. The run is found where the level drops 2+
+// points below its peak (one point is charger wobble); its start is then the moment the
+// charging flag went off before that drop — a device pulled at 100% reads 100% for a good
+// while (875: unplugged 09:46, still 100% at 10:10). Without a charging flag to go by, the
+// LAST sample at the peak.
 export function runStartOf(rows) {
   if (!rows || rows.length < 2) return null;
   let peak = 0;
   for (let i = 1; i < rows.length; i++) {
     if (rows[i].battery_pct >= rows[peak].battery_pct) peak = i;
     else if (rows[peak].battery_pct - rows[i].battery_pct >= 2) {
-      return { t: Date.parse(rows[peak].timestamp), pct: rows[peak].battery_pct };
+      let j = peak;
+      while (j > 0 && rows[j - 1].extra?.charging === false) j--;
+      const r = j > 0 && rows[j - 1].extra?.charging === true && rows[j].extra?.charging === false ? rows[j] : rows[peak];
+      return { t: Date.parse(r.timestamp), pct: r.battery_pct };
     }
   }
   return null; // still full, or never fell far enough to call it a run

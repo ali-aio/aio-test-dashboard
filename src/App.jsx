@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { subscribe, getSnapshot, boot, startPolling, GROUP } from './lib/fleet.js'
-import { loadWindow, subscribeWindow, getWindow, rowsFor, WINDOW_HOURS } from './lib/window.js'
+import { loadWindow, setLive, subscribeWindow, getWindow, rowsFor, WINDOW_HOURS } from './lib/window.js'
 import { adaptAll, CTX } from './lib/adapt.js'
 import { loadDecls, loadRota, testType as ttById } from './lib/plan.js'
 import { startPlanSync, subscribePlan, getPlanSync } from './lib/planSync.js'
@@ -69,7 +69,7 @@ export default function App() {
   // the Cycle plan is shared through the backend (data/plan.json); without it, per browser
   const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync)
   useEffect(() => (fleet.backend ? startPlanSync(GROUP) : undefined), [fleet.backend])
-  useEffect(() => { if (fleet.DEV.length) loadWindow(fleet.DEV) }, [fleet.DEV])
+  useEffect(() => { if (fleet.DEV.length) { setLive(fleet.DEV); loadWindow(fleet.DEV) } }, [fleet.DEV])
 
   const { DEV, ready, error } = fleet
   // the bell: re-checked on every live snapshot (30 s) and whenever the shared plan changes

@@ -20,7 +20,32 @@ let snapshot = { ...state };
 const bump = () => { snapshot = { ...state, at2: Date.now() }; subs.forEach(f => f()); };
 export const subscribeWindow = f => { subs.add(f); return () => subs.delete(f); };
 export const getWindow = () => snapshot;
-export const rowsFor = serial => state.rows[serial] || [];
+// The window refreshes at most every 5 minutes (24 devices against a slow MDM), but the fleet
+// snapshot arrives every 30 s. Each device's latest check-in is added as its newest reading,
+// so Today sees a device come off the charger within 30 s rather than 5–10 minutes later.
+const live = {}, joined = new Map();
+export function setLive(DEV) {
+  let changed = false;
+  for (const d of DEV) {
+    const s = d.snap; if (!s?.last_seen_at || s.battery_pct == null) continue;
+    if (live[d.serial]?.timestamp === s.last_seen_at) continue;
+    let e = s.extra; if (typeof e === 'string') { try { e = JSON.parse(e); } catch (err) { e = {}; } }
+    live[d.serial] = { timestamp: s.last_seen_at, battery_pct: s.battery_pct, live: true,
+      extra: { charging: s.charging, battery_temp_c: s.battery_temp_c, wlc_status: e?.wlc_status } };
+    changed = true;
+  }
+  if (changed) bump();
+}
+export const rowsFor = serial => {
+  const rows = state.rows[serial] || [], l = live[serial];
+  if (!l) return rows;
+  const hit = joined.get(serial);
+  if (hit && hit.rows === rows && hit.l === l) return hit.out; // same array while nothing changed
+  const last = rows.length ? Date.parse(rows[rows.length - 1].timestamp) : 0;
+  const out = Date.parse(l.timestamp) > last + 60e3 ? [...rows, l] : rows;
+  joined.set(serial, { rows, l, out });
+  return out;
+};
 
 // Re-ask for the last half hour each time: the newest buckets may have been partial.
 const OVERLAP = 30 * MIN;
@@ -159,23 +184,36 @@ export function runStartOf(rows) {
       return { t: Date.parse(r.timestamp), pct: r.battery_pct, ...(flag ? { after: Date.parse(rows[j - 1].timestamp) } : {}) };
     }
   }
-  return null; // still full, or never fell far enough to call it a run
+  // No drop yet, but it is off the charger now (a device pulled at 100% reads 100% for 10–15
+  // minutes): the run starts at the switch-off, as long as it has stayed off since.
+  let k = rows.length - 1;
+  while (k >= 0 && rows[k].extra?.charging === false) k--;
+  if (k >= 0 && k < rows.length - 1 && rows[k].extra?.charging === true)
+    return { t: Date.parse(rows[k + 1].timestamp), pct: rows[k + 1].battery_pct, after: Date.parse(rows[k].timestamp) };
+  return null; // still on charge, or never fell far enough to call it a run
 }
 
 // The window keeps one reading per 5 minutes, so a switch-off at 10:01:46 first shows at the
 // 10:06 reading. Narrow it down: fetch just that gap at 1-minute spacing and take the first
 // reading off the charger. One small request per device and run, remembered for the session.
-const refined = new Map();
-export const refinedStart = (serial, start) => (start ? refined.get(`${serial}@${start.t}`) || null : null);
+const refined = new Map(), tried = new Map(); // tried: when a lookup last came back empty
+const RETRY_MS = 2 * MIN;
+// Keyed on the last reading still on charge: it stays put while the newest (live) reading moves.
+const rkey = (serial, start) => `${serial}@${start.after ?? start.t}`;
+export const refinedStart = (serial, start) => (start ? refined.get(rkey(serial, start)) || null : null);
 export async function refineStarts(list) {
-  const todo = list.filter(({ serial, start }) => start?.after && !refined.has(`${serial}@${start.t}`));
+  const now = Date.now();
+  const todo = list.filter(({ serial, start }) => start?.after && !refined.has(rkey(serial, start)) && !(now - (tried.get(rkey(serial, start)) || 0) < RETRY_MS));
   await mapLimit(todo, 4, async ({ serial, start }) => {
-    const key = `${serial}@${start.t}`;
+    const key = rkey(serial, start);
     try {
       const rows = normalize(await fetchHistoryRange(serial, start.after, start.t + 60e3, 60));
       const off = rows.find(r => Date.parse(r.timestamp) > start.after && r.extra?.charging === false);
-      refined.set(key, off && Date.parse(off.timestamp) < start.t ? { ...start, t: Date.parse(off.timestamp), pct: off.battery_pct } : start);
-    } catch (e) { /* keep the 5-minute answer; try again on the next page open */ }
+      // the earliest reading off the charger wins; an empty answer (history not written yet) is
+      // asked again after RETRY_MS rather than on every 30 s snapshot
+      if (off) refined.set(key, Date.parse(off.timestamp) < start.t ? { ...start, t: Date.parse(off.timestamp), pct: off.battery_pct } : start);
+      else tried.set(key, Date.now());
+    } catch (e) { tried.set(key, Date.now()); }
   });
   return todo.length;
 }

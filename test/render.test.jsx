@@ -359,6 +359,11 @@ const mdmCases = []
     // no charging flag at all: falls back to the last reading at the peak
     const bare = rows.map((r) => ({ ...r, extra: {} }))
     want(runStartOf(bare).t === Date.parse(at(10, 10)), 'fallback to the last peak reading')
+    // just unplugged, still at 100%: the run starts at the switch-off, no 2-point drop needed
+    const fresh = [row(9, 50, 100, true), row(9, 55, 100, true), row(10, 0, 100, true), row(10, 1, 100, false), row(10, 3, 100, false)]
+    const f = runStartOf(fresh)
+    want(f && f.t === Date.parse(at(10, 1)) && f.after === Date.parse(at(10, 0)), 'switch-off without a drop')
+    want(runStartOf(fresh.slice(0, 3)) === null, 'still on charge: no run')
   })
   check('the Cycles drop-down lists each bench cycle with its devices', () => {
     const at = (d, hh) => Date.UTC(2026, 9, d, hh)

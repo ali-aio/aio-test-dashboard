@@ -231,7 +231,9 @@ export default function TodayView({ fleet }) {
         {/* wireless charging: devices whose pad is active now (a load placed on it), from the
             latest check-in; the drop-down lists every device, active ones first and highlighted */}
         {(() => {
-          const rows = DEV.map(d => {
+          // the cycle's devices only: one taken out of it leaves this count too
+      const inCycle = new Set(T.serials)
+      const rows = (T.serials.length ? DEV.filter(d => inCycle.has(d.serial)) : DEV).map(d => {
             const e = typeof d.snap?.extra === 'string' ? (() => { try { return JSON.parse(d.snap.extra) } catch (x) { return {} } })() : (d.snap?.extra || {})
             // wlc_status 1/2 = a load placed and being charged (seen during WLC on Load);
             // wlc_charging alone = the pad switched on, nothing on it

@@ -349,6 +349,11 @@ const mdmCases = []
     want(log.length === 1, 'not raised twice')
     log = mergeAlerts(log, { ...f, odd: [] }, now + 60e3)
     want(log[0].resolvedAt === now + 60e3, 'resolved when it falls back in line')
+    // the next cycle clears the last one's; with no cycle running, the next day does
+    const next = { ...f, cyc: { ...f.cyc, startMs: f.cyc.startMs + 6 * 3600e3, decl: { ...f.cyc.decl, id: 'D-next' } }, odd: [] }
+    want(mergeAlerts(log, next, now + 6 * 3600e3).length === 0, 'next cycle clears the previous one\'s')
+    want(mergeAlerts(log, null, now + 60e3).length === 1, 'kept for the rest of the day with no cycle running')
+    want(mergeAlerts(log, null, now + 2 * 86400e3).length === 0, 'gone the next day')
   })
   check('off charger = when charging went off, not the last 100% reading', () => {
     const at = (h, m) => new Date(Date.UTC(2026, 9, 12, h, m)).toISOString()

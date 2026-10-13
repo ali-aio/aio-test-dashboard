@@ -39,6 +39,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   // A device clicked in the Every cycle table narrows the charts and tiles above to it (as
   // on Today); the table keeps every device so another can be picked, and Show all restores.
   const [focus, setFocus] = useState(null)
+  const [tableQ, setTableQ] = useState('') // search inside the Every cycle table
   // one bench cycle picked from the Cycles tile: charts, tiles and the table show only its runs
   const [bench, setBench] = useState(initialBench)
   const chartsRef = useRef(null)
@@ -589,7 +590,9 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           this is that device's history for the test: which days it ran and how each went. */}
       <Card expandable title={tableSerials.length === 1 ? `Every cycle on ${tableSerials[0]}` : 'Every cycle'}
         sub={`${cyclesText(inBench)} on ${fmtInt(new Set(inBench.map((c) => c.date)).size)} days`
-          + `${tableSerials.length === 1 ? '' : ` across ${fmtInt(tableSerials.length)} devices`} · newest first · click a device to show only it in the charts above · click a heading to sort · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded`}>
+          + `${tableSerials.length === 1 ? '' : ` across ${fmtInt(tableSerials.length)} devices`} · newest first · click a device to show only it in the charts above · click a heading to sort · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded`}
+        right={<input className="control" type="search" placeholder="Search… (e.g. 044, v2.1.030, 12 Oct)" value={tableQ}
+          onChange={(e) => setTableQ(e.target.value)} style={{ width: 250 }} aria-label="Search the Every cycle table" />}>
         <div className="table-wrap" style={{ maxHeight: 460 }}>
           <SortTable caption={`Every ${testType} cycle`} head={[
             ...(tableSerials.length === 1 ? [] : [{ label: 'Device', style: { textAlign: 'left' } }]), { label: 'Date' }, { label: 'Started' }, { label: 'Ended' },
@@ -597,7 +600,10 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             { label: isCharging ? 'Charge rate' : 'Drain' }, { label: 'Peak temp' }, { label: 'Battery cycles' },
             { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'Wireless pad', style: { textAlign: 'left' } }] : []),
           ]}>
-            {[...inBench].sort((a, b) => b.start - a.start).map((c) => (
+            {/* the search matches the serial, the firmware or the date as shown */}
+            {[...inBench].filter((c) => { const q = tableQ.trim().toLowerCase(); return !q
+              || [c.serial, c.firmware, c.date ? fmtDate(c.date) : ''].some((v) => String(v ?? '').toLowerCase().includes(q)) })
+              .sort((a, b) => b.start - a.start).map((c) => (
               <tr key={c.id} className={tableSerials.length > 1 ? `row-link${focus === c.serial ? ' is-selected' : ''}` : undefined}
                 onClick={tableSerials.length > 1 ? () => pickDevice(c.serial) : undefined}>
                 {tableSerials.length !== 1 && <td style={{ textAlign: 'left' }}><button type="button" className="link-btn plain-link mono" onClick={(e) => { e.stopPropagation(); pickDevice(c.serial) }}>{fmtSerial(c.serial)}</button></td>}

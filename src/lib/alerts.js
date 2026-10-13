@@ -89,9 +89,13 @@ export function findOddOnes(decls, DEV, now = Date.now()) {
 }
 
 /** Fold what is odd now into the log: new ones are added unread, ones that stopped are
- *  marked resolved (and stay listed until read or old). Pure — returns a new log. */
+ *  marked resolved. Only the current cycle's are kept: while a cycle runs, anything from an
+ *  earlier cycle is dropped; with none running, today's stay until the day is over (a cycle
+ *  that runs past midnight keeps its own until it ends). Pure — returns a new log. */
 export function mergeAlerts(log, found, now = Date.now()) {
-  const out = log.filter(a => now - a.at < KEEP_MS && a.title).map(a => ({ ...a }));
+  const d = new Date(now), today = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const keepFrom = found ? found.cyc.startMs : today;
+  const out = log.filter(a => a.title && now - a.at < KEEP_MS && a.cycleStart >= keepFrom).map(a => ({ ...a }));
   const cur = new Set();
   if (found && found.odd.length) {
     const test = testType(found.cyc.decl.testType)?.name || 'the cycle';

@@ -144,7 +144,7 @@ oversight; don't add restaurant filtering back in without being asked.
   (`cycleAt`), a device is raised when it is one of the few (1–2, or up to a fifth: `oddLimit`) that differ
   from the rest — on charge / on battery, wireless load (`wlc_status`), pad on/off (`wlc_charging`), not
   reporting, battery ≥ 15 points from the median, ≥ 8 °C hotter. Re-checked on every 30 s snapshot, so it
-  works on every screen. The log, with read state, is per browser (localStorage `alertsLog`, 3 days).
+  works on every screen. The log, with read state, is per browser (localStorage `alertsLog`) and holds only the current cycle's: the next cycle (or, with none running, the next day) clears it.
   Clicking one opens Today.
 - **What "cycles" counts** (`src/lib/splitCycles.js`): a cycle is one bench run of a test — devices that
   start the same test within `CYCLE_GAP_H` (3 h) are ONE cycle (`countCycles`/`cyclesText`), so 17

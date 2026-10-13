@@ -2100,3 +2100,11 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 .rp-date { font-size: 12.5px; padding: 5px 8px; }
 .rp-summary { font-size: 12px; margin: 8px 2px 6px; }
 .rp-foot { padding-top: 8px; }
+.out-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Cycle plan: the side column's last card stretches to the calendar's bottom edge, so the two
+   columns always end on one line whatever the picked day holds */
+@media (min-width: 1201px) {
+  .cols-plan { align-items: stretch; }
+  .cols-plan > .view-stack { display: flex; flex-direction: column; }
+  .cols-plan > .view-stack > .card:last-child { flex: 1; }
+}

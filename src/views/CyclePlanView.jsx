@@ -182,7 +182,9 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
                       <span><Chip r={{ tt: testType(c.decl.testType), status: S.status }} /> {testType(c.decl.testType)?.name}</span>
                       <span className="mono">{fmtW(c)}</span>
                       {(c.decl.removed || []).length > 0 && <div className="cyc-out">
-                        {c.decl.removed.map(r => <div key={r.serial}><span className="mono">{r.serial}</span> taken out {dayKey(r.at) === c.key ? hm(r.at) : `${dayLabel(dayKey(r.at)).split(',')[0]} ${hm(r.at)}`} — {r.reason}{r.note ? `: ${r.note}` : ''}{r.by ? ` (${r.by})` : ''}</div>)}
+                        {/* one short line each; the full record is on hover */}
+                        {c.decl.removed.map(r => <div key={r.serial} className="out-line" title={`${r.serial} taken out ${dayKey(r.at) === c.key ? hm(r.at) : `${dayLabel(dayKey(r.at)).split(',')[0]} ${hm(r.at)}`} — ${r.reason}${r.note ? `: ${r.note}` : ''}${r.by ? ` (${r.by})` : ''}`}>
+                          <span className="mono">{r.serial.slice(-3)}</span> out {dayKey(r.at) === c.key ? hm(r.at) : `${dayLabel(dayKey(r.at)).split(',')[0]} ${hm(r.at)}`} · {r.reason === 'Other' ? r.note : r.reason}{r.by ? ` (${r.by})` : ''}</div>)}
                       </div>}
                       {/* a plan covering several days (or repeating weekly) is edited on the day it was set,
                           so Edit / Delete here would silently change the other days too */}
@@ -202,9 +204,9 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
                     <dt>Cycles</dt><dd className="mono">{selRan.length ? amountOn(sel) : '—'}</dd>
                   </dl>
                   <div className="acts">
-                    <button className="btn btn-primary" onClick={() => openForm(null)}>
+                    <button className="btn btn-primary" onClick={() => openForm(null)}
+                      title={(own.length || carried.length) ? (nextCycleTimes(decls, sel).fromLast ? `Starts ${nextCycleTimes(decls, sel).startTime}, where the last one ends` : 'Pick its start and end in the form') : undefined}>
                       {own.length || carried.length ? '+ Start next cycle' : '+ Set a test for this day'}</button>
-                    {(own.length || carried.length) ? <span className="secondary" style={{ fontSize: 12 }}>{nextCycleTimes(decls, sel).fromLast ? `starts ${nextCycleTimes(decls, sel).startTime}, where the last one ends` : 'pick its start and end in the form'}</span> : null}
                   </div>
                 </>
               })()}
@@ -371,7 +373,7 @@ function MonthSummary({ ym, counts, inMonth }) {
         <dl className="kv" style={{ marginTop: 12 }}>
           <dt>◆ Planned</dt><dd>{counts.declared || 0}</dd>
           <dt>● Planned &amp; ran</dt><dd style={{ color: 'var(--status-good)' }}>{counts.confirmed || 0}</dd>
-          <dt>▨ Ran, no test set</dt><dd style={{ color: counts.inferred ? 'var(--status-warning)' : 'inherit' }}>{counts.inferred || 0}</dd>
+          <dt title="The devices ran but nobody said which test — open that day and set its test to turn it into “Planned & ran”.">▨ Ran, no test set</dt><dd style={{ color: counts.inferred ? 'var(--status-warning)' : 'inherit' }}>{counts.inferred || 0}</dd>
           <dt>○ No test, no cycle</dt><dd>{counts.unclassified || 0}</dd>
         </dl>
         {upcoming.length ? (
@@ -386,7 +388,6 @@ function MonthSummary({ ym, counts, inMonth }) {
             })}
           </div>
         ) : null}
-        <div className="help">“Ran, no test set” means the devices ran but nobody said which test — open that day and set its test to turn it into “Planned & ran”.</div>
       </div>
     </div>
   )

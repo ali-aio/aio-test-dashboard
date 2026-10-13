@@ -18,6 +18,7 @@ import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
 import { findOddOnes, mergeAlerts } from '../src/lib/alerts.js'
 import { runStartOf } from '../src/lib/window.js'
+import { takeOutReasons } from '../src/lib/plan.js'
 import RangePicker from '../src/components/RangePicker.jsx'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
@@ -365,6 +366,12 @@ const mdmCases = []
     const f = runStartOf(fresh)
     want(f && f.t === Date.parse(at(10, 0)) && f.firstOff === Date.parse(at(10, 1)), 'switch-off without a drop')
     want(runStartOf(fresh.slice(0, 3)) === null, 'still on charge: no run')
+  })
+  check('take-out reasons: a reason typed under Other is offered next time', () => {
+    const decls = [{ removed: [{ serial: 'A', at: 1, reason: 'Other', note: 'testing v2.1.031' }, { serial: 'B', at: 2, reason: 'Thermal soak' }, { serial: 'C', at: 3, reason: 'Hardware fault' }] }]
+    const r = takeOutReasons(decls)
+    want(r[0] === 'Taken for testing' && r.includes('testing v2.1.031') && r.includes('Thermal soak') && r[r.length - 1] === 'Other'
+      && r.filter((x) => x === 'Hardware fault').length === 1, r.join(' | '))
   })
   check('the Cycles drop-down lists each bench cycle with its devices', () => {
     const at = (d, hh) => Date.UTC(2026, 9, d, hh)

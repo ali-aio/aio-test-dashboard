@@ -226,9 +226,20 @@ export function overlapsOn(decls, key, DEV, extra = null) {
 // on record. Kept on the declaration ({ serial, at, reason, note, by }), so the plan
 // remembers who left, when and why; "put back" removes the record.
 export const TAKE_OUT_REASONS = [
-  'Taken for a demo / customer', 'Taken for debugging', 'Hardware fault', 'Firmware update / reflash',
+  'Taken for testing', 'Taken for debugging', 'Hardware fault', 'Firmware update / reflash',
   'Battery or charger swap', 'Other',
 ];
+/** The reasons offered when taking a device out: the fixed ones, then every reason typed under
+ *  "Other" before (newest first), read from the shared plan so the whole lab gets them. */
+export function takeOutReasons(decls) {
+  const seen = new Set(TAKE_OUT_REASONS), own = [];
+  const all = decls.flatMap(d => d.removed || []).sort((a, b) => b.at - a.at);
+  for (const r of all) {
+    const text = (r.reason === 'Other' ? r.note : r.reason || '').trim();
+    if (text && !seen.has(text)) { seen.add(text); own.push(text); }
+  }
+  return [...TAKE_OUT_REASONS.slice(0, -1), ...own, 'Other'];
+}
 export const removedFrom = (decl, t = Infinity) => (decl?.removed || []).filter(r => r.at <= t);
 /** Devices taken out of the planned cycle a run that started at `start` belongs to, oldest
  *  first — only those taken out while that cycle ran (a repeating plan keeps every day's). */

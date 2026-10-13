@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } fro
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, refineStarts, refinedStart, drainSince, WINDOW_HOURS } from '../lib/window.js'
-import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, loadDecls, loadRota } from '../lib/plan.js'
+import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, takeOutReasons, loadDecls, loadRota } from '../lib/plan.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
 import { median, pctl, hm, dt, ago, MIN, H } from '../lib/format.js'
@@ -467,9 +467,11 @@ function DevicePicker({ serials, picked, colorOf, styleOf, drifting, onToggle, o
 
 
 // Taking one device out of the running cycle: a reason from a short list, an optional
-// note and name. Saved on the cycle with the time, so the record says who left and why.
+// note and name. Saved on the cycle with the time, so the record says who left and why. A
+// reason typed under "Other" is saved as that reason, and offered in the list from then on.
 function TakeOutForm({ serial, cycle, onSave, onCancel }) {
-  const [reason, setReason] = useState(TAKE_OUT_REASONS[0])
+  const reasons = useMemo(() => takeOutReasons(DECLS()), [])
+  const [reason, setReason] = useState(reasons[0])
   const [note, setNote] = useState('')
   const [by, setBy] = useState(() => { try { return localStorage.getItem('declaredBy') || '' } catch (e) { return '' } })
   const needNote = reason === 'Other' && !note.trim()
@@ -480,16 +482,16 @@ function TakeOutForm({ serial, cycle, onSave, onCancel }) {
       <div className="takeout-grid">
         <label className="field"><span>Reason</span>
           <span className="ver" style={{ display: 'block' }}><select value={reason} onChange={e => setReason(e.target.value)} style={{ width: '100%' }}>
-            {TAKE_OUT_REASONS.map(r => <option key={r}>{r}</option>)}</select></span></label>
-        <label className="field"><span>Note {reason === 'Other' ? '(required)' : '(optional)'}</span>
-          <input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. taken by Sam for the customer demo" /></label>
+            {reasons.map(r => <option key={r}>{r}</option>)}</select></span></label>
+        <label className="field"><span>{reason === 'Other' ? 'Reason (required, kept for next time)' : 'Note (optional)'}</span>
+          <input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder={reason === 'Other' ? 'e.g. testing v2.1.031' : 'e.g. taken by Sam for the customer demo'} /></label>
         <label className="field"><span>Taken out by</span>
           <input className="input" value={by} onChange={e => setBy(e.target.value)} placeholder="optional" /></label>
       </div>
       <div className="form-actions">
         <button className="btn" onClick={onCancel}>Cancel</button>
         <button className="btn btn-primary" disabled={needNote} title={needNote ? 'Add a note for "Other"' : undefined}
-          onClick={() => { try { localStorage.setItem('declaredBy', by) } catch (e) {} onSave({ reason, note: note.trim(), by: by.trim() }) }}>Take out</button>
+          onClick={() => { try { localStorage.setItem('declaredBy', by) } catch (e) {} onSave(reason === 'Other' ? { reason: note.trim(), note: '', by: by.trim() } : { reason, note: note.trim(), by: by.trim() }) }}>Take out</button>
       </div>
     </div>
   )

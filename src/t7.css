@@ -2084,3 +2084,19 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 .hdr-reload { display: inline-flex; align-items: center; gap: 5px; }
 .pick-bar .pick-out { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; font-size: 12px; color: var(--text-secondary); }
 .pick-bar .pick-out b { color: var(--text-primary); font-weight: 600; }
+
+/* Test date picker, compact: presets, then the calendar OR the list of test dates (toggle) */
+.rp-popover { width: min(300px, calc(100vw - 32px)); padding: 10px; }
+.rp-body { display: block; }
+.rp-head { margin-bottom: 8px; }
+.rp-toggle button { padding: 3px 10px; min-height: 24px; font-size: 12px; }
+.rp-presets { gap: 4px; margin-bottom: 8px; }
+.rp-preset { font-size: 12px; padding: 5px 4px; }
+.rp-nav strong { font-size: 13px; }
+.rp-nav button { width: 24px; height: 22px; }
+.rp-dow { font-size: 10.5px; padding: 2px 0; }
+.rp-day { height: 28px; font-size: 12.5px; }
+.rp-list { border-left: 0; padding-left: 0; max-height: 236px; }
+.rp-date { font-size: 12.5px; padding: 5px 8px; }
+.rp-summary { font-size: 12px; margin: 8px 2px 6px; }
+.rp-foot { padding-top: 8px; }

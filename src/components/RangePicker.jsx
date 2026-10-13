@@ -18,6 +18,9 @@ export default function RangePicker({ value, onChange, daysWithRuns = new Map() 
   const live = resolve(value)
   const [cursor, setCursor] = useState(() => { const d = new Date(live?.to ?? Date.now()); return { y: d.getFullYear(), m: d.getMonth() } })
   const [draft, setDraft] = useState(null) // { a, b } day starts while picking a span
+  // calendar or the list of test dates, one at a time; the last choice is remembered
+  const [pane, setPaneState] = useState(() => { try { return localStorage.getItem('rpPane') || 'calendar' } catch (e) { return 'calendar' } })
+  const setPane = (v) => { setPaneState(v); try { localStorage.setItem('rpPane', v) } catch (e) {} }
 
   useEffect(() => {
     if (!open) return
@@ -63,7 +66,10 @@ export default function RangePicker({ value, onChange, daysWithRuns = new Map() 
       {open && (
         <div ref={popRef} className="popover rp-popover" role="dialog" aria-label="Choose a date range">
           <div className="rp-head">
-            <span className="rp-title">Custom range</span>
+            <div className="seg rp-toggle" role="group" aria-label="Show">
+              {[['calendar', 'Calendar'], ['list', `List · ${dates.length}`]].map(([id, label]) => (
+                <button key={id} type="button" aria-pressed={pane === id} onClick={() => setPane(id)}>{label}</button>))}
+            </div>
             <button type="button" className="rp-x" aria-label="Close" onClick={() => setOpen(false)}>×</button>
           </div>
           <div className="rp-presets">
@@ -72,7 +78,7 @@ export default function RangePicker({ value, onChange, daysWithRuns = new Map() 
                 onClick={() => pickPreset(p.id)}>{p.label}</button>
             ))}
           </div>
-          <div className="rp-body"><div className="rp-cal">
+          <div className="rp-body">{pane === 'calendar' ? <div className="rp-cal">
           <div className="rp-nav">
             <button type="button" aria-label="Previous month" onClick={() => move(-1)}>‹</button>
             <strong>{MONTHS[cursor.m]} {cursor.y}</strong>
@@ -91,9 +97,8 @@ export default function RangePicker({ value, onChange, daysWithRuns = new Map() 
               )
             })}
           </div>
-          </div>
+          </div> :
           <div className="rp-list" role="listbox" aria-label="Test dates">
-            <div className="rp-list-head">Test dates <span className="muted">{dates.length}</span></div>
             {dates.length ? dates.map(([t, n]) => (
               <button key={t} type="button" role="option" aria-selected={!!dateOn(t)}
                 className={`rp-date${dateOn(t) ? ' is-on' : ''}`} onClick={(e) => pickDate(t, e)}
@@ -102,7 +107,7 @@ export default function RangePicker({ value, onChange, daysWithRuns = new Map() 
                 <span className="rp-date-n">{n} cycle{n === 1 ? '' : 's'}</span>
               </button>
             )) : <div className="muted rp-list-empty">No cycles yet</div>}
-          </div></div>
+          </div>}</div>
           <div className="rp-summary">{span ? `${fmt(span.from)} to ${fmt(span.to)}` : 'Pick a start day, then an end day'}</div>
           <div className="rp-foot">
             <button type="button" className="btn btn-sm" onClick={() => { onChange(null); setOpen(false) }} disabled={!value}>All dates</button>

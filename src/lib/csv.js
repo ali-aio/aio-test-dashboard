@@ -122,6 +122,34 @@ export function cyclesCsv(cycles, chosen) {
   return lines.join('\r\n') + '\r\n'
 }
 
+/** CSV text for the test page's Every cycle table: its rows as shown (already filtered and in
+ *  table order), its columns, times as full local date + time. */
+export function cycleTableCsv(cycles, { charging = false, pad = false } = {}) {
+  const cols = [
+    ['Device', (c) => c.serial],
+    ['Test', (c) => c.testType ?? ''],
+    ['Date', (c) => c.date ?? ''],
+    ['Started (local)', (c) => local(c.start)],
+    ['Ended (local)', (c) => (c.inProgress ? 'running' : local(c.end))],
+    ['Cycle time (h)', (c) => num(c.duration, 2)],
+    ['Start battery %', (c) => num(c.startBattery)],
+    [charging ? 'Charged to %' : 'End battery %', (c) => num(c.endBattery)],
+    [charging ? 'Charge rate %/h' : 'Drain %/h', (c) => num(c.dropPerHr == null ? null : Math.abs(c.dropPerHr), 2)],
+    ['Peak temp °C', (c) => num(c.maxTemp, 1)],
+    ...CYCLE_COLUMNS.filter((c) => c.key === 'batteryCycles' || c.key === 'cyclesSource').map((c) => [c.label, c.get]),
+    ['Firmware', (c) => c.firmware ?? ''],
+    ...(pad ? [['Wireless pad', (c) => c.padState ?? '']] : []),
+  ]
+  return [csvLine(cols.map((c) => c[0])), ...cycles.map((c) => csvLine(cols.map((col) => col[1](c))))].join('\r\n') + '\r\n'
+}
+
+/** Save CSV text as a file (browser only); the BOM makes Excel read it as UTF-8. */
+export function downloadCsv(text, name) {
+  const url = URL.createObjectURL(new Blob(['\ufeff' + text], { type: 'text/csv;charset=utf-8' }))
+  const a = Object.assign(document.createElement('a'), { href: url, download: name })
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000)
+}
+
 /** Rough row count for a readings export, to warn before a huge one. */
 export const estimateRows = (devices, fromMs, toMs, intervalSec) => Math.max(0, Math.round(devices * (toMs - fromMs) / (intervalSec * 1000)))
 

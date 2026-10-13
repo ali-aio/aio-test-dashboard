@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadDecls, takenOutOf, takenOutText } from '../lib/plan.js'
 import { CTX } from '../lib/adapt.js'
+import { cycleTableCsv, downloadCsv } from '../lib/csv.js'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
 import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING } from '../lib/testtypes.js'
@@ -257,6 +258,17 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   }) : []
 
   const serialsHere = [...new Set(cycles.map((c) => c.serial))]
+
+  // the Every cycle table's rows as shown: the search matches the serial, the firmware or the date
+  const tableRows = [...inBench].filter((c) => { const q = tableQ.trim().toLowerCase(); return !q
+    || [c.serial, c.firmware, c.date ? fmtDate(c.date) : ''].some((v) => String(v ?? '').toLowerCase().includes(q)) })
+    .sort((a, b) => b.start - a.start)
+  const exportTable = () => {
+    const d = new Date(benchSel ? benchSel.start : Date.now()), p = (n) => String(n).padStart(2, '0')
+    const when = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}${benchSel ? `_${p(d.getHours())}${p(d.getMinutes())}` : ''}`
+    const name = `aio-${String(testType).replace(/[^\w-]+/g, '-')}_${benchSel ? 'cycle' : 'all-cycles'}_${when}${focus ? `_${focus}` : ''}.csv`
+    downloadCsv(cycleTableCsv(tableRows, { charging: isCharging, pad: isField }), name)
+  }
 
   return (
     <div className="view-stack">
@@ -591,8 +603,14 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
       <Card expandable title={tableSerials.length === 1 ? `Every cycle on ${tableSerials[0]}` : 'Every cycle'}
         sub={`${cyclesText(inBench)} on ${fmtInt(new Set(inBench.map((c) => c.date)).size)} days`
           + `${tableSerials.length === 1 ? '' : ` across ${fmtInt(tableSerials.length)} devices`} · newest first · click a device to show only it in the charts above · click a heading to sort · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded`}
-        right={<input className="control" type="search" placeholder="Search… (e.g. 044, v2.1.030, 12 Oct)" value={tableQ}
-          onChange={(e) => setTableQ(e.target.value)} style={{ width: 250 }} aria-label="Search the Every cycle table" />}>
+        right={<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input className="control" type="search" placeholder="Search… (e.g. 044, v2.1.030, 12 Oct)" value={tableQ}
+            onChange={(e) => setTableQ(e.target.value)} style={{ width: 250 }} aria-label="Search the Every cycle table" />
+          <button type="button" className="btn btn-sm" disabled={!tableRows.length} onClick={exportTable}
+            title={`Download these ${tableRows.length} rows as a CSV file (the search applies)`}>
+            <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 12.8h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            {' '}Export CSV</button>
+        </div>}>
         <div className="table-wrap" style={{ maxHeight: 460 }}>
           <SortTable caption={`Every ${testType} cycle`} head={[
             ...(tableSerials.length === 1 ? [] : [{ label: 'Device', style: { textAlign: 'left' } }]), { label: 'Date' }, { label: 'Started' }, { label: 'Ended' },
@@ -601,9 +619,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'Wireless pad', style: { textAlign: 'left' } }] : []),
           ]}>
             {/* the search matches the serial, the firmware or the date as shown */}
-            {[...inBench].filter((c) => { const q = tableQ.trim().toLowerCase(); return !q
-              || [c.serial, c.firmware, c.date ? fmtDate(c.date) : ''].some((v) => String(v ?? '').toLowerCase().includes(q)) })
-              .sort((a, b) => b.start - a.start).map((c) => (
+            {tableRows.map((c) => (
               <tr key={c.id} className={tableSerials.length > 1 ? `row-link${focus === c.serial ? ' is-selected' : ''}` : undefined}
                 onClick={tableSerials.length > 1 ? () => pickDevice(c.serial) : undefined}>
                 {tableSerials.length !== 1 && <td style={{ textAlign: 'left' }}><button type="button" className="link-btn plain-link mono" onClick={(e) => { e.stopPropagation(); pickDevice(c.serial) }}>{fmtSerial(c.serial)}</button></td>}

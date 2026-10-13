@@ -123,14 +123,17 @@ export function cyclesCsv(cycles, chosen) {
 }
 
 /** CSV text for the test page's Every cycle table: its rows as shown (already filtered and in
- *  table order), its columns, times as full local date + time. */
+ *  table order), its columns; times local, HH:MM. */
 export function cycleTableCsv(cycles, { charging = false, pad = false } = {}) {
   const cols = [
     ['Device', (c) => c.serial],
     ['Test', (c) => c.testType ?? ''],
     ['Date', (c) => c.date ?? ''],
-    ['Started (local)', (c) => local(c.start)],
-    ['Ended (local)', (c) => (c.inProgress ? 'running' : local(c.end))],
+    // date and time in separate short columns: a CSV cannot set column widths, and Excel shows
+    // a full date + time as ##### in its default width
+    ['Started', (c) => local(c.start).slice(11, 16)],
+    ['Ended date', (c) => (c.inProgress ? '' : local(c.end).slice(0, 10))],
+    ['Ended', (c) => (c.inProgress ? 'running' : local(c.end).slice(11, 16))],
     ['Cycle time (h)', (c) => num(c.duration, 2)],
     ['Start battery %', (c) => num(c.startBattery)],
     [charging ? 'Charged to %' : 'End battery %', (c) => num(c.endBattery)],

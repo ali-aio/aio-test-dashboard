@@ -327,7 +327,8 @@ const mdmCases = []
     want(countCycles([{ testType: 'A', start: at(8, 10) }, { testType: 'B', start: at(8, 10) }]) === 2, 'two tests at once are two cycles')
   })
   check('bell: one or two devices that differ from the rest of the running cycle', () => {
-    const now = Date.now(), d = new Date(now), key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    // noon today: a window of now ± 1 h must not cross midnight (the test failed after 23:00 and before 01:00)
+    const d = new Date(), now = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12).getTime(), key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     const hhmm = (t) => { const x = new Date(t); return `${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}` }
     const decl = { id: 'D-T', at: 1, repeat: 'none', testType: 'restaurant', from: key, to: key, group: { kind: 'all' }, startTime: hhmm(now - 60 * 60e3), endTime: hhmm(Math.min(now + 60 * 60e3, new Date(key + 'T23:59').getTime())) }
     const dev = (sn, o = {}) => ({ serial: sn, snap: { last_seen_at: new Date(now - (o.silent ? 3600e3 : 30e3)).toISOString(), charging: !!o.charging,

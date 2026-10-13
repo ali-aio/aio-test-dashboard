@@ -530,7 +530,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                   : 'Mean battery change per hour window'}
             tableColumns={[
               { key: 'window', label: 'Hour' },
-              { key: 'n', label: 'Cycles' },
+              // pad on / pad off already carry their own counts, which add up to this
+              ...(isRestaurant ? [] : [{ key: 'n', label: 'Cycles' }]),
               ...(isRestaurant ? [
                 { key: 'wireless', label: 'Pad on (wireless charging)' },
                 { key: 'withoutWireless', label: 'Pad off' },

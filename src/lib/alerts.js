@@ -9,7 +9,6 @@
 // The log (what was raised, when, whether it was read) is per browser, in localStorage:
 // "read" is one person's state, not the lab's.
 import { cycleAt, activeSerials, testType, loadDecls } from './plan.js';
-import { online } from './device.js';
 
 const KEY = 'alertsLog';
 const KEEP_MS = 3 * 86400e3, MAX = 80;
@@ -37,6 +36,9 @@ export const FEATURES = [
     say: v => (v ? 'wireless pad on' : 'wireless pad off') },
 ];
 
+// reporting = checked in within 15 min of `now` (like device.js, but at the time asked about)
+const onlineAt = (d, now) => !!d.snap && now - Date.parse(d.snap.last_seen_at) < 15 * 60e3;
+
 const median = xs => { const a = [...xs].sort((x, y) => x - y), m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
 
 /** Every device of the cycle running now that differs from the rest. */
@@ -45,7 +47,7 @@ export function findOddOnes(decls, DEV, now = Date.now()) {
   if (!cyc || now < cyc.startMs) return null; // not started yet (cycleAt also returns one about to start)
   const serials = new Set(activeSerials(cyc.decl, DEV, now));
   const mine = DEV.filter(d => serials.has(d.serial) && d.snap);
-  const live = mine.filter(online);
+  const live = mine.filter(d => onlineAt(d, now));
   const out = [], n = live.length;
   if (n < MIN_DEVICES) return { cyc, live: n, odd: out };
 
@@ -60,7 +62,7 @@ export function findOddOnes(decls, DEV, now = Date.now()) {
   }
 
   // silent while the rest report
-  const silent = mine.filter(d => !online(d));
+  const silent = mine.filter(d => !onlineAt(d, now));
   if (silent.length && silent.length <= oddLimit(mine.length)) for (const d of silent) {
     const mins = Math.round((now - Date.parse(d.snap.last_seen_at)) / 60e3);
     out.push({ serial: d.serial, kind: 'silent', title: 'stopped reporting',

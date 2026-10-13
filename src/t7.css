@@ -2116,3 +2116,6 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
   .cols-plan > .view-stack { display: flex; flex-direction: column; }
   .cols-plan > .view-stack > .card:last-child { flex: 1; }
 }
+
+/* a card's table in full screen fills the window instead of keeping its in-page height limit */
+.card.is-fullscreen .table-wrap { max-height: calc(100vh - 140px) !important; }

@@ -33,14 +33,15 @@ const DEVICE_VIEWS = [
   { id: 'all', label: 'Every cycle' },
 ]
 
-export default function TestDetailView({ cycles: allCycles, testType, allSerials, lifetime = null }) {
+export default function TestDetailView({ cycles: allCycles, testType, allSerials, lifetime = null, initialBench = null }) {
   // A device clicked in the Every cycle table narrows the charts and tiles above to it (as
   // on Today); the table keeps every device so another can be picked, and Show all restores.
   const [focus, setFocus] = useState(null)
   // one bench cycle picked from the Cycles tile: charts, tiles and the table show only its runs
-  const [bench, setBench] = useState(null)
+  const [bench, setBench] = useState(initialBench)
   const chartsRef = useRef(null)
-  useEffect(() => { setFocus(null); setBench(null) }, [testType])
+  // a new test (or a cycle opened from the Cycle plan's list) starts from that cycle, else all
+  useEffect(() => { setFocus(null); setBench(initialBench) }, [testType, initialBench])
   const benches = useMemo(() => benchCycles(allCycles), [allCycles])
   const benchSel = bench ? benches.find((b) => b.key === bench) : null
   const inBench = useMemo(() => (benchSel ? benchSel.list : allCycles), [allCycles, benchSel])

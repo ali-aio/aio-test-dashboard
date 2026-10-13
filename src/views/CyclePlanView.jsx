@@ -6,7 +6,8 @@ import {
   resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, windowOn, cyclesOn, carriedInto, nextCycleTimes, overlapsOn, addDays, daysBetween, WEEKDAYS, monthLabel, dayLabel,
 } from '../lib/plan.js'
 import { GROUP } from '../lib/fleet.js'
-import { splitText } from '../lib/splitCycles.js'
+import { splitText, benchCycles } from '../lib/splitCycles.js'
+import { FIELD_TEST_TYPES } from '../lib/testtypes.js'
 import { mdmCyclesFor } from '../lib/mdmTrack.js'
 import { TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur, rt } from '../lib/cycles.js'
@@ -15,7 +16,7 @@ import { hm, day } from '../lib/format.js'
 // This screen IS the test-type column. Declare a date window, a device group and a test
 // type, and every MDM row inside that window is stamped with it. See src/lib/plan.js for
 // the resolution order (declaration > weekly rota > inferred > unclassified).
-export default function CyclePlanView({ fleet }) {
+export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
   const { DEV, allCycles } = fleet
   const [decls, setDecls] = useState(() => loadDecls(GROUP))
   const [rota, setRota] = useState(() => loadRota(GROUP))
@@ -211,6 +212,52 @@ export default function CyclePlanView({ fleet }) {
           </div>}
 
         </div>
+      </div>
+      <AllCycles cycles={cycles} onOpen={onOpenCycle} />
+    </div>
+  )
+}
+
+// Every cycle the plan has produced, newest first: one row per bench cycle (devices starting
+// the same test within 3 h, as everywhere else). A click opens the test with that cycle picked.
+// Runs no plan claimed ("Old cycles") are left out — they are not cycles of a planned test.
+function AllCycles({ cycles, onOpen }) {
+  const rows = useMemo(() => benchCycles(cycles.filter((c) => !FIELD_TEST_TYPES.has(c.testType))).reverse().map((b) => {
+    const avg = (xs) => { const v = xs.filter((x) => x != null && Number.isFinite(x)); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null }
+    const temps = b.list.map((c) => c.maxTemp).filter((x) => x != null)
+    return { b, devices: new Set(b.list.map((c) => c.serial)).size,
+      start: Math.min(...b.list.map((c) => c.start)), end: Math.max(...b.list.map((c) => c.end ?? c.start)),
+      running: b.list.some((c) => c.inProgress),
+      bStart: avg(b.list.map((c) => c.startBattery)), bEnd: avg(b.list.map((c) => c.endBattery)),
+      peak: temps.length ? Math.max(...temps) : null }
+  }), [cycles])
+  const date = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).replace('Sept', 'Sep')
+  const endText = (r) => r.running ? 'running' : dayKey(r.end) === dayKey(r.start) ? hm(r.end)
+    : `${new Date(r.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).replace('Sept', 'Sep')}, ${hm(r.end)}`
+  const pct = (v) => (v == null ? '—' : `${Math.round(v)}%`)
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <div className="card-head"><div><h2>All cycles</h2>
+        <div className="card-sub">{rows.length} cycle{rows.length === 1 ? '' : 's'}, newest first · battery is the average of the cycle's devices · click a row to open that cycle</div></div></div>
+      <div className="card-body">
+        {!rows.length ? <p className="secondary">No planned cycle has run yet.</p> :
+          <div className="table-wrap" style={{ maxHeight: 520 }}>
+            <SortTable caption="All cycles" head={[{ label: 'Date' }, { label: 'Test', style: { textAlign: 'left' } }, { label: 'Devices' }, { label: 'Start' }, { label: 'End' },
+              { label: 'Battery start' }, { label: 'Battery end' }, { label: 'Highest temp' }]}>
+              {rows.map((r) => (
+                <tr key={r.b.key} className="row-link" onClick={() => onOpen?.(r.b.testType, r.b.key)} title={`Open ${r.b.testType}, this cycle`}>
+                  <td>{date(r.start)}</td>
+                  <td style={{ textAlign: 'left' }}>{r.b.testType}</td>
+                  <td>{r.devices}</td>
+                  <td>{hm(r.start)}</td>
+                  <td>{endText(r)}</td>
+                  <td>{pct(r.bStart)}</td>
+                  <td>{pct(r.bEnd)}</td>
+                  <td style={{ color: r.peak != null && r.peak >= TEMP_LIMIT ? 'var(--bad)' : undefined }}>{r.peak != null ? `${r.peak.toFixed(1)} °C` : '—'}</td>
+                </tr>
+              ))}
+            </SortTable>
+          </div>}
       </div>
     </div>
   )

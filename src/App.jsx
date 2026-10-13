@@ -108,7 +108,9 @@ export default function App() {
   const latestDate = useMemo(() => { const d = distinct(cycles, 'date'); return d.length ? d[d.length - 1] : null }, [cycles])
   const resetFilters = () => setFilters(filtersFor(allSerials))
   const applyFilter = patch => setFilters(f => (patch.date ? { ...f, ...patch, date: '', range: isoDayRange(patch.date) } : { ...f, ...patch }))
-  const openTestType = tt => { setFilters(f => ({ ...f, testType: tt })); location.hash = '#/nx' }
+  const [benchPick, setBenchPick] = useState(null) // a cycle opened from the Cycle plan's list
+  const openTestType = tt => { setBenchPick(null); setFilters(f => ({ ...f, testType: tt })); location.hash = '#/nx' }
+  const openCycle = (tt, key) => { setBenchPick(key); setFilters(f => ({ ...f, testType: tt })); location.hash = '#/nx'; window.scrollTo(0, 0) }
   // Summary -> one device's test: that test's full page with only this device selected
   const openDeviceTest = (sn, tt) => { setFilters(f => ({ ...f, serials: [sn], testType: tt })); location.hash = '#/nx'; window.scrollTo(0, 0) }
 
@@ -131,7 +133,7 @@ export default function App() {
     : !ready ? <div className="empty-note">Loading the fleet from the MDM…</div>
     : view === 'device' ? (() => { const sn = decodeURIComponent(hash.slice('#/nx/device/'.length)); return <DeviceView key={sn} serial={sn} d={fleet.DMAP.get(sn)} cycles={cycles} onOpenTest={openDeviceTest} /> })()
     : view === 'today' ? <TodayView fleet={fleet} />
-    : view === 'plan' ? <CyclePlanView fleet={fleet} />
+    : view === 'plan' ? <CyclePlanView fleet={fleet} cycles={cycles} onOpenCycle={openCycle} />
     : (
       <div className="view-stack">
         <FilterBar cycles={inRange} allCycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} declaredTypes={declaredTypes} />
@@ -153,7 +155,7 @@ export default function App() {
         {win.loading && !Object.keys(win.rows || {}).length && <div className="banner"><span aria-hidden="true">●</span>
           <div><span className="spin" /> Reading {Math.round(WINDOW_HOURS / 24)} days of history for {DEV.length} devices — the curve charts fill in as it lands.</div></div>}
         <ErrorBoundary resetKey={`${view}|${JSON.stringify(filters)}`} onReset={resetFilters}>
-          {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} onOpenDevice={openDeviceTest} onOpenDevicePage={sn => { location.hash = `#/nx/device/${encodeURIComponent(sn)}`; window.scrollTo(0, 0) }} snapOf={sn => fleet.DMAP.get(sn)?.snap} testType={filters.testType} allSerials={allSerials} lifetime={lifetime} />}
+          {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} onOpenDevice={openDeviceTest} onOpenDevicePage={sn => { location.hash = `#/nx/device/${encodeURIComponent(sn)}`; window.scrollTo(0, 0) }} snapOf={sn => fleet.DMAP.get(sn)?.snap} testType={filters.testType} allSerials={allSerials} lifetime={lifetime} initialBench={benchPick} />}
           {view === 'comparison' && <ComparisonView cycles={scoped} testType={filters.testType} allSerials={allSerials} />}
           {view === 'thermal' && <ThermalView cycles={scoped} allSerials={allSerials} onFilter={applyFilter} />}
           {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={[]} onEventsChanged={() => {}} onFilter={applyFilter} onOpenTest={openDeviceTest} issues={[]} files={[]} snapOf={sn => fleet.DMAP.get(sn)?.snap} />}
@@ -174,7 +176,7 @@ export default function App() {
               <button key={v.id} role="tab" className="tab" aria-selected={view === v.id}
                 onClick={() => {
                   // Overview always lands on the all-tests overview: an opened test closes
-                  if (v.id === 'overview') setFilters(f => ({ ...f, testType: EMPTY_FILTERS.testType }))
+                  if (v.id === 'overview') { setBenchPick(null); setFilters(f => ({ ...f, testType: EMPTY_FILTERS.testType })) }
                   location.hash = v.hash
                 }}>{v.label}</button>
             ))}

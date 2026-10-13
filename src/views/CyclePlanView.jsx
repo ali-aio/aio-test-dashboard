@@ -3,7 +3,7 @@ import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import {
   TEST_TYPES, testType, ttSlot, loadDecls, saveDecls, loadRota, saveRota, newDecl,
-  resolveDay, STATUS, groupSerials, monthGrid, dayKey, todayKey, timeOn, windowOn, cyclesOn, carriedInto, nextCycleTimes, overlapsOn, addDays, daysBetween, WEEKDAYS, monthLabel, dayLabel,
+  resolveDay, STATUS, groupSerials, takenOutOf, takenOutText, monthGrid, dayKey, todayKey, timeOn, windowOn, cyclesOn, carriedInto, nextCycleTimes, overlapsOn, addDays, daysBetween, WEEKDAYS, monthLabel, dayLabel,
 } from '../lib/plan.js'
 import { GROUP } from '../lib/fleet.js'
 import { splitText, benchCycles } from '../lib/splitCycles.js'
@@ -213,7 +213,7 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
 
         </div>
       </div>
-      <AllCycles cycles={cycles} onOpen={onOpenCycle} />
+      <AllCycles cycles={cycles} decls={decls} onOpen={onOpenCycle} />
     </div>
   )
 }
@@ -221,7 +221,7 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
 // Every cycle the plan has produced, newest first: one row per bench cycle (devices starting
 // the same test within 3 h, as everywhere else). A click opens the test with that cycle picked.
 // Runs no plan claimed ("Old cycles") are left out — they are not cycles of a planned test.
-function AllCycles({ cycles, onOpen }) {
+function AllCycles({ cycles, decls, onOpen }) {
   const rows = useMemo(() => benchCycles(cycles.filter((c) => !FIELD_TEST_TYPES.has(c.testType))).reverse().map((b) => {
     const avg = (xs) => { const v = xs.filter((x) => x != null && Number.isFinite(x)); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null }
     const temps = b.list.map((c) => c.maxTemp).filter((x) => x != null)
@@ -229,8 +229,8 @@ function AllCycles({ cycles, onOpen }) {
       start: Math.min(...b.list.map((c) => c.start)), end: Math.max(...b.list.map((c) => c.end ?? c.start)),
       running: b.list.some((c) => c.inProgress),
       bStart: avg(b.list.map((c) => c.startBattery)), bEnd: avg(b.list.map((c) => c.endBattery)),
-      peak: temps.length ? Math.max(...temps) : null }
-  }), [cycles])
+      peak: temps.length ? Math.max(...temps) : null, out: takenOutOf(decls, b.start) }
+  }), [cycles, decls])
   const date = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).replace('Sept', 'Sep')
   const endText = (r) => r.running ? 'running' : dayKey(r.end) === dayKey(r.start) ? hm(r.end)
     : `${new Date(r.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).replace('Sept', 'Sep')}, ${hm(r.end)}`
@@ -243,7 +243,7 @@ function AllCycles({ cycles, onOpen }) {
         {!rows.length ? <p className="secondary">No planned cycle has run yet.</p> :
           <div className="table-wrap" style={{ maxHeight: 520 }}>
             <SortTable caption="All cycles" head={[{ label: 'Date' }, { label: 'Test', style: { textAlign: 'left' } }, { label: 'Devices' }, { label: 'Start' }, { label: 'End' },
-              { label: 'Battery start' }, { label: 'Battery end' }, { label: 'Highest temp' }]}>
+              { label: 'Battery start' }, { label: 'Battery end' }, { label: 'Highest temp' }, { label: 'Taken out', style: { textAlign: 'left' } }]}>
               {rows.map((r) => (
                 <tr key={r.b.key} className="row-link" onClick={() => onOpen?.(r.b.testType, r.b.key)} title={`Open ${r.b.testType}, this cycle`}>
                   <td>{date(r.start)}</td>
@@ -254,6 +254,8 @@ function AllCycles({ cycles, onOpen }) {
                   <td>{pct(r.bStart)}</td>
                   <td>{pct(r.bEnd)}</td>
                   <td style={{ color: r.peak != null && r.peak >= TEMP_LIMIT ? 'var(--bad)' : undefined }}>{r.peak != null ? `${r.peak.toFixed(1)} °C` : '—'}</td>
+                  <td style={{ textAlign: 'left' }} title={r.out.map(takenOutText).join('\n') || undefined}>
+                    {r.out.length ? <>{r.out.length} <span className="secondary mono" style={{ fontSize: 11.5 }}>· {r.out.map((x) => x.serial.slice(-3)).join(', ')}</span></> : <span className="secondary">—</span>}</td>
                 </tr>
               ))}
             </SortTable>

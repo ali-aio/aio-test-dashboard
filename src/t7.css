@@ -2082,3 +2082,5 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
   width: 24px; height: 24px; display: inline-grid; place-items: center; margin: 8px 6px 0 0; cursor: pointer; flex: none; }
 .notif-read:hover { color: var(--status-good); border-color: var(--status-good); }
 .hdr-reload { display: inline-flex; align-items: center; gap: 5px; }
+.pick-bar .pick-out { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; font-size: 12px; color: var(--text-secondary); }
+.pick-bar .pick-out b { color: var(--text-primary); font-weight: 600; }

@@ -230,6 +230,18 @@ export const TAKE_OUT_REASONS = [
   'Battery or charger swap', 'Other',
 ];
 export const removedFrom = (decl, t = Infinity) => (decl?.removed || []).filter(r => r.at <= t);
+/** Devices taken out of the planned cycle a run that started at `start` belongs to, oldest
+ *  first — only those taken out while that cycle ran (a repeating plan keeps every day's). */
+export function takenOutOf(decls, start) {
+  const c = cycleAt(decls, start);
+  if (!c) return [];
+  return (c.decl.removed || []).filter(r => r.at >= Math.min(start, c.startMs) && r.at <= c.endMs).sort((a, b) => a.at - b.at);
+}
+/** "AT070AABU00387 taken out 02:49 PM — Other: testing v2.1.031 (Tariq)" */
+export const takenOutText = r => {
+  const d = new Date(r.at), t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return `${r.serial} taken out ${t} — ${r.reason || 'no reason given'}${r.note ? `: ${r.note}` : ''}${r.by ? ` (${r.by})` : ''}`;
+};
 /** The cycle's devices still in it at time t. */
 export function activeSerials(decl, DEV, t = Date.now()) {
   const out = new Set(removedFrom(decl, t).map(r => r.serial));

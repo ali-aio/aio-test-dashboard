@@ -368,10 +368,12 @@ const mdmCases = []
     want(runStartOf(fresh.slice(0, 3)) === null, 'still on charge: no run')
   })
   check('take-out reasons: a reason typed under Other is offered next time', () => {
-    const decls = [{ removed: [{ serial: 'A', at: 1, reason: 'Other', note: 'testing v2.1.031' }, { serial: 'B', at: 2, reason: 'Thermal soak' }, { serial: 'C', at: 3, reason: 'Hardware fault' }] }]
+    const decls = [{ removed: [{ serial: 'A', at: 1, reason: 'Other', note: 'testing v2.1.031' }, { serial: 'B', at: 2, reason: 'Thermal soak' }, { serial: 'C', at: 3, reason: 'Hardware fault' },
+      { serial: 'D', at: 4, reason: 'Other', note: 'Taken for automatioion' }, { serial: 'E', at: 5, reason: 'Taken for a demo / customer' }] }]
     const r = takeOutReasons(decls)
-    want(r[0] === 'Taken for testing' && r.includes('testing v2.1.031') && r.includes('Thermal soak') && r[r.length - 1] === 'Other'
-      && r.filter((x) => x === 'Hardware fault').length === 1, r.join(' | '))
+    want(r[0] === 'Testing FW' && r[1] === 'Testing MDM' && r.includes('Thermal soak') && r[r.length - 1] === 'Other'
+      && !r.includes('testing v2.1.031') && !r.includes('Taken for automatioion') && !r.includes('Taken for a demo / customer')
+      && r.filter((x) => x === 'Hardware fault').length === 1 && r.filter((x) => x === 'Taken for automation').length === 1, r.join(' | '))
   })
   check('the Cycles drop-down lists each bench cycle with its devices', () => {
     const at = (d, hh) => Date.UTC(2026, 9, d, hh)

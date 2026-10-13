@@ -226,16 +226,23 @@ export function overlapsOn(decls, key, DEV, extra = null) {
 // on record. Kept on the declaration ({ serial, at, reason, note, by }), so the plan
 // remembers who left, when and why; "put back" removes the record.
 export const TAKE_OUT_REASONS = [
-  'Taken for testing', 'Taken for debugging', 'Hardware fault', 'Firmware update / reflash',
-  'Battery or charger swap', 'Other',
+  'Testing FW', 'Testing MDM', 'Taken for automation', 'Taken for debugging', 'Hardware fault',
+  'Firmware update / reflash', 'Battery or charger swap', 'Other',
 ];
-/** The reasons offered when taking a device out: the fixed ones, then every reason typed under
- *  "Other" before (newest first), read from the shared plan so the whole lab gets them. */
+// Reasons typed before that are offered under a fixed name instead (a misspelling, a one-off
+// version string), or not offered at all (null). The saved take-outs keep what was typed.
+const REASON_ALIASES = {
+  'testing v2.1.031': 'Testing FW', 'Taken for testing': 'Testing FW',
+  'Taken for automatioion': 'Taken for automation', 'Taken for a demo / customer': null,
+};
+/** The reasons offered when taking a device out: the fixed ones, then every other reason typed
+ *  under "Other" before (newest first), read from the shared plan so the whole lab gets them. */
 export function takeOutReasons(decls) {
   const seen = new Set(TAKE_OUT_REASONS), own = [];
   const all = decls.flatMap(d => d.removed || []).sort((a, b) => b.at - a.at);
   for (const r of all) {
-    const text = (r.reason === 'Other' ? r.note : r.reason || '').trim();
+    let text = (r.reason === 'Other' ? r.note : r.reason || '').trim();
+    if (text in REASON_ALIASES) text = REASON_ALIASES[text];
     if (text && !seen.has(text)) { seen.add(text); own.push(text); }
   }
   return [...TAKE_OUT_REASONS.slice(0, -1), ...own, 'Other'];

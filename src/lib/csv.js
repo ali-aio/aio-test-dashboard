@@ -136,7 +136,8 @@ export function cycleTableCsv(cycles, { charging = false, pad = false } = {}) {
     [charging ? 'Charged to %' : 'End battery %', (c) => num(c.endBattery)],
     [charging ? 'Charge rate %/h' : 'Drain %/h', (c) => num(c.dropPerHr == null ? null : Math.abs(c.dropPerHr), 2)],
     ['Peak temp °C', (c) => num(c.maxTemp, 1)],
-    ...CYCLE_COLUMNS.filter((c) => c.key === 'batteryCycles' || c.key === 'cyclesSource').map((c) => [c.label, c.get]),
+    ...CYCLE_COLUMNS.filter((c) => c.key === 'batteryCycles' || c.key === 'cyclesSource')
+      .map((col) => [col.label, (c) => (CYCLE_COLUMNS.find((x) => x.key === 'batteryCycles').get(c) === '' ? '' : col.get(c))]),
     ['Firmware', (c) => c.firmware ?? ''],
     ...(pad ? [['Wireless pad', (c) => c.padState ?? '']] : []),
   ]

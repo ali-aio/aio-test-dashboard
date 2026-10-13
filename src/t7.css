@@ -693,6 +693,14 @@ select.control:focus-visible, input.control:focus-visible {
 @media (max-width: 520px) {
   .card-head:has(.seg[aria-label="Curve grouping"]) { flex-wrap: wrap; }
 }
+/* Every cycle table: search + Export CSV sit on the title's line, at the right; the long
+   subtitle wraps under the title instead of pushing them onto a row of their own */
+.card-head:has(input[aria-label="Search the Every cycle table"]) { flex-wrap: nowrap; align-items: flex-start; }
+.card-head:has(input[aria-label="Search the Every cycle table"]) > div:first-child { flex: 1 1 0; }
+.card-head:has(input[aria-label="Search the Every cycle table"]) > .header-spacer { display: none; }
+@media (max-width: 720px) {
+  .card-head:has(input[aria-label="Search the Every cycle table"]) { flex-wrap: wrap; }
+}
 
 /* ------------------------------------------------------------------- import */
 

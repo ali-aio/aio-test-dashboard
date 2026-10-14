@@ -28,7 +28,7 @@ import { sortValue, compareValues, SortTable } from '../src/components/SortTable
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 import { extendLedger, cumAt, lifetimeAt, drainByAge, liveLedgers } from '../src/lib/drainAge.js'
 import HealthView from '../src/views/HealthView.jsx'
-import { healthRows, capacityIndex, earlyIndex, earlyDrain, stressIndex, fleetP90, stressFactors, hoursAtFull, chargeSegments, medianToFull, slowCharges, gaugeJumps, shutdownsAbove, scoreOf, gradeOf, GRADE, SHUTDOWN, NO_FULL, JUMP } from '../src/lib/health.js'
+import { healthRows, capacityIndex, earlyIndex, earlyDrain, fleetBaselines, loadClass, stressIndex, fleetP90, stressFactors, hoursAtFull, chargeSegments, medianToFull, slowCharges, gaugeJumps, shutdownsAbove, scoreOf, gradeOf, GRADE, SHUTDOWN, NO_FULL, JUMP } from '../src/lib/health.js'
 
 // a rota so every test type, including Restaurant Case's wireless split, gets exercised
 const ROTA = JSON.stringify({0:{testType:'wlc_load'},1:{testType:'restaurant'},2:{testType:'wlc_phone'},3:{testType:'wlc_disch'},4:{testType:'charging'},5:{testType:'burnin'},6:{testType:'disch_ads'}})
@@ -446,8 +446,8 @@ const mdmCases = []
     const cycles = [...[20, 20, 20, 20, 20, 16, 16, 16].map((h, i) => run('A', i, h)), ...[30, 30, 30].map((h, i) => run('B', i, h))]
     const out = healthRows({ cycles, testType: 'T', devices: [{ serial: 'A', lifetime: 10 }, { serial: 'B', lifetime: 5 }], now: Date.UTC(2026, 8, 20) })
     const A = out.rows.find((r) => r.serial === 'A'), B = out.rows.find((r) => r.serial === 'B')
-    want(A.capacity.source === 'device' && A.capacity.index === 80 && A.capacity.baseline === 20 * 3600e3, `A capacity ${A.capacity.index} ${A.capacity.source}`)
-    want(B.capacity.source === 'fleet' && out.fleetBaseline === 20 * 3600e3 && B.capacity.index === 100, `B capacity ${B.capacity.index} from ${B.capacity.source}, fleet ${out.fleetBaseline / 3600e3}`)
+    want(A.capacity.classes.unknown.source === 'device' && A.capacity.index === 80 && A.capacity.classes.unknown.baseline === 20 * 3600e3, `A capacity ${A.capacity.index} ${JSON.stringify(A.capacity.classes)}`)
+    want(B.capacity.classes.unknown.source === 'fleet' && out.fleetBaseline.unknown === 20 * 3600e3 && B.capacity.index === 100, `B capacity ${B.capacity.index} ${JSON.stringify(B.capacity.classes)}, fleet ${JSON.stringify(out.fleetBaseline)}`)
     want(A.early.index === null && A.score === Math.round(0.7 * 80 + 0.3 * A.stress.index), `no curves: early null, score ${A.score} vs reweighted`)
     want(out.rows[0].serial === 'A', 'worst first')
     want(healthRows({ cycles: cycles.slice(0, 2), testType: 'T', devices: [{ serial: 'A' }] }).rows[0].grade === GRADE.few, '2 runs -> not enough')
@@ -459,10 +459,35 @@ const mdmCases = []
     want(earlyDrain({ startBattery: 100, series: [{ t: 0, v: 100 }, { t: 0.5, v: 98 }] }) === null, 'curve short of 1 h')
     want(earlyDrain({ startBattery: 100, series: [{ t: 0, v: 100 }, { t: 0.5, v: 100 }, { t: 1.5, v: 100 }, { t: 3, v: 90 }] }) === null, 'flat first hour: not a measurable start')
     const e = earlyIndex([run(0, 4), run(1, 4), run(2, 4), run(3, 4), run(4, 4), run(5, 8), run(6, 8), run(7, 8)])
-    want(e.index === 50 && e.baseline === 4 && e.current === 8, `early ${e.index}`)
-    want(earlyIndex([run(0, 8), run(1, 8), run(2, 4)]).index === 100, 'slower now than at first caps at 100')
+    want(e.index === 50 && e.classes.unknown.baseline === 4 && e.current === 0.5, `early ${e.index} ${JSON.stringify(e.classes)} ${e.current}`)
+    want(earlyIndex([run(0, 8), run(1, 8), run(2, 4)], { unknown: 8 }).index === 100, 'slower now than at first caps at 100 (fleet baseline below 5 runs)')
+    want(earlyIndex([run(0, 8), run(1, 8), run(2, 4)]).index === null, 'below 5 runs and no fleet baseline: nothing to compare with')
     want(earlyIndex([run(0, 4), run(1, 4), run(2, null), run(3, null)]).index === null, '2 curves: null')
     want(scoreOf(80, null, 100) === 86 && Math.abs(scoreOf(80, 50, 100) - 83) < 1e-9 && scoreOf(null, 50, 100) === null, 'reweighting')
+  })
+  check('health: a run is judged against its own load class — ads at 4 %/h vs pad + ads at 13 %/h', () => {
+    const curve = (d) => [{ t: 0, v: 100 }, { t: 1, v: 100 - d }, { t: 3, v: 100 - 3 * d }]
+    const run = (sn, i, h, pad, d) => ({ serial: sn, testType: 'T', start: Date.UTC(2026, 8, 1 + i), fullMs: h * 3600e3, startBattery: 100, endBattery: 20, padKnown: true, padState: pad ? 'Pad on (wireless charging)' : 'Pad off', series: curve(d) })
+    want(loadClass(run('A', 0, 1, true, 1)) === 'load' && loadClass(run('A', 0, 1, false, 1)) === 'none' && loadClass({ padKnown: false }) === 'unknown', 'load class')
+    // A: 5 no-load runs of 24 h at 4 %/h, then 3 pad-loaded runs of 8 h at 13 %/h — not a fade
+    const A = [...[0, 1, 2, 3, 4].map((i) => run('A', i, 24, false, 4)), ...[5, 6, 7].map((i) => run('A', i, 8, true, 13))]
+    // B and C give the fleet its pad-loaded baseline: 8 h, 13 %/h
+    const fleet = [...[0, 1, 2].map((i) => run('B', i, 8, true, 13)), ...[0, 1, 2].map((i) => run('C', i, 8, true, 13))]
+    const out = healthRows({ cycles: [...A, ...fleet], testType: 'T', devices: ['A', 'B', 'C'].map((serial) => ({ serial, lifetime: 1 })), now: Date.UTC(2026, 8, 20) })
+    const a = out.rows.find((r) => r.serial === 'A')
+    want(out.fleetBaseline.load === 8 * 3600e3 && out.fleetBaseline.none === 24 * 3600e3, JSON.stringify(out.fleetBaseline))
+    want(a.capacity.index === 100 && a.capacity.classes.none.source === 'device' && a.capacity.classes.load.source === 'fleet', `A capacity ${a.capacity.index} ${JSON.stringify(a.capacity.classes)}`)
+    want(a.early.index === 100 && a.early.classes.load.baseline === 13, `A early ${a.early.index} ${JSON.stringify(a.early.classes)}`)
+    want(a.loads.load === 3 && a.loads.none === 5, JSON.stringify(a.loads))
+    // the same device with its last pad-loaded runs at 6 h and 17 %/h IS fading: 75 / 76
+    const A2 = [...A.slice(0, 5), ...[5, 6, 7].map((i) => run('A', i, 6, true, 17))]
+    const a2 = healthRows({ cycles: [...A2, ...fleet], testType: 'T', devices: ['A', 'B', 'C'].map((serial) => ({ serial, lifetime: 1 })), now: Date.UTC(2026, 8, 20) }).rows.find((r) => r.serial === 'A')
+    want(a2.capacity.index === 75 && Math.round(a2.early.index) === 76, `fading: capacity ${a2.capacity.index}, early ${a2.early.index}`)
+    // one class only
+    const only = healthRows({ cycles: [...A, ...fleet], testType: 'T', devices: [{ serial: 'A' }], now: Date.UTC(2026, 8, 20), load: 'none' }).rows[0]
+    want(only.n === 5 && only.loads.load == null, `no-load only: ${only.n} runs`)
+    const fb = fleetBaselines(new Map([['A', A]]), earlyDrain)
+    want(fb.none === 4 && fb.load === 13, JSON.stringify(fb))
   })
   check('health: stress against the fleet p90, 0 when the fleet p90 is 0', () => {
     const f = [{ lifetime: 10, h40: 1, h45: 0, full: 2, deep: 0 }, { lifetime: 20, h40: 2, h45: 0, full: 4, deep: 0 }, { lifetime: 40, h40: 4, h45: 0, full: 8, deep: 0 }]

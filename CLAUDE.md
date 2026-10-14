@@ -166,8 +166,11 @@ oversight; don't add restaurant filtering back in without being asked.
 - **Battery health** (`#/nx/health`, nav "Health"; `src/views/HealthView.jsx` + `src/lib/health.js`, tested): one row per
   device for ONE discharge test picked at the top (the busiest by default). A run is comparable when it is a counted cycle of
   that test that started ≥ 95 %. Score = 0.6 × capacity + 0.1 × early drain + 0.3 × stress (early's weight goes to capacity
-  when fewer than 3 runs have a curve). Capacity = median `fullMs` of the last 3 runs over the median of the first 5 (fleet
-  first-5 median below 5 runs), capped at 100; early drain = points lost in the first hour, first 5 vs last 3; stress = 100 −
+  when fewer than 3 runs have a curve). A load on the wireless pad drains ~3× faster (ads ~4 %/h, pad + ads ~13 %/h) and both
+  happen under one test, so every run is judged against the baseline of its own **load class** (`loadClass`: pad on / off /
+  unknown, from `padState`): capacity = each of the last 3 runs' `fullMs` as a share of its class baseline (median of the
+  device's first 5 runs of that class, the fleet's first-5 median below 5), the median share capped at 100; early drain = the
+  same for the points lost in the first hour (baseline ÷ now); a Load picker can narrow the page to one class. Stress = 100 −
   mean load over lifetime cycles, h ≥ 40 °C, h ≥ 45 °C, hours on charger at 100 %, discharges ended < 5 %, each as a share of
   the fleet p90. Penalties (30 days): the detector's `offline` interrupted discharge above 5 % (shutdown), a wired charge from
   ≤ 80 % that came off the cable below 100 % after > 1.5× the fleet's median time to 100 %, a > 5-point jump between readings

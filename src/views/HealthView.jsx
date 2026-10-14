@@ -8,7 +8,7 @@ import { TEST_TYPES, loadDecls, loadRota } from '../lib/plan.js'
 import { FIELD_DISCHARGE } from '../lib/testtypes.js'
 import { testTypeFor } from '../lib/adapt.js'
 import { lifetimeCycles, buildFromSerial } from '../lib/device.js'
-import { healthRows, GRADE, STRESS_FACTORS, WEIGHTS, GOOD_AT, REPLACE_AT, PENALTY_DAYS, SHUTDOWN, NO_FULL, JUMP, GAUGE_JUMP, GAUGE_GAP_MIN, SLOW_CHARGE_X, CHARGE_START_MAX, MIN_RUNS, BASELINE_RUNS, CURRENT_RUNS } from '../lib/health.js'
+import { healthRows, loadClass, runRatio, earlyDrain, LOAD, GRADE, STRESS_FACTORS, WEIGHTS, GOOD_AT, REPLACE_AT, PENALTY_DAYS, SHUTDOWN, NO_FULL, JUMP, GAUGE_JUMP, GAUGE_GAP_MIN, SLOW_CHARGE_X, CHARGE_START_MAX, MIN_RUNS, BASELINE_RUNS, CURRENT_RUNS } from '../lib/health.js'
 import { fmtHours, fmtInt, fmtNum, fmtLifetime, fmtSerial, DASH } from '../lib/fmt.js'
 
 const H = 3600e3, DAY = 86400e3
@@ -27,13 +27,13 @@ const COLS = [
   ['Firmware', 'The firmware the device was on during its latest comparable run', { textAlign: 'left' }],
   ['Grade', `Good: score ≥ ${GOOD_AT} and no penalties · Watch: ${REPLACE_AT}–${GOOD_AT - 1}, or exactly one penalty · Replace: below ${REPLACE_AT}, two or more penalties, or two shutdowns above 5 %`, { textAlign: 'left' }],
   ['Score', `${WEIGHTS.capacity} × capacity + ${WEIGHTS.early} × early drain + ${WEIGHTS.stress} × stress; early drain's weight goes to capacity when it cannot be measured`],
-  ['Capacity', `Median runtime to empty of the last ${CURRENT_RUNS} comparable runs as a share of the median of the device's first ${BASELINE_RUNS} (the fleet's first-${BASELINE_RUNS} median when it has fewer), capped at 100`],
-  ['Early drain', `Points drained in the first hour: median of the first ${BASELINE_RUNS} runs over the median of the last ${CURRENT_RUNS}, capped at 100; blank when fewer than ${MIN_RUNS} runs have a curve`],
+  ['Capacity', `Each of the last ${CURRENT_RUNS} comparable runs' runtime to empty as a share of the baseline of its load class (pad on / pad off): the median of the device's first ${BASELINE_RUNS} runs of that class, or the fleet's first-${BASELINE_RUNS} median when it has fewer. The median share, capped at 100`],
+  ['Early drain', `Points drained in the first hour, each of the last ${CURRENT_RUNS} runs against its load class's baseline (baseline ÷ now, so faster now = lower), the median capped at 100; blank when fewer than ${MIN_RUNS} runs have a curve`],
   ['Stress', '100 minus the mean load over five wear factors, each as a share of the fleet\'s 90th percentile: lifetime battery cycles, hours ≥ 40 °C, hours ≥ 45 °C, hours on charger at 100 %, discharges ended below 5 %'],
   ['Lifetime cycles', 'The MDM\'s lifetime battery cycles for the device (discharge counter ÷ 100)'],
   ['h ≥ 40 °C', 'Hours at or above 40 °C summed over the device\'s counted cycles, every test'],
   ['Penalties', `Events in the last ${PENALTY_DAYS} days: a shutdown above 5 %, a wired charge that never reached 100 %, a gauge jump of more than ${GAUGE_JUMP} points between readings`],
-  ['Runs', `Comparable runs: counted cycles of this test on this device that started at 95 % or more (${MIN_RUNS} needed for a score)`],
+  ['Runs', `Comparable runs: counted cycles of this test on this device that started at 95 % or more (${MIN_RUNS} needed for a score); L = with a load on the wireless pad`],
   ['Last run', 'Start date of the latest comparable run'],
 ]
 const head = COLS.map(([label, title, style]) => ({ label: <span title={title}>{label}</span>, style }))
@@ -56,6 +56,8 @@ export default function HealthView({ fleet, cycles }) {
     return DISCHARGE_TYPES.filter((t) => n.has(t)).sort((a, b) => n.get(b) - n.get(a))
   }, [cycles])
   const [pick, setPick] = useState(null)
+  // a load on the pad drains ~3× faster: compare each run with its own class, or look at one class only
+  const [load, setLoad] = useState('all')
   const testType = pick && types.includes(pick) ? pick : types[0] || null
   const [selected, setSelected] = useState(null)
 
@@ -69,11 +71,11 @@ export default function HealthView({ fleet, cycles }) {
   const health = useMemo(() => {
     if (!testType) return null
     return healthRows({
-      cycles, testType, interrupted, now, opts,
+      cycles, testType, interrupted, now, opts, load,
       devices: DEV.map((d) => ({ serial: d.serial, lifetime: lifetimeCycles(d.snap) })),
       readings: Object.fromEntries(DEV.map((d) => [d.serial, rowsFor(d.serial)])),
     })
-  }, [cycles, testType, interrupted, DEV, win.at2, opts])
+  }, [cycles, testType, interrupted, DEV, win.at2, opts, load])
 
   const openDevice = (sn) => { location.hash = `#/nx/device/${encodeURIComponent(sn)}`; window.scrollTo(0, 0) }
   const row = health?.rows.find((r) => r.serial === selected) || null
@@ -85,6 +87,13 @@ export default function HealthView({ fleet, cycles }) {
           <select className="control" value={testType || ''} onChange={(e) => { setPick(e.target.value); setSelected(null) }} aria-label="Test type for battery health" disabled={!types.length}>
             {!types.length && <option value="">No discharge tests yet</option>}
             {types.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
+        <label className="filter-field"><span className="filter-label">Load</span>
+          <select className="control" value={load} onChange={(e) => setLoad(e.target.value)} aria-label="Load on the wireless pad" title="Each run is compared with runs of its own load class; pick one class to see only those runs">
+            <option value="all">With and without load</option>
+            <option value="load">Load placed</option>
+            <option value="none">No load</option>
           </select>
         </label>
         {health && (
@@ -120,7 +129,7 @@ export default function HealthView({ fleet, cycles }) {
                   <td>{fmtLifetime(r.lifetime)}</td>
                   <td>{fmtNum(r.factors.h40, 1)}</td>
                   <td>{fmtInt(r.penalties.length)}</td>
-                  <td>{fmtInt(r.n)}</td>
+                  <td>{fmtInt(r.n)}{r.loads.load ? <span className="load-tag" title={`${r.loads.load} with a load on the pad`}>{r.loads.load} L</span> : null}</td>
                   <td>{when(r.lastRun)}</td>
                 </tr>
               ))}
@@ -135,16 +144,19 @@ export default function HealthView({ fleet, cycles }) {
 }
 
 function Detail({ row, testType, fleet }) {
-  const runs = row.runs
-  const base = row.capacity.baseline
+  const runs = row.runs, classes = row.capacity.classes
   const x0 = runs.length ? runs[0].start - DAY : 0, x1 = runs.length ? runs[runs.length - 1].start + DAY : 1
+  // one line per load class, each run as a share of ITS class's baseline, so pad-on and
+  // pad-off runs sit on one scale; 100 % and the replace line are the dashed references
+  const byClass = {}
+  for (const r of runs) { const k = loadClass(r), v = runRatio(r, classes); if (v != null) (byClass[k] = byClass[k] || []).push({ t: r.start, v: v * 100, h: r.fullMs / H }) }
+  const COLOR = { none: 'var(--series-1)', load: 'var(--series-2)', unknown: 'var(--series-7)' }
   const series = [
-    { id: 'runtime', label: 'Runtime to empty', color: 'var(--series-1)', points: runs.map((c) => ({ t: c.start, v: c.fullMs / H })) },
-    ...(base > 0 ? [
-      { id: 'baseline', label: `Baseline (${row.capacity.source === 'fleet' ? 'fleet' : 'first runs'})`, color: 'var(--text-muted)', dashed: true, points: [{ t: x0, v: base / H }, { t: x1, v: base / H }] },
-      { id: 'line80', label: `${REPLACE_AT} % line`, color: 'var(--status-critical)', dashed: true, points: [{ t: x0, v: base * REPLACE_AT / 100 / H }, { t: x1, v: base * REPLACE_AT / 100 / H }] },
-    ] : []),
+    ...Object.entries(byClass).map(([k, points]) => ({ id: k, label: LOAD[k], sub: classes[k] ? `baseline ${hrs(classes[k].baseline)} (${classes[k].source})` : undefined, color: COLOR[k], points })),
+    { id: 'base', label: 'Baseline', color: 'var(--text-muted)', dashed: true, points: [{ t: x0, v: 100 }, { t: x1, v: 100 }] },
+    { id: 'line80', label: `${REPLACE_AT} % line`, color: 'var(--status-critical)', dashed: true, points: [{ t: x0, v: REPLACE_AT }, { t: x1, v: REPLACE_AT }] },
   ]
+  const yTop = Math.max(120, ...Object.values(byClass).flat().map((p) => p.v)) 
   // date ticks: about five, on local midnights
   const ticks = []
   if (runs.length) {
@@ -152,25 +164,28 @@ function Detail({ row, testType, fleet }) {
     for (let t = new Date(x0).setHours(0, 0, 0, 0) + DAY; t <= x1; t += step) ticks.push(t)
   }
   const top = STRESS_FACTORS.map((f) => ({ f, load: row.stress.loads[f.key] })).sort((a, b) => b.load - a.load)[0]
+  const classText = (cl, fmt) => Object.entries(cl).map(([k, c]) => `${LOAD[k].toLowerCase()} ${fmt(c.baseline)} ${c.source}`).join(' · ')
+  const lastRuns = runs.slice(-CURRENT_RUNS)
 
   return (
     <Card title={`${row.serial} · ${testType}`}
-      sub={`${row.grade}${row.score != null ? ` · score ${row.score}` : ''} · ${fmtInt(row.n)} comparable run${row.n === 1 ? '' : 's'}${row.lastRun ? ` · last ${when(row.lastRun)}` : ''}`}>
+      sub={`${row.grade}${row.score != null ? ` · score ${row.score}` : ''} · ${fmtInt(row.n)} comparable run${row.n === 1 ? '' : 's'}${row.loads.load ? ` (${row.loads.load} with a load)` : ''}${row.lastRun ? ` · last ${when(row.lastRun)}` : ''}`}>
       <div className="view-stack" style={{ gap: 16 }}>
         <div className="stat-row">
           <Stat label="Score" value={pct(row.score)} foot={row.score == null ? `needs ${MIN_RUNS} comparable runs` : `${WEIGHTS.capacity} capacity · ${row.early.index == null ? '0' : WEIGHTS.early} early · ${WEIGHTS.stress} stress`} />
           <Stat label="Capacity" value={pct(row.capacity.index)}
-            foot={row.capacity.index == null ? `needs ${MIN_RUNS} comparable runs` : `last ${CURRENT_RUNS}: ${hrs(row.capacity.current)} vs ${hrs(row.capacity.baseline)} ${row.capacity.source === 'fleet' ? 'fleet' : 'own'} baseline`} />
+            foot={row.capacity.index == null ? `needs ${MIN_RUNS} comparable runs` : `last ${lastRuns.length}: ${lastRuns.map((r) => hrs(r.fullMs)).join(', ')} · ${Math.round(row.capacity.current * 100)} % of baseline (${classText(classes, hrs)})`} />
           <Stat label="Early drain" value={pct(row.early.index)}
-            foot={row.early.index == null ? `${row.early.n} of ${row.n} runs have a curve (${MIN_RUNS} needed) — weight moved to capacity` : `first hour: ${fmtNum(row.early.current, 1)} pts now vs ${fmtNum(row.early.baseline, 1)} at first`} />
+            foot={row.early.index == null ? `${row.early.n} of ${row.n} runs have a curve (${MIN_RUNS} needed) — weight moved to capacity`
+              : `first hour, last ${CURRENT_RUNS}: ${runs.filter((r) => earlyDrain(r) != null).slice(-CURRENT_RUNS).map((r) => `${fmtNum(earlyDrain(r), 1)} pts`).join(', ')} · baseline ${classText(row.early.classes, (v) => `${fmtNum(v, 1)} pts`)}`} />
           <Stat label="Stress" value={pct(row.stress.index)} foot={top ? `heaviest: ${top.f.label.toLowerCase()} at ${Math.round(top.load * 100)} % of the fleet's p90` : undefined} />
         </div>
 
-        {runs.length ? (
-          <LineChart series={series} xDomain={[x0, x1]} xTicks={ticks} formatX={when} formatY={(v) => fmtHours(v)} height={240}
-            valueLabel="runtime to empty" caption={`Runtime to empty per comparable run of ${testType} on ${row.serial}, with its baseline and the ${REPLACE_AT} % line`}
-            legendNote={base > 0 ? `${REPLACE_AT} % of the baseline is ${hrs(base * REPLACE_AT / 100)}` : undefined} />
-        ) : <EmptyNote>No comparable runs of {testType} on this device.</EmptyNote>}
+        {Object.keys(byClass).length ? (
+          <LineChart series={series} xDomain={[x0, x1]} yDomain={[0, Math.ceil(yTop / 20) * 20]} xTicks={ticks} formatX={when} formatY={(v) => `${Math.round(v)} %`} height={240}
+            valueLabel="runtime vs baseline" caption={`Runtime to empty per comparable run of ${testType} on ${row.serial}, as a share of its load class's baseline, with the ${REPLACE_AT} % line`}
+            legendNote="each run as a share of the baseline of its own load class" />
+        ) : <EmptyNote>No comparable runs of {testType} on this device{runs.length ? ' with a baseline yet' : ''}.</EmptyNote>}
 
         <div className="grid grid-2">
           <div>

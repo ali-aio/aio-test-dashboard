@@ -3,7 +3,7 @@ import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import {
   TEST_TYPES, testType, ttSlot, loadDecls, saveDecls, loadRota, saveRota, newDecl,
-  resolveDay, STATUS, groupSerials, takenOutOf, takenOutText, monthGrid, dayKey, todayKey, timeOn, windowOn, cyclesOn, carriedInto, nextCycleTimes, overlapsOn, addDays, daysBetween, WEEKDAYS, monthLabel, dayLabel,
+  resolveDay, STATUS, groupSerials, takenOutOf, takenOutText, monthGrid, dayKey, todayKey, timeOn, windowOn, cyclesOn, carriedInto, nextCycleTimes, overlapsOn, addDays, daysBetween, WEEKDAYS, monthLabel, dayLabel, EARLY_START_H,
 } from '../lib/plan.js'
 import { GROUP } from '../lib/fleet.js'
 import { splitText, benchCycles } from '../lib/splitCycles.js'
@@ -23,6 +23,13 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
   // re-read when the shared plan changes (another device saved, or the first pull landed)
   const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync)
   useEffect(() => { setDecls(loadDecls(GROUP)); setRota(loadRota(GROUP)) }, [planSync.v])
+  // the bench cycle (what ran) behind a planned one: same test, started in its window or up to
+  // EARLY_START_H before it — what "View cycle" opens
+  const benches = useMemo(() => benchCycles(cycles), [cycles])
+  const ranIn = c => { const name = testType(c.decl.testType)?.name
+    return benches.filter(b => b.testType === name && b.start >= c.startMs - EARLY_START_H * 3600e3 && b.start <= c.endMs).pop() || null }
+  const viewBtn = c => { const b = onOpenCycle && ranIn(c)
+    return b ? <button className="btn btn-sm" onClick={() => onOpenCycle(b.testType, b.key)} title="Open this cycle: charts, tiles and every device's run">View cycle</button> : null }
   const now = new Date()
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() })
   const [sel, setSel] = useState(todayKey())
@@ -190,11 +197,12 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
                           so Edit / Delete here would silently change the other days too */}
                       {c.decl.from === sel
                         ? <span className="cyc-acts">
+                            {viewBtn(c)}
                             <button className="btn btn-sm" onClick={() => openForm(c.decl.id)}>Edit</button>
                             <button className="btn btn-sm" onClick={() => { if (confirm('Remove this cycle? What ran in it goes back to having no test set.')) commit(decls.filter(d => d.id !== c.decl.id)) }}>Delete</button>
                           </span>
                         : <span className="cyc-acts secondary" style={{ fontSize: 12 }}>
-                            part of the plan set on {dayLabel(c.decl.from).split(',').slice(0, 2).join(',')}{c.decl.repeat === 'weekly' ? ' (repeats weekly)' : ''} ·{' '}
+                            {viewBtn(c)}{viewBtn(c) ? ' ' : ''}part of the plan set on {dayLabel(c.decl.from).split(',').slice(0, 2).join(',')}{c.decl.repeat === 'weekly' ? ' (repeats weekly)' : ''} ·{' '}
                             <button type="button" className="link-btn" onClick={() => { const [y, m] = c.decl.from.split('-').map(Number); setYm({ y, m: m - 1 }); setSel(c.decl.from) }}>open that day to edit</button>
                           </span>}
                     </div>

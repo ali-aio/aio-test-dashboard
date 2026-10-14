@@ -67,7 +67,7 @@ export function temperaturePhases(tempSeries, duration) {
 // `rows` are normalized samples ({ timestamp, battery_pct, extra }). Without rows the
 // cycle still carries its summary, and the curve charts simply have one fewer line.
 function seriesFor(rows, c) {
-  if (!rows || !rows.length) return { series: [], tempSeries: [], firmware: null, wireless: false };
+  if (!rows || !rows.length) return { series: [], tempSeries: [], firmware: null, wireless: false, seen: false };
   const series = [], tempSeries = [], fw = new Map(); let wireless = 0, n = 0;
   for (const r of rows) {
     const t = Date.parse(r.timestamp);
@@ -85,7 +85,7 @@ function seriesFor(rows, c) {
   // A run the window only partly covers would be drawn from its first in-window reading at
   // 0 h — a line that starts mid-run in the wrong place. No line is better than that.
   const partial = !series.length || series[0].t > 1 / 3;
-  return { series: partial ? [] : series, tempSeries: partial ? [] : tempSeries, firmware, wireless: n > 0 && wireless > n / 2 };
+  return { series: partial ? [] : series, tempSeries: partial ? [] : tempSeries, firmware, wireless: n > 0 && wireless > n / 2, seen: n > 0 };
 }
 
 // Snap samples to whole hours the way T7 does, so a rate computed here and a rate
@@ -148,6 +148,8 @@ export function adaptCycle(d, c, rows, ctx) {
     charger: null,
     // the T7's own wireless-charging pad, active (charging a phone / tester on it) or off
     padState: wireless ? 'Pad on (wireless charging)' : 'Pad off',
+    // whether the pad state is known at all: neither a stored curve nor live readings -> 'Pad off' is only a default
+    padKnown: !!stored || !!fromWindow.seen,
     maxTemp: c.maxTemp ?? (temps.length ? Math.max(...temps) : null),
     avgTemp: c.avgTemp ?? null,
     minAbove40: c.thermal?.minAbove40 ?? null,

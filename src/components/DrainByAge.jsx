@@ -6,6 +6,8 @@ import { CHARGING_TEST_TYPES } from '../lib/testtypes.js'
 import { fmtRate, fmtSerial, compareSerial, DASH } from '../lib/fmt.js'
 
 const ALL = '__all__'
+const isLoad = (c) => /^Pad on/.test(c.padState || '')
+const loadText = (c) => (!c.padKnown ? 'load not known' : isLoad(c) ? 'load placed' : 'no load')
 const when = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).replace('Sept', 'Sep')
 
 /** Each device's drain rate at its 10th, 20th, 30th… lifetime battery cycle, and its latest.
@@ -19,22 +21,33 @@ export default function DrainByAge({ cycles, drops }) {
   }, [cycles])
   const [pick, setPick] = useState(ALL)
   const tt = pick !== ALL && types.includes(pick) ? pick : ALL
-  const { marks, rows } = useMemo(() => drainByAge(cycles.filter((c) => !CHARGING_TEST_TYPES.has(c.testType) && (tt === ALL || c.testType === tt)), drops),
-    [cycles, drops, tt])
+  // a load on the T7's wireless pad drains it much faster: compare like with like, or see it marked
+  const [load, setLoad] = useState(ALL)
+  const loadOk = (c) => load === ALL || (c.padKnown && (load === 'on') === isLoad(c))
+  const { marks, rows } = useMemo(() => drainByAge(cycles.filter((c) => !CHARGING_TEST_TYPES.has(c.testType) && (tt === ALL || c.testType === tt) && loadOk(c)), drops),
+    [cycles, drops, tt, load])
   const sorted = rows.slice().sort((a, b) => compareSerial(a.serial, b.serial))
   const avg = (xs) => { const v = xs.filter((x) => x != null); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null }
   const cell = (x) => x
-    ? <span title={`${x.c.testType} · ${when(x.c.start)}${x.age != null ? ` · started at ${x.age.toFixed(1)} battery cycles` : ''}`}>{fmtRate(x.rate)}</span>
+    ? <span title={`${x.c.testType} · ${loadText(x.c)} · ${when(x.c.start)}${x.age != null ? ` · started at ${x.age.toFixed(1)} battery cycles` : ''}`}>
+      {fmtRate(x.rate)}{load === ALL && x.c.padKnown && isLoad(x.c) ? <span className="load-tag" aria-label="load placed">L</span> : null}</span>
     : DASH
 
   return (
     <Card title="Drain rate by battery age"
-      sub={`Each device's drain rate at its 10th, 20th, 30th… battery cycle (MDM counter) and its latest cycle · ${tt === ALL ? 'all discharge tests — the test changes the rate, hover a value to see which' : tt} · hover a value for the date and exact cycle count`}
-      right={types.length > 1 && (
-        <select className="control" value={tt} onChange={(e) => setPick(e.target.value)} aria-label="Test type for drain by battery age">
-          <option value={ALL}>All discharge tests</option>
-          {types.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>)}>
+      sub={`Each device's drain rate at its 10th, 20th, 30th… battery cycle (MDM counter) and its latest cycle · ${tt === ALL ? 'all discharge tests — the test changes the rate, hover a value to see which' : tt}${load === 'on' ? ' · load placed only' : load === 'off' ? ' · no load only' : ''} · hover a value for the date and exact cycle count`}
+      right={<div style={{ display: 'flex', gap: 8 }}>
+        <select className="control" value={load} onChange={(e) => setLoad(e.target.value)} aria-label="Load on the wireless pad">
+          <option value={ALL}>With and without load</option>
+          <option value="on">Load placed</option>
+          <option value="off">No load</option>
+        </select>
+        {types.length > 1 && (
+          <select className="control" value={tt} onChange={(e) => setPick(e.target.value)} aria-label="Test type for drain by battery age">
+            <option value={ALL}>All discharge tests</option>
+            {types.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>)}
+      </div>}>
       {!drops ? <p className="secondary">The server has not built the battery-cycle history yet (it reads every device's readings once, on its next check of the MDM). This fills in after that.</p>
         : !rows.length ? <p className="secondary">No discharge cycles in scope.</p> : (
           <div className="table-wrap" style={{ maxHeight: 560 }}>
@@ -56,7 +69,7 @@ export default function DrainByAge({ cycles, drops }) {
               </tr>
             </SortTable>
           </div>)}
-      <p className="hint" style={{ marginTop: 8 }}>A column holds the first cycle that started between that count and the next (e.g. 20–30). Blank: no cycle of that test there, or the device's readings start later.</p>
+      <p className="hint" style={{ marginTop: 8 }}>{load === ALL ? <><span className="load-tag">L</span> = a load was on the wireless pad for most of that cycle (it drains faster); pick Load placed or No load to compare like with like. </> : null}A column holds the first cycle that started between that count and the next (e.g. 20–30). Blank: no cycle of that test there, or the device's readings start later.</p>
     </Card>
   )
 }

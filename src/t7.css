@@ -2119,3 +2119,7 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 
 /* a card's table in full screen fills the window instead of keeping its in-page height limit */
 .card.is-fullscreen .table-wrap { max-height: calc(100vh - 140px) !important; }
+
+/* Drain by battery age: a value from a cycle with a load on the wireless pad */
+.load-tag { display: inline-block; margin-left: 5px; padding: 0 4px; border-radius: 4px; font-size: 10px; font-weight: 600; line-height: 15px;
+  vertical-align: 1px; color: var(--select-bg); background: color-mix(in srgb, currentColor 14%, transparent); }

@@ -86,12 +86,14 @@ export function SortTable({ head, children, className = 'data', caption }) {
     }
     // A row marked data-attached (e.g. a form opened under a device) travels with the row
     // above it, so sorting never separates them.
+    // A row marked data-pinned (a total / average row) stays last whatever the order.
+    const pinned = rows.filter((r) => r.props['data-pinned'])
     const groups = []
-    for (const r of rows) {
+    for (const r of rows.filter((x) => !x.props['data-pinned'])) {
       if (r.props['data-attached'] && groups.length) groups[groups.length - 1].push(r)
       else groups.push([r])
     }
-    return groups.map((g) => ({ g, v: val(g[0]) })).sort((a, b) => compareValues(a.v, b.v, sort.dir)).flatMap((x) => x.g)
+    return groups.map((g) => ({ g, v: val(g[0]) })).sort((a, b) => compareValues(a.v, b.v, sort.dir)).flatMap((x) => x.g).concat(pinned)
   }, [children, sort])
   return (
     <table className={className}>

@@ -12,6 +12,7 @@ import path from 'node:path';
 import { detectCycles, normalize } from '../shared/cycles.js';
 import { appendReadings } from '../src/lib/mdmTrack.js';
 import { resampleRun, curveKey } from '../src/lib/curves.js';
+import { extendLedger } from '../src/lib/drainAge.js';
 import { chargeSegments, thermalStats } from '../shared/profile.js';
 
 const H = 3600e3, DAY = 24 * H, CHUNK = 7 * DAY;
@@ -81,6 +82,7 @@ export async function sweep({ base, group, root, get, log = () => {} }) {
   const cycles = Object.values(out).reduce((a, d) => a + d.cycles.length, 0);
   log(`done in ${Math.round((Date.now() - now) / 1000)}s: ${cycles} cycles since the import across ${Object.keys(out).length} devices${failed.length ? `, ${failed.length} failed (kept previous)` : ''}`);
   await buildCurves({ root, devices: devices.map(d => d.serial_number), topup: out, get, log });
+  await buildDrops({ root, group, devices, get, now, log });
   return { at: now, devices: Object.keys(out).length, cycles, failed };
 }
 const serialMsg = results => results.find(r => !r.ok)?.e.message;
@@ -136,4 +138,38 @@ export async function buildCurves({ root, devices, topup, get, log = () => {} })
   });
   if (made || none) log(`curves: ${made} runs drawn, ${none} without full readings, ~${calls} history calls`);
   return { made, none };
+}
+// The drop ledger (src/lib/drainAge.js): every percentage point each device has drained,
+// summed from its first reading, so the dashboard can tell a device's lifetime battery cycles
+// on any past day (today's MDM counter less what drained since) — drain rate by battery age.
+// The first sweep reads each device's whole history once (10-min spacing: checked against
+// every check-in, 79.91 vs 79.97 cycles over five months); later sweeps only the readings
+// since the last one counted. The anchor is the MDM counter read by this sweep.
+// Our own gitignored file; reads from the MDM only.
+const HISTORY_FROM = Date.parse('2025-01-01T00:00:00Z');
+export async function buildDrops({ root, group, devices, get, now = Date.now(), log = () => {} }) {
+  const target = path.join(root, 'data', 'drops.json'), tmp = target + '.tmp';
+  const old = readJson(target), file = old && old.group === group && old.v === 1 ? old : { v: 1, group, devices: {} };
+  const save = () => { file.at = Date.now(); fs.writeFileSync(tmp, JSON.stringify(file)); fs.renameSync(tmp, target); };
+  let built = 0, extended = 0;
+  await mapLimit(devices, 3, async d => {
+    const sn = d.serial_number, had = file.devices[sn];
+    let from = had?.last ? had.last[0] - H : null;
+    if (from == null) {
+      // where the history starts: one call at a day's spacing
+      const days = await get(`/api/v1/testdata/devices/${encodeURIComponent(sn)}/history?start=${new Date(HISTORY_FROM).toISOString()}&end=${new Date(now).toISOString()}&interval_sec=86400`);
+      const first = days.filter(r => !r.empty).map(r => Date.parse(r.sample_at || r.timestamp)).sort((a, b) => a - b)[0];
+      if (!first) return;
+      from = first - DAY;
+    }
+    const rows = (await history(get, sn, from, now)).filter(r => !r.empty)
+      .map(r => [Date.parse(r.sample_at || r.timestamp), r.battery_pct]).sort((a, b) => a[0] - b[0]);
+    const led = extendLedger(had, rows);
+    if (typeof d.discharge_total_pct === 'number') led.anchor = [now, d.discharge_total_pct];
+    file.devices[sn] = led;
+    had ? extended++ : built++;
+    if (!had) save(); // a first build is slow: keep each device as it lands
+  });
+  save();
+  log(`drop ledger: ${built} built from the whole history, ${extended} extended`);
 }

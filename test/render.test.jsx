@@ -26,6 +26,7 @@ import { testTypeFor, temperaturePhases } from '../src/lib/adapt.js'
 import { thermalTimingByDevice } from '../src/lib/thermal.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
+import { extendLedger, cumAt, lifetimeAt, drainByAge } from '../src/lib/drainAge.js'
 
 // a rota so every test type, including Restaurant Case's wireless split, gets exercised
 const ROTA = JSON.stringify({0:{testType:'wlc_load'},1:{testType:'restaurant'},2:{testType:'wlc_phone'},3:{testType:'wlc_disch'},4:{testType:'charging'},5:{testType:'burnin'},6:{testType:'disch_ads'}})
@@ -292,6 +293,22 @@ const mdmCases = []
     const lt = { value: 100, devices: 4, rows: [], missing: [] }
     const h = renderToString(<T7Overview cycles={covered} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} lifetime={lt} />).replace(/<!-- -->/g, '')
     want(h.includes('Average battery cycles') && h.includes('25.00') && !h.includes('average per device'), 'average not shown, or the foot line is back')
+  })
+  check('drain by battery age: drop ledger and cycle count at a past moment', () => {
+    const H = 3600e3, t0 = Date.UTC(2026, 3, 1)
+    // two days: 100 -> 20 (80 drained), charge to 100, 100 -> 50 (50 drained)
+    const day1 = [[t0, 100], [t0 + 4 * H, 60], [t0 + 8 * H, 20], [t0 + 10 * H, 100]]
+    let led = extendLedger(null, day1)
+    want(led.cum === 80 && cumAt(led, t0 + 4 * H) === 40, `day 1: ${led.cum}, ${cumAt(led, t0 + 4 * H)}`)
+    led = extendLedger(led, [[t0 + 10 * H, 100], [t0 + 24 * H, 100], [t0 + 30 * H, 50]]) // overlap is not counted twice
+    want(led.cum === 130, `after day 2: ${led.cum}`)
+    want(cumAt(led, t0 - H) === null, 'before the history: unknown')
+    led.anchor = [t0 + 30 * H, 1000] // MDM says 10.00 cycles now
+    want(lifetimeAt(led, t0 + 30 * H) === 10 && Math.abs(lifetimeAt(led, t0 + 24 * H) - 9.5) < 1e-9 && Math.abs(lifetimeAt(led, t0) - 8.7) < 1e-9, 'counted back from the MDM counter')
+    const cyc = (start, rate) => ({ serial: 'A', start, dropPerHr: -rate, testType: 'Restaurant Case' })
+    const leds = { A: { ...led, anchor: [t0 + 30 * H, 2500] } } // 25.00 now: 23.7 at t0, 24.5 on day 2
+    const out = drainByAge([cyc(t0, 6), cyc(t0 + 24 * H, 7)], leds)
+    want(out.marks.join() === '10,20' && out.rows[0].at[20].rate === 6 && out.rows[0].now.rate === 7, JSON.stringify(out.marks))
   })
   check('csv: escaping, gap rows dropped, extra fields, cycles', () => {
     want(csvField('a,b') === '"a,b"' && csvField('say "hi"') === '"say ""hi"""' && csvField('=SUM(A1)') === "'=SUM(A1)" && csvField(-3) === '-3', 'escaping')

@@ -157,6 +157,12 @@ oversight; don't add restaurant filtering back in without being asked.
   to 2 h before a planned cycle's window still belongs to it (`EARLY_START_H`, `cycleAt`).
 - **HW build** comes from the serial (`buildFromSerial`, `src/lib/device.js`): "BU" in it = Production
   Build, otherwise "OTG / Validation Build" (the serial can't tell those two apart).
+- **Drain rate by battery age** (Summary screen, `src/components/DrainByAge.jsx` + `src/lib/drainAge.js`, tested): each
+  device's drain %/h at its 10th, 20th, 30th… lifetime battery cycle and its latest. The API gives the MDM counter only as
+  of now, so the sweep keeps a drop ledger per device (`data/drops.json`, gitignored, `buildDrops` in `server/sweep.mjs`):
+  every point drained since its first reading, read once from the whole history at 10-min spacing, then extended each sweep.
+  Cycles at time t = today's counter − what drained since t. Checked against the MDM: the counter's rise over 6 days matched
+  the summed drops within ~2%; the counter is higher than the history's total only by what drained before the history starts.
 - `src/lib/window.js` — the 7-day reading window (every check-in: `interval_sec=60`, the MDM stores one per ~3 min) behind Today and the charts. It is
   kept in the browser's IndexedDB (`readings` store in `src/lib/db.js`), so a page open draws
   from the stored copy and fetches only the readings since (last stamp − 30 min). "Reload

@@ -17,7 +17,7 @@ const TOPKEY = `histTopup:v3:${GROUP}`;
 
 const state = {
   DEV: [], DMAP: new Map(), allCycles: [], runs: [], cycleRun: new Map(),
-  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null, readings: null, curves: null,
+  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null, readings: null, curves: null, drops: null,
 };
 let snapshot = { ...state }, HIST = {}, TOP = {}, local = loadRuns(GROUP);
 const subs = new Set();
@@ -95,6 +95,10 @@ async function loadReadings() {
   // the history can be drawn, not only the last 7 days. ETag'd, so a reload is a 304.
   try { const r = await fetch('/data/curves.json'); state.curves = r.ok ? (await r.json()).curves || null : null; }
   catch (e) { state.curves = null; }
+  // The drop ledger (src/lib/drainAge.js): lifetime battery cycles at any past moment, for
+  // drain rate by battery age on the Summary screen.
+  try { const r = await fetch('/data/drops.json'); state.drops = r.ok ? (await r.json()).devices || null : null; }
+  catch (e) { state.drops = null; }
 }
 
 export async function topUp(force = false) {

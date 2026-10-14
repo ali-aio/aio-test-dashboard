@@ -155,6 +155,20 @@ oversight; don't add restaurant filtering back in without being asked.
   finish in 7–8 h. A running discharge is added to the Overview from the live window (`runningCycle`,
   `inProgress: true`); cycles with no stored curve are resampled from the live readings. A run started up
   to 2 h before a planned cycle's window still belongs to it (`EARLY_START_H`, `cycleAt`).
+- **The lab's tests** (`TEST_TYPES` in `src/lib/plan.js`, each with an `about` line shown in the Cycle plan form;
+  from the lab, Oct 2026). "Load" = something on the T7's wireless pad, which the T7 charges. Plans store the test's
+  id, so renaming a test keeps old plans; a new test goes at the end (colour follows the position).
+
+  | Test (code) | How it runs |
+  |---|---|
+  | Charging Cycle (CC) | The T7 charges; time to 50 / 80 / 95 / 100 %. |
+  | WLC on Phone (WP) | A phone on the pad; the result is how long the phone takes to charge fully (depends on the phone — the MDM reports only the T7's battery, not the phone's). |
+  | WLC on Load (WL) | A load on the pad with ads running, until the T7 powers off (10 % → 0 %). |
+  | Ads only (DA, was "Discharging on Ads") | Only ads, no load, until the T7 powers off (0 %). |
+  | WLC + Discharge on Ads (WD) | Ads running, a load on the pad for the first 3 h, until the T7 powers off (0 %). |
+  | Burn-in Test (BI) | Production only: 4K video played continuously, no ads. |
+  | Restaurant Case (RC) | A load on the pad for 3 h; the cycle runs 14 h. |
+  | Discharge on Load only (LO) | Only a load on the pad, no ads, until the T7 powers off (0 %). |
 - **HW build** comes from the serial (`buildFromSerial`, `src/lib/device.js`): "BU" in it = Production
   Build, otherwise "OTG / Validation Build" (the serial can't tell those two apart).
 - **Drain rate by battery age** (Summary screen, `src/components/DrainByAge.jsx` + `src/lib/drainAge.js`, tested): each

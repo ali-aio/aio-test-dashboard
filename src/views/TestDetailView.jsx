@@ -78,14 +78,16 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const isCharging = testType === 'Charging Cycle' || testType === FIELD_CHARGING
   const isRestaurant = testType === 'Restaurant Case'
   const showSecondaryChart = ![
-    'Charging Cycle', 'Restaurant Case', 'Discharging on Ads', 'WLC+Discharge on Ads',
-    'Burn-in Test', 'WLC on Load', 'WLC on Phone',
+    'Charging Cycle', 'Restaurant Case', 'Ads only', 'WLC + Discharge on Ads',
+    'Burn-in Test', 'WLC on Load', 'WLC on Phone', 'Discharge on Load only',
   ].includes(testType)
-  const drainLabel = testType === 'Discharging on Ads'
-    ? 'Avg T7 drain · pad off'
-    : testType === 'WLC+Discharge on Ads'
-      ? 'Avg T7 drain · pad on (wireless charging)'
-      : 'Avg T7 drain'
+  const drainLabel = testType === 'Ads only'
+    ? 'Avg T7 drain · ads only, no load'
+    : testType === 'WLC + Discharge on Ads'
+      ? 'Avg T7 drain · ads, load on the pad for 3 h'
+      : testType === 'Discharge on Load only'
+        ? 'Avg T7 drain · load only, no ads'
+        : 'Avg T7 drain'
 
   /* Colour follows the serial across the whole app, so filtering a device out
      never repaints the others. */

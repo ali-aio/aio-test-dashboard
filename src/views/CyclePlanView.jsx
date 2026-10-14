@@ -307,7 +307,8 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
           <span className="ver" style={{ display: 'block' }}>
             <select id="f-type" style={{ width: '100%' }} value={form.testType} onChange={e => set('testType', e.target.value)}>
               {TEST_TYPES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select></span></div>
+            </select></span>
+          {testType(form.testType)?.about && <div className="hint" style={{ marginTop: 4 }}>{testType(form.testType).about}</div>}</div>
         {/* One cycle = one continuous stretch, start date+time to end date+time. Repeating it is
             a separate, explicit choice (it used to be implied by a From/To date range). */}
         <div>

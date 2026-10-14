@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useSyncExternalStore } from 'react'
 import { Card } from './Primitives.jsx'
 import { SortTable } from './SortTable.jsx'
-import { drainByAge } from '../lib/drainAge.js'
+import { drainByAge, liveLedgers } from '../lib/drainAge.js'
+import { rowsFor, subscribeWindow, getWindow } from '../lib/window.js'
 import { CHARGING_TEST_TYPES } from '../lib/testtypes.js'
 import { fmtRate, fmtSerial, compareSerial, DASH } from '../lib/fmt.js'
 
@@ -13,7 +14,10 @@ const when = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', mo
 /** Each device's drain rate at its 10th, 20th, 30th… lifetime battery cycle, and its latest.
  *  The age of a cycle comes from the drop ledger (src/lib/drainAge.js). Charging tests have
  *  no drain, so they are left out; a test picker keeps the comparison to one kind of run. */
-export default function DrainByAge({ cycles, drops }) {
+export default function DrainByAge({ cycles, drops: stored, snapOf = () => null }) {
+  // up to the last check-in, not the last sweep: the live readings and counter on top of the file
+  const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
+  const drops = useMemo(() => liveLedgers(stored, rowsFor, snapOf), [stored, win.at2, cycles])
   const types = useMemo(() => {
     const n = new Map()
     for (const c of cycles) if (!CHARGING_TEST_TYPES.has(c.testType) && c.dropPerHr != null) n.set(c.testType, (n.get(c.testType) || 0) + 1)
@@ -51,19 +55,23 @@ export default function DrainByAge({ cycles, drops }) {
         : !rows.length ? <p className="secondary">No discharge cycles in scope.</p> : (
           <div className="table-wrap" style={{ maxHeight: 560 }}>
             <SortTable caption="Drain rate by battery age" head={[{ label: 'Device', style: { textAlign: 'left' } },
-              ...marks.map((m) => ({ label: `${m} cycles` })), { label: 'Latest' }, { label: 'Latest at' }]}>
+              ...marks.map((m) => ({ label: `${m} cycles` })), { label: 'Latest' }, { label: 'Latest started at' }, { label: 'Cycles now' }]}>
               {sorted.map((r) => (
                 <tr key={r.serial}>
                   <td className="mono" style={{ textAlign: 'left' }}>{fmtSerial(r.serial)}</td>
                   {marks.map((m) => <td key={m}>{cell(r.at[m])}</td>)}
                   <td>{cell(r.now)}</td>
                   <td>{r.now?.age != null ? `${r.now.age.toFixed(1)} cycles` : DASH}</td>
+                  {/* the MDM counter at the device's last check-in */}
+                  <td title={drops?.[r.serial]?.anchor ? `MDM counter at ${new Date(drops[r.serial].anchor[0]).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : undefined}>
+                    {drops?.[r.serial]?.anchor ? `${(drops[r.serial].anchor[1] / 100).toFixed(1)} cycles` : DASH}</td>
                 </tr>
               ))}
               <tr data-pinned className="row-total">
                 <td style={{ textAlign: 'left' }}><b>Average</b></td>
                 {marks.map((m) => { const a = avg(sorted.map((r) => r.at[m]?.rate)); return <td key={m}><b>{a == null ? DASH : fmtRate(a)}</b></td> })}
                 <td><b>{(() => { const a = avg(sorted.map((r) => r.now?.rate)); return a == null ? DASH : fmtRate(a) })()}</b></td>
+                <td />
                 <td />
               </tr>
             </SortTable>

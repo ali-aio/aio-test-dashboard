@@ -26,7 +26,7 @@ import { testTypeFor, temperaturePhases } from '../src/lib/adapt.js'
 import { thermalTimingByDevice } from '../src/lib/thermal.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
-import { extendLedger, cumAt, lifetimeAt, drainByAge } from '../src/lib/drainAge.js'
+import { extendLedger, cumAt, lifetimeAt, drainByAge, liveLedgers } from '../src/lib/drainAge.js'
 
 // a rota so every test type, including Restaurant Case's wireless split, gets exercised
 const ROTA = JSON.stringify({0:{testType:'wlc_load'},1:{testType:'restaurant'},2:{testType:'wlc_phone'},3:{testType:'wlc_disch'},4:{testType:'charging'},5:{testType:'burnin'},6:{testType:'disch_ads'}})
@@ -309,6 +309,11 @@ const mdmCases = []
     const leds = { A: { ...led, anchor: [t0 + 30 * H, 2500] } } // 25.00 now: 23.7 at t0, 24.5 on day 2
     const out = drainByAge([cyc(t0, 6), cyc(t0 + 24 * H, 7)], leds)
     want(out.marks.join() === '10,20' && out.rows[0].at[20].rate === 6 && out.rows[0].now.rate === 7, JSON.stringify(out.marks))
+    // up to the last check-in: newer readings and the snapshot's counter on top of the sweep's file
+    const live = liveLedgers(leds, () => [{ timestamp: new Date(t0 + 32 * H).toISOString(), battery_pct: 40 }],
+      () => ({ last_seen_at: new Date(t0 + 32 * H).toISOString(), discharge_total_pct: 2510 }))
+    want(live.A.cum === 140 && live.A.anchor[1] === 2510 && Math.abs(lifetimeAt(live.A, t0 + 30 * H) - 25) < 1e-9, `live: ${live.A.cum}, ${live.A.anchor}`)
+    want(leds.A.cum === 130, 'the stored ledger is left as it was')
   })
   check('csv: escaping, gap rows dropped, extra fields, cycles', () => {
     want(csvField('a,b') === '"a,b"' && csvField('say "hi"') === '"say ""hi"""' && csvField('=SUM(A1)') === "'=SUM(A1)" && csvField(-3) === '-3', 'escaping')

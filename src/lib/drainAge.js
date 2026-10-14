@@ -47,12 +47,30 @@ export function lifetimeAt(led, t) {
   return Math.max(0, (led.anchor[1] - (a - b)) / 100);
 }
 
+/** The server's ledgers brought up to each device's last check-in: the readings since the last
+ *  sweep (the browser's window, `rowsFor`) folded in, and the anchor moved to the MDM counter of
+ *  the latest snapshot (`snapOf`). Without them the table would stop at the last sweep. */
+export function liveLedgers(drops, rowsFor = () => [], snapOf = () => null) {
+  if (!drops) return null;
+  const out = {};
+  for (const [sn, led] of Object.entries(drops)) {
+    const rows = (rowsFor(sn) || []).filter(r => !r.empty && typeof r.battery_pct === 'number')
+      .map(r => [Date.parse(r.sample_at || r.timestamp), r.battery_pct]).sort((a, b) => a[0] - b[0]);
+    const l = rows.length ? extendLedger(led, rows) : { ...led };
+    const s = snapOf(sn), t = Date.parse(s?.last_seen_at);
+    if (typeof s?.discharge_total_pct === 'number' && Number.isFinite(t) && (!l.anchor || t >= l.anchor[0])) l.anchor = [t, s.discharge_total_pct];
+    out[sn] = l;
+  }
+  return out;
+}
+
 /** One row per device: its drain rate (%/h) at each checkpoint (10, 20, 30… cycles) and now.
  *  A checkpoint holds the first cycle that started with the battery between N and N + step
  *  lifetime cycles; none there -> null. `cycles` are one test type's, so the rates compare. */
 export function drainByAge(cycles, drops, { step = 10 } = {}) {
   const by = new Map()
   for (const c of cycles) {
+    if (c.inProgress) continue; // a running cycle's rate is its first hours only, the fastest part
     const rate = c.dropPerHr == null ? null : Math.abs(c.dropPerHr);
     if (rate == null || !Number.isFinite(rate)) continue;
     const age = lifetimeAt(drops?.[c.serial], c.start);

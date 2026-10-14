@@ -324,7 +324,7 @@ export default function DevicesView({
         )}
       </Card>
 
-      <DrainByAge cycles={cycles} drops={drops} />
+      <DrainByAge cycles={cycles} drops={drops} snapOf={snapOf} />
 
       <DataQualityCard issues={issues} files={files} />
 

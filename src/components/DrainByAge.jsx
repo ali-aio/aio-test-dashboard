@@ -35,7 +35,6 @@ export default function DrainByAge({ cycles, drops }) {
 
   return (
     <Card title="Drain rate by battery age"
-      sub={`Each device's drain rate at its 10th, 20th, 30th… battery cycle (MDM counter) and its latest cycle · ${tt === ALL ? 'all discharge tests — the test changes the rate, hover a value to see which' : tt}${load === 'on' ? ' · load placed only' : load === 'off' ? ' · no load only' : ''} · hover a value for the date and exact cycle count`}
       right={<div style={{ display: 'flex', gap: 8 }}>
         <select className="control" value={load} onChange={(e) => setLoad(e.target.value)} aria-label="Load on the wireless pad">
           <option value={ALL}>With and without load</option>

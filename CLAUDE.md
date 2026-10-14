@@ -163,6 +163,17 @@ oversight; don't add restaurant filtering back in without being asked.
   every point drained since its first reading, read once from the whole history at 10-min spacing, then extended each sweep.
   Cycles at time t = today's counter − what drained since t. Checked against the MDM: the counter's rise over 6 days matched
   the summed drops within ~2%; the counter is higher than the history's total only by what drained before the history starts.
+- **Battery health** (`#/nx/health`, nav "Health"; `src/views/HealthView.jsx` + `src/lib/health.js`, tested): one row per
+  device for ONE discharge test picked at the top (the busiest by default). A run is comparable when it is a counted cycle of
+  that test that started ≥ 95 %. Score = 0.6 × capacity + 0.1 × early drain + 0.3 × stress (early's weight goes to capacity
+  when fewer than 3 runs have a curve). Capacity = median `fullMs` of the last 3 runs over the median of the first 5 (fleet
+  first-5 median below 5 runs), capped at 100; early drain = points lost in the first hour, first 5 vs last 3; stress = 100 −
+  mean load over lifetime cycles, h ≥ 40 °C, h ≥ 45 °C, hours on charger at 100 %, discharges ended < 5 %, each as a share of
+  the fleet p90. Penalties (30 days): the detector's `offline` interrupted discharge above 5 % (shutdown), a wired charge from
+  ≤ 80 % that came off the cable below 100 % after > 1.5× the fleet's median time to 100 %, a > 5-point jump between readings
+  ≤ 15 min apart off the charger. Good ≥ 90 and no penalty · Watch 80–89 or one penalty · Replace < 80, ≥ 2 penalties or ≥ 2
+  shutdowns · "Not enough runs" < 3. All in the browser from data already loaded, only while the screen is open; nothing new
+  on the server or the MDM. Single click selects a row (detail panel), the serial or a double-click opens the device page.
 - `src/lib/window.js` — the 7-day reading window (every check-in: `interval_sec=60`, the MDM stores one per ~3 min) behind Today and the charts. It is
   kept in the browser's IndexedDB (`readings` store in `src/lib/db.js`), so a page open draws
   from the stored copy and fetches only the readings since (last stamp − 30 min). "Reload

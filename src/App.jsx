@@ -24,6 +24,7 @@ import DeviceSearch from './components/DeviceSearch.jsx'
 import ExportDialog from './components/ExportDialog.jsx'
 import TodayView from './views/TodayView.jsx'
 import CyclePlanView from './views/CyclePlanView.jsx'
+import HealthView from './views/HealthView.jsx'
 
 CTX.group = GROUP
 
@@ -38,11 +39,13 @@ const VIEWS = [
   { id: 'comparison', hash: '#/nx/comparison', label: 'Comparison' },
   { id: 'thermal', hash: '#/nx/thermal', label: 'Thermal' },
   { id: 'summary', hash: '#/nx/summary', label: 'Summary' },
+  { id: 'health', hash: '#/nx/health', label: 'Health' },
 ]
 const ROUTE = h => h.startsWith('#/nx/device/') ? 'device'
   : h.startsWith('#/nx/comparison') ? 'comparison'
   : h.startsWith('#/nx/thermal') ? 'thermal'
   : h.startsWith('#/nx/summary') ? 'summary'
+  : h.startsWith('#/nx/health') ? 'health'
   : h.startsWith('#/nx/today') ? 'today'
   : h.startsWith('#/nx/plan') ? 'plan'
   : 'overview' // v2 only now: any other address opens the Overview
@@ -134,6 +137,7 @@ export default function App() {
     : view === 'device' ? (() => { const sn = decodeURIComponent(hash.slice('#/nx/device/'.length)); return <DeviceView key={sn} serial={sn} d={fleet.DMAP.get(sn)} cycles={cycles} onOpenTest={openDeviceTest} /> })()
     : view === 'today' ? <TodayView fleet={fleet} />
     : view === 'plan' ? <CyclePlanView fleet={fleet} cycles={cycles} onOpenCycle={openCycle} />
+    : view === 'health' ? <HealthView fleet={fleet} cycles={cycles} />
     : (
       <div className="view-stack">
         <FilterBar cycles={inRange} allCycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} declaredTypes={declaredTypes} />

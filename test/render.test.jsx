@@ -27,6 +27,8 @@ import { thermalTimingByDevice } from '../src/lib/thermal.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 import { extendLedger, cumAt, lifetimeAt, drainByAge, liveLedgers } from '../src/lib/drainAge.js'
+import HealthView from '../src/views/HealthView.jsx'
+import { healthRows, capacityIndex, earlyIndex, earlyDrain, stressIndex, fleetP90, stressFactors, hoursAtFull, chargeSegments, medianToFull, slowCharges, gaugeJumps, shutdownsAbove, scoreOf, gradeOf, GRADE, SHUTDOWN, NO_FULL, JUMP } from '../src/lib/health.js'
 
 // a rota so every test type, including Restaurant Case's wireless split, gets exercised
 const ROTA = JSON.stringify({0:{testType:'wlc_load'},1:{testType:'restaurant'},2:{testType:'wlc_phone'},3:{testType:'wlc_disch'},4:{testType:'charging'},5:{testType:'burnin'},6:{testType:'disch_ads'}})
@@ -58,6 +60,8 @@ const cases = {
   // this repo's own two screens, fed the fleet shape they read
   today: [Today, { fleet: { DEV, allCycles: DEV.flatMap(d => d.cycles), DMAP: new Map(DEV.map(d => [d.serial, d])), opts: DEFAULTS }, cycles: [] }],
   'cycle plan': [CyclePlan, { fleet: { DEV, allCycles: DEV.flatMap(d => d.cycles), DMAP: new Map(DEV.map(d => [d.serial, d])), opts: DEFAULTS }, cycles: [] }],
+  health: [HealthView, { fleet: { DEV, allCycles: DEV.flatMap(d => d.cycles), DMAP: new Map(DEV.map(d => [d.serial, d])), opts: DEFAULTS, at: 1 }, cycles }],
+  'health, no cycles': [HealthView, { fleet: { DEV, allCycles: [], DMAP: new Map(DEV.map(d => [d.serial, d])), opts: DEFAULTS, at: 1 }, cycles: [] }],
   thermal: [Thermal, { cycles, allSerials: all, onFilter: nop }],
   summary: [Devices, { cycles, allSerials: all, events: [], onEventsChanged: nop, onFilter: nop, issues: [], files: [] }],
 }
@@ -435,6 +439,87 @@ const mdmCases = []
     const h = renderToString(<DateList dates={dates} counts={new Map(dates.map(d => [d, 3]))} value="" maxCount={3} onPick={nop} onClear={nop}
       amount={(d) => splitText(covered.filter(c => c.date === d))} />)
     want(h.includes('cycles (MDM)'), 'list shows no MDM amounts')
+  })
+  check('health: baseline falls back to the fleet below 5 runs, indices cap at 100', () => {
+    const run = (sn, i, h, extra = {}) => ({ serial: sn, testType: 'T', start: Date.UTC(2026, 8, 1 + i), end: Date.UTC(2026, 8, 1 + i) + h * 3600e3, fullMs: h * 3600e3, startBattery: 100, endBattery: 20, ...extra })
+    // A: 6 runs 20 h then 16 h (-> 80); B: 3 runs of 30 h, baseline from the fleet
+    const cycles = [...[20, 20, 20, 20, 20, 16, 16, 16].map((h, i) => run('A', i, h)), ...[30, 30, 30].map((h, i) => run('B', i, h))]
+    const out = healthRows({ cycles, testType: 'T', devices: [{ serial: 'A', lifetime: 10 }, { serial: 'B', lifetime: 5 }], now: Date.UTC(2026, 8, 20) })
+    const A = out.rows.find((r) => r.serial === 'A'), B = out.rows.find((r) => r.serial === 'B')
+    want(A.capacity.source === 'device' && A.capacity.index === 80 && A.capacity.baseline === 20 * 3600e3, `A capacity ${A.capacity.index} ${A.capacity.source}`)
+    want(B.capacity.source === 'fleet' && out.fleetBaseline === 20 * 3600e3 && B.capacity.index === 100, `B capacity ${B.capacity.index} from ${B.capacity.source}, fleet ${out.fleetBaseline / 3600e3}`)
+    want(A.early.index === null && A.score === Math.round(0.7 * 80 + 0.3 * A.stress.index), `no curves: early null, score ${A.score} vs reweighted`)
+    want(out.rows[0].serial === 'A', 'worst first')
+    want(healthRows({ cycles: cycles.slice(0, 2), testType: 'T', devices: [{ serial: 'A' }] }).rows[0].grade === GRADE.few, '2 runs -> not enough')
+  })
+  check('health: early drain from the curve, null below 3 curves and the weight moves', () => {
+    const curve = (d) => [{ t: 0, v: 100 }, { t: 0.5, v: 100 - d / 2 }, { t: 1.5, v: 100 - d * 1.5 }, { t: 3, v: 100 - 3 * d }]
+    const run = (i, d) => ({ serial: 'A', testType: 'T', start: i, fullMs: 20 * 3600e3, startBattery: 100, series: d == null ? [] : curve(d) })
+    want(earlyDrain(run(0, 6)) === 6, `interpolated ${earlyDrain(run(0, 6))}`)
+    want(earlyDrain({ startBattery: 100, series: [{ t: 0, v: 100 }, { t: 0.5, v: 98 }] }) === null, 'curve short of 1 h')
+    want(earlyDrain({ startBattery: 100, series: [{ t: 0, v: 100 }, { t: 0.5, v: 100 }, { t: 1.5, v: 100 }, { t: 3, v: 90 }] }) === null, 'flat first hour: not a measurable start')
+    const e = earlyIndex([run(0, 4), run(1, 4), run(2, 4), run(3, 4), run(4, 4), run(5, 8), run(6, 8), run(7, 8)])
+    want(e.index === 50 && e.baseline === 4 && e.current === 8, `early ${e.index}`)
+    want(earlyIndex([run(0, 8), run(1, 8), run(2, 4)]).index === 100, 'slower now than at first caps at 100')
+    want(earlyIndex([run(0, 4), run(1, 4), run(2, null), run(3, null)]).index === null, '2 curves: null')
+    want(scoreOf(80, null, 100) === 86 && Math.abs(scoreOf(80, 50, 100) - 83) < 1e-9 && scoreOf(null, 50, 100) === null, 'reweighting')
+  })
+  check('health: stress against the fleet p90, 0 when the fleet p90 is 0', () => {
+    const f = [{ lifetime: 10, h40: 1, h45: 0, full: 2, deep: 0 }, { lifetime: 20, h40: 2, h45: 0, full: 4, deep: 0 }, { lifetime: 40, h40: 4, h45: 0, full: 8, deep: 0 }]
+    const p90 = fleetP90(f)
+    want(p90.lifetime === 40 && p90.h45 === 0, JSON.stringify(p90))
+    const s = stressIndex(f[0], p90)
+    // loads: 0.25, 0.25, 0 (p90 0), 0.25, 0 -> mean 0.15
+    want(Math.abs(s.index - 85) < 1e-9 && s.loads.h45 === 0, `stress ${s.index}`)
+    want(stressIndex({ lifetime: 80, h40: 9, h45: 0, full: 9, deep: 0 }, p90).loads.lifetime === 1, 'load capped at 1')
+    const at = (m, pct, chg) => ({ timestamp: new Date(Date.UTC(2026, 9, 1, 0, m)).toISOString(), battery_pct: pct, extra: { charging: chg } })
+    want(hoursAtFull([at(0, 100, true), at(30, 100, true), at(60, 100, true), at(200, 100, true), at(220, 99, true), at(240, 100, false)]) === 1.5, `hours at full ${hoursAtFull([at(0, 100, true), at(30, 100, true), at(60, 100, true), at(200, 100, true)])}`)
+    const sf = stressFactors({ lifetime: null, cycles: [{ minAbove40: 90, minAbove45: 30, endBattery: 3 }, { minAbove40: 30, endBattery: 20 }], rows: [] })
+    want(sf.lifetime === 0 && sf.h40 === 2 && sf.h45 === 0.5 && sf.deep === 1, JSON.stringify(sf))
+  })
+  check('health: each penalty rule', () => {
+    const T0 = Date.UTC(2026, 9, 1), H = 3600e3
+    const at = (h, pct, extra = {}) => ({ timestamp: new Date(T0 + h * H).toISOString(), battery_pct: pct, extra })
+    // shutdown above 5 %: the detector's offline interrupted of this test, above deadPct; not a recharged one, not another test
+    const inter = [{ serial: 'A', testType: 'T', reason: 'offline', start: T0, end: T0 + 5 * H, endPct: 40 },
+      { serial: 'A', testType: 'T', reason: 'offline', start: T0, end: T0 + 5 * H, endPct: 3 },
+      { serial: 'A', testType: 'T', reason: 'recharged', start: T0, end: T0 + 5 * H, endPct: 40 },
+      { serial: 'A', testType: 'U', reason: 'offline', start: T0, end: T0 + 5 * H, endPct: 40 },
+      { serial: 'A', testType: 'T', reason: 'offline', start: T0 - 40 * 86400e3, end: T0 - 40 * 86400e3 + 5 * H, endPct: 40 }]
+    const sh = shutdownsAbove(inter, 'T', { deadPct: 5, since: T0 - 30 * 86400e3 })
+    want(sh.length === 1 && sh[0].kind === SHUTDOWN && sh[0].at === T0 + 5 * H, `shutdowns ${sh.length}`)
+    // never reached 100 %: wired charges; the fleet's median time to 100 is 3 h, so > 4.5 h without 100 and the flag dropping is a penalty
+    const chg = (h0, from, to, hours, full) => { const out = []; for (let k = 0; k <= 24; k++) out.push(at(h0 + hours * k / 24, Math.round(from + (to - from) * k / 24), { charging: true, charger_type: 'usb' })); if (full) out[out.length - 1].battery_pct = 100; out.push(at(h0 + hours + 0.1, out[out.length - 1].battery_pct, { charging: false, charger_type: 'none' })); return out }
+    const rows = [...chg(0, 20, 100, 3, true), ...chg(10, 20, 100, 3, true), ...chg(20, 20, 100, 3, true), ...chg(30, 20, 97, 6, false), ...chg(40, 20, 90, 2, false), ...chg(50, 96, 99, 8, false)]
+    const segs = chargeSegments(rows)
+    want(segs.length === 6 && segs.filter((s) => s.toFull != null).length === 3 && segs.every((s) => s.dropped && s.wired), `segments ${segs.length}`)
+    const med = medianToFull(segs)
+    want(med === 3 * H, `median to full ${med / H} h`)
+    const slow = slowCharges(segs, med, -Infinity)
+    want(slow.length === 1 && slow[0].kind === NO_FULL && slow[0].at === segs[3].end, `slow charges ${slow.length}: ${slow.map((s) => s.detail).join('; ')}`)
+    want(slowCharges(chargeSegments(rows.map((r) => ({ ...r, extra: { ...r.extra, charger_type: 'wireless' } }))), med).length === 0, 'wireless charges are not judged')
+    // gauge jump: > 5 points between readings off the charger within 15 min; a gap, a 5-point step, or on charge do not count
+    const g = gaugeJumps([at(0, 80), at(0.1, 72), at(0.2, 67), at(0.3, 67), at(2, 40), at(2.1, 46, { charging: true }), at(2.2, 60, { charging: true })])
+    want(g.length === 1 && g[0].kind === JUMP && g[0].detail.startsWith('80% → 72%'), `jumps ${g.length}`)
+    want(gaugeJumps([at(0, 80), at(0.1, 72)], { since: T0 + H }).length === 0, 'outside the 30 days')
+    // all three on one device through healthRows, newest first
+    const run = (i) => ({ serial: 'A', testType: 'T', start: T0 - (10 - i) * 86400e3, fullMs: 20 * H, startBattery: 100, endBattery: 20 })
+    const out = healthRows({ cycles: [run(0), run(1), run(2)], testType: 'T', devices: [{ serial: 'A', lifetime: 1 }], interrupted: inter, readings: { A: [...rows, at(60, 80), at(60.1, 70)] }, now: T0 + 70 * H })
+    const kinds = out.rows[0].penalties.map((p) => p.kind)
+    want(kinds.join('|') === [JUMP, NO_FULL, SHUTDOWN].join('|'), kinds.join('|'))
+    want(out.rows[0].grade === GRADE.replace, `3 penalties -> ${out.rows[0].grade}`)
+  })
+  check('health: grade boundaries', () => {
+    const ev = (k) => ({ kind: k, at: 0 })
+    want(gradeOf(90) === GRADE.good && gradeOf(89.9) === GRADE.watch, '90 / 89.9')
+    want(gradeOf(80) === GRADE.watch && gradeOf(79.9) === GRADE.replace, '80 / 79.9')
+    want(gradeOf(95, [ev(JUMP)]) === GRADE.watch, 'one penalty on a good score -> watch')
+    want(gradeOf(95, [ev(JUMP), ev(NO_FULL)]) === GRADE.replace, 'two penalties -> replace')
+    want(gradeOf(95, [ev(SHUTDOWN), ev(SHUTDOWN)]) === GRADE.replace, 'two shutdowns -> replace')
+    want(gradeOf(85, [ev(JUMP)]) === GRADE.watch && gradeOf(79, []) === GRADE.replace, 'watch band / replace band')
+    want(gradeOf(null) === GRADE.few && gradeOf(null, [ev(JUMP)]) === GRADE.few, 'no score -> not enough runs')
+    const h = renderToString(<HealthView fleet={{ DEV, allCycles: DEV.flatMap(d => d.cycles), DMAP: new Map(DEV.map(d => [d.serial, d])), opts: DEFAULTS, at: 1 }} cycles={cycles} />)
+    want(h.includes('Battery health ·') && h.includes('Not enough runs') && h.includes('replace line'), 'health page did not draw its table')
   })
 }
 console.log(`\n${Object.keys(cases).length + lifeCases + mdmCases.length - failed} passed, ${failed} failed`)

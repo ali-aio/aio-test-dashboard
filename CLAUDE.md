@@ -158,6 +158,7 @@ oversight; don't add restaurant filtering back in without being asked.
 - **The lab's tests** (`TEST_TYPES` in `src/lib/plan.js`, each with an `about` line shown in the Cycle plan form;
   from the lab, Oct 2026). "Load" = something on the T7's wireless pad, which the T7 charges. Plans store the test's
   id, so renaming a test keeps old plans; a new test goes at the end (colour follows the position).
+  Run most often: **Restaurant Case, WLC on Load, Ads only** (`frequent: true`, listed first in the Cycle plan form).
 
   | Test (code) | How it runs |
   |---|---|

@@ -71,7 +71,7 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
       setForm({ ...d, endDate: dayKey(w.endMs - 1), repeat: d.repeat === 'weekly' ? 'weekly' : (d.to > d.from ? 'daily' : 'none') })
     } else {
       const t = nextCycleTimes(decls, day)
-      setForm({ testType: TEST_TYPES[0].id, from: day, to: day, group: { kind: 'all' }, ...t, endDate: t.endTime <= t.startTime ? addDays(day, 1) : day, repeat: 'none', by })
+      setForm({ testType: (TEST_TYPES.find(t => t.frequent) || TEST_TYPES[0]).id, from: day, to: day, group: { kind: 'all' }, ...t, endDate: t.endTime <= t.startTime ? addDays(day, 1) : day, repeat: 'none', by })
     }
   }
 
@@ -306,7 +306,8 @@ function DeclForm({ form, setForm, DEV, decls, onCancel, onSave }) {
         <div className="field"><label htmlFor="f-type">Test type</label>
           <span className="ver" style={{ display: 'block' }}>
             <select id="f-type" style={{ width: '100%' }} value={form.testType} onChange={e => set('testType', e.target.value)}>
-              {TEST_TYPES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              <optgroup label="Frequent">{TEST_TYPES.filter(t => t.frequent).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
+              <optgroup label="Other">{TEST_TYPES.filter(t => !t.frequent).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</optgroup>
             </select></span>
           {testType(form.testType)?.about && <div className="hint" style={{ marginTop: 4 }}>{testType(form.testType).about}</div>}</div>
         {/* One cycle = one continuous stretch, start date+time to end date+time. Repeating it is

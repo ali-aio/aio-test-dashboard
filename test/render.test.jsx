@@ -66,12 +66,12 @@ for (const [name, [C, p]] of Object.entries(cases)) {
   try { renderToString(<C {...p} />); console.log('OK  ', name, `(${p.cycles.length})`) }
   catch (e) { failed++; console.log('FAIL', name, '->', e.message); console.log((e.stack || '').split('\n').slice(1, 5).join('\n')) }
 }
-// Lifetime cycles (MDM): the tile must show the real sum, and "—" (never 0) when no
+// Average battery cycles (the Overview's MDM tile): the real mean per device, and "—" (never 0) when no
 // ticked device reports discharge_total_pct.
 const snaps = { [all[0]]: { discharge_total_pct: 1492 }, [all[1]]: { discharge_total_pct: 9207 }, [all[2]]: {} }
 const checks = [
   ['lifetime: one device = 14.92', lifetimeOf([all[0]], sn => snaps[sn]), '14.92'],
-  ['lifetime: two devices summed', lifetimeOf([all[0], all[1]], sn => snaps[sn]), '106.99'],
+  ['lifetime: two devices averaged', lifetimeOf([all[0], all[1]], sn => snaps[sn]), '53.50'],
   ['lifetime: none reporting shows —', lifetimeOf([all[2]], sn => snaps[sn]), '—'],
 ]
 let lifeCases = 0
@@ -80,7 +80,7 @@ for (const [name, lifetime, want] of checks) {
     lifeCases++
     try {
       const html = renderToString(<T7Overview cycles={tt === '__all__' ? cycles : cycles.filter(c => c.testType === tt)} testType={tt} allSerials={all} onPickTestType={nop} onFilter={nop} lifetime={lifetime} />)
-      const i = html.indexOf('Lifetime cycles (MDM)'), tile = html.slice(i, i + 400).replace(/<[^>]+>/g, ' ')
+      const i = html.indexOf('Average battery cycles'), tile = html.slice(i, i + 400).replace(/<[^>]+>/g, ' ')
       if (i < 0 || !tile.includes(want)) throw new Error(`expected ${want}, tile read: ${tile.replace(/\s+/g, ' ').slice(0, 120)}`)
       if (tile.includes('lifetime, all tests')) throw new Error('foot text should be gone')
       // cycles come from the MDM only; the run-derived tile was removed on request
@@ -146,7 +146,7 @@ const mdmCases = []
   check('overview keeps the cycles tile when a range has no runs', () => {
     const h = renderToString(<T7Overview cycles={[]} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop}
       lifetime={{ value: 3.5, rows: [], devices: 1, missing: [], range: 'Last hour', source: 'counter' }} />)
-    want(h.includes('Battery cycles (MDM)') && h.includes('3.50') && h.includes('Last hour'), 'tile missing')
+    want(h.includes('Average battery cycles') && h.includes('3.50') && h.includes('Last hour'), 'tile missing')
   })
   check('comparison keeps Compare by when one build is in scope', () => {
     const one = covered.map((c) => ({ ...c, build: 'EVT', firmware: 'fw1' }))
@@ -291,7 +291,7 @@ const mdmCases = []
   check('all tests: lifetime tile shows the average per device', () => {
     const lt = { value: 100, devices: 4, rows: [], missing: [] }
     const h = renderToString(<T7Overview cycles={covered} testType="__all__" allSerials={all} onPickTestType={nop} onFilter={nop} lifetime={lt} />).replace(/<!-- -->/g, '')
-    want(h.includes('25.00') && h.includes('average per device') && h.includes('100.00 total across 4'), 'average not shown')
+    want(h.includes('Average battery cycles') && h.includes('25.00') && !h.includes('average per device'), 'average not shown, or the foot line is back')
   })
   check('csv: escaping, gap rows dropped, extra fields, cycles', () => {
     want(csvField('a,b') === '"a,b"' && csvField('say "hi"') === '"say ""hi"""' && csvField('=SUM(A1)') === "'=SUM(A1)" && csvField(-3) === '-3', 'escaping')

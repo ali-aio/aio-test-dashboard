@@ -29,7 +29,7 @@ const fmtWhen = (ms) => {
  * is usually the explanation for whatever the numbers show.
  */
 export default function DevicesView({
-  cycles, allSerials, events, onEventsChanged, onFilter, onOpenTest, issues = [], files = [], snapOf = () => null, drops = null }) {
+  cycles, allSerials, events, onEventsChanged, onFilter, onOpenTest, issues = [], files = [], snapOf = () => null, drops = null, hours = null }) {
   const [editing, setEditing] = useState(null)   // an event, {} for new, or null
   const [expanded, setExpanded] = useState(() => new Set())
   /* Only the devices something has been logged against, by default. A list of
@@ -324,7 +324,7 @@ export default function DevicesView({
         )}
       </Card>
 
-      <DrainByAge cycles={cycles} drops={drops} snapOf={snapOf} />
+      <DrainByAge cycles={cycles} drops={drops} hours={hours} snapOf={snapOf} />
 
       <DataQualityCard issues={issues} files={files} />
 

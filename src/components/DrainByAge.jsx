@@ -1,67 +1,67 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react'
 import { Card } from './Primitives.jsx'
 import { SortTable } from './SortTable.jsx'
-import { drainByAge, liveLedgers } from '../lib/drainAge.js'
+import { liveLedgers } from '../lib/drainAge.js'
+import { tagHours, drainBands, conditionBands, TEMP_BANDS } from '../lib/drainHours.js'
 import { rowsFor, subscribeWindow, getWindow } from '../lib/window.js'
 import { CHARGING_TEST_TYPES } from '../lib/testtypes.js'
 import { fmtRate, fmtSerial, compareSerial, DASH } from '../lib/fmt.js'
 
-const ALL = '__all__'
-const isLoad = (c) => /^Pad on/.test(c.padState || '')
-const loadText = (c) => (!c.padKnown ? 'load not known' : isLoad(c) ? 'load placed' : 'no load')
-const when = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).replace('Sept', 'Sep')
+const ALL = 'all'
+const STEP = 5
+const pct = (x) => `${Math.round(x * 100)} %`
 
-/** Each device's drain rate at its 10th, 20th, 30th… lifetime battery cycle, and its latest.
- *  The age of a cycle comes from the drop ledger (src/lib/drainAge.js). Charging tests have
- *  no drain, so they are left out; a test picker keeps the comparison to one kind of run. */
-export default function DrainByAge({ cycles, drops: stored, snapOf = () => null }) {
-  // up to the last check-in, not the last sweep: the live readings and counter on top of the file
+/** Each device's drain rate per 5 lifetime battery cycles, worked out hour by hour so it can be
+ *  split by what was going on: load on the pad, ads (from the test), battery temperature
+ *  (src/lib/drainHours.js). Below it, the fleet's average for each condition on its own. */
+export default function DrainByAge({ cycles, drops: stored, hours, snapOf = () => null }) {
+  // the battery's age up to the last check-in, not the last sweep
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
   const drops = useMemo(() => liveLedgers(stored, rowsFor, snapOf), [stored, win.at2, cycles])
+  const discharge = useMemo(() => cycles.filter((c) => !CHARGING_TEST_TYPES.has(c.testType)), [cycles])
   const types = useMemo(() => {
     const n = new Map()
-    for (const c of cycles) if (!CHARGING_TEST_TYPES.has(c.testType) && c.dropPerHr != null) n.set(c.testType, (n.get(c.testType) || 0) + 1)
+    for (const c of discharge) n.set(c.testType, (n.get(c.testType) || 0) + 1)
     return [...n].sort((a, b) => b[1] - a[1]).map(([t]) => t)
-  }, [cycles])
-  const [pick, setPick] = useState(ALL)
-  const tt = pick !== ALL && types.includes(pick) ? pick : ALL
-  // a load on the T7's wireless pad drains it much faster: compare like with like, or see it marked
+  }, [discharge])
+  const tagged = useMemo(() => tagHours(discharge, hours, drops), [discharge, hours, drops])
+
   const [load, setLoad] = useState(ALL)
-  const loadOk = (c) => load === ALL || (c.padKnown && (load === 'on') === isLoad(c))
-  const { marks, rows } = useMemo(() => drainByAge(cycles.filter((c) => !CHARGING_TEST_TYPES.has(c.testType) && (tt === ALL || c.testType === tt) && loadOk(c)), drops),
-    [cycles, drops, tt, load])
+  const [ads, setAds] = useState(ALL)
+  const [temp, setTemp] = useState(ALL)
+  const [pick, setPick] = useState(ALL)
+  const test = pick !== ALL && types.includes(pick) ? pick : ALL
+  const { marks, rows } = useMemo(() => drainBands(tagged, { load, ads, temp, test }, { step: STEP }), [tagged, load, ads, temp, test])
+  const cond = useMemo(() => conditionBands(tagged, { test }, { step: STEP }), [tagged, test])
   const sorted = rows.slice().sort((a, b) => compareSerial(a.serial, b.serial))
   const avg = (xs) => { const v = xs.filter((x) => x != null); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null }
   const cell = (x) => x
-    ? <span title={`${x.c.testType} · ${loadText(x.c)} · ${when(x.c.start)}${x.age != null ? ` · started at ${x.age.toFixed(1)} battery cycles` : ''}`}>
-      {fmtRate(x.rate)}{load === ALL && x.c.padKnown && isLoad(x.c) ? <span className="load-tag" aria-label="load placed">L</span> : null}</span>
+    ? <span title={`${x.hours.toFixed(1)} h on battery · load on the pad ${pct(x.loadShare)} of it${x.temp != null ? ` · battery ${x.temp.toFixed(1)} °C on average` : ''}`}>{fmtRate(x.rate)}</span>
     : DASH
+  const band = (m) => `${m}–${m + STEP} cycles`
+  const sel = (value, set, label, opts) => (
+    <select className="control" value={value} onChange={(e) => set(e.target.value)} aria-label={label}>
+      {opts.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+    </select>)
 
   return (
     <Card title="Drain rate by battery age"
-      right={<div style={{ display: 'flex', gap: 8 }}>
-        <select className="control" value={load} onChange={(e) => setLoad(e.target.value)} aria-label="Load on the wireless pad">
-          <option value={ALL}>With and without load</option>
-          <option value="on">Load placed</option>
-          <option value="off">No load</option>
-        </select>
-        {types.length > 1 && (
-          <select className="control" value={tt} onChange={(e) => setPick(e.target.value)} aria-label="Test type for drain by battery age">
-            <option value={ALL}>All discharge tests</option>
-            {types.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>)}
+      right={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {sel(load, setLoad, 'Load on the wireless pad', [[ALL, 'With and without load'], ['on', 'Load placed'], ['off', 'No load']])}
+        {sel(ads, setAds, 'Ads running', [[ALL, 'With and without ads'], ['on', 'Ads running'], ['off', 'No ads']])}
+        {sel(temp, setTemp, 'Battery temperature', [[ALL, 'Any battery temperature'], ...TEMP_BANDS.map((b) => [b.id, b.label])])}
+        {types.length > 1 && sel(test, setPick, 'Test type for drain by battery age', [[ALL, 'All discharge tests'], ...types.map((t) => [t, t])])}
       </div>}>
-      {!drops ? <p className="secondary">The server has not built the battery-cycle history yet (it reads every device's readings once, on its next check of the MDM). This fills in after that.</p>
-        : !rows.length ? <p className="secondary">No discharge cycles in scope.</p> : (
+      {!drops || !hours ? <p className="secondary">The server has not built the hour-by-hour history yet (it reads every device's readings once, on its next check of the MDM). This fills in after that.</p>
+        : !rows.length ? <p className="secondary">No hours on battery match these choices.</p> : (
           <div className="table-wrap" style={{ maxHeight: 560 }}>
             <SortTable caption="Drain rate by battery age" head={[{ label: 'Device', style: { textAlign: 'left' } },
-              ...marks.map((m) => ({ label: `${m} cycles` })), { label: 'Latest' }, { label: 'Latest started at' }, { label: 'Cycles now' }]}>
+              ...marks.map((m) => ({ label: band(m) })), { label: 'Last 7 days' }, { label: 'Cycles now' }]}>
               {sorted.map((r) => (
                 <tr key={r.serial}>
                   <td className="mono" style={{ textAlign: 'left' }}>{fmtSerial(r.serial)}</td>
                   {marks.map((m) => <td key={m}>{cell(r.at[m])}</td>)}
-                  <td>{cell(r.now)}</td>
-                  <td>{r.now?.age != null ? `${r.now.age.toFixed(1)} cycles` : DASH}</td>
+                  <td>{cell(r.latest)}</td>
                   {/* the MDM counter at the device's last check-in */}
                   <td title={drops?.[r.serial]?.anchor ? `MDM counter at ${new Date(drops[r.serial].anchor[0]).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : undefined}>
                     {drops?.[r.serial]?.anchor ? `${(drops[r.serial].anchor[1] / 100).toFixed(1)} cycles` : DASH}</td>
@@ -70,13 +70,26 @@ export default function DrainByAge({ cycles, drops: stored, snapOf = () => null 
               <tr data-pinned className="row-total">
                 <td style={{ textAlign: 'left' }}><b>Average</b></td>
                 {marks.map((m) => { const a = avg(sorted.map((r) => r.at[m]?.rate)); return <td key={m}><b>{a == null ? DASH : fmtRate(a)}</b></td> })}
-                <td><b>{(() => { const a = avg(sorted.map((r) => r.now?.rate)); return a == null ? DASH : fmtRate(a) })()}</b></td>
-                <td />
+                <td><b>{(() => { const a = avg(sorted.map((r) => r.latest?.rate)); return a == null ? DASH : fmtRate(a) })()}</b></td>
                 <td />
               </tr>
             </SortTable>
           </div>)}
-      <p className="hint" style={{ marginTop: 8 }}>{load === ALL ? <><span className="load-tag">L</span> = a load was on the wireless pad for most of that cycle (it drains faster); pick Load placed or No load to compare like with like. </> : null}A column holds the first cycle that started between that count and the next (e.g. 20–30). Blank: no cycle of that test there, or the device's readings start later.</p>
+      {drops && hours && cond.marks.length > 0 && <>
+        <h3 style={{ margin: '16px 0 6px', fontSize: 13 }}>Average by condition{test !== ALL ? ` · ${test}` : ''}</h3>
+        <div className="table-wrap" style={{ maxHeight: 360 }}>
+          <SortTable caption="Average drain by condition and battery age" head={[{ label: 'Condition', style: { textAlign: 'left' } },
+            ...cond.marks.map((m) => ({ label: band(m) })), { label: 'Last 7 days' }]}>
+            {cond.rows.map((r) => (
+              <tr key={r.label}>
+                <td style={{ textAlign: 'left' }}>{r.label}</td>
+                {cond.marks.map((m) => <td key={m}>{r.at[m] ? <span title={`average of ${r.at[m].devices} device${r.at[m].devices === 1 ? '' : 's'}`}>{fmtRate(r.at[m].rate)}</span> : DASH}</td>)}
+                <td>{r.latest ? <span title={`average of ${r.latest.devices} devices`}>{fmtRate(r.latest.rate)}</span> : DASH}</td>
+              </tr>))}
+          </SortTable>
+        </div>
+      </>}
+      <p className="hint" style={{ marginTop: 8 }}>Worked out hour by hour over the hours each device ran a test on battery: points drained ÷ hours, in bands of {STEP} battery cycles (a band needs 2 h). Load = a load on the wireless pad for most of that hour. Ads come from the test (the Cycle plan); Old cycles and WLC on Phone count as not known. The devices report the battery's temperature, not the room's.</p>
     </Card>
   )
 }

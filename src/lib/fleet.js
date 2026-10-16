@@ -17,7 +17,7 @@ const TOPKEY = `histTopup:v3:${GROUP}`;
 
 const state = {
   DEV: [], DMAP: new Map(), allCycles: [], runs: [], cycleRun: new Map(),
-  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null, readings: null, curves: null, drops: null,
+  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null, readings: null, curves: null, drops: null, hours: null,
 };
 let snapshot = { ...state }, HIST = {}, TOP = {}, local = loadRuns(GROUP);
 const subs = new Set();
@@ -99,6 +99,10 @@ async function loadReadings() {
   // drain rate by battery age on the Summary screen.
   try { const r = await fetch('/data/drops.json'); state.drops = r.ok ? (await r.json()).devices || null : null; }
   catch (e) { state.drops = null; }
+  // each device's hours off the charger (src/lib/drainHours.js): the same table split by load,
+  // ads and battery temperature
+  try { const r = await fetch('/data/hours.json'); state.hours = r.ok ? (await r.json()).devices || null : null; }
+  catch (e) { state.hours = null; }
 }
 
 export async function topUp(force = false) {

@@ -185,11 +185,17 @@ oversight; don't add restaurant filtering back in without being asked.
   `planSync.js` keeps the newer copy of each entry, so a browser can't undo the server's update.
 - **HW build** comes from the serial (`buildFromSerial`, `src/lib/device.js`): "BU" in it = Production
   Build, otherwise "OTG / Validation Build" (the serial can't tell those two apart).
-- **Drain rate by battery age** (Summary screen, `src/components/DrainByAge.jsx` + `src/lib/drainAge.js`, tested): each
-  device's drain %/h at its 10th, 20th, 30th… lifetime battery cycle and its latest. The API gives the MDM counter only as
-  of now, so the sweep keeps a drop ledger per device (`data/drops.json`, gitignored, `buildDrops` in `server/sweep.mjs`):
-  every point drained since its first reading, read once from the whole history at 10-min spacing, then extended each sweep.
-  Cycles at time t = today's counter − what drained since t. Checked against the MDM: the counter's rise over 6 days matched
+- **Drain rate by battery age** (Summary screen, `src/components/DrainByAge.jsx` + `src/lib/drainHours.js` + `src/lib/drainAge.js`,
+  tested): each device's drain %/h per **5 battery cycles** of age (0–5, 5–10, …), its last 7 days and its MDM count now,
+  with pickers for **load** (pad), **ads** and **battery temperature** (and test), plus a fleet **Average by condition** table
+  (each condition on its own). Worked out **per hour**, because one cycle mixes conditions (Restaurant Case: 3 h with a
+  load, then none): the sweep keeps every device's hours off the charger (`data/hours.json`, gitignored, `buildHours` in
+  `server/sweep.mjs`: drop, minutes on battery, minutes with a load, mean battery temp; whole history once at 10-min, then
+  extended). Only hours inside a counted cycle count (a device idle on a shelf does not), which also gives the hour its
+  test; ads come from the test (`ADS_BY_TEST`, from the lab's descriptions; Old cycles / WLC on Phone = not known). The
+  devices report the battery's temperature, not the room's — there is no external temperature in the API. Battery age at
+  an hour comes from the drop ledger (`data/drops.json`, `buildDrops`): every point drained since its first reading, so
+  cycles at time t = today's counter − what drained since t. Checked against the MDM: the counter's rise over 6 days matched
   the summed drops within ~2%; the counter is higher than the history's total only by what drained before the history starts.
 - **Battery health** (`#/nx/health`, nav "Health"; `src/views/HealthView.jsx` + `src/lib/health.js`, tested): one row per
   device for ONE discharge test picked at the top (the busiest by default). A run is comparable when it is a counted cycle of

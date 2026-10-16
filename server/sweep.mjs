@@ -13,6 +13,7 @@ import { detectCycles, normalize } from '../shared/cycles.js';
 import { appendReadings } from '../src/lib/mdmTrack.js';
 import { resampleRun, curveKey } from '../src/lib/curves.js';
 import { extendLedger } from '../src/lib/drainAge.js';
+import { extendHours } from '../src/lib/drainHours.js';
 import { buildAutoPlan } from './autoplan.mjs';
 import { chargeSegments, thermalStats } from '../shared/profile.js';
 
@@ -84,6 +85,7 @@ export async function sweep({ base, group, root, get, plan, log = () => {} }) {
   log(`done in ${Math.round((Date.now() - now) / 1000)}s: ${cycles} cycles since the import across ${Object.keys(out).length} devices${failed.length ? `, ${failed.length} failed (kept previous)` : ''}`);
   await buildCurves({ root, devices: devices.map(d => d.serial_number), topup: out, get, log });
   await buildDrops({ root, group, devices, get, now, log });
+  await buildHours({ root, group, devices, get, now, log });
   // which test each bench ran, into the shared plan (marked Auto); a failure here never fails the sweep
   try { await buildAutoPlan({ root, group, devices, get, plan, now, log }); } catch (e) { log(`auto plan failed: ${e.message}`); }
   return { at: now, devices: Object.keys(out).length, cycles, failed };
@@ -175,4 +177,29 @@ export async function buildDrops({ root, group, devices, get, now = Date.now(), 
   });
   save();
   log(`drop ledger: ${built} built from the whole history, ${extended} extended`);
+}
+
+// Each device's hours off the charger (src/lib/drainHours.js): drop, minutes on battery, minutes
+// with a load on the pad, battery temperature — so drain by battery age can be split by load,
+// ads (from the test) and temperature, hour by hour. Same pattern as the drop ledger: the whole
+// history once at 10-min spacing (from where the ledger says it starts), then the last 2 h onward
+// on each sweep. Our own gitignored file; reads from the MDM only.
+export async function buildHours({ root, group, devices, get, now = Date.now(), log = () => {} }) {
+  const target = path.join(root, 'data', 'hours.json'), tmp = target + '.tmp';
+  const old = readJson(target), file = old && old.group === group && old.v === 1 ? old : { v: 1, group, devices: {} };
+  const drops = readJson(path.join(root, 'data', 'drops.json'))?.devices || {};
+  const save = () => { file.at = Date.now(); fs.writeFileSync(tmp, JSON.stringify(file)); fs.renameSync(tmp, target); };
+  let built = 0, extended = 0;
+  await mapLimit(devices, 3, async d => {
+    const sn = d.serial_number, had = file.devices[sn];
+    // re-read from a whole hour, so the first rebuilt hour is complete
+    const from = had?.upto ? Math.floor((had.upto - 2 * H) / H) * H : drops[sn]?.from ? drops[sn].from - H : null;
+    if (from == null) return;
+    const rows = await history(get, sn, from, now);
+    file.devices[sn] = { upto: now, h: extendHours(had?.h, rows) };
+    had ? extended++ : built++;
+    if (!had) save();
+  });
+  save();
+  log(`hours: ${built} built from the whole history, ${extended} extended`);
 }

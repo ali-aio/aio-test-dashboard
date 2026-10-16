@@ -2,7 +2,7 @@ import React, { useMemo, useState, useSyncExternalStore } from 'react'
 import { Card } from './Primitives.jsx'
 import { SortTable } from './SortTable.jsx'
 import { liveLedgers } from '../lib/drainAge.js'
-import { tagHours, drainBands, conditionBands, TEMP_BANDS } from '../lib/drainHours.js'
+import { tagSlots, drainBands, conditionBands, TEMP_BANDS } from '../lib/drainHours.js'
 import { rowsFor, subscribeWindow, getWindow } from '../lib/window.js'
 import { CHARGING_TEST_TYPES } from '../lib/testtypes.js'
 import { fmtRate, fmtSerial, compareSerial, DASH } from '../lib/fmt.js'
@@ -11,7 +11,7 @@ const ALL = 'all'
 const STEP = 5
 const pct = (x) => `${Math.round(x * 100)} %`
 
-/** Each device's drain rate per 5 lifetime battery cycles, worked out hour by hour so it can be
+/** Each device's drain rate per 5 lifetime battery cycles, worked out per 15 minutes so it can be
  *  split by what was going on: load on the pad, ads (from the test), battery temperature
  *  (src/lib/drainHours.js). Below it, the fleet's average for each condition on its own. */
 export default function DrainByAge({ cycles, drops: stored, hours, snapOf = () => null }) {
@@ -24,7 +24,7 @@ export default function DrainByAge({ cycles, drops: stored, hours, snapOf = () =
     for (const c of discharge) n.set(c.testType, (n.get(c.testType) || 0) + 1)
     return [...n].sort((a, b) => b[1] - a[1]).map(([t]) => t)
   }, [discharge])
-  const tagged = useMemo(() => tagHours(discharge, hours, drops), [discharge, hours, drops])
+  const tagged = useMemo(() => tagSlots(discharge, hours, drops), [discharge, hours, drops])
 
   const [load, setLoad] = useState(ALL)
   const [ads, setAds] = useState(ALL)
@@ -52,7 +52,7 @@ export default function DrainByAge({ cycles, drops: stored, hours, snapOf = () =
         {sel(temp, setTemp, 'Battery temperature', [[ALL, 'Any battery temperature'], ...TEMP_BANDS.map((b) => [b.id, b.label])])}
         {types.length > 1 && sel(test, setPick, 'Test type for drain by battery age', [[ALL, 'All discharge tests'], ...types.map((t) => [t, t])])}
       </div>}>
-      {!drops || !hours ? <p className="secondary">The server has not built the hour-by-hour history yet (it reads every device's readings once, on its next check of the MDM). This fills in after that.</p>
+      {!drops || !hours ? <p className="secondary">The server has not built the 15-minute history yet (it reads every device's readings once, on its next check of the MDM). This fills in after that.</p>
         : !rows.length ? <p className="secondary">No hours on battery match these choices.</p> : (
           <div className="table-wrap" style={{ maxHeight: 560 }}>
             <SortTable caption="Drain rate by battery age" head={[{ label: 'Device', style: { textAlign: 'left' } },
@@ -89,7 +89,7 @@ export default function DrainByAge({ cycles, drops: stored, hours, snapOf = () =
           </SortTable>
         </div>
       </>}
-      <p className="hint" style={{ marginTop: 8 }}>Worked out hour by hour over the hours each device ran a test on battery: points drained ÷ hours, a column holds the hours the battery was at that many cycles up to the next column (5 cycles = 5 up to 10; a column needs 2 h). Load = a load on the wireless pad for most of that hour. Ads come from the test (the Cycle plan); Old cycles and WLC on Phone count as not known. The devices report the battery's temperature, not the room's.</p>
+      <p className="hint" style={{ marginTop: 8 }}>Worked out per 15 minutes over the time each device ran a test on battery: points drained ÷ hours, a column holds the hours the battery was at that many cycles up to the next column (5 cycles = 5 up to 10; a column needs 2 h). Load = a load (or phone) on the wireless pad for most of those 15 minutes. Ads come from the test (the Cycle plan); Old cycles and WLC on Phone count as not known. The devices report the battery's temperature, not the room's.</p>
     </Card>
   )
 }

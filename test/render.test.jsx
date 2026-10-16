@@ -28,7 +28,7 @@ import { sortValue, compareValues, SortTable } from '../src/components/SortTable
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 import { extendLedger, cumAt, lifetimeAt, drainByAge, liveLedgers } from '../src/lib/drainAge.js'
 import { runsFrom, benchesFrom, classifyBench, applyAuto } from '../src/lib/autoPlan.js'
-import { hourBuckets, extendHours, tagHours, drainBands, conditionBands } from '../src/lib/drainHours.js'
+import { slotBuckets, extendSlots, tagSlots, drainBands, conditionBands } from '../src/lib/drainHours.js'
 import HealthView from '../src/views/HealthView.jsx'
 import { healthRows, capacityIndex, earlyIndex, earlyDrain, fleetBaselines, loadClass, stressIndex, fleetP90, stressFactors, hoursAtFull, chargeSegments, medianToFull, slowCharges, gaugeJumps, shutdownsAbove, scoreOf, gradeOf, GRADE, SHUTDOWN, NO_FULL, JUMP } from '../src/lib/health.js'
 
@@ -321,28 +321,31 @@ const mdmCases = []
     want(live.A.cum === 140 && live.A.anchor[1] === 2510 && Math.abs(lifetimeAt(live.A, t0 + 30 * H) - 25) < 1e-9, `live: ${live.A.cum}, ${live.A.anchor}`)
     want(leds.A.cum === 130, 'the stored ledger is left as it was')
   })
-  check('drain by hour: split by load, ads and temperature, in 5-cycle bands', () => {
+  check('drain per 15 minutes: split by load, ads and temperature, in 5-cycle bands', () => {
     const H = 3600e3, M = 60e3, t0 = Date.UTC(2026, 9, 1, 10)
-    // 3 h with a load at 12 %/h and 45 °C, then 4 h without at 4 %/h and 38 °C; readings every 6 min
+    // 3 h with a load at 12 %/h and 45 °C, then 4 h without at 4 %/h and 38 °C, but with a phone
+    // on the pad for 20 min at 5 h; readings every 5 min
     const rows = []; let b = 100
-    for (let t = t0; t <= t0 + 7 * H; t += 6 * M) {
-      const pad = t < t0 + 3 * H
-      rows.push({ timestamp: new Date(t).toISOString(), battery_pct: b, extra: { charging: false, wlc_status: pad ? 1 : 0, battery_temp_c: pad ? 45 : 38 } })
-      b -= pad ? 1.2 : 0.4
+    for (let t = t0; t <= t0 + 7 * H; t += 5 * M) {
+      const pad = t < t0 + 3 * H, phone = t >= t0 + 5 * H && t < t0 + 5 * H + 20 * M
+      rows.push({ timestamp: new Date(t).toISOString(), battery_pct: b, extra: { charging: false, wlc_status: pad || phone ? 1 : 0, battery_temp_c: pad ? 45 : 38 } })
+      b -= pad ? 1 : 1 / 3
     }
-    rows.push({ timestamp: new Date(t0 + 7 * H + 6 * M).toISOString(), battery_pct: b + 2, extra: { charging: true } })
-    const hs = hourBuckets(rows)
-    want(hs.length === 7 && hs[0][3] === 60 && hs[5][3] === 0 && Math.abs(hs[0][1] - 120) <= 1 && hs[0][4] === 450, `buckets: ${JSON.stringify(hs.slice(0, 2))}`)
-    want(extendHours(hs.slice(0, 3), rows.slice(30)).length === 7, 'extended from the first new hour')
+    rows.push({ timestamp: new Date(t0 + 7 * H + 5 * M).toISOString(), battery_pct: b + 2, extra: { charging: true } })
+    const hs = slotBuckets(rows)
+    want(hs.length === 28 && hs[0][2] === 15 && hs[0][3] === 15 && Math.abs(hs[0][1] - 30) <= 1 && hs[0][4] === 450, `slots: ${JSON.stringify(hs.slice(0, 2))}`)
+    // the 20-minute phone: its first slot (5:00-5:15) is a load slot, the one after 6:00 is not
+    want(hs[20][3] === 15 && hs[24][3] === 0, `phone slots: ${JSON.stringify([hs[20], hs[21], hs[24]])}`)
+    want(extendSlots(hs.slice(0, 12), rows.slice(30)).length === 28, 'extended from the first new slot (2:30), the stored ones before it kept')
     const drops = { A: { from: t0, pts: [[t0, 0], [t0 + 7 * H, 60]], last: [t0 + 7 * H, 40], cum: 60, anchor: [t0 + 7 * H, 1060] } } // 10.6 cycles now -> ~10 at start
-    const tg = tagHours([{ serial: 'A', start: t0, end: t0 + 7 * H, testType: 'Restaurant Case' }], { A: { h: hs } }, drops)
+    const tg = tagSlots([{ serial: 'A', start: t0, end: t0 + 7 * H, testType: 'Restaurant Case' }], { A: { h: hs } }, drops)
     const on = drainBands(tg, { load: 'on' }).rows[0].at[10], off = drainBands(tg, { load: 'off' }).rows[0].at[10]
-    want(Math.abs(on.rate - 12) < 0.5 && Math.abs(off.rate - 4) < 0.5, `load ${on?.rate} / no load ${off?.rate}`)
+    want(Math.abs(on.rate - 11.4) < 1 && Math.abs(off.rate - 4) < 0.5, `load ${on?.rate} / no load ${off?.rate}`)
     want(drainBands(tg, { ads: 'on' }).rows.length === 1 && !drainBands(tg, { ads: 'off' }).rows.length, 'restaurant case = ads running')
-    want(Math.abs(drainBands(tg, { temp: 'hot' }).rows[0].at[10].rate - 12) < 0.5, 'hot hours are the loaded ones')
+    want(drainBands(tg, { temp: 'hot' }).rows[0].at[10].rate > 11, 'hot slots are the loaded ones')
     const cb = conditionBands(tg)
     want(cb.marks.join() === '10' && cb.rows.find(r => r.label === 'No load').at[10].rate < 5, JSON.stringify(cb.marks))
-    want(!Object.keys(tagHours([], { A: { h: hs } }, drops)).length, 'hours outside a test do not count')
+    want(!Object.keys(tagSlots([], { A: { h: hs } }, drops)).length, 'time outside a test does not count')
   })
   check('auto plan: the test told from the readings, and how it goes into the plan', () => {
     const H = 3600e3, M = 60e3, day = (d, h) => new Date(2026, 9, d, h).getTime()

@@ -1,10 +1,11 @@
 // Drain rate by battery age, split by what was going on: load on the pad or not, ads running or
 // not, how hot the battery was. One cycle mixes these (Restaurant Case: 3 h with a load, 11 h
-// without), so the rate is worked out per HOUR, not per cycle. The server keeps each device's
-// hours (data/hours.json, buildHours in server/sweep.mjs):
-//   [hourStartMs, drop (tenths of a point), minutes on battery, minutes with a load on the pad,
+// without), and a phone may sit on the pad for only 20 minutes, so the rate is worked out per
+// 15-MINUTE SLOT, not per cycle. The server keeps each device's slots (data/hours.json, v 2,
+// buildHours in server/sweep.mjs, readings every 5 min):
+//   [slotStartMs, drop (tenths of a point), minutes on battery, minutes with a load on the pad,
 //    mean battery temp (tenths of °C, -1 none)]
-// The browser joins every hour to the counted cycle it fell in (the hours a test ran, so a
+// The browser joins every slot to the counted cycle it fell in (the time a test ran, so a
 // device sitting unplugged on a shelf never counts) for its test, and to the drop ledger
 // (drainAge.js) for the battery's age then. A band's rate = points drained ÷ hours on battery.
 // Ads are not in the telemetry: they come from the test (the lab's descriptions, plan.js).
@@ -12,8 +13,9 @@
 // Plain JS, no DOM.
 import { lifetimeAt } from './drainAge.js';
 
-const H = 3600e3, HALF = 30 * 60e3, MAX_STEP = 30 * 60e3;
-export const MIN_MINUTES = 120; // a band needs 2 h of matching hours, or it is a guess
+const H = 3600e3, MAX_STEP = 30 * 60e3;
+export const SLOT = 15 * 60e3;
+export const MIN_MINUTES = 120; // a band needs 2 h of matching time, or it is a guess
 
 // ads running in each test (names as cycles carry them); null = not known
 export const ADS_BY_TEST = {
@@ -26,9 +28,10 @@ export const TEMP_BANDS = [
   { id: 'hot', label: 'Battery 40 °C or more', test: t => t >= 40 },
 ];
 
-/** Hour buckets from history rows (raw or normalize()d). Only time off the charger counts: a
- *  stretch between two readings ≤ 30 min apart, on battery at its start and not rising. */
-export function hourBuckets(rows) {
+/** 15-minute slots from history rows (raw or normalize()d). Only time off the charger counts: a
+ *  stretch between two readings ≤ 30 min apart, on battery at its start and not rising; a stretch
+ *  crossing a slot's edge is shared between the slots by time. */
+export function slotBuckets(rows) {
   const pts = rows.filter(r => !r.empty && typeof r.battery_pct === 'number')
     .map(r => ({ t: Date.parse(r.sample_at || r.timestamp), b: r.battery_pct, ch: r.extra?.charging, pad: !!r.extra?.wlc_status, c: r.extra?.battery_temp_c }))
     .filter(p => Number.isFinite(p.t)).sort((a, b) => a.t - b.t);
@@ -36,23 +39,25 @@ export function hourBuckets(rows) {
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i], z = pts[i + 1], dt = z.t - a.t;
     if (dt <= 0 || dt > MAX_STEP || a.ch === true || z.b > a.b) continue;
-    const h = Math.floor(a.t / H) * H;
-    let x = by.get(h); if (!x) by.set(h, (x = { drop: 0, min: 0, pad: 0, tSum: 0, tMin: 0 }));
-    const m = dt / 60e3;
-    x.drop += a.b - z.b; x.min += m; if (a.pad) x.pad += m;
-    if (typeof a.c === 'number' && a.c > 0) { x.tSum += a.c * m; x.tMin += m; }
+    for (let s = Math.floor(a.t / SLOT) * SLOT; s < z.t; s += SLOT) {
+      const part = Math.min(z.t, s + SLOT) - Math.max(a.t, s); if (part <= 0) continue;
+      let x = by.get(s); if (!x) by.set(s, (x = { drop: 0, min: 0, pad: 0, tSum: 0, tMin: 0 }));
+      const m = part / 60e3;
+      x.drop += (a.b - z.b) * part / dt; x.min += m; if (a.pad) x.pad += m;
+      if (typeof a.c === 'number' && a.c > 0) { x.tSum += a.c * m; x.tMin += m; }
+    }
   }
-  return [...by].sort((p, q) => p[0] - q[0]).map(([h, x]) => [h, Math.round(x.drop * 10), Math.round(x.min), Math.round(x.pad),
+  return [...by].sort((p, q) => p[0] - q[0]).map(([t, x]) => [t, Math.round(x.drop * 10), Math.round(x.min * 10) / 10, Math.round(x.pad * 10) / 10,
     x.tMin ? Math.round((x.tSum / x.tMin) * 10) : -1]);
 }
-/** A device's stored hours with newer readings folded in: hours from the first new reading's hour on are rebuilt. */
-export function extendHours(prev, rows) {
-  const fresh = hourBuckets(rows);
+/** A device's stored slots with newer readings folded in: slots from the first new reading's slot on are rebuilt. */
+export function extendSlots(prev, rows) {
+  const fresh = slotBuckets(rows);
   if (!fresh.length) return prev || [];
   return [...(prev || []).filter(x => x[0] < fresh[0][0]), ...fresh];
 }
 
-// hour -> what was going on
+// slot -> what was going on
 const factorsOf = (x, c) => ({ load: x[3] * 2 >= x[2], ads: ADS_BY_TEST[c.testType] ?? null, temp: x[4] >= 0 ? x[4] / 10 : null, test: c.testType });
 export const matches = (f, { load = 'all', ads = 'all', temp = 'all', test = 'all' } = {}) =>
   (load === 'all' || (load === 'on') === f.load)
@@ -60,8 +65,8 @@ export const matches = (f, { load = 'all', ads = 'all', temp = 'all', test = 'al
   && (temp === 'all' || (f.temp != null && TEMP_BANDS.find(b => b.id === temp)?.test(f.temp)))
   && (test === 'all' || f.test === test);
 
-/** Every device's hours inside its counted cycles, with their factors and the battery's age. */
-export function tagHours(cycles, hours, drops) {
+/** Every device's slots inside its counted cycles, with their factors and the battery's age. */
+export function tagSlots(cycles, hours, drops) {
   const bySerial = new Map();
   for (const c of cycles) {
     if (c.charging || !(c.end > c.start)) continue;
@@ -75,7 +80,7 @@ export function tagHours(cycles, hours, drops) {
     const led = drops?.[sn], tagged = [];
     let i = 0;
     for (const x of hs) {
-      const mid = x[0] + HALF;
+      const mid = x[0] + SLOT / 2;
       while (i < list.length && list[i].end < mid) i++;
       if (i >= list.length) break;
       const c = list[i];
@@ -92,7 +97,7 @@ const add = (b, h) => { b.drop += h.drop; b.min += h.min; if (h.f.temp != null) 
 const done = b => (b && b.min >= MIN_MINUTES ? { rate: b.drop / (b.min / 60), hours: b.min / 60, temp: b.tMin ? b.tSum / b.tMin : null, loadShare: b.load / b.min } : null);
 
 /** One row per device: drain %/h in each `step`-cycle band of battery age (column 5 = 5 up to 10, …) over
- *  the hours matching `filter`, and over its last 7 days of matching hours. */
+ *  the hours matching `filter`, and over its last 7 days of matching time. */
 export function drainBands(tagged, filter = {}, { step = 5 } = {}) {
   let top = -1;
   const rows = Object.entries(tagged).map(([serial, hs]) => {

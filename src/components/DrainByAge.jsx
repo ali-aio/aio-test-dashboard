@@ -38,7 +38,7 @@ export default function DrainByAge({ cycles, drops: stored, hours, snapOf = () =
   const cell = (x) => x
     ? <span title={`${x.hours.toFixed(1)} h on battery · load on the pad ${pct(x.loadShare)} of it${x.temp != null ? ` · battery ${x.temp.toFixed(1)} °C on average` : ''}`}>{fmtRate(x.rate)}</span>
     : DASH
-  const band = (m) => `${m}–${m + STEP} cycles`
+  const band = (m) => ({ label: `${m} cycles`, title: `battery at ${m} up to ${m + STEP} cycles` })
   const sel = (value, set, label, opts) => (
     <select className="control" value={value} onChange={(e) => set(e.target.value)} aria-label={label}>
       {opts.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
@@ -56,7 +56,7 @@ export default function DrainByAge({ cycles, drops: stored, hours, snapOf = () =
         : !rows.length ? <p className="secondary">No hours on battery match these choices.</p> : (
           <div className="table-wrap" style={{ maxHeight: 560 }}>
             <SortTable caption="Drain rate by battery age" head={[{ label: 'Device', style: { textAlign: 'left' } },
-              ...marks.map((m) => ({ label: band(m) })), { label: 'Last 7 days' }, { label: 'Cycles now' }]}>
+              ...marks.map(band), { label: 'Last 7 days' }, { label: 'Cycles now' }]}>
               {sorted.map((r) => (
                 <tr key={r.serial}>
                   <td className="mono" style={{ textAlign: 'left' }}>{fmtSerial(r.serial)}</td>
@@ -79,7 +79,7 @@ export default function DrainByAge({ cycles, drops: stored, hours, snapOf = () =
         <h3 style={{ margin: '16px 0 6px', fontSize: 13 }}>Average by condition{test !== ALL ? ` · ${test}` : ''}</h3>
         <div className="table-wrap" style={{ maxHeight: 360 }}>
           <SortTable caption="Average drain by condition and battery age" head={[{ label: 'Condition', style: { textAlign: 'left' } },
-            ...cond.marks.map((m) => ({ label: band(m) })), { label: 'Last 7 days' }]}>
+            ...cond.marks.map(band), { label: 'Last 7 days' }]}>
             {cond.rows.map((r) => (
               <tr key={r.label}>
                 <td style={{ textAlign: 'left' }}>{r.label}</td>
@@ -89,7 +89,7 @@ export default function DrainByAge({ cycles, drops: stored, hours, snapOf = () =
           </SortTable>
         </div>
       </>}
-      <p className="hint" style={{ marginTop: 8 }}>Worked out hour by hour over the hours each device ran a test on battery: points drained ÷ hours, in bands of {STEP} battery cycles (a band needs 2 h). Load = a load on the wireless pad for most of that hour. Ads come from the test (the Cycle plan); Old cycles and WLC on Phone count as not known. The devices report the battery's temperature, not the room's.</p>
+      <p className="hint" style={{ marginTop: 8 }}>Worked out hour by hour over the hours each device ran a test on battery: points drained ÷ hours, a column holds the hours the battery was at that many cycles up to the next column (5 cycles = 5 up to 10; a column needs 2 h). Load = a load on the wireless pad for most of that hour. Ads come from the test (the Cycle plan); Old cycles and WLC on Phone count as not known. The devices report the battery's temperature, not the room's.</p>
     </Card>
   )
 }

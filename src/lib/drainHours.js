@@ -91,7 +91,7 @@ const band = () => ({ drop: 0, min: 0, tSum: 0, tMin: 0, load: 0 });
 const add = (b, h) => { b.drop += h.drop; b.min += h.min; if (h.f.temp != null) { b.tSum += h.f.temp * h.min; b.tMin += h.min; } if (h.f.load) b.load += h.min; };
 const done = b => (b && b.min >= MIN_MINUTES ? { rate: b.drop / (b.min / 60), hours: b.min / 60, temp: b.tMin ? b.tSum / b.tMin : null, loadShare: b.load / b.min } : null);
 
-/** One row per device: drain %/h in each `step`-cycle band of battery age (0–5, 5–10, …) over
+/** One row per device: drain %/h in each `step`-cycle band of battery age (column 5 = 5 up to 10, …) over
  *  the hours matching `filter`, and over its last 7 days of matching hours. */
 export function drainBands(tagged, filter = {}, { step = 5 } = {}) {
   let top = -1;
@@ -105,7 +105,8 @@ export function drainBands(tagged, filter = {}, { step = 5 } = {}) {
     const out = {}; for (const k in at) { const d = done(at[k]); if (d) out[k] = d; }
     return { serial, at: out, latest: done(last) };
   }).filter(r => Object.keys(r.at).length || r.latest);
-  const marks = []; for (let k = 0; k <= top; k += step) if (rows.some(r => r.at[k])) marks.push(k);
+  // columns from `step` on (5, 10, 15 …): the first cycles of a new battery are not shown
+  const marks = []; for (let k = step; k <= top; k += step) if (rows.some(r => r.at[k])) marks.push(k);
   return { marks, rows };
 }
 

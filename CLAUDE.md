@@ -186,7 +186,7 @@ oversight; don't add restaurant filtering back in without being asked.
 - **HW build** comes from the serial (`buildFromSerial`, `src/lib/device.js`): "BU" in it = Production
   Build, otherwise "OTG / Validation Build" (the serial can't tell those two apart).
 - **Drain rate by battery age** (Summary screen, `src/components/DrainByAge.jsx` + `src/lib/drainHours.js` + `src/lib/drainAge.js`,
-  tested): each device's drain %/h per **5 battery cycles** of age (0–5, 5–10, …), its last 7 days and its MDM count now,
+  tested): each device's drain (shown as % per 15 min) per **5 battery cycles** of age (0–5, 5–10, …), its last 7 days and its MDM count now,
   with pickers for **load** (pad), **ads** and **battery temperature** (and test), plus a fleet **Average by condition** table
   (each condition on its own). Worked out **per 15 minutes**, because one cycle mixes conditions (Restaurant Case: 3 h with a
   load, then none; a phone may sit on the pad for 20 min): the sweep keeps every device's 15-min slots off the charger

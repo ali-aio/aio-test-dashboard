@@ -27,6 +27,7 @@ import { thermalTimingByDevice } from '../src/lib/thermal.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 import { extendLedger, cumAt, lifetimeAt, drainByAge, liveLedgers } from '../src/lib/drainAge.js'
+import { runsFrom, benchesFrom, classifyBench, applyAuto } from '../src/lib/autoPlan.js'
 import HealthView from '../src/views/HealthView.jsx'
 import { healthRows, capacityIndex, earlyIndex, earlyDrain, fleetBaselines, loadClass, stressIndex, fleetP90, stressFactors, hoursAtFull, chargeSegments, medianToFull, slowCharges, gaugeJumps, shutdownsAbove, scoreOf, gradeOf, GRADE, SHUTDOWN, NO_FULL, JUMP } from '../src/lib/health.js'
 
@@ -318,6 +319,52 @@ const mdmCases = []
       () => ({ last_seen_at: new Date(t0 + 32 * H).toISOString(), discharge_total_pct: 2510 }))
     want(live.A.cum === 140 && live.A.anchor[1] === 2510 && Math.abs(lifetimeAt(live.A, t0 + 30 * H) - 25) < 1e-9, `live: ${live.A.cum}, ${live.A.anchor}`)
     want(leds.A.cum === 130, 'the stored ledger is left as it was')
+  })
+  check('auto plan: the test told from the readings, and how it goes into the plan', () => {
+    const H = 3600e3, M = 60e3, day = (d, h) => new Date(2026, 9, d, h).getTime()
+    // one device's readings every 5 min: pad on for padH hours, rate1 %/h on the pad, rate2 after;
+    // ends back on charge after `hours`, or powered off at 0 % (silence)
+    const dev = (t0, { padH = 0, rate1 = 4, rate2 = 4, hours = 30, charge = false }) => {
+      const rows = []; let b = 100
+      for (let t = t0; t <= t0 + hours * H && b > 0; t += 5 * M) {
+        rows.push({ timestamp: new Date(t).toISOString(), battery_pct: Math.round(b), extra: { charging: false, wlc_status: t - t0 < padH * H ? 1 : 0 } })
+        b -= ((t - t0 < padH * H ? rate1 : rate2) * 5) / 60
+      }
+      if (charge) rows.push({ timestamp: new Date(t0 + hours * H + 5 * M).toISOString(), battery_pct: Math.round(b) + 1, extra: { charging: true, wlc_status: 0 } })
+      return rows
+    }
+    const bench = (t0, o, now = t0 + 40 * H) => benchesFrom({ A: runsFrom(dev(t0, o), now), B: runsFrom(dev(t0 + 10 * M, o), now), C: runsFrom(dev(t0 + 20 * M, o), now) })[0]
+    const kind = (o, now) => { const t0 = day(1, 10), b = bench(t0, o, now ?? t0 + 40 * H); return classifyBench(b, now ?? t0 + 40 * H) }
+    want(kind({ padH: 3, rate1: 12, rate2: 4, hours: 14, charge: true }).tt === 'restaurant', 'restaurant case')
+    want(kind({ padH: 3, rate1: 12, rate2: 4 }).tt === 'wlc_disch', 'wlc + discharge on ads (runs to power-off)')
+    want(kind({ padH: 30, rate1: 11 }).tt === 'wlc_load', 'wlc on load (~9 h to empty)')
+    want(kind({ padH: 30, rate1: 9.5 }).tt === 'load_only', 'load only (~10.5 h to empty)')
+    want(kind({ rate2: 4 }).tt === 'disch_ads', 'ads only')
+    want(kind({ rate2: 0.8, hours: 12, charge: true }).tt === null, 'idle is not a test')
+    // while running: too early at 2 h, Restaurant Case (not final) at 6 h
+    const t0 = day(1, 10), rc = { padH: 3, rate1: 12, rate2: 4, hours: 6 }
+    want(classifyBench(bench(t0, { ...rc, hours: 2 }, t0 + 2 * H), t0 + 2 * H).tt === null, 'too early')
+    const live = classifyBench(bench(t0, rc, t0 + 6 * H), t0 + 6 * H)
+    want(live.tt === 'restaurant' && !live.final, `running: ${JSON.stringify(live)}`)
+
+    // into the plan
+    const done = bench(day(2, 10), { padH: 3, rate1: 12, rate2: 4, hours: 14, charge: true }, day(3, 12))
+    const now = day(3, 12), mine = { id: 'D-1', at: day(1, 9), repeat: 'none', testType: 'wlc_load', from: '2026-10-02', to: '2026-10-02', startTime: '10:00', endTime: '23:00', group: { kind: 'all' }, by: 'Ali' }
+    let r = applyAuto([mine], [done], { now, from: 0 })
+    const got = r.decls[0]
+    want(r.decls.length === 1 && got.testType === 'restaurant' && got.auto.was.testType === 'wlc_load' && got.auto.was.by === 'Ali', `replaced: ${JSON.stringify(got)}`)
+    r = applyAuto(r.decls, [done], { now, from: 0, state: r.state })
+    want(!r.changes.length, 'a second sweep changes nothing')
+    // a person edits it back (the form drops `auto`): Auto leaves it alone
+    const edited = r.decls.map(d => ({ ...d, testType: 'wlc_load', auto: undefined }))
+    want(!applyAuto(edited, [done], { now, from: 0, state: r.state }).changes.length, 'a person\'s correction stays')
+    // nothing planned: added as Auto, for the bench's devices; deleted -> not put back
+    r = applyAuto([], [done], { now, from: 0 })
+    const a = r.decls[0]
+    want(a.auto && a.by === 'Auto' && a.testType === 'restaurant' && a.from === '2026-10-02' && a.group.serials.join() === 'A,B,C', `added: ${JSON.stringify(a)}`)
+    want(!applyAuto([], [done], { now, from: 0, state: r.state }).decls.length, 'deleted Auto entry is not re-added')
+    // a person's entry for a test the readings can't tell (WLC on Phone) is never replaced
+    want(!applyAuto([{ ...mine, testType: 'wlc_phone' }], [done], { now, from: 0 }).changes.length, 'wlc on phone kept')
   })
   check('csv: escaping, gap rows dropped, extra fields, cycles', () => {
     want(csvField('a,b') === '"a,b"' && csvField('say "hi"') === '"say ""hi"""' && csvField('=SUM(A1)') === "'=SUM(A1)" && csvField(-3) === '-3', 'escaping')

@@ -170,6 +170,19 @@ oversight; don't add restaurant filtering back in without being asked.
   | Burn-in Test (BI) | Production only: 4K video played continuously, no ads. |
   | Restaurant Case (RC) | A load on the pad for 3 h; the cycle runs 14 h. |
   | Discharge on Load only (LO) | Only a load on the pad, no ads, until the T7 powers off (0 %). |
+- **Auto Cycle plan** (`src/lib/autoPlan.js`, tested; `server/autoplan.mjs`, run at the end of every sweep): the lab no
+  longer has to enter each day. The server reads each bench's test from the readings and writes it into the shared plan
+  (`data/plan.json`) with `auto: { at, final, basis, was? }` and `by: 'Auto'`; the Cycle plan and Today show an **Auto**
+  pill (reason on hover), everything else **By hand · name** (`src/components/PlanSource.jsx`). Rules (medians over the
+  bench, ≥ 3 devices starting within 3 h): load on the pad ~3 h then ≈4 %/h → Restaurant Case if it goes back on charge
+  (~14 h), WLC + Discharge on Ads if it runs to power-off; load the whole run → WLC on Load if ≤ `LOAD_ONLY_H` (10 h) to
+  empty, else Discharge on Load only (ads aren't in the telemetry; the lab: WLC on Load 8–9 h, Load only 9–11 h); no load,
+  ≥ 2 %/h → Ads only. Never guessed: Charging Cycle, WLC on Phone, Burn-in. A running bench is added once it can be told
+  (`final: false`, kept up to date). A person's entry for a different detectable test is **replaced once the run ends**
+  (the lab's choice, Oct 2026), keeping `auto.was`; a several-day entry gets a one-day override instead. An entry a person
+  edits (the form drops `auto`) or deletes is never touched again (`data/autoplan.json`: `made`, `applied`, plus every
+  device's runs since 25 Sep so a sweep re-reads only 2 days at 5-min spacing). Every save stamps `mod`; a 409 merge in
+  `planSync.js` keeps the newer copy of each entry, so a browser can't undo the server's update.
 - **HW build** comes from the serial (`buildFromSerial`, `src/lib/device.js`): "BU" in it = Production
   Build, otherwise "OTG / Validation Build" (the serial can't tell those two apart).
 - **Drain rate by battery age** (Summary screen, `src/components/DrainByAge.jsx` + `src/lib/drainAge.js`, tested): each

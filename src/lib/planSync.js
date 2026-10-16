@@ -80,8 +80,12 @@ async function doPush(group, retry = true) {
       body: JSON.stringify({ ...local, baseRev: revs.get(group) || 0 }) });
     if (r.status === 409 && retry) {
       const { current } = await r.json();
+      // the newer copy of each entry wins (`mod`, stamped on every save, here and by the server's
+      // Auto plan); ours are kept when neither says, and so are entries only we have
+      const theirs = new Map(current.decls.map(d => [d.id, d])), stamp = d => d.mod || d.at || 0;
       const mine = new Set(local.decls.map(d => d.id));
-      const merged = [...current.decls.filter(d => !mine.has(d.id)), ...local.decls];
+      const merged = [...current.decls.filter(d => !mine.has(d.id)),
+        ...local.decls.map(d => (theirs.has(d.id) && stamp(theirs.get(d.id)) > stamp(d) ? theirs.get(d.id) : d))];
       writeRawPlan(group, { decls: merged, rota: { ...current.rota, ...local.rota } });
       revs.set(group, current.rev);
       bump();

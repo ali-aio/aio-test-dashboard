@@ -2123,3 +2123,7 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 /* Drain by battery age: a value from a cycle with a load on the wireless pad */
 .load-tag { display: inline-block; margin-left: 5px; padding: 0 4px; border-radius: 4px; font-size: 10px; font-weight: 600; line-height: 15px;
   vertical-align: 1px; color: var(--select-bg); background: color-mix(in srgb, currentColor 14%, transparent); }
+
+/* Who set a planned cycle: Auto (read from the readings) or a person */
+.plan-src { font-weight: 500; margin-left: 6px; vertical-align: 1px; }
+.plan-auto { color: var(--text-primary); background: var(--select-bg); border-color: transparent; }

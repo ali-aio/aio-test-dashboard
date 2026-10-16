@@ -13,6 +13,7 @@ import { detectCycles, normalize } from '../shared/cycles.js';
 import { appendReadings } from '../src/lib/mdmTrack.js';
 import { resampleRun, curveKey } from '../src/lib/curves.js';
 import { extendLedger } from '../src/lib/drainAge.js';
+import { buildAutoPlan } from './autoplan.mjs';
 import { chargeSegments, thermalStats } from '../shared/profile.js';
 
 const H = 3600e3, DAY = 24 * H, CHUNK = 7 * DAY;
@@ -45,7 +46,7 @@ async function mapLimit(items, limit, fn) {
 }
 
 // `get(url)` is the shared MDM client (server/mdm.mjs) — limiter + cache live there, not here.
-export async function sweep({ base, group, root, get, log = () => {} }) {
+export async function sweep({ base, group, root, get, plan, log = () => {} }) {
   const now = Date.now();
   const seed = readJson(path.join(root, 'data', 'cycles.json')), HIST = seed && seed.group === group ? seed.devices : {};
   const prev = loadTopup(root, group), PREV = prev ? prev.devices : {};
@@ -83,6 +84,8 @@ export async function sweep({ base, group, root, get, log = () => {} }) {
   log(`done in ${Math.round((Date.now() - now) / 1000)}s: ${cycles} cycles since the import across ${Object.keys(out).length} devices${failed.length ? `, ${failed.length} failed (kept previous)` : ''}`);
   await buildCurves({ root, devices: devices.map(d => d.serial_number), topup: out, get, log });
   await buildDrops({ root, group, devices, get, now, log });
+  // which test each bench ran, into the shared plan (marked Auto); a failure here never fails the sweep
+  try { await buildAutoPlan({ root, group, devices, get, plan, now, log }); } catch (e) { log(`auto plan failed: ${e.message}`); }
   return { at: now, devices: Object.keys(out).length, cycles, failed };
 }
 const serialMsg = results => results.find(r => !r.ok)?.e.message;

@@ -8,6 +8,7 @@ import {
 import { GROUP } from '../lib/fleet.js'
 import { splitText, benchCycles } from '../lib/splitCycles.js'
 import { FIELD_TEST_TYPES } from '../lib/testtypes.js'
+import PlanSource from '../components/PlanSource.jsx'
 import { mdmCyclesFor } from '../lib/mdmTrack.js'
 import { TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur, rt } from '../lib/cycles.js'
@@ -68,7 +69,7 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
       // stored shape -> form: end date from the cycle's real window; a plan covering several
       // days without "weekly" is the old From/To range, i.e. "every day until"
       const w = windowOn(d.from, d)
-      setForm({ ...d, endDate: dayKey(w.endMs - 1), repeat: d.repeat === 'weekly' ? 'weekly' : (d.to > d.from ? 'daily' : 'none') })
+      setForm({ ...d, ...(d.auto ? { by } : null), endDate: dayKey(w.endMs - 1), repeat: d.repeat === 'weekly' ? 'weekly' : (d.to > d.from ? 'daily' : 'none') })
     } else {
       const t = nextCycleTimes(decls, day)
       setForm({ testType: (TEST_TYPES.find(t => t.frequent) || TEST_TYPES[0]).id, from: day, to: day, group: { kind: 'all' }, ...t, endDate: t.endTime <= t.startTime ? addDays(day, 1) : day, repeat: 'none', by })
@@ -153,7 +154,8 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
             onSave={next => {
               try { localStorage.setItem('declaredBy', next.by || '') } catch (e) {}
               const existing = decls.find(d => d.id === form.id)
-              const updated = existing ? decls.map(d => d.id === form.id ? { ...d, ...next } : d) : [...decls, newDecl(decls, next)]
+              // a person's edit makes an Auto entry theirs: Auto never changes it again
+              const updated = existing ? decls.map(d => d.id === form.id ? { ...d, ...next, auto: undefined } : d) : [...decls, newDecl(decls, { ...next, auto: undefined })]
               commit(updated)
               const [y, m] = next.from.split('-').map(Number)
               setYm({ y, m: m - 1 }); setSel(next.from); setForm(null)
@@ -179,14 +181,14 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
                   {carried.map(c => (
                     <div className="cyc-row carried" key={'c' + c.decl.id}>
                       <span className="secondary" style={{ fontSize: 12 }}>From {dayLabel(c.key).split(',')[0]} ↪</span>
-                      <span><Chip r={{ tt: testType(c.decl.testType), status: 'declared' }} /> {testType(c.decl.testType)?.name}</span>
+                      <span><Chip r={{ tt: testType(c.decl.testType), status: 'declared' }} /> {testType(c.decl.testType)?.name}<PlanSource decl={c.decl} /></span>
                       <span className="mono secondary">until {hm(c.endMs)}</span>
                     </div>
                   ))}
                   {own.length ? own.map((c, i) => (
                     <div className="cyc-row" key={c.decl.id}>
                       <span className="secondary" style={{ fontSize: 12 }}>Cycle {i + 1}</span>
-                      <span><Chip r={{ tt: testType(c.decl.testType), status: S.status }} /> {testType(c.decl.testType)?.name}</span>
+                      <span><Chip r={{ tt: testType(c.decl.testType), status: S.status }} /> {testType(c.decl.testType)?.name}<PlanSource decl={c.decl} /></span>
                       <span className="mono">{fmtW(c)}</span>
                       {(c.decl.removed || []).length > 0 && <div className="cyc-out">
                         {/* one short line each; the full record is on hover */}

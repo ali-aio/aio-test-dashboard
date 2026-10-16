@@ -43,6 +43,9 @@ const mdm = createClient({ base: CFG.base, key: CFG.key, log: m => console.log(`
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.md': 'text/plain; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const TEXT = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.md', '.txt']);
 
+// the shared Cycle plan (server/plan.mjs); the sweep's auto plan writes into it too
+const plan = createPlanStore(ROOT);
+
 // ── sweep state ───────────────────────────────────────────────────────────────
 const state = { group: CFG.group, lastSweepAt: null, lastError: null, sweeping: false, devices: 0, cycles: 0, configured: !!CFG.key };
 let running = null;
@@ -50,7 +53,7 @@ function runSweep(reason) {
   if (running) return running;
   if (!CFG.key) { state.lastError = 'No API key configured on the server (server/config.json or MDM_API_KEY).'; return Promise.resolve(); }
   state.sweeping = true;
-  running = sweep({ ...CFG, root: ROOT, get: url => mdm.get(url), log: msg => console.log(`[sweep] ${msg}`) })
+  running = sweep({ ...CFG, root: ROOT, plan, get: url => mdm.get(url), log: msg => console.log(`[sweep] ${msg}`) })
     .then(r => { state.lastSweepAt = r.at; state.devices = r.devices; state.cycles = r.cycles; state.lastError = null; })
     .catch(e => { state.lastError = e.message; console.error(`[sweep] failed (${reason}): ${e.message}`); })
     .finally(() => { state.sweeping = false; running = null; });
@@ -101,7 +104,6 @@ function serveStatic(req, res, rel) {
   });
 }
 
-const plan = createPlanStore(ROOT);
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'), p = url.pathname;

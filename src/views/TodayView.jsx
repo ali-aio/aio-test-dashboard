@@ -1,3 +1,4 @@
+import PlanSource from '../components/PlanSource.jsx'
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
@@ -200,7 +201,7 @@ export default function TodayView({ fleet }) {
           </div>
           <h1 style={{ margin: '6px 0 4px', fontSize: 26, lineHeight: 1.15 }}>{T.tt ? T.tt.name : 'No test set'}{T.cycleCount > 1 ? <span className="secondary" style={{ fontSize: 14, fontWeight: 500 }}> · cycle {T.cycleNo} of {T.cycleCount}</span> : null}</h1>
           <div className="secondary" style={{ fontSize: 12.5 }}>
-            {T.tt ? <>{T.source === 'rota' ? 'From the standing weekly rota' : <>Planned{T.src?.by ? <> by <b>{T.src.by}</b></> : null}{T.src?.at ? ` at ${hm(T.src.at)}` : ''}</>}
+            {T.tt ? <>{T.source === 'rota' ? 'From the standing weekly rota' : T.src?.auto ? <>Added automatically from the readings<PlanSource decl={T.src} /></> : <>Planned{T.src?.by ? <> by <b>{T.src.by}</b></> : null}{T.src?.at ? ` at ${hm(T.src.at)}` : ''}</>}
               {' '}· {T.serials.length} devices · window {hm(T.startMs)}–{hm(T.endMs)}{T.overnight ? ' next day' : ''}</>
               : <>The MDM can't tell which test is running. <a className="link" href="#/nx/plan">Set one on the Cycle plan</a>.</>}
           </div>

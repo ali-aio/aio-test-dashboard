@@ -107,7 +107,12 @@ export function loadDecls(group) {
   } catch (e) { return []; }
 }
 export function saveDecls(group, decls) {
-  try { localStorage.setItem(DKEY(group), JSON.stringify(decls.filter(validDecl))); } catch (e) {}
+  // stamp `mod` on what this save changed, so a merge with the shared copy keeps the newer of
+  // each entry (the server's Auto plan updates entries too)
+  const before = new Map(rawPlan(group).decls.map(d => [d.id, JSON.stringify({ ...d, mod: 0 })]));
+  const now = Date.now();
+  const out = decls.filter(validDecl).map(d => (before.get(d.id) === JSON.stringify({ ...d, mod: 0 }) ? d : { ...d, mod: now }));
+  try { localStorage.setItem(DKEY(group), JSON.stringify(out)); } catch (e) {}
   planSink?.(group);
 }
 export function loadRota(group) {

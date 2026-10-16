@@ -346,6 +346,21 @@ const mdmCases = []
     const cb = conditionBands(tg)
     want(cb.marks.join() === '10' && cb.rows.find(r => r.label === 'No load').at[10].rate < 5, JSON.stringify(cb.marks))
     want(!Object.keys(tagSlots([], { A: { h: hs } }, drops)).length, 'time outside a test does not count')
+    // the lab's sheet: names an Old cycle's test, and counts a run the detector did not
+    const old = [{ serial: 'A', start: t0, end: t0 + 7 * H, testType: 'Old cycles' }]
+    const sheet = [{ serial: 'A', start: t0, end: t0 + 7 * H, test: 'Restaurant Case', pad: true }]
+    want(drainBands(tagSlots(old, { A: { h: hs } }, drops), { ads: 'on' }).rows.length === 0, 'an Old cycle: ads not known')
+    want(drainBands(tagSlots(old, { A: { h: hs } }, drops, sheet), { ads: 'on' }).rows.length === 1, 'the sheet names its test')
+    want(drainBands(tagSlots([], { A: { h: hs } }, drops, sheet), { test: 'Restaurant Case' }).rows.length === 1, 'a sheet run counts on its own')
+    const planned = [{ ...old[0], testType: 'Ads only' }]
+    want(tagSlots(planned, { A: { h: hs } }, drops, sheet).A.every(s => s.f.test === 'Ads only'), 'the Cycle plan wins over the sheet')
+    // July firmware: no pad reported. In a sheet run the load comes from the test (first 3 h);
+    // outside one, a fast slot without a reported load is "not known"
+    const noPad = hs.map(x => [x[0], x[1], x[2], 0, x[4]])
+    const tj = tagSlots([], { A: { h: noPad } }, drops, [{ ...sheet[0], pad: false }]).A
+    want(tj.filter(s => s.f.load).length === 12 && tj.filter(s => s.f.load === false).length === 16, `load from the test: ${tj.map(s => s.f.load).join()}`)
+    const tu = tagSlots(old, { A: { h: noPad } }, drops).A
+    want(tu.filter(s => s.f.load === null).length === 12 && drainBands(tagSlots(old, { A: { h: noPad } }, drops), { load: 'off' }).rows[0].at[10].rate < 5, 'fast slots without a reported load: not known')
   })
   check('auto plan: the test told from the readings, and how it goes into the plan', () => {
     const H = 3600e3, M = 60e3, day = (d, h) => new Date(2026, 9, d, h).getTime()

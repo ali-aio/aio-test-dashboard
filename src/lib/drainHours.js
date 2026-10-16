@@ -10,12 +10,21 @@
 // (drainAge.js) for the battery's age then. A band's rate = points drained ÷ hours on battery.
 // Ads are not in the telemetry: they come from the test (the lab's descriptions, plan.js).
 // External temperature isn't either: the battery's own is the nearest the devices report.
+// Before the Cycle plan (25 Sep 2026) the test comes from the lab's own sheets, kept only where
+// the readings agree (data/sheet-runs.json, scripts/sheet-runs.mjs). The lab calls those sheets
+// inconsistent, so this table is the ONLY thing that reads them. A sheet run also counts where
+// the cycle detector did not count one (e.g. it started below 95 %).
+// Firmware v2.0.3–v2.0.4 (July – mid Aug 2026) reported no load on the pad while one was on it:
+// in a sheet run from then, the load comes from the test (Restaurant Case / WLC + Discharge: the
+// first 3 h); elsewhere a slot draining ≥ LOAD_RATE with no load reported counts as not known.
 // Plain JS, no DOM.
 import { lifetimeAt } from './drainAge.js';
+import { FIELD_DISCHARGE } from './testtypes.js';
 
 const H = 3600e3, MAX_STEP = 30 * 60e3;
 export const SLOT = 15 * 60e3;
 export const MIN_MINUTES = 120; // a band needs 2 h of matching time, or it is a guess
+export const LOAD_RATE = 9;     // %/h: nothing but a load on the pad drains this fast
 
 // ads running in each test (names as cycles carry them); null = not known
 export const ADS_BY_TEST = {
@@ -57,37 +66,54 @@ export function extendSlots(prev, rows) {
   return [...(prev || []).filter(x => x[0] < fresh[0][0]), ...fresh];
 }
 
-// slot -> what was going on
-const factorsOf = (x, c) => ({ load: x[3] * 2 >= x[2], ads: ADS_BY_TEST[c.testType] ?? null, temp: x[4] >= 0 ? x[4] / 10 : null, test: c.testType });
+// a load on the pad, from the test, for a sheet run whose readings did not report the pad
+const LOAD_BY_TEST = {
+  'Restaurant Case': (t, s) => t < s.start + 3 * 3600e3, 'WLC + Discharge on Ads': (t, s) => t < s.start + 3 * 3600e3,
+  'WLC on Load': () => true, 'Discharge on Load only': () => true, 'Ads only': () => false, 'Burn-in Test': () => false,
+};
+// slot -> what was going on (load null = not known)
+function factorsOf(x, test, sheet) {
+  const mid = x[0] + SLOT / 2;
+  let load = x[3] * 2 >= x[2];
+  if (sheet && !sheet.pad) load = LOAD_BY_TEST[test] ? LOAD_BY_TEST[test](mid, sheet) : null;
+  else if (!load && x[1] / 10 / (x[2] / 60) >= LOAD_RATE) load = null;
+  return { load, ads: ADS_BY_TEST[test] ?? null, temp: x[4] >= 0 ? x[4] / 10 : null, test };
+}
 export const matches = (f, { load = 'all', ads = 'all', temp = 'all', test = 'all' } = {}) =>
-  (load === 'all' || (load === 'on') === f.load)
+  (load === 'all' || (f.load != null && (load === 'on') === f.load))
   && (ads === 'all' || (f.ads != null && (ads === 'on') === f.ads))
   && (temp === 'all' || (f.temp != null && TEMP_BANDS.find(b => b.id === temp)?.test(f.temp)))
   && (test === 'all' || f.test === test);
 
-/** Every device's slots inside its counted cycles, with their factors and the battery's age. */
-export function tagSlots(cycles, hours, drops) {
-  const bySerial = new Map();
-  for (const c of cycles) {
-    if (c.charging || !(c.end > c.start)) continue;
-    if (!bySerial.has(c.serial)) bySerial.set(c.serial, []);
-    bySerial.get(c.serial).push(c);
-  }
+/** Every device's slots inside its counted cycles (or a sheet run, see the top), with their
+ *  factors and the battery's age. A Cycle plan test wins over the sheet's. */
+export function tagSlots(cycles, hours, drops, sheetRuns = []) {
+  const group = (list, keep) => {
+    const m = new Map();
+    for (const c of list || []) if (keep(c)) { if (!m.has(c.serial)) m.set(c.serial, []); m.get(c.serial).push(c); }
+    for (const l of m.values()) l.sort((a, b) => a.start - b.start);
+    return m;
+  };
+  const bySerial = group(cycles, c => !c.charging && c.end > c.start), bySheet = group(sheetRuns, r => r.end > r.start);
   const out = {};
-  for (const [sn, list] of bySerial) {
+  for (const sn of new Set([...bySerial.keys(), ...bySheet.keys()])) {
     const hs = hours?.[sn]?.h; if (!hs?.length) continue;
-    list.sort((a, b) => a.start - b.start);
+    const list = bySerial.get(sn) || [], sheet = bySheet.get(sn) || [];
     const led = drops?.[sn], tagged = [];
-    let i = 0;
+    let i = 0, j = 0;
     for (const x of hs) {
       const mid = x[0] + SLOT / 2;
       while (i < list.length && list[i].end < mid) i++;
-      if (i >= list.length) break;
-      const c = list[i];
-      if (mid < c.start || !x[2]) continue;
-      tagged.push({ t: x[0], drop: x[1] / 10, min: x[2], f: factorsOf(x, c), age: lifetimeAt(led, x[0]) });
+      while (j < sheet.length && sheet[j].end < mid) j++;
+      if (!x[2]) continue;
+      const c = i < list.length && mid >= list[i].start ? list[i] : null;
+      const s = j < sheet.length && mid >= sheet[j].start ? sheet[j] : null;
+      if (!c && !s) continue;
+      const fromSheet = s && (!c || c.testType === FIELD_DISCHARGE);
+      const test = fromSheet ? s.test : c.testType;
+      tagged.push({ t: x[0], drop: x[1] / 10, min: x[2], f: factorsOf(x, test, fromSheet ? s : null), age: lifetimeAt(led, x[0]) });
     }
-    out[sn] = tagged;
+    if (tagged.length) out[sn] = tagged;
   }
   return out;
 }

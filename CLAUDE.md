@@ -198,6 +198,14 @@ oversight; don't add restaurant filtering back in without being asked.
   an hour comes from the drop ledger (`data/drops.json`, `buildDrops`): every point drained since its first reading, so
   cycles at time t = today's counter − what drained since t. Checked against the MDM: the counter's rise over 6 days matched
   the summed drops within ~2%; the counter is higher than the history's total only by what drained before the history starts.
+  **Before the Cycle plan (25 Sep 2026) the test comes from the lab's own sheets** (`data/sheet-runs.json`, made by
+  `scripts/sheet-runs.mjs` from the lab's CSVs + fw2's `data/hours.json`; committed). The lab calls those sheets
+  inconsistent, so **this table is the only thing allowed to read them** (not the plan, Auto or Health), and a sheet run
+  is kept only where the readings agree: date (day/month and month/day both tried), drain within 25 %, load on the pad
+  fits the test. A plan test wins over the sheet's; a sheet run counts even where the detector counted no cycle.
+  Firmware v2.0.3–v2.0.4 (July – mid Aug 2026) reported `wlc_status` 0 with a load on the pad: in a sheet run the load
+  then comes from the test (Restaurant Case / WLC + Discharge: first 3 h), elsewhere a slot draining ≥ 9 %/h with no
+  load reported is "load not known".
 - **Battery health** (`#/nx/health`, nav "Health"; `src/views/HealthView.jsx` + `src/lib/health.js`, tested): one row per
   device for ONE discharge test picked at the top (the busiest by default). A run is comparable when it is a counted cycle of
   that test that started ≥ 95 %. Score = 0.6 × capacity + 0.1 × early drain + 0.3 × stress (early's weight goes to capacity

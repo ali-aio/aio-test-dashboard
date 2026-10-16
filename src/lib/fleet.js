@@ -17,7 +17,7 @@ const TOPKEY = `histTopup:v3:${GROUP}`;
 
 const state = {
   DEV: [], DMAP: new Map(), allCycles: [], runs: [], cycleRun: new Map(),
-  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null, readings: null, curves: null, drops: null, hours: null,
+  meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null, readings: null, curves: null, drops: null, hours: null, sheetRuns: null,
 };
 let snapshot = { ...state }, HIST = {}, TOP = {}, local = loadRuns(GROUP);
 const subs = new Set();
@@ -103,6 +103,10 @@ async function loadReadings() {
   // ads and battery temperature
   try { const r = await fetch('/data/hours.json'); state.hours = r.ok ? (await r.json()).devices || null : null; }
   catch (e) { state.hours = null; }
+  // which test ran before the Cycle plan, from the lab's sheets, checked against the readings
+  // (scripts/sheet-runs.mjs) — for drain rate by battery age ONLY
+  try { const r = await fetch('/data/sheet-runs.json'); state.sheetRuns = r.ok ? (await r.json()).runs || null : null; }
+  catch (e) { state.sheetRuns = null; }
 }
 
 export async function topUp(force = false) {

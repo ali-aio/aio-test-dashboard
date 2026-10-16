@@ -16,17 +16,17 @@ const per15 = (ratePerH) => `${(ratePerH / 4).toFixed(2)}%/15 min`
 /** Each device's drain rate per 5 lifetime battery cycles, worked out per 15 minutes so it can be
  *  split by what was going on: load on the pad, ads (from the test), battery temperature
  *  (src/lib/drainHours.js). Below it, the fleet's average for each condition on its own. */
-export default function DrainByAge({ cycles, drops: stored, hours, snapOf = () => null }) {
+export default function DrainByAge({ cycles, drops: stored, hours, sheetRuns, snapOf = () => null }) {
   // the battery's age up to the last check-in, not the last sweep
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
   const drops = useMemo(() => liveLedgers(stored, rowsFor, snapOf), [stored, win.at2, cycles])
   const discharge = useMemo(() => cycles.filter((c) => !CHARGING_TEST_TYPES.has(c.testType)), [cycles])
   const types = useMemo(() => {
     const n = new Map()
-    for (const c of discharge) n.set(c.testType, (n.get(c.testType) || 0) + 1)
+    for (const c of [...discharge, ...(sheetRuns || []).map((r) => ({ testType: r.test }))]) n.set(c.testType, (n.get(c.testType) || 0) + 1)
     return [...n].sort((a, b) => b[1] - a[1]).map(([t]) => t)
-  }, [discharge])
-  const tagged = useMemo(() => tagSlots(discharge, hours, drops), [discharge, hours, drops])
+  }, [discharge, sheetRuns])
+  const tagged = useMemo(() => tagSlots(discharge, hours, drops, sheetRuns || []), [discharge, hours, drops, sheetRuns])
 
   const [load, setLoad] = useState(ALL)
   const [ads, setAds] = useState(ALL)
@@ -91,7 +91,7 @@ export default function DrainByAge({ cycles, drops: stored, hours, snapOf = () =
           </SortTable>
         </div>
       </>}
-      <p className="hint" style={{ marginTop: 8 }}>Worked out per 15 minutes over the time each device ran a test on battery: points drained in each 15 minutes on battery, averaged; a column holds the hours the battery was at that many cycles up to the next column (5 cycles = 5 up to 10; a column needs 2 h). Load = a load (or phone) on the wireless pad for most of those 15 minutes. Ads come from the test (the Cycle plan); Old cycles and WLC on Phone count as not known. The devices report the battery's temperature, not the room's.</p>
+      <p className="hint" style={{ marginTop: 8 }}>Worked out per 15 minutes over the time each device ran a test on battery: points drained in each 15 minutes on battery, averaged; a column holds the hours the battery was at that many cycles up to the next column (5 cycles = 5 up to 10; a column needs 2 h). Load = a load (or phone) on the wireless pad for most of those 15 minutes. Ads come from the test: the Cycle plan from 25 Sep; before that the lab's test sheets, only where the readings agree with them (date, drain, load). Otherwise Old cycles and WLC on Phone count as not known. Firmware v2.0.3–2.0.4 (July – mid Aug) did not report a load on the pad: in a sheet run the load comes from the test, elsewhere a slot draining 9 %/h or more without one counts as load not known. The devices report the battery's temperature, not the room's.</p>
     </Card>
   )
 }

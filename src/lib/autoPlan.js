@@ -91,7 +91,8 @@ export function benchesFrom(runsBySerial, { minDevices = MIN_DEVICES } = {}) {
  *  is only settled by how it ends). */
 export function classifyBench(bench, now = Date.now()) {
   const runs = bench.runs, n = runs.length, most = f => runs.filter(f).length > n / 2;
-  const running = runs.some(r => r.ended === 'running');
+  // running = most devices still on it: one or two left off the charger (not on the test) don't keep it open
+  const running = most(r => r.ended === 'running');
   const elapsed = running ? (now - bench.start) / H : median(runs.map(r => r.durH));
   const rate = median(runs.map(r => r.rate)), toEmpty = rate ? 100 / rate : null;
   const end = bench.end;

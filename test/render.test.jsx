@@ -392,6 +392,11 @@ const mdmCases = []
     const early = classifyBench(bench(t0, { ...rc, padH: 3.4, hours: 4.8 }, t0 + 4.8 * H), t0 + 4.8 * H)
     want(early.tt === 'restaurant', `load off at 3.4 h: ${JSON.stringify(early)}`)
     want(classifyBench(bench(t0, { padH: 30, rate1: 11, hours: 4 }, t0 + 4 * H), t0 + 4 * H).tt === null, 'load on 4 h, still on: too early')
+    // two devices left off the charger, idle at ~1 %/h, still "running": the bench is over all the same
+    const day16 = benchesFrom({ ...Object.fromEntries(['A', 'B', 'C'].map((s, i) => [s, runsFrom(dev(t0 + i * 10 * M, { ...rc, hours: 14, charge: true }), t0 + 19 * H)])),
+      D: runsFrom(dev(t0, { rate2: 1, hours: 19 }), t0 + 19 * H), E: runsFrom(dev(t0, { rate2: 1, hours: 19 }), t0 + 19 * H) })[0]
+    const c16 = classifyBench(day16, t0 + 19 * H)
+    want(c16.tt === 'restaurant' && c16.final, `idle devices still running: ${JSON.stringify(c16)}`)
     // the T7 reports "charging" on the pad for an hour while its battery falls: one run, not two
     const flick = dev(t0, { ...rc, hours: 14, charge: true }).map(r => {
       const m = (Date.parse(r.timestamp) - t0) / M

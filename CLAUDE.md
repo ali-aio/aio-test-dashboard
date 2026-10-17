@@ -177,7 +177,10 @@ oversight; don't add restaurant filtering back in without being asked.
   bench, ≥ 3 devices starting within 3 h): load on the pad ~3 h then ≈4 %/h → Restaurant Case if it goes back on charge
   (~14 h), WLC + Discharge on Ads if it runs to power-off; load the whole run → WLC on Load if ≤ `LOAD_ONLY_H` (10 h) to
   empty, else Discharge on Load only (ads aren't in the telemetry; the lab: WLC on Load 8–9 h, Load only 9–11 h); no load,
-  ≥ 2 %/h → Ads only. Never guessed: Charging Cycle, WLC on Phone, Burn-in. A running bench is added once it can be told
+  ≥ 2 %/h → Ads only. Never guessed: Charging Cycle, WLC on Phone, Burn-in. "Load the whole run" = on the pad ≥ `WHOLE_RUN` (85 %) of it and still on at its end, and
+  while running not before 5 h (16 Oct 2026 was called WLC on Load at 4.8 h, the pad off since 3.4 h). With a load on the
+  pad the T7 can report `charging` for up to an hour while its battery falls; `runsFrom` ends a run on `charging` only
+  when the battery rises (now or within 30 min), or that day's runs split in two. A running bench is added once it can be told
   (`final: false`, kept up to date). A person's entry for a different detectable test is **replaced once the run ends**
   (the lab's choice, Oct 2026), keeping `auto.was`; a several-day entry gets a one-day override instead. An entry a person
   edits (the form drops `auto`) or deletes is never touched again (`data/autoplan.json`: `made`, `applied`, plus every

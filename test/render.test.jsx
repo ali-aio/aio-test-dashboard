@@ -388,6 +388,17 @@ const mdmCases = []
     want(classifyBench(bench(t0, { ...rc, hours: 2 }, t0 + 2 * H), t0 + 2 * H).tt === null, 'too early')
     const live = classifyBench(bench(t0, rc, t0 + 6 * H), t0 + 6 * H)
     want(live.tt === 'restaurant' && !live.final, `running: ${JSON.stringify(live)}`)
+    // 16 Oct 2026: load off at 3.4 h, seen at 4.8 h — 71 % of the run so far, but off now: not WLC on Load
+    const early = classifyBench(bench(t0, { ...rc, padH: 3.4, hours: 4.8 }, t0 + 4.8 * H), t0 + 4.8 * H)
+    want(early.tt === 'restaurant', `load off at 3.4 h: ${JSON.stringify(early)}`)
+    want(classifyBench(bench(t0, { padH: 30, rate1: 11, hours: 4 }, t0 + 4 * H), t0 + 4 * H).tt === null, 'load on 4 h, still on: too early')
+    // the T7 reports "charging" on the pad for an hour while its battery falls: one run, not two
+    const flick = dev(t0, { ...rc, hours: 14, charge: true }).map(r => {
+      const m = (Date.parse(r.timestamp) - t0) / M
+      return m >= 60 && m < 120 ? { ...r, extra: { ...r.extra, charging: true } } : r
+    })
+    const fr = runsFrom(flick, t0 + 20 * H)
+    want(fr.length === 1 && fr[0].durH > 13 && fr[0].ended === 'charge', `charging flag on the pad: ${JSON.stringify(fr)}`)
 
     // into the plan
     const done = bench(day(2, 10), { padH: 3, rate1: 12, rate2: 4, hours: 14, charge: true }, day(3, 12))

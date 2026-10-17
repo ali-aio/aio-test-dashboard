@@ -17,6 +17,8 @@ import { cycleAt, dayKey, daysBetween } from './plan.js';
 const H = 3600e3;
 const GAP = 45 * 60e3;          // no check-in for this long: the run stopped (powered off / taken away)
 const STEP_CAP = 15 * 60e3;     // a reading counts for at most this long when summing pad time
+const CHARGE_CHECK = 30 * 60e3; // "charging" counts only if the battery rises within this long
+export const WHOLE_RUN = 0.85;  // load on the pad for this share of the run = load the whole run
 export const AUTO_FROM = new Date(2026, 8, 25).getTime(); // first day filled in (the lab's choice)
 export const BENCH_GAP_H = 3;   // devices starting within 3 h are one bench (same as CYCLE_GAP_H)
 export const MIN_DEVICES = 3;   // fewer is someone's own test, not a bench run
@@ -29,11 +31,15 @@ const median = xs => { const v = xs.filter(Number.isFinite).sort((a, b) => a - b
 const hm = t => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
 /** One device's discharges off the charger from ≥ 95 %, with how long a load sat on its pad.
- *  rows: history rows (normalize()d or raw), any order; `empty` rows are skipped. */
+ *  rows: history rows (normalize()d or raw), any order; `empty` rows are skipped.
+ *  With a load on the pad the T7 sometimes reports `charging` for minutes to an hour while its
+ *  battery keeps falling (16 Oct 2026: 8 of 19 devices). That is not a charge: one ends a run
+ *  only when the battery has risen, or rises within CHARGE_CHECK. */
 export function runsFrom(rows, now = Date.now()) {
   const pts = rows.filter(r => !r.empty && typeof r.battery_pct === 'number')
     .map(r => ({ t: Date.parse(r.sample_at || r.timestamp), b: r.battery_pct, ch: r.extra?.charging, pad: !!r.extra?.wlc_status }))
     .filter(p => Number.isFinite(p.t)).sort((a, b) => a.t - b.t);
+  const rises = i => { for (let k = i + 1; k < pts.length && pts[k].t - pts[i].t <= CHARGE_CHECK; k++) if (pts[k].b > pts[i].b) return true; return false; };
   const runs = []; let cur = null;
   const close = ended => {
     const p = cur.pts, s = p[0], e = p[p.length - 1], durH = (e.t - s.t) / H, drop = s.b - e.b;
@@ -43,15 +49,17 @@ export function runsFrom(rows, now = Date.now()) {
       const dt = Math.min(p[i + 1].t - p[i].t, STEP_CAP) / H;
       padH += dt; if (p[i].t - s.t < 5 * H) pad5H += dt;
     }
+    // the pad at the end: still on, or taken off in the last half hour
+    const padEnd = p.some(x => x.pad && e.t - x.t <= 30 * 60e3);
     if (ended === 'silent' && e.b <= 10) ended = 'off';
     if (ended === 'running' || (durH >= 1 && drop >= 5))
       runs.push({ start: s.t, end: e.t, startPct: s.b, endPct: e.b, ended, durH: round(durH, 2), rate: durH > 0 ? round(drop / durH, 2) : null,
-        padH: round(padH, 2), pad5H: round(pad5H, 2) });
+        padH: round(padH, 2), pad5H: round(pad5H, 2), padEnd });
     cur = null;
   };
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i], prev = pts[i - 1];
-    const charging = typeof p.ch === 'boolean' ? p.ch : !!prev && p.b > prev.b;
+    const charging = typeof p.ch === 'boolean' ? p.ch && (!cur || p.b > cur.last.b || rises(i)) : !!prev && p.b > prev.b;
     if (cur) {
       if (p.t - cur.last.t > GAP) close('silent');
       else if (charging) close('charge');
@@ -91,13 +99,15 @@ export function classifyBench(bench, now = Date.now()) {
   const say = s => `${s} (median of ${n} devices${running ? ', still running' : ''})`;
   const projEnd = h => Math.max(now, bench.start + h * H);
 
-  if (most(r => r.durH >= 0.5 && r.padH >= 0.7 * r.durH)) {
-    if (running && elapsed < 3.5) return { tt: null, why: 'load on the pad so far: too early to tell' };
+  // load the whole run: still on the pad at its end (a run stored before padEnd existed counts as on);
+  // while running, not before 5 h — a Restaurant Case's 3 h load can run a little long
+  if (most(r => r.durH >= 0.5 && r.padH >= WHOLE_RUN * r.durH && r.padEnd !== false)) {
+    if (running && elapsed < 5) return { tt: null, why: 'load on the pad so far: too early to tell' };
     const tt = toEmpty <= LOAD_ONLY_H ? 'wlc_load' : 'load_only';
     return { tt, final: !running, endMs: running ? projEnd(toEmpty) : end,
       basis: say(`load on the pad the whole run, ${round(rate)} %/h = ${round(toEmpty)} h to empty (${tt === 'wlc_load' ? '≤' : '>'} ${LOAD_ONLY_H} h)`) };
   }
-  if (most(r => r.pad5H >= 1.5 && r.padH - r.pad5H < 1 && r.padH < 0.7 * r.durH)) {
+  if (most(r => r.pad5H >= 1.5 && r.padH - r.pad5H < 1 && (r.padH < WHOLE_RUN * r.durH || r.padEnd === false))) {
     const off = most(r => r.ended === 'off' || r.endPct <= 5);
     const tt = off || (running && elapsed > 15.5) ? 'wlc_disch' : 'restaurant';
     return { tt, final: !running, endMs: running ? projEnd(tt === 'restaurant' ? 14 : elapsed + endPct / 4) : end,

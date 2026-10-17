@@ -29,8 +29,12 @@ const round = (v, n = 2) => (isNum(v) ? Math.round(v * 10 ** n) / 10 ** n : null
 // uses for telemetry it had to cut out of a continuous stream itself.
 export function testTypeFor(cycle, { decls, rota, DEV }) {
   // The declared cycle whose window this run started in — today's, or yesterday's still
-  // running overnight. A day can hold several cycles, each with its own window.
-  const hit = cycleAt(decls, cycle.start);
+  // running overnight. A day can hold several cycles, each with its own window. Only a cycle
+  // of its own kind: a discharge never belongs to a Charging Cycle, nor a charge to a
+  // discharge test (14 Oct 2026: a Charging Cycle saved to end the next morning took that
+  // day's Restaurant Case, and the Charging Cycle screen showed a discharge).
+  const sameKind = d => (ttById(d.testType)?.expect === 'charge') === !!cycle.charging;
+  const hit = cycleAt((decls || []).filter(sameKind), cycle.start);
   if (hit) {
     const serials = groupSerials(hit.decl.group, DEV);
     if (serials.length && !serials.includes(cycle.serial)) return FIELD_DISCHARGE;
@@ -41,7 +45,7 @@ export function testTypeFor(cycle, { decls, rota, DEV }) {
   const key = dayKey(cycle.start);
   const r = resolveDay(key, { decls: [], rota, ran: 1, devices: 0 });
   const tt = r.testType ? ttById(r.testType) : null;
-  if (!tt) return cycle.charging ? FIELD_CHARGING : FIELD_DISCHARGE;
+  if (!tt || (tt.expect === 'charge') !== !!cycle.charging) return cycle.charging ? FIELD_CHARGING : FIELD_DISCHARGE;
   const src = r.rota || null;
   const serials = groupSerials(src && src.group, DEV);
   if (serials.length && !serials.includes(cycle.serial)) return FIELD_DISCHARGE;
@@ -113,7 +117,9 @@ export function adaptCycle(d, c, rows, ctx) {
   // curves get a point at every whole hour instead of only where a reading happened to land
   const stored = ctx.curves?.[curveKey(d.serial, c.start)] || (rows && rows.length ? resampleRun(rows, c.start, c.end) : null);
   const fromWindow = seriesFor(rows, c);
-  const { series, tempSeries } = stored ? curveSeries(stored) : fromWindow;
+  let { series, tempSeries } = stored ? curveSeries(stored) : fromWindow;
+  // a charge kept by the sweep carries its own curve: [minutes from start, battery %]
+  if (!series.length && c.curve?.length) series = c.curve.map(([m, v]) => ({ t: round(m / 60, 3), v }));
   const firmware = (stored && stored.fw) || fromWindow.firmware;
   const wireless = stored ? !!stored.w : fromWindow.wireless;
   const hourVals = wholeHours(series);
@@ -185,6 +191,12 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
     for (const c of run ? [...d.cycles, run] : d.cycles) {
       const a = adaptCycle(d, c, rows, ctx);
       if (a) out.push(a);
+    }
+    // charges (the sweep's charge segments, ≤ 30 % up to ≥ 90 %), only where the Cycle plan
+    // declared a Charging Cycle: the lab recharges every night, and those are not a test
+    for (const s of d.charges || []) {
+      const a = adaptCycle(d, { ...s, reason: 'charge', fullMs: null }, rows, ctx);
+      if (a && a.testType === 'Charging Cycle') out.push(a);
     }
   }
   return out.sort((a, b) => a.start - b.start);

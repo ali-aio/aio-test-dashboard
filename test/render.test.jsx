@@ -216,6 +216,21 @@ const mdmCases = []
     want(cyclesOn(decls, '2026-10-12').length === 1, 'own cycles on Oct 12')
     const tt = testTypeFor({ start: at(12, 1), end: at(12, 3), serial: 'A' }, { decls, rota: {}, DEV: [] })
     want(tt === 'WLC on Load', `1am run -> ${tt}`)
+    // a discharge inside a Charging Cycle's window is not a charging cycle, and a charge is
+    const dis = testTypeFor({ start: at(12, 15), end: at(13, 3), serial: 'A' }, { decls, rota: {}, DEV: [] })
+    const chg = testTypeFor({ start: at(12, 15), end: at(12, 20), serial: 'A', charging: true }, { decls, rota: {}, DEV: [] })
+    want(dis !== 'Charging Cycle' && chg === 'Charging Cycle', `discharge ${dis} / charge ${chg}`)
+    want(testTypeFor({ start: at(11, 12), end: at(11, 16), serial: 'A', charging: true }, { decls, rota: {}, DEV: [] }) === 'Field Charging', 'a charge in a discharge test')
+  })
+  check('planned Charging Cycle: the sweep\'s charges, shown as gain', () => {
+    const t0 = new Date(2026, 9, 12, 15).getTime(), H = 3600e3
+    localStorage.setItem('cyclePlan:decls:v1:Test Cycles', JSON.stringify([{ id: 'c', at: 1, testType: 'charging', from: '2026-10-12', to: '2026-10-12', startTime: '14:00', endTime: '20:00', spanDays: 0, group: { kind: 'all' }, repeat: 'none' }]))
+    const seg = { start: t0, end: t0 + 3 * H, durationMs: 3 * H, startPct: 20, endPct: 95, maxTemp: 40, curve: [[0, 20], [60, 45], [120, 70], [180, 95]] }
+    const night = { ...seg, start: t0 + 12 * H, end: t0 + 15 * H }
+    const out = adaptAll([{ serial: 'AT070AABU00001', cycles: [], charges: [seg, night] }], () => null)
+    localStorage.removeItem('cyclePlan:decls:v1:Test Cycles')
+    want(out.length === 1 && out[0].testType === 'Charging Cycle', `only the planned charge: ${out.map((c) => c.testType)}`)
+    want(out[0].series.length === 4 && out[0].batteryDelta === 75 && out[0].hourly.every((h) => h.drop < 0), `gain per hour: ${JSON.stringify(out[0].hourly)}`)
   })
   check('a device taken out leaves the cycle and its cut-short run', () => {
     const at = (d, h) => new Date(2026, 9, d, h).getTime()

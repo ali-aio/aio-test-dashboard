@@ -247,6 +247,10 @@ oversight; don't add restaurant filtering back in without being asked.
   in (`cycleAt`, which also checks cycles carried in from earlier days), and runs count on their
   start day. Devices are picked per cycle (all, or an explicit serial list); devices taken out
   mid-cycle are recorded on it (`removed`, with reason) and leave it from that moment.
+  A run only takes a declared cycle **of its own kind** (`testTypeFor` in `adapt.js`): a discharge never becomes a
+  Charging Cycle, a charge never a discharge test. The charges themselves are the sweep's charge segments (`d.charges`,
+  ≤ 30 % up to ≥ 90 %, with their own curve) and are added as cycles **only where a Charging Cycle is planned** — the
+  nightly recharges are not a test — so the Charging Cycle screen shows battery gained, not drained.
   The Cycle plan screen ends with **All cycles** (`AllCycles` in `CyclePlanView.jsx`): one row per bench
   cycle of a planned test (`benchCycles`), newest first; a click opens that test with the cycle picked
   (`openCycle` in `App.jsx` -> `initialBench` on `TestDetailView`).

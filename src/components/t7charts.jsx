@@ -289,7 +289,9 @@ export function GroupedColumns({
         <svg height={height} viewBox={`0 0 ${contentW} ${height}`}
           style={{ marginTop: 8, width: contentW, maxWidth: 'none' }}
           role="img" aria-label={caption}
-          onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); setPt({ x: e.clientX - r.left, y: e.clientY - r.top }) }}
+          // the tooltip sits in the visible chart box, not the scrolled-wide drawing: measured
+          // from it, so it stays by the cursor when the chart is scrolled sideways
+          onPointerMove={(e) => { const box = e.currentTarget.closest('.chart-shell') || e.currentTarget, r = box.getBoundingClientRect(); setPt({ x: e.clientX - r.left, y: e.clientY - r.top }) }}
           onPointerLeave={() => setHover(null)}>
           <GridY scale={sy} ticks={yTicks} x0={M.left} x1={M.left + plotW} />
           <AxisY scale={sy} ticks={yTicks} x={M.left} format={formatValue} label={yLabel} />
@@ -331,7 +333,7 @@ export function GroupedColumns({
         </div>
       )}
       {hover && (
-        <Tooltip x={pt.x} y={pt.y} containerWidth={contentW}>
+        <Tooltip x={pt.x} y={pt.y} containerWidth={width}>
           {/* A caller says what its number is (nText); otherwise n is how many runs sit behind
               the bar. "cycles" is reserved for battery cycles across the dashboard. */}
           <div className="tt-time">{hover.group.label}{hover.group.nText

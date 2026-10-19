@@ -216,7 +216,8 @@ export function adaptCycle(d, c, rows, ctx) {
     // whether the pad state is known at all: neither a stored curve nor live readings -> 'WLC inactive' is only a default
     padKnown: !!stored || !!fromWindow.seen,
     maxTemp: c.maxTemp ?? (temps.length ? Math.max(...temps) : null),
-    avgTemp: c.avgTemp ?? null,
+    // the detector's mean; a charge (or a cycle without it) from its temperature curve
+    avgTemp: c.avgTemp ?? (temps.length ? round(temps.reduce((a, x) => a + x, 0) / temps.length, 1) : null),
     minAbove40: c.thermal?.minAbove40 ?? null,
     minAbove45: c.thermal?.minAbove45 ?? null,
     series, tempSeries, hourly: built,

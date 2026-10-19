@@ -15,13 +15,16 @@ import { fmtLifetime, fmtInt, fmtNum, fmtPct, fmtTemp, fmtHours, fmtRate, fmtDat
 // One device's whole history, opened from the header search (#/nx/device/<serial>):
 // how it is right now, what it has run (every test, every run, newest first) and its
 // battery curve per test. Filters don't apply here — this page is "everything for it".
+// mean of the cycles' average battery temperatures (null when none has one)
+const avgOf = (list) => { const v = list.map((c) => c.avgTemp).filter(Number.isFinite); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null }
+
 export default function DeviceView({ serial, d, cycles, onOpenTest }) {
   const mine = useMemo(() => cycles.filter((c) => c.serial === serial).sort((a, b) => b.start - a.start), [cycles, serial])
   const k = useMemo(() => kpis(mine), [mine])
   const tests = useMemo(() => {
     const m = new Map()
     for (const c of mine) { if (!m.has(c.testType)) m.set(c.testType, []); m.get(c.testType).push(c) }
-    return [...m.entries()].map(([tt, list]) => ({ tt, list, k: kpis(list), peak: maxOf(list.map((c) => c.maxTemp)), last: list[0]?.date }))
+    return [...m.entries()].map(([tt, list]) => ({ tt, list, k: kpis(list), peak: maxOf(list.map((c) => c.maxTemp)), avg: avgOf(list), last: list[0]?.date }))
       .sort((a, b) => b.list.length - a.list.length)
   }, [mine])
   const curves = useMemo(() => {
@@ -29,6 +32,7 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
     return avgCurveBy(mine, 'testType').map((g) => ({ id: g.label, label: g.label, sub: runsText(g.count), ...(styles.get(g.label) || {}), points: g.points }))
   }, [mine, tests])
   const days = new Set(mine.map((c) => c.date)).size
+  const avgTempAll = avgOf(mine)
   const peakRun = mine.reduce((a, c) => (c.maxTemp != null && (!a || c.maxTemp > a.maxTemp) ? c : a), null)
 
   if (!d) return <EmptyNote>No device {serial} in this group.</EmptyNote>
@@ -66,6 +70,7 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
           <Stat label="Test days" value={fmtInt(days)} foot={`${fmtDate(mine[mine.length - 1].date)} → ${fmtDate(mine[0].date)}`} />
           <Stat label="Avg cycle time" value={fmtNum(k.avgDuration, 1)} unit="h" foot="per cycle" />
           <Stat label="Avg drain" value={fmtRate(k.avgDropPerHr)} foot="battery per hour" />
+          <Stat label="Avg temp" value={fmtNum(avgTempAll, 1)} unit="°C" foot="battery, over its cycles" />
           <Stat label="Hottest cycle" value={fmtNum(peakRun?.maxTemp, 1)} unit="°C" foot={peakRun ? `${peakRun.testType} · ${fmtDate(peakRun.date)}` : 'no temperature'} />
         </div>
 
@@ -81,7 +86,7 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
           <div className="table-wrap">
             <SortTable caption={`Tests ${serial} has run`} head={[
               { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycles' }, { label: 'Avg cycle time' },
-              { label: 'Avg drain' }, { label: 'Avg peak temp' }, { label: 'Hottest' }, { label: 'Last cycle' },
+              { label: 'Avg drain' }, { label: 'Avg temp' }, { label: 'Avg peak temp' }, { label: 'Hottest' }, { label: 'Last cycle' },
             ]}>
               {tests.map((t) => (
                 <tr key={t.tt} className="row-link" onClick={() => onOpenTest(serial, t.tt)}>
@@ -89,6 +94,7 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
                   <td>{fmtInt(t.list.length)}</td>
                   <td>{fmtHours(t.k.avgDuration)}</td>
                   <td>{fmtRate(t.k.avgDropPerHr)}</td>
+                  <td>{fmtTemp(t.avg)}</td>
                   <td>{fmtTemp(t.k.avgPeakTemp)}</td>
                   <td>{fmtTemp(t.peak)}</td>
                   <td>{t.last ? fmtDate(t.last) : DASH}</td>
@@ -102,7 +108,7 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
           <div className="table-wrap" style={{ maxHeight: 520 }}>
             <SortTable caption={`Every cycle on ${serial}`} head={[
               { label: 'Date' }, { label: 'Started' }, { label: 'Ended' }, { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycle time' },
-              { label: 'Start' }, { label: 'End' }, { label: 'Drain' }, { label: 'Peak temp' }, { label: 'Battery cycles' },
+              { label: 'Start' }, { label: 'End' }, { label: 'Drain' }, { label: 'Avg temp' }, { label: 'Peak temp' }, { label: 'Battery cycles' },
               { label: 'Firmware', style: { textAlign: 'left' } }, { label: 'WLC', style: { textAlign: 'left' } },
             ]}>
               {mine.map((c) => (
@@ -115,6 +121,7 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
                   <td>{fmtPct(c.startBattery)}</td>
                   <td>{fmtPct(c.endBattery)}</td>
                   <td>{fmtRate(c.dropPerHr)}</td>
+                  <td>{fmtTemp(c.avgTemp)}</td>
                   <td>{fmtTemp(c.maxTemp)}</td>
                   <td>{cyclesCell(c)}</td>
                   <td style={{ textAlign: 'left' }}>{c.firmware ?? DASH}</td>

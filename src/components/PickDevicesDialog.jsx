@@ -34,7 +34,7 @@ export default function PickDevicesDialog({ title, sub, counts, onExport, onClos
                 <button type="button" className="btn btn-sm" onClick={() => setPicked(new Set([...picked, ...shown]))}>Select all</button>
                 <button type="button" className="btn btn-sm" onClick={() => { const n = new Set(picked); shown.forEach((s) => n.delete(s)); setPicked(n) }}>Clear</button>
               </div>
-              <div className="dev-pick-list" style={{ maxHeight: 280 }}>
+              <div className="dev-pick-list pick-devices-list" style={{ maxHeight: 280 }}>
                 {shown.map((sn) => (
                   <label key={sn} className="dev-pick-item">
                     <input type="checkbox" checked={picked.has(sn)} onChange={() => toggle(sn)} />

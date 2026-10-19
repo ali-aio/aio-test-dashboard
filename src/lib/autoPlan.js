@@ -17,7 +17,7 @@ import { cycleAt, dayKey, daysBetween } from './plan.js';
 const H = 3600e3;
 const GAP = 45 * 60e3;          // no check-in for this long: the run stopped (powered off / taken away)
 const STEP_CAP = 15 * 60e3;     // a reading counts for at most this long when summing pad time
-const CHARGE_CHECK = 30 * 60e3; // "charging" counts only if the battery rises within this long
+const CHARGE_CHECK = 30 * 60e3; // "charging" counts only if the battery stops falling within this long
 export const WHOLE_RUN = 0.85;  // load on the pad for this share of the run = load the whole run
 export const AUTO_FROM = new Date(2026, 8, 25).getTime(); // first day filled in (the lab's choice)
 export const BENCH_GAP_H = 3;   // devices starting within 3 h are one bench (same as CYCLE_GAP_H)
@@ -34,12 +34,24 @@ const hm = t => { const d = new Date(t); return `${String(d.getHours()).padStart
  *  rows: history rows (normalize()d or raw), any order; `empty` rows are skipped.
  *  With a load on the pad the T7 sometimes reports `charging` for minutes to an hour while its
  *  battery keeps falling (16 Oct 2026: 8 of 19 devices). That is not a charge: one ends a run
- *  only when the battery has risen, or rises within CHARGE_CHECK. */
+ *  only when the battery has risen, or stops falling (rises or holds) within CHARGE_CHECK. */
 export function runsFrom(rows, now = Date.now()) {
   const pts = rows.filter(r => !r.empty && typeof r.battery_pct === 'number')
     .map(r => ({ t: Date.parse(r.sample_at || r.timestamp), b: r.battery_pct, ch: r.extra?.charging, pad: !!r.extra?.wlc_status }))
     .filter(p => Number.isFinite(p.t)).sort((a, b) => a.t - b.t);
-  const rises = i => { for (let k = i + 1; k < pts.length && pts[k].t - pts[i].t <= CHARGE_CHECK; k++) if (pts[k].b > pts[i].b) return true; return false; };
+  // a real charge: the battery rises, or holds — the flag on and no later reading (within
+  // CHARGE_CHECK, on charge) lower. On the pad's flicker the battery keeps falling. At 20 % a
+  // bench put on charge at 00:04 held its level for a while (20 Oct 2026), so "rises" alone
+  // kept the run open and the cycle's end moved with every sweep.
+  const rises = i => {
+    let seen = 0;
+    for (let k = i + 1; k < pts.length && pts[k].t - pts[i].t <= CHARGE_CHECK; k++) {
+      if (pts[k].b > pts[i].b) return true;
+      if (pts[k].b < pts[i].b) return false;
+      if (pts[k].ch === true) seen++;
+    }
+    return seen >= 2;
+  };
   const runs = []; let cur = null;
   const close = ended => {
     const p = cur.pts, s = p[0], e = p[p.length - 1], durH = (e.t - s.t) / H, drop = s.b - e.b;

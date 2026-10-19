@@ -451,6 +451,10 @@ const mdmCases = []
     })
     const fr = runsFrom(flick, t0 + 20 * H)
     want(fr.length === 1 && fr[0].durH > 13 && fr[0].ended === 'charge', `charging flag on the pad: ${JSON.stringify(fr)}`)
+    // put on charge at 20 % and holding there a while before it rises: the run has ended (20 Oct 2026)
+    const held = dev(t0, { ...rc, hours: 14 }).concat([1, 2, 3, 4].map((k) => ({ timestamp: new Date(t0 + 14 * H + k * 5 * M).toISOString(), battery_pct: 19, extra: { charging: true, wlc_status: 0 } })))
+    const hr = runsFrom(held, t0 + 14 * H + 25 * M)
+    want(hr.length === 1 && hr[0].ended === 'charge', `on charge, level holding: ${JSON.stringify(hr.map((r) => r.ended))}`)
 
     // into the plan
     const done = bench(day(2, 10), { padH: 3, rate1: 12, rate2: 4, hours: 14, charge: true }, day(3, 12))

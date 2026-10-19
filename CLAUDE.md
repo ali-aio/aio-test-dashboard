@@ -255,10 +255,10 @@ oversight; don't add restaurant filtering back in without being asked.
   mid-cycle are recorded on it (`removed`, with reason) and leave it from that moment.
   **Planned tests count only runs from 25 Sep 2026 on** (`PLAN_FROM` in `adapt.js`): anything earlier is Old cycles
   whatever a plan entry says, so no test's averages or per-hour charts mix in pre-plan runs. A run must also look like
-  its test (`fitsTest`): a test with a fixed cycle time (`hours` in `TEST_TYPES`, Restaurant Case 14 h) may run
-  `CYCLE_SLACK_H` (2 h) longer, and one with a set load time (`loadHours`: Restaurant Case, WLC + Discharge — 3 h) may have
-  a load on its pad at most 2 h longer (1 Oct 2026: 4 devices ran WLC on Load on a Restaurant Case bench); past that the device has left the cycle — and hour by
-  hour: WLC active in each of the first `loadHours` hours and inactive from hour `loadHours + 2` on (hour 4 is when a 3 h
+  its test (`leftTest`): a test with a fixed cycle time (`hours` in `TEST_TYPES`, Restaurant Case 14 h) may run
+  `CYCLE_SLACK_H` (2 h) longer, past that the device has left the cycle; one with a set load time (`loadHours`:
+  Restaurant Case, WLC + Discharge — 3 h) is checked hour by hour (1 Oct 2026: 4 devices ran WLC on Load on a
+  Restaurant Case bench): WLC active in each of the first `loadHours` hours and inactive from hour `loadHours + 2` on (hour 4 is when a 3 h
   load comes off), from the 15-min slots (`padHours`; an hour without readings is not judged). The lab: a device that
   behaves differently from the test is not in the cycle (one left off the charger on 16 Oct showed as
   69 h; a device starting up to 3 h after the others is still in the cycle, held to its own run time), and a

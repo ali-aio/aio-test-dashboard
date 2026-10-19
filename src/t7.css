@@ -394,6 +394,9 @@ button.card-toggle:focus-visible { outline: 2px solid var(--series-1); outline-o
 }
 .stat-foot { font-size: 11.5px; color: var(--text-muted); }
 .stat-hero .stat-value { font-size: 38px; }
+/* in a row of tiles the hero number stays the row's size: a taller one stretched every tile's
+   number row and left a gap above the notes */
+.stat-row .stat-hero .stat-value { font-size: 30px; }
 .stat-row-lg .stat-value { font-size: 30px; }
 
 /* ------------------------------------------------------------------- legend */

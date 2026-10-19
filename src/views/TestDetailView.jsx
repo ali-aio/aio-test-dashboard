@@ -336,7 +336,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
         <Stat label="Avg peak temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
           foot={hottestRun == null
             ? 'no temperature recorded'
-            : `hottest cycle reached ${fmtTemp(hottestRun)}`}
+            : `hottest cycle ${fmtTemp(hottestRun)}`}
           breakdown={peakBreakdown} breakdownWide breakdownRight
           breakdownLabel="Cycle peak temperatures · hottest first" />
       </div>

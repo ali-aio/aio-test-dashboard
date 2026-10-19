@@ -553,7 +553,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               : isRestaurant ? 'Mean T7 drain per hour, WLC active and WLC inactive'
                 : testType === 'WLC on Phone' ? 'Mean T7 drain and load gain by hour of the cycle'
                   : 'Mean battery change per hour window'}
-            tableColumns={[
+            // Restaurant Case: chart only, no table view (the lab's choice, Oct 2026)
+            tableColumns={isRestaurant ? undefined : [
               { key: 'window', label: 'Hour' },
               { key: 'n', label: 'Cycles' },
               ...(isRestaurant ? [

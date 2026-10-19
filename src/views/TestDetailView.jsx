@@ -258,8 +258,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
     return { lt, n: own.length, gain: mean(own.map((c) => c.loadGainPerHr)), drop: mean(own.map((c) => c.dropPerHr)) }
   }).filter((x) => x.n) : []
   const restaurantRates = isRestaurant ? [
-    { label: 'Avg T7 drain · WLC active', rateKey: 'wirelessDrainPerHr' },
-    { label: 'Avg T7 drain · WLC inactive', rateKey: 'withoutWirelessDrainPerHr' },
+    { label: 'Avg drain · WLC active', rateKey: 'wirelessDrainPerHr' },
+    { label: 'Avg drain · WLC inactive', rateKey: 'withoutWirelessDrainPerHr' },
   ].map((mode) => {
     const rated = cycles.filter((c) => c[mode.rateKey] != null)
     return {
@@ -333,7 +333,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           foot="at cycle end" />
         {/* The average of the peaks hides the worst one, which is the figure a
             thermal problem actually shows up in. */}
-        <Stat label="Avg peak battery temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
+        <Stat label="Avg peak temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
           foot={hottestRun == null
             ? 'no temperature recorded'
             : `hottest cycle reached ${fmtTemp(hottestRun)}`}

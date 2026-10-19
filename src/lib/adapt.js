@@ -42,6 +42,16 @@ function fitsTest(cycle, name) {
   // with the load on its pad far longer ran another test (1 Oct 2026: 4 devices ran WLC on Load
   // the whole day on a Restaurant Case bench). Only where the pad was reported (cycle.padH).
   if (tt?.loadHours && cycle.padH != null && cycle.padH > tt.loadHours + CYCLE_SLACK_H) return false;
+  // and hour by hour (the lab: a device that behaves differently is not in the cycle): the WLC
+  // active in each of the first `loadHours` hours, and inactive from the hour after the next on
+  // (hour 4 of a 3 h load is when it comes off). Hours with no pad readings are not judged.
+  if (tt?.loadHours && cycle.padHours) {
+    for (let h = 0; h < cycle.padHours.length; h++) {
+      const on = cycle.padHours[h];
+      if (on === false && h < tt.loadHours) return false;
+      if (on === true && h > tt.loadHours) return false;
+    }
+  }
   return !(h >= 1 && cycle.startPct != null && cycle.endPct != null && (cycle.startPct - cycle.endPct) / h < MIN_DRAIN);
 }
 const isNum = v => v != null && Number.isFinite(v);
@@ -160,12 +170,15 @@ export function adaptCycle(d, c, rows, ctx) {
   // run's own pad state (on if the pad was on at any point) stands in. Restaurant Case's
   // "pad on / pad off" per hour reads this: its first 3 h on, the rest off.
   const slots = ctx.hours?.[d.serial]?.h;
-  const padInHour = h => {
-    if (!slots?.length) return wireless;
+  // measured: true / false from the slots, null with under 15 min of them in the hour
+  const padMeasured = h => {
+    if (!slots?.length) return null;
     const a = c.start + h * H, b = a + H; let m = 0, pad = 0;
     for (const x of slots) { const mid = x[0] + 7.5 * 60e3; if (mid >= a && mid < b) { m += x[2]; pad += x[3]; } }
-    return m >= 15 ? pad * 2 >= m : wireless;
+    return m >= 15 ? pad * 2 >= m : null;
   };
+  const padInHour = h => padMeasured(h) ?? wireless;
+  const padHours = Array.from({ length: Math.ceil(duration) }, (_, h) => padMeasured(h));
   // hours with a load on the pad over the whole run (null without slots for it)
   let padMin = null;
   if (slots?.length) for (const x of slots) { const mid = x[0] + 7.5 * 60e3; if (mid >= c.start && mid <= c.end) padMin = (padMin || 0) + x[3]; }
@@ -178,7 +191,7 @@ export function adaptCycle(d, c, rows, ctx) {
   return {
     id: `${d.serial}@${c.start}`,
     serial: d.serial,
-    testType: testTypeFor({ ...c, serial: d.serial, charging, padH: padMin == null ? null : padMin / 60 }, ctx),
+    testType: testTypeFor({ ...c, serial: d.serial, charging, padH: padMin == null ? null : padMin / 60, padHours }, ctx),
     build: buildFromSerial(d.serial), // from the serial ("BU" = Production), as the MDM reports no build
     android: null,        // not reported by the MDM — no OS/SDK field in the payload
     firmware: firmware || c.buildId || 'Unknown',

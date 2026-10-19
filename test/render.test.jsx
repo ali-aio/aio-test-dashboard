@@ -231,6 +231,12 @@ const mdmCases = []
     want(run(16, 14, 10, 100, 90) === 'Old cycles', 'idle at 1 %/h: not on the test')
     const withPad = (padH) => testTypeFor({ serial: 'A', start: at(16, 14), end: at(16, 14) + 9 * 3600e3, durationMs: 9 * 3600e3, startPct: 100, endPct: 5, padH }, { decls: rcd, rota: {}, DEV: [] })
     want(withPad(3.2) === 'Restaurant Case' && withPad(9) === 'Old cycles' && withPad(null) === 'Restaurant Case', 'a load all run on a Restaurant Case bench is another test')
+    const byHour = (padHours) => testTypeFor({ serial: 'A', start: at(16, 14), end: at(16, 14) + 14 * 3600e3, durationMs: 14 * 3600e3, startPct: 100, endPct: 18, padH: 3, padHours }, { decls: rcd, rota: {}, DEV: [] })
+    const ok = [true, true, true, false, false, false, false, false, false, false, false, false, false, false]
+    want(byHour(ok) === 'Restaurant Case' && byHour(ok.map((v, i) => (i === 3 ? true : v))) === 'Restaurant Case', 'load hours 1-3, off by hour 4 or 5')
+    want(byHour(ok.map((v, i) => (i === 0 ? false : v))) === 'Old cycles', 'no load in hour 1: not in the cycle')
+    want(byHour(ok.map((v, i) => (i === 5 ? true : v))) === 'Old cycles', 'a load in hour 6: not in the cycle')
+    want(byHour(ok.map((v, i) => (i === 1 ? null : v))) === 'Restaurant Case', 'an hour without readings is not judged')
     want(new Date(2026, 8, 20, 11).getTime() < at(16, 0) && testTypeFor({ serial: 'A', start: new Date(2026, 8, 20, 11).getTime(), end: new Date(2026, 8, 21, 1).getTime(), durationMs: 14 * 3600e3, startPct: 100, endPct: 18 }, { decls: rcd, rota: {}, DEV: [] }) === 'Old cycles', 'before 25 Sep: Old cycles')
   })
   check('planned Charging Cycle: the sweep\'s charges, shown as gain', () => {

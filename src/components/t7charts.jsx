@@ -336,7 +336,7 @@ export function GroupedColumns({
               the bar. "cycles" is reserved for battery cycles across the dashboard. */}
           <div className="tt-time">{hover.group.label}{hover.group.nText
             ? ` · ${hover.group.nText}`
-            : hover.group.n != null ? ` · ${fmtInt(hover.group.n)} cycle${hover.group.n === 1 ? '' : 's'}` : ''}</div>
+            : hover.group.n != null ? ` · ${fmtInt(hover.group.n)} device cycle${hover.group.n === 1 ? '' : 's'}` : ''}</div>
           {measures.map((m) => (
             hover.group.values[m.key] != null && (
               <TooltipRow key={m.key} color={m.color} name={m.label}

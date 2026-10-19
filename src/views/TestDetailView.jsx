@@ -512,7 +512,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           sub={isCharging
             ? 'How many battery percentage points the T7 gains in each whole hour, averaged across charging cycles.'
             : isRestaurant
-              ? 'Mean T7 battery loss in each hour, split by whether a wireless load was recorded at the start of that hour.'
+              ? 'Mean T7 battery loss in each hour, split by whether a load sat on the wireless pad for most of that hour. Counts are device cycles (one device’s run). Firmware v2.0.3–2.0.4 (July – mid Aug) did not report the pad, so its hours count as pad off.'
               : testType === 'WLC on Phone'
                 ? 'Mean T7 battery lost and load battery gained in each whole hour. Both use percentage points on one axis; load-type averages are shown above.'
               : 'Average battery lost during each hour of a cycle.'}>

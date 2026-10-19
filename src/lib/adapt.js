@@ -126,11 +126,20 @@ export function adaptCycle(d, c, rows, ctx) {
   const charging = c.endPct > c.startPct;
   const linear = (c.startPct - c.endPct) / duration;
   const hourly = perHourRate(hourVals, charging ? 'gain' : 'drop');
+  // a load on the pad in each hour of the run, from the sweep's 15-min slots (hours.json): on
+  // when it was on for most of that hour's time on battery. Without slots for the hour, the
+  // run's own pad state (on if the pad was on at any point) stands in. Restaurant Case's
+  // "pad on / pad off" per hour reads this: its first 3 h on, the rest off.
+  const slots = ctx.hours?.[d.serial]?.h;
+  const padInHour = h => {
+    if (!slots?.length) return wireless;
+    const a = c.start + h * H, b = a + H; let m = 0, pad = 0;
+    for (const x of slots) { const mid = x[0] + 7.5 * 60e3; if (mid >= a && mid < b) { m += x[2]; pad += x[3]; } }
+    return m >= 15 ? pad * 2 >= m : wireless;
+  };
   const built = [];
   for (const h of [...hourVals.keys()].sort((a, b) => a - b)) {
-    // `wireless` is per run here (the pad state), not per hour as in a bench CSV — close
-    // enough for T7's Restaurant Case with/without-wireless split, and never invented.
-    if (hourVals.has(h + 1)) built.push({ h, drop: hourVals.get(h) - hourVals.get(h + 1), wireless });
+    if (hourVals.has(h + 1)) built.push({ h, drop: hourVals.get(h) - hourVals.get(h + 1), wireless: padInHour(h) });
   }
   const temps = tempSeries.map(p => p.v);
   const start = new Date(c.start);
@@ -179,9 +188,9 @@ export function adaptCycle(d, c, rows, ctx) {
 }
 
 /** Every device's cycles, reshaped. `rowsFor(serial)` supplies history when we have it. */
-export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = null) {
+export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = null, hours = null) {
   const decls = loadDecls(CTX.group), rota = loadRota(CTX.group);
-  const ctx = { decls, rota, DEV, readings, curves };
+  const ctx = { decls, rota, DEV, readings, curves, hours };
   const out = [];
   for (const d of DEV) {
     const rows = rowsFor(d.serial);

@@ -65,7 +65,7 @@ export const CYCLE_COLUMNS = [
     : c.startBattery != null && c.endBattery != null && c.startBattery > c.endBattery ? num((c.startBattery - c.endBattery) / 100, 2) : '') },
   { key: 'cyclesSource', label: 'Battery cycles source', get: (c) => (c.mdmCycles != null ? 'MDM counter' : 'battery drop ÷ 100') },
   { key: 'firmware', label: 'Firmware', get: (c) => c.firmware ?? '' },
-  { key: 'padState', label: 'Wireless pad', get: (c) => c.padState ?? '' },
+  { key: 'padState', label: 'WLC', get: (c) => c.padState ?? '' },
 ]
 
 /** One CSV field: quoted when it holds a comma, quote or line break; formula-looking text
@@ -144,7 +144,7 @@ export function cycleTableCsv(cycles, { charging = false, pad = false, wlc = nul
     ...CYCLE_COLUMNS.filter((c) => c.key === 'batteryCycles' || c.key === 'cyclesSource')
       .map((col) => [col.label, (c) => (CYCLE_COLUMNS.find((x) => x.key === 'batteryCycles').get(c) === '' ? '' : col.get(c))]),
     ['Firmware', (c) => c.firmware ?? ''],
-    ...(pad ? [['Wireless pad', (c) => c.padState ?? '']] : []),
+    ...(pad ? [['WLC', (c) => c.padState ?? '']] : []),
   ]
   return [csvLine(cols.map((c) => c[0])), ...cycles.map((c) => csvLine(cols.map((col) => col[1](c))))].join('\r\n') + '\r\n'
 }

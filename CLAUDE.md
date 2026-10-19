@@ -255,7 +255,9 @@ oversight; don't add restaurant filtering back in without being asked.
   mid-cycle are recorded on it (`removed`, with reason) and leave it from that moment.
   **Planned tests count only runs from 25 Sep 2026 on** (`PLAN_FROM` in `adapt.js`): anything earlier is Old cycles
   whatever a plan entry says, so no test's averages or per-hour charts mix in pre-plan runs. A run must also look like
-  its test (`fitsTest`): a Restaurant Case is at most 17 h (a device left off the charger on 16 Oct showed as 69 h) and a
+  its test (`fitsTest`): a test with a fixed cycle time (`hours` in `TEST_TYPES`, Restaurant Case 14 h) may run
+  `CYCLE_SLACK_H` (2 h) longer, past that the device has left the cycle (one left off the charger on 16 Oct showed as
+  69 h; a device starting up to 3 h after the others is still in the cycle, held to its own run time), and a
   discharge test drains ≥ 2 %/h (a device idling on the bench at ~1 %/h was not on it); otherwise Old cycles.
   A run only takes a declared cycle **of its own kind** (`testTypeFor` in `adapt.js`): a discharge never becomes a
   Charging Cycle, a charge never a discharge test. The charges themselves are the sweep's charge segments (`d.charges`,
@@ -428,3 +430,6 @@ scripts/deploy-fw2.sh --dry-run   # connection + "what would go out", changes no
 - `server/config.json` (the QA key) and `data/topup.json` are never copied between machines;
   each host keeps its own. Tariq's copy has no `config.json`, so run the backend there only
   after adding one — or just use it to edit and deploy.
+
+- Wording: the wireless pad with a load on it is **WLC active**, without **WLC inactive** (the lab's terms, Oct 2026) —
+  `padState` values, chart legends, KPI cards and table headings ("WLC"). `loadClass` still reads the old "Pad on" too.

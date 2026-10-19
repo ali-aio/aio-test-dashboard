@@ -27,7 +27,7 @@ const COLS = [
   ['Firmware', 'The firmware the device was on during its latest comparable run', { textAlign: 'left' }],
   ['Grade', `Good: score ≥ ${GOOD_AT} and no penalties · Watch: ${REPLACE_AT}–${GOOD_AT - 1}, or exactly one penalty · Replace: below ${REPLACE_AT}, two or more penalties, or two shutdowns above 5 %`, { textAlign: 'left' }],
   ['Score', `${WEIGHTS.capacity} × capacity + ${WEIGHTS.early} × early drain + ${WEIGHTS.stress} × stress; early drain's weight goes to capacity when it cannot be measured`],
-  ['Capacity', `Each of the last ${CURRENT_RUNS} comparable runs' runtime to empty as a share of the baseline of its load class (pad on / pad off): the median of the device's first ${BASELINE_RUNS} runs of that class, or the fleet's first-${BASELINE_RUNS} median when it has fewer. The median share, capped at 100`],
+  ['Capacity', `Each of the last ${CURRENT_RUNS} comparable runs' runtime to empty as a share of the baseline of its load class (WLC active / WLC inactive): the median of the device's first ${BASELINE_RUNS} runs of that class, or the fleet's first-${BASELINE_RUNS} median when it has fewer. The median share, capped at 100`],
   ['Early drain', `Points drained in the first hour, each of the last ${CURRENT_RUNS} runs against its load class's baseline (baseline ÷ now, so faster now = lower), the median capped at 100; blank when fewer than ${MIN_RUNS} runs have a curve`],
   ['Stress', '100 minus the mean load over five wear factors, each as a share of the fleet\'s 90th percentile: lifetime battery cycles, hours ≥ 40 °C, hours ≥ 45 °C, hours on charger at 100 %, discharges ended below 5 %'],
   ['Lifetime cycles', 'The MDM\'s lifetime battery cycles for the device (discharge counter ÷ 100)'],

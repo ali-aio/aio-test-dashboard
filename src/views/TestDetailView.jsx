@@ -26,7 +26,7 @@ const BENCH_CURVE_MODES = [
    column — pad state is the dimension that data actually distinguishes. */
 const FIELD_CURVE_MODES = [
   { id: 'serial', label: 'Per device' },
-  { id: 'padState', label: 'Mean by pad state' },
+  { id: 'padState', label: 'Mean by WLC' },
 ]
 
 /* A device usually ran the test several times. Showing its longest run alone
@@ -252,8 +252,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
     return { lt, n: own.length, gain: mean(own.map((c) => c.loadGainPerHr)), drop: mean(own.map((c) => c.dropPerHr)) }
   }).filter((x) => x.n) : []
   const restaurantRates = isRestaurant ? [
-    { label: 'Avg T7 drain · pad on (wireless charging)', rateKey: 'wirelessDrainPerHr' },
-    { label: 'Avg T7 drain · pad off', rateKey: 'withoutWirelessDrainPerHr' },
+    { label: 'Avg T7 drain · WLC active', rateKey: 'wirelessDrainPerHr' },
+    { label: 'Avg T7 drain · WLC inactive', rateKey: 'withoutWirelessDrainPerHr' },
   ].map((mode) => {
     const rated = cycles.filter((c) => c[mode.rateKey] != null)
     return {
@@ -512,7 +512,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           sub={isCharging
             ? 'How many battery percentage points the T7 gains in each whole hour, averaged across charging cycles.'
             : isRestaurant
-              ? 'Mean T7 battery loss in each hour, split by whether a load sat on the wireless pad for most of that hour. Counts are device cycles (one device’s run). Firmware v2.0.3–2.0.4 (July – mid Aug) did not report the pad, so its hours count as pad off.'
+              ? 'Mean T7 battery loss in each hour, split by whether a load sat on the wireless pad for most of that hour. Counts are device cycles (one device’s run). Firmware v2.0.3–2.0.4 (July – mid Aug) did not report the pad, so its hours count as WLC inactive.'
               : testType === 'WLC on Phone'
                 ? 'Mean T7 battery lost and load battery gained in each whole hour. Both use percentage points on one axis; load-type averages are shown above.'
               : 'Average battery lost during each hour of a cycle.'}>
@@ -528,8 +528,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                   : isLoadTest ? { drop: h.drop, gain: h.gain } : { drop: h.drop },
             }))}
             measures={isRestaurant ? [
-              { key: 'wireless', label: 'Pad on (wireless charging)', color: MEASURE_COLOR.wireless },
-              { key: 'withoutWireless', label: 'Pad off', color: MEASURE_COLOR.withoutWireless },
+              { key: 'wireless', label: 'WLC active', color: MEASURE_COLOR.wireless },
+              { key: 'withoutWireless', label: 'WLC inactive', color: MEASURE_COLOR.withoutWireless },
             ] : isCharging ? [
               { key: 'charge', label: 'T7 battery gained (% points)', color: MEASURE_COLOR.gain },
             ] : isLoadTest ? [
@@ -545,7 +545,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             height={280}
             emptyState={explainNoRate(cycles, isCharging ? 'a charge rate' : 'a drain rate')}
             caption={isCharging ? 'Mean T7 battery gained per hour window'
-              : isRestaurant ? 'Mean T7 drain per hour, pad on and pad off'
+              : isRestaurant ? 'Mean T7 drain per hour, WLC active and WLC inactive'
                 : testType === 'WLC on Phone' ? 'Mean T7 drain and load gain by hour of the cycle'
                   : 'Mean battery change per hour window'}
             tableColumns={[
@@ -553,8 +553,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               // pad on / pad off already carry their own counts, which add up to this
               ...(isRestaurant ? [] : [{ key: 'n', label: 'Cycles' }]),
               ...(isRestaurant ? [
-                { key: 'wireless', label: 'Pad on (wireless charging)' },
-                { key: 'withoutWireless', label: 'Pad off' },
+                { key: 'wireless', label: 'WLC active' },
+                { key: 'withoutWireless', label: 'WLC inactive' },
               ] : isCharging ? [
                 { key: 'charge', label: 'Battery gained' },
               ] : [
@@ -648,7 +648,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             { label: isCharging ? 'Charge rate' : 'Drain' },
             ...(showPad ? [{ label: 'Drain with WLC' }, { label: 'Drain without WLC' }] : []),
             { label: 'Peak temp' }, { label: 'Battery cycles' },
-            { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'Wireless pad', style: { textAlign: 'left' } }] : []),
+            { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'WLC', style: { textAlign: 'left' } }] : []),
           ]}>
             {/* the search matches the serial, the firmware or the date as shown */}
             {tableRows.map((c) => (

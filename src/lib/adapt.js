@@ -24,15 +24,20 @@ const H = 3600e3;
 // Planned tests count only runs from the day the Cycle plan began (the lab's choice, Oct 2026);
 // everything before is Old cycles, whatever a plan entry says.
 export const PLAN_FROM = new Date(2026, 8, 25).getTime();
-// A run kept in a planned test must look like that test: a Restaurant Case is 14 h (a device
-// left off the charger runs on, and one forgotten on the bench for days read as 69 h), and a
-// discharge test drains (a device sitting idle at ~1 %/h was not on it).
-const MAX_HOURS = { 'Restaurant Case': 17 };
+// A run kept in a planned test must look like that test. A test with a fixed cycle time
+// (`hours` in TEST_TYPES: Restaurant Case 14 h) allows CYCLE_SLACK_H more — a device taken off
+// the charger an hour or two early, or put back late — and past that the device has left the
+// cycle (16 Oct 2026: one forgotten on the bench read as 69 h). A device starting up to 3 h
+// after the others still belongs to the cycle (its window, CYCLE_GAP_H); it is its own run
+// time that is held to the cycle time. And a discharge test drains: a device sitting idle at
+// ~1 %/h was not on it.
+export const CYCLE_SLACK_H = 2;
 const MIN_DRAIN = 2; // %/h, as the Auto plan's "not a test"
 function fitsTest(cycle, name) {
   if (cycle.charging) return true;
   const h = (cycle.durationMs ?? ((cycle.end ?? cycle.start) - cycle.start)) / H;
-  if (MAX_HOURS[name] && h > MAX_HOURS[name]) return false;
+  const fixed = TEST_TYPES.find(t => t.name === name)?.hours;
+  if (fixed && h > fixed + CYCLE_SLACK_H) return false;
   return !(h >= 1 && cycle.startPct != null && cycle.endPct != null && (cycle.startPct - cycle.endPct) / h < MIN_DRAIN);
 }
 const isNum = v => v != null && Number.isFinite(v);
@@ -182,8 +187,8 @@ export function adaptCycle(d, c, rows, ctx) {
     loadType: null,
     charger: null,
     // the T7's own wireless-charging pad, active (charging a phone / tester on it) or off
-    padState: wireless ? 'Pad on (wireless charging)' : 'Pad off',
-    // whether the pad state is known at all: neither a stored curve nor live readings -> 'Pad off' is only a default
+    padState: wireless ? 'WLC active' : 'WLC inactive',
+    // whether the pad state is known at all: neither a stored curve nor live readings -> 'WLC inactive' is only a default
     padKnown: !!stored || !!fromWindow.seen,
     maxTemp: c.maxTemp ?? (temps.length ? Math.max(...temps) : null),
     avgTemp: c.avgTemp ?? null,

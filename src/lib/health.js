@@ -54,7 +54,7 @@ export const percentile = (xs, p) => {
 // of ITS load class only: a run's runtime is taken as a share of the baseline of its class,
 // and the shares are what get combined. The class is the run's pad state.
 export const LOAD = { load: 'Load placed', none: 'No load', unknown: 'Load not known' };
-export const loadClass = c => (!c.padKnown ? 'unknown' : /^pad on/i.test(c.padState || '') ? 'load' : 'none');
+export const loadClass = c => (!c.padKnown ? 'unknown' : /^(wlc active|pad on)/i.test(c.padState || '') ? 'load' : 'none');
 
 /** serial -> that device's comparable runs of `testType`, oldest first. `load` narrows
  *  them to one class ('load' | 'none'); 'all' keeps every class. */

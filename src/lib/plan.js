@@ -42,7 +42,7 @@ export const TEST_TYPES = [
     about: 'Ads running, a load on the pad for the first 3 h, then ads only until the T7 powers off (0 %).' },
   { id: 'burnin',     code: 'BI', name: 'Burn-in Test',           expect: 'discharge',
     about: 'Production only: 4K video played continuously (no ads).' },
-  { id: 'restaurant', code: 'RC', name: 'Restaurant Case',        expect: 'discharge', frequent: true,
+  { id: 'restaurant', code: 'RC', name: 'Restaurant Case',        expect: 'discharge', frequent: true, hours: 14,
     about: 'A load on the pad for 3 h; the cycle runs 14 h in all.' },
   { id: 'load_only',  code: 'LO', name: 'Discharge on Load only', expect: 'discharge',
     about: 'Only a load on the wireless pad, no ads, until the T7 powers off (0 %).' },

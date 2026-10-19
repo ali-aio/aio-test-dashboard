@@ -103,7 +103,7 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
             <SortTable caption={`Every cycle on ${serial}`} head={[
               { label: 'Date' }, { label: 'Started' }, { label: 'Ended' }, { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycle time' },
               { label: 'Start' }, { label: 'End' }, { label: 'Drain' }, { label: 'Peak temp' }, { label: 'Battery cycles' },
-              { label: 'Firmware', style: { textAlign: 'left' } }, { label: 'Wireless pad', style: { textAlign: 'left' } },
+              { label: 'Firmware', style: { textAlign: 'left' } }, { label: 'WLC', style: { textAlign: 'left' } },
             ]}>
               {mine.map((c) => (
                 <tr key={c.id}>

@@ -227,6 +227,7 @@ const mdmCases = []
     const run = (d, h, hrs, from, to) => testTypeFor({ serial: 'A', start: at(d, h), end: at(d, h) + hrs * 3600e3, durationMs: hrs * 3600e3, startPct: from, endPct: to }, { decls: rcd, rota: {}, DEV: [] })
     want(run(16, 14, 14, 100, 18) === 'Restaurant Case', 'a real Restaurant Case')
     want(run(16, 14, 69, 100, 30) === 'Old cycles', '69 h is not a Restaurant Case')
+    want(run(16, 17, 15.5, 100, 15) === 'Restaurant Case' && run(16, 14, 16.5, 100, 15) === 'Old cycles', '14 h + 2 h allowed (a late start still in the cycle), more is out of it')
     want(run(16, 14, 10, 100, 90) === 'Old cycles', 'idle at 1 %/h: not on the test')
     want(new Date(2026, 8, 20, 11).getTime() < at(16, 0) && testTypeFor({ serial: 'A', start: new Date(2026, 8, 20, 11).getTime(), end: new Date(2026, 8, 21, 1).getTime(), durationMs: 14 * 3600e3, startPct: 100, endPct: 18 }, { decls: rcd, rota: {}, DEV: [] }) === 'Old cycles', 'before 25 Sep: Old cycles')
   })

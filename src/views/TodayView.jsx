@@ -248,7 +248,7 @@ export default function TodayView({ fleet }) {
             : <span className="secondary" style={{ fontSize: 13 }}> · planned end passed</span>}</> : 'Not started'}
           delta={runStart ? `off charger ${hm(runStart)} · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`
             : `${started.length} of ${all.length} devices off charger · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`} />
-        <Metric label="Battery now" value={medNow != null ? <>{medNow}%<ChargeIcon state={chargeNow} /></> : '—'}
+        <Metric label="Battery" value={medNow != null ? <>{medNow}%<ChargeIcon state={chargeNow} /></> : '—'}
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />
         <Metric label="Drain rate" value={rate ? <>{rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
           delta={rate ? `${(rate / 6).toFixed(2)}% per 10 min · median of ${rates.length}` : 'needs 20 min of running'} />

@@ -33,6 +33,9 @@ function countsBy(cycles, key) {
 }
 
 /** Distinct values of a field, with the placeholders left out. */
+const OVERVIEW_FIRST = ['Restaurant Case', 'WLC on Load', 'Ads only', 'Charging Cycle']
+const OVERVIEW_ORDER = [...OVERVIEW_FIRST, ...ALL_TEST_TYPES.filter((t) => !OVERVIEW_FIRST.includes(t) && t !== 'Old cycles'), 'Old cycles']
+
 function inventory(cycles, key) {
   const seen = new Set()
   let unlabelled = 0
@@ -102,7 +105,8 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOp
     }
   }, [cycles, onPickTestType, onFilter])
 
-  const panels = useMemo(() => ALL_TEST_TYPES.map((tt) => {
+  // the lab's order (Oct 2026): the tests run most first, the daily charge, then the rest, Old cycles last
+  const panels = useMemo(() => OVERVIEW_ORDER.map((tt) => {
     const own = cycles.filter((c) => c.testType === tt)
     // Field cycles carry no build — group those by wireless-pad state, which is
     // the dimension their data actually distinguishes.

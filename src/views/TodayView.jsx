@@ -21,6 +21,19 @@ const statusBadge = st => <span className={`pill ${{ declared: 'pill-run', confi
 
 const RECENT_H = 6 // a cycle that ended this recently is still shown, with its results
 
+/** One icon beside "Battery now": a bolt while most devices charge, a down arrow while they drain. */
+function ChargeIcon({ state }) {
+  if (!state) return null
+  const tip = `${state.charging ? 'Charging' : 'Discharging'} now · ${state.on} on charge, ${state.off} on battery`
+  return (
+    <span className={`charge-icon ${state.charging ? 'is-charging' : 'is-draining'}`} title={tip} aria-label={tip} role="img">
+      {state.charging
+        ? <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path d="M9.2 1.5 3.5 9h3.7l-.9 5.5L12.5 7H8.7z" fill="currentColor" /></svg>
+        : <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path d="M8 2.5v9M4.2 8 8 11.8 11.8 8" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+    </span>
+  )
+}
+
 export default function TodayView({ fleet }) {
   const { DEV, allCycles, opts } = fleet
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
@@ -57,6 +70,13 @@ export default function TodayView({ fleet }) {
   }, [DEV, allCycles, win.at2, todayKey(), planRev, planSync.v])
   const key = T.key
   const ended = T.tt && T.endMs < now // the cycle shown has finished (the last one, until the next starts)
+  // charging or discharging right now: what most of the cycle's devices report on their latest
+  // reading (not the cycle's end — after a cycle the devices are back on charge)
+  const chargeNow = (() => {
+    let on = 0, off = 0
+    for (const sn of T.serials) { const r = rowsFor(sn); const last = r[r.length - 1]; if (!last || now - Date.parse(last.timestamp) > 15 * MIN) continue; if (last.extra?.charging) on++; else off++ }
+    return on + off === 0 ? null : { charging: on > off, on, off }
+  })()
   const [takingOut, setTakingOut] = useState(null) // serial whose take-out form is open
 
   const winTo = Math.min(now, T.endMs)
@@ -228,7 +248,7 @@ export default function TodayView({ fleet }) {
             : <span className="secondary" style={{ fontSize: 13 }}> · planned end passed</span>}</> : 'Not started'}
           delta={runStart ? `off charger ${hm(runStart)} · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`
             : `${started.length} of ${all.length} devices off charger · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`} />
-        <Metric label="Battery now" value={medNow != null ? `${medNow}%` : '—'}
+        <Metric label="Battery now" value={medNow != null ? <>{medNow}%<ChargeIcon state={chargeNow} /></> : '—'}
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />
         <Metric label="Drain rate" value={rate ? <>{rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
           delta={rate ? `${(rate / 6).toFixed(2)}% per 10 min · median of ${rates.length}` : 'needs 20 min of running'} />

@@ -36,8 +36,12 @@ const MIN_DRAIN = 2; // %/h, as the Auto plan's "not a test"
 function fitsTest(cycle, name) {
   if (cycle.charging) return true;
   const h = (cycle.durationMs ?? ((cycle.end ?? cycle.start) - cycle.start)) / H;
-  const fixed = TEST_TYPES.find(t => t.name === name)?.hours;
-  if (fixed && h > fixed + CYCLE_SLACK_H) return false;
+  const tt = TEST_TYPES.find(t => t.name === name);
+  if (tt?.hours && h > tt.hours + CYCLE_SLACK_H) return false;
+  // a test with a set load time (`loadHours`: Restaurant Case, WLC + Discharge — 3 h): a device
+  // with the load on its pad far longer ran another test (1 Oct 2026: 4 devices ran WLC on Load
+  // the whole day on a Restaurant Case bench). Only where the pad was reported (cycle.padH).
+  if (tt?.loadHours && cycle.padH != null && cycle.padH > tt.loadHours + CYCLE_SLACK_H) return false;
   return !(h >= 1 && cycle.startPct != null && cycle.endPct != null && (cycle.startPct - cycle.endPct) / h < MIN_DRAIN);
 }
 const isNum = v => v != null && Number.isFinite(v);
@@ -162,6 +166,9 @@ export function adaptCycle(d, c, rows, ctx) {
     for (const x of slots) { const mid = x[0] + 7.5 * 60e3; if (mid >= a && mid < b) { m += x[2]; pad += x[3]; } }
     return m >= 15 ? pad * 2 >= m : wireless;
   };
+  // hours with a load on the pad over the whole run (null without slots for it)
+  let padMin = null;
+  if (slots?.length) for (const x of slots) { const mid = x[0] + 7.5 * 60e3; if (mid >= c.start && mid <= c.end) padMin = (padMin || 0) + x[3]; }
   const built = [];
   for (const h of [...hourVals.keys()].sort((a, b) => a - b)) {
     if (hourVals.has(h + 1)) built.push({ h, drop: hourVals.get(h) - hourVals.get(h + 1), wireless: padInHour(h) });
@@ -171,7 +178,7 @@ export function adaptCycle(d, c, rows, ctx) {
   return {
     id: `${d.serial}@${c.start}`,
     serial: d.serial,
-    testType: testTypeFor({ ...c, serial: d.serial, charging }, ctx),
+    testType: testTypeFor({ ...c, serial: d.serial, charging, padH: padMin == null ? null : padMin / 60 }, ctx),
     build: buildFromSerial(d.serial), // from the serial ("BU" = Production), as the MDM reports no build
     android: null,        // not reported by the MDM — no OS/SDK field in the payload
     firmware: firmware || c.buildId || 'Unknown',

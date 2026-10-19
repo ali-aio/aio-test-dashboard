@@ -675,6 +675,7 @@ export function hourContributors(cycles, h) {
     rows.push({
       id: c.id ?? `${c.serial}-${c.date}-${h}`,
       serial: c.serial,
+      start: c.start, testType: c.testType, // for counting bench cycles (splitCycles.js)
       date: c.date ?? null,
       build: c.build,
       firmware: c.firmware,

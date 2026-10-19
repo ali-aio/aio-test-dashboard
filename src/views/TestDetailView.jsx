@@ -206,6 +206,11 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
 
   const dropGain = useMemo(() => dropGainByLoadType(cycles), [cycles])
   const hourly = useMemo(() => hourlyProfile(cycles), [cycles])
+  // each hour's count in bench cycles (one run of the test on the bench), not device runs
+  const hourCycles = useMemo(() => new Map(hourly.map((h) => {
+    const runs = hourContributors(cycles, h.h)
+    return [h.h, `${cyclesText(runs)} · ${fmtInt(new Set(runs.map((r) => r.serial)).size)} devices`]
+  })), [hourly, cycles])
   const hourRuns = useMemo(
     () => (hourPick == null ? [] : hourContributors(cycles, hourPick)),
     [cycles, hourPick],
@@ -512,7 +517,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           sub={isCharging
             ? 'How many battery percentage points the T7 gains in each whole hour, averaged across charging cycles.'
             : isRestaurant
-              ? 'Mean T7 battery loss in each hour, split by whether a load sat on the wireless pad for most of that hour. Counts are device cycles (one device’s run). Firmware v2.0.3–2.0.4 (July – mid Aug) did not report the pad, so its hours count as WLC inactive.'
+              ? 'Mean T7 battery loss in each hour, split by whether a load sat on the wireless pad for most of that hour. Counts are cycles (one run of the bench). Firmware v2.0.3–2.0.4 (July – mid Aug) did not report the pad, so its hours count as WLC inactive.'
               : testType === 'WLC on Phone'
                 ? 'Mean T7 battery lost and load battery gained in each whole hour. Both use percentage points on one axis; load-type averages are shown above.'
               : 'Average battery lost during each hour of a cycle.'}>
@@ -521,7 +526,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             selectedGroup={hourPick == null ? null
               : hourly.find((h) => h.h === hourPick)?.label ?? null}
             groups={hourly.map((h) => ({
-              label: h.label, n: h.n, h: h.h,
+              label: h.label, n: h.n, h: h.h, nText: hourCycles.get(h.h),
               values: isRestaurant
                 ? { wireless: h.wirelessDrop, withoutWireless: h.withoutWirelessDrop }
                 : isCharging ? { charge: h.drop == null ? null : -h.drop }
@@ -550,8 +555,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                   : 'Mean battery change per hour window'}
             tableColumns={[
               { key: 'window', label: 'Hour' },
-              // pad on / pad off already carry their own counts, which add up to this
-              ...(isRestaurant ? [] : [{ key: 'n', label: 'Cycles' }]),
+              { key: 'n', label: 'Cycles' },
               ...(isRestaurant ? [
                 { key: 'wireless', label: 'WLC active' },
                 { key: 'withoutWireless', label: 'WLC inactive' },
@@ -563,13 +567,12 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               ]),
             ]}
             tableRows={hourly.map((h) => ({
-              window: h.label, n: fmtInt(h.n),
+              window: h.label, n: hourCycles.get(h.h) ?? '—',
               drop: h.drop != null ? `${h.drop}%` : '—',
               charge: h.drop != null ? fmtSigned(-h.drop, 2, '%') : '—',
               gain: h.gain != null ? `+${h.gain}%` : '—',
-              wireless: h.wirelessDrop != null ? `${h.wirelessDrop}% · ${deviceCyclesText(h.wirelessN)}` : '—',
-              withoutWireless: h.withoutWirelessDrop != null
-                ? `${h.withoutWirelessDrop}% · ${deviceCyclesText(h.withoutWirelessN)}` : '—',
+              wireless: h.wirelessDrop != null ? `${h.wirelessDrop}%` : '—',
+              withoutWireless: h.withoutWirelessDrop != null ? `${h.withoutWirelessDrop}%` : '—',
             }))}
           />
 
@@ -584,9 +587,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               <div className="hour-detail-head">
                 <strong>
                   Hour {hourly.find((h) => h.h === hourPick)?.label ?? hourPick}
-                  {' · '}{fmtInt(hourRuns.length)} cycle{hourRuns.length === 1 ? '' : 's'}
-                  {' across '}{fmtInt(new Set(hourRuns.map((r) => r.serial)).size)} device
-                  {new Set(hourRuns.map((r) => r.serial)).size === 1 ? '' : 's'}
+                  {' · '}{cyclesText(hourRuns)} · {fmtInt(new Set(hourRuns.map((r) => r.serial)).size)} device
+                  {new Set(hourRuns.map((r) => r.serial)).size === 1 ? '' : 's'} · {fmtInt(hourRuns.length)} rows (one per device per cycle)
                 </strong>
                 <button className="btn btn-sm" onClick={() => setHourPick(null)}>Close</button>
               </div>

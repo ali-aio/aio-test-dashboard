@@ -229,6 +229,8 @@ const mdmCases = []
     want(run(16, 14, 69, 100, 30) === 'Old cycles', '69 h is not a Restaurant Case')
     want(run(16, 17, 15.5, 100, 15) === 'Restaurant Case' && run(16, 14, 16.5, 100, 15) === 'Old cycles', '14 h + 2 h allowed (a late start still in the cycle), more is out of it')
     want(run(16, 14, 10, 100, 90) === 'Old cycles', 'idle at 1 %/h: not on the test')
+    const withPad = (padH) => testTypeFor({ serial: 'A', start: at(16, 14), end: at(16, 14) + 9 * 3600e3, durationMs: 9 * 3600e3, startPct: 100, endPct: 5, padH }, { decls: rcd, rota: {}, DEV: [] })
+    want(withPad(3.2) === 'Restaurant Case' && withPad(9) === 'Old cycles' && withPad(null) === 'Restaurant Case', 'a load all run on a Restaurant Case bench is another test')
     want(new Date(2026, 8, 20, 11).getTime() < at(16, 0) && testTypeFor({ serial: 'A', start: new Date(2026, 8, 20, 11).getTime(), end: new Date(2026, 8, 21, 1).getTime(), durationMs: 14 * 3600e3, startPct: 100, endPct: 18 }, { decls: rcd, rota: {}, DEV: [] }) === 'Old cycles', 'before 25 Sep: Old cycles')
   })
   check('planned Charging Cycle: the sweep\'s charges, shown as gain', () => {

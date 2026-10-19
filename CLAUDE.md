@@ -229,6 +229,8 @@ oversight; don't add restaurant filtering back in without being asked.
   ≤ 15 min apart off the charger. Good ≥ 90 and no penalty · Watch 80–89 or one penalty · Replace < 80, ≥ 2 penalties or ≥ 2
   shutdowns · "Not enough runs" < 3. All in the browser from data already loaded, only while the screen is open; nothing new
   on the server or the MDM. Single click selects a row (detail panel), the serial or a double-click opens the device page.
+- **Today** shows the cycle running now; once it ends, it stays up for `RECENT_H` (6 h) as **Ended HH:MM** ("Ran for",
+  "T7 battery, last cycle") until the next one starts — at 00:06 a cycle planned to 00:04 is not "No test set".
 - `src/lib/window.js` — the 7-day reading window (every check-in: `interval_sec=60`, the MDM stores one per ~3 min) behind Today and the charts. It is
   kept in the browser's IndexedDB (`readings` store in `src/lib/db.js`), so a page open draws
   from the stored copy and fetches only the readings since (last stamp − 30 min). "Reload

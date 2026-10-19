@@ -19,6 +19,8 @@ const pctLabel = v => { const r = Math.round(v); return r >= 100 || r <= 0 ? nul
 const CSTATE = { conforming: ['pill-ok', 'On track'], drifting: ['pill-warn', 'Drifting'], silent: ['', 'Not reporting'], untyped: ['', 'No test declared'] }
 const statusBadge = st => <span className={`pill ${{ declared: 'pill-run', confirmed: 'pill-ok', inferred: 'pill-warn', unclassified: '', none: '' }[st]}`}>{STATUS[st].label}</span>
 
+const RECENT_H = 6 // a cycle that ended this recently is still shown, with its results
+
 export default function TodayView({ fleet }) {
   const { DEV, allCycles, opts } = fleet
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
@@ -38,9 +40,14 @@ export default function TodayView({ fleet }) {
   }
   const T = useMemo(() => {
     // A day can hold several cycles. Show the one running now (including yesterday's still
-    // going past midnight), else the next one to start today, else today's last one.
+    // going past midnight), else one that ended in the last RECENT_H (its results stay up until
+    // the next starts — at 00:06 a cycle planned to 00:04 is "just ended", not "no test set"),
+    // else the next one to start today, else today's last one.
     const decls = DECLS(), todays = cyclesOn(decls, todayKey())
-    const pick = cycleAt(decls, now) || todays.find(c => c.startMs > now) || todays[todays.length - 1] || null
+    const recent = [...cyclesOn(decls, dayKey(now - 24 * H)), ...todays]
+      .filter(c => c.endMs <= now && now - c.endMs <= RECENT_H * H).sort((a, b) => a.endMs - b.endMs).pop() || null
+    const next = todays.find(c => c.startMs > now)
+    const pick = cycleAt(decls, now) || (recent && (!next || next.startMs - now > RECENT_H * H) ? recent : null) || next || todays[todays.length - 1] || null
     if (!pick) return dayFor(todayKey())
     const base = dayFor(pick.key), src = pick.decl
     return { ...base, testType: src.testType, tt: testType(src.testType), decl: src, src,
@@ -49,6 +56,7 @@ export default function TodayView({ fleet }) {
       cycleNo: cyclesOn(decls, pick.key).findIndex(c => c.decl.id === src.id) + 1, cycleCount: cyclesOn(decls, pick.key).length }
   }, [DEV, allCycles, win.at2, todayKey(), planRev, planSync.v])
   const key = T.key
+  const ended = T.tt && T.endMs < now // the cycle shown has finished (the last one, until the next starts)
   const [takingOut, setTakingOut] = useState(null) // serial whose take-out form is open
 
   const winTo = Math.min(now, T.endMs)
@@ -197,6 +205,7 @@ export default function TodayView({ fleet }) {
         <div className="today-head-main">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11.5, letterSpacing: '.04em', color: 'var(--text-3)', fontWeight: 600 }}>
             {dayLong(key)} {statusBadge(T.status)}
+            {ended ? <span className="pill">Ended {when(T.endMs)}</span> : null}
             <span className={`pill ${reporting.length ? 'pill-run pill-live' : ''}`}>Live · {reporting.length} device{reporting.length === 1 ? '' : 's'} reporting</span>
           </div>
           <h1 style={{ margin: '6px 0 4px', fontSize: 26, lineHeight: 1.15 }}>{T.tt ? T.tt.name : 'No test set'}{T.cycleCount > 1 ? <span className="secondary" style={{ fontSize: 14, fontWeight: 500 }}> · cycle {T.cycleNo} of {T.cycleCount}</span> : null}</h1>
@@ -212,8 +221,9 @@ export default function TodayView({ fleet }) {
       <div className="stat-row">
         {/* how long the devices have been running since they came off the charger, and how
             much of the planned cycle is left (to its end time on the Cycle plan) */}
-        <Metric label="Running for"
-          value={runStart ? <>{fmtDur(now - runStart)}{T.endMs > now
+        <Metric label={ended ? 'Ran for' : 'Running for'}
+          value={ended && runStart ? <>{fmtDur(T.endMs - runStart)}<span className="secondary" style={{ fontSize: 13 }}> · ended {when(T.endMs)}</span></>
+            : runStart ? <>{fmtDur(now - runStart)}{T.endMs > now
             ? <span className="secondary" style={{ fontSize: 13 }}> · {fmtDur(T.endMs - now)} left</span>
             : <span className="secondary" style={{ fontSize: 13 }}> · planned end passed</span>}</> : 'Not started'}
           delta={runStart ? `off charger ${hm(runStart)} · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`
@@ -268,7 +278,7 @@ export default function TodayView({ fleet }) {
         {/* battery and temperature side by side; stacked again on narrow screens (.grid-2) */}
         <div className="grid grid-2" ref={chartsRef} style={{ scrollMarginTop: 80 }}>
         <div className="card">
-          <div className="card-head"><div><h2>T7 battery, today</h2><div className="card-sub">from {hm(chartFrom)} · live from MDM · every check-in</div></div>
+          <div className="card-head"><div><h2>T7 battery, {ended ? 'last cycle' : 'today'}</h2><div className="card-sub">from {hm(chartFrom)} · live from MDM · every check-in</div></div>
             <Segmented ariaLabel="Battery chart" options={MODES} value={battMode} onChange={setBattMode} /></div>
           <div className="card-body">
             {picker}
@@ -288,7 +298,7 @@ export default function TodayView({ fleet }) {
           </div>
         </div>
         <div className="card">
-          <div className="card-head"><div><h2>Battery temperature, today</h2><div className="card-sub">{shown.length} device{shown.length === 1 ? '' : 's'} · °C</div></div>
+          <div className="card-head"><div><h2>Battery temperature, {ended ? 'last cycle' : 'today'}</h2><div className="card-sub">{shown.length} device{shown.length === 1 ? '' : 's'} · °C</div></div>
             <Segmented ariaLabel="Temperature chart" options={MODES} value={tempMode} onChange={setTempMode} /></div>
           <div className="card-body">
             {picker}

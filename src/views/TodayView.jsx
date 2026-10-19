@@ -471,7 +471,7 @@ function DevicePicker({ serials, picked, colorOf, styleOf, drifting, onToggle, o
 // note and name. Saved on the cycle with the time, so the record says who left and why. A
 // reason typed under "Other" is saved as that reason, and offered in the list from then on.
 function TakeOutForm({ serial, cycle, onSave, onCancel }) {
-  const reasons = useMemo(() => takeOutReasons(DECLS()), [])
+  const reasons = takeOutReasons()
   const [reason, setReason] = useState(reasons[0])
   const [note, setNote] = useState('')
   const [by, setBy] = useState(() => { try { return localStorage.getItem('declaredBy') || '' } catch (e) { return '' } })
@@ -492,7 +492,7 @@ function TakeOutForm({ serial, cycle, onSave, onCancel }) {
       <div className="form-actions">
         <button className="btn" onClick={onCancel}>Cancel</button>
         <button className="btn btn-primary" disabled={needNote} title={needNote ? 'Add a note for "Other"' : undefined}
-          onClick={() => { try { localStorage.setItem('declaredBy', by) } catch (e) {} onSave(reason === 'Other' ? { reason: note.trim(), note: '', by: by.trim() } : { reason, note: note.trim(), by: by.trim() }) }}>Take out</button>
+          onClick={() => { try { localStorage.setItem('declaredBy', by) } catch (e) {} onSave({ reason, note: note.trim(), by: by.trim() }) }}>Take out</button>
       </div>
     </div>
   )

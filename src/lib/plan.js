@@ -248,24 +248,10 @@ export const TAKE_OUT_REASONS = [
   'Testing FW', 'Testing MDM', 'Taken for automation', 'Taken for debugging', 'Hardware fault',
   'Firmware update / reflash', 'Battery or charger swap', 'Other',
 ];
-// Reasons typed before that are offered under a fixed name instead (a misspelling, a one-off
-// version string), or not offered at all (null). The saved take-outs keep what was typed.
-const REASON_ALIASES = {
-  'testing v2.1.031': 'Testing FW', 'Taken for testing': 'Testing FW',
-  'Taken for automatioion': 'Taken for automation', 'Taken for a demo / customer': null,
-};
-/** The reasons offered when taking a device out: the fixed ones, then every other reason typed
- *  under "Other" before (newest first), read from the shared plan so the whole lab gets them. */
-export function takeOutReasons(decls) {
-  const seen = new Set(TAKE_OUT_REASONS), own = [];
-  const all = decls.flatMap(d => d.removed || []).sort((a, b) => b.at - a.at);
-  for (const r of all) {
-    let text = (r.reason === 'Other' ? r.note : r.reason || '').trim();
-    if (text in REASON_ALIASES) text = REASON_ALIASES[text];
-    if (text && !seen.has(text)) { seen.add(text); own.push(text); }
-  }
-  return [...TAKE_OUT_REASONS.slice(0, -1), ...own, 'Other'];
-}
+/** The reasons offered when taking a device out: the fixed list only. What is typed in the note
+ *  (also under "Other") stays on that take-out record and is never added to the list (the lab,
+ *  Oct 2026: "-", one-off notes and version strings were piling up in it). */
+export const takeOutReasons = () => [...TAKE_OUT_REASONS];
 export const removedFrom = (decl, t = Infinity) => (decl?.removed || []).filter(r => r.at <= t);
 /** Devices taken out of the planned cycle a run that started at `start` belongs to, oldest
  *  first — only those taken out while that cycle ran (a repeating plan keeps every day's). */

@@ -205,16 +205,20 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const clearAllSeries = () => setAllSeries(new Set())
 
   const dropGain = useMemo(() => dropGainByLoadType(cycles), [cycles])
-  const hourly = useMemo(() => hourlyProfile(cycles), [cycles])
+  // devices ticked in the battery chart's Per device picker: Drain by hour follows them, and the
+  // bar above says so (ticking a device = picking it, as clicking it in the table does)
+  const ticked = activeMode === 'serial' && selectedDevices && selectedDevices.size < tableSerials.length ? selectedDevices : null
+  const hourSrc = useMemo(() => (ticked ? cycles.filter((c) => ticked.has(c.serial)) : cycles), [cycles, ticked])
+  const hourly = useMemo(() => hourlyProfile(hourSrc), [hourSrc])
   const devicesText = (n) => `${fmtInt(n)} device${n === 1 ? '' : 's'}`
   // each hour's count in bench cycles (one run of the test on the bench), not device runs
   const hourCycles = useMemo(() => new Map(hourly.map((h) => {
-    const runs = hourContributors(cycles, h.h)
-    return [h.h, `${cyclesText(runs)} · ${fmtInt(new Set(runs.map((r) => r.serial)).size)} devices`]
-  })), [hourly, cycles])
+    const runs = hourContributors(hourSrc, h.h), n = new Set(runs.map((r) => r.serial)).size
+    return [h.h, `${cyclesText(runs)} · ${fmtInt(n)} device${n === 1 ? '' : 's'}`]
+  })), [hourly, hourSrc])
   const hourRuns = useMemo(
-    () => (hourPick == null ? [] : hourContributors(cycles, hourPick)),
-    [cycles, hourPick],
+    () => (hourPick == null ? [] : hourContributors(hourSrc, hourPick)),
+    [hourSrc, hourPick],
   )
   const secondary = useMemo(() => compareBy(cycles, isField ? 'padState' : 'build'), [cycles, isField])
   // "cycles" on this page always means battery cycles; these look them up per group.
@@ -367,10 +371,12 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
         </div>
       )}
 
-      {(focus || benchSel) && (
+      {(focus || benchSel || ticked) && (
         <div className="pick-bar">
           <span>Showing only {benchSel ? <>the cycle of <b>{new Date(benchSel.start).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</b> ({new Set(benchSel.list.map((c) => c.serial)).size} devices)</> : null}
             {benchSel && focus ? ', ' : ''}{focus ? <><b className="mono">{focus}</b>{benchSel ? '' : <> — its {cyclesText(cycles)} of {testType}</>}</> : null}
+            {!focus && ticked ? <>{benchSel ? ', ' : ''}{ticked.size <= 3 ? [...ticked].sort(compareSerial).map((sn, i) => <React.Fragment key={sn}>{i ? ', ' : ''}<b className="mono">{sn}</b></React.Fragment>) : <b>{ticked.size} devices</b>}
+              {' '}— {ticked.size === 1 ? 'its' : 'their'} {cyclesText(hourSrc)} of {testType}, in the battery chart and Drain by hour</> : null}
             {/* devices taken out of this cycle on the Today screen: they left it, so they are not in its charts */}
             {benchSel && (() => { const out = takenOutOf(loadDecls(CTX.group), benchSel.start); return out.length ? <span className="pick-out">
               <b>{out.length} taken out of this cycle:</b>{out.map((r) => <span key={r.serial + r.at}>{takenOutText(r)}</span>)}</span> : null })()}</span>

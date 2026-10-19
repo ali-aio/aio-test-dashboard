@@ -237,6 +237,8 @@ const mdmCases = []
     want(byHour(ok.map((v, i) => (i === 0 ? false : v))) === 'Old cycles', 'no load in hour 1: not in the cycle')
     want(byHour(ok.map((v, i) => (i === 5 ? true : v))) === 'Old cycles', 'a load in hour 6: not in the cycle')
     want(byHour(ok.map((v, i) => (i === 1 ? null : v))) === 'Restaurant Case', 'an hour without readings is not judged')
+    want(byHour(ok.map((v, i) => (i < 3 ? null : v))) === 'Old cycles', 'no readings in the load hours: not confirmed')
+    want(byHour(ok.map(() => null)) === 'Restaurant Case', 'no pad readings at all (not loaded yet): not judged')
     want(new Date(2026, 8, 20, 11).getTime() < at(16, 0) && testTypeFor({ serial: 'A', start: new Date(2026, 8, 20, 11).getTime(), end: new Date(2026, 8, 21, 1).getTime(), durationMs: 14 * 3600e3, startPct: 100, endPct: 18 }, { decls: rcd, rota: {}, DEV: [] }) === 'Old cycles', 'before 25 Sep: Old cycles')
   })
   check('planned Charging Cycle: the sweep\'s charges, shown as gain', () => {

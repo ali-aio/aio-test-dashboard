@@ -623,6 +623,7 @@ export function hourlyProfile(cycles) {
     }
     if (c.testType === 'Restaurant Case') {
       for (const entry of c.hourly) {
+        if (entry.wireless == null) continue // pad not known in that hour: in neither bar
         const target = entry.wireless ? wirelessDrop : withoutWirelessDrop
         if (!target.has(entry.h)) target.set(entry.h, [])
         target.get(entry.h).push(entry.drop)

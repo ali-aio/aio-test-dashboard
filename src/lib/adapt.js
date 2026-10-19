@@ -46,6 +46,8 @@ function fitsTest(cycle, name) {
   // active in each of the first `loadHours` hours, and inactive from the hour after the next on
   // (hour 4 of a 3 h load is when it comes off). Hours with no pad readings are not judged.
   if (tt?.loadHours && cycle.padHours) {
+    // readings for the run, but none in its load hours: the load can't be confirmed
+    if (cycle.padHours.some(v => v != null) && cycle.padHours.slice(0, tt.loadHours).every(v => v == null)) return false;
     for (let h = 0; h < cycle.padHours.length; h++) {
       const on = cycle.padHours[h];
       if (on === false && h < tt.loadHours) return false;
@@ -178,7 +180,9 @@ export function adaptCycle(d, c, rows, ctx) {
     for (const x of slots) { const mid = x[0] + 7.5 * 60e3; if (mid >= a && mid < b) { m += x[2]; pad += x[3]; } }
     return m >= 15 ? pad * 2 >= m : null;
   };
-  const padInHour = h => padMeasured(h) ?? wireless;
+  // an hour without pad readings is not known (null) — never filled in from the run as a whole,
+  // which put "WLC active" in hours 8–13 of a Restaurant Case
+  const padInHour = h => padMeasured(h);
   const padHours = Array.from({ length: Math.ceil(duration) }, (_, h) => padMeasured(h));
   // hours with a load on the pad over the whole run (null without slots for it)
   let padMin = null;
@@ -218,8 +222,8 @@ export function adaptCycle(d, c, rows, ctx) {
     series, tempSeries, hourly: built,
     // mean battery lost per hour with the WLC active / inactive (the hours above), read by
     // Restaurant Case's "Avg T7 drain · WLC active / inactive" cards
-    wirelessDrainPerHr: meanDrop(built.filter(e => e.wireless)),
-    withoutWirelessDrainPerHr: meanDrop(built.filter(e => !e.wireless)),
+    wirelessDrainPerHr: meanDrop(built.filter(e => e.wireless === true)),
+    withoutWirelessDrainPerHr: meanDrop(built.filter(e => e.wireless === false)),
     // mean temperature in each third of the run (start / middle / end), as T7 computes it
     tempPhases: temperaturePhases(tempSeries, duration),
     // T7's views iterate these unconditionally, so they must be arrays even though the MDM

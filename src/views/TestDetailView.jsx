@@ -8,6 +8,7 @@ import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
 import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING } from '../lib/testtypes.js'
 import { padSplit } from '../lib/drainHours.js'
+import PickDevicesDialog from '../components/PickDevicesDialog.jsx'
 import {
   kpis, fullDischargeCycles, batteryCycles, batteryCyclesBy, batteryBySerial, avgCurveBy, dropGainByLoadType, hourlyProfile,
   hourContributors, compareBy, mean, maxOf,
@@ -290,13 +291,18 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
     document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
   }, [exportOpen])
-  const exportTable = (kind) => {
+  // Per hour first asks which devices (all ticked by default)
+  const [hoursPick, setHoursPick] = useState(false)
+  const exportTable = (kind, serials = null) => {
     setExportOpen(false)
+    if (kind === 'hours' && !serials) { setHoursPick(true); return }
+    setHoursPick(false)
     const d = new Date(benchSel ? benchSel.start : Date.now()), p = (n) => String(n).padStart(2, '0')
     const when = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}${benchSel ? `_${p(d.getHours())}${p(d.getMinutes())}` : ''}`
-    const name = `aio-${String(testType).replace(/[^\w-]+/g, '-')}_${benchSel ? 'cycle' : 'all-cycles'}${kind === 'hours' ? '_per-hour' : ''}_${when}${focus ? `_${focus}` : ''}.csv`
+    const one = serials && serials.size === 1 ? [...serials][0] : focus
+    const name = `aio-${String(testType).replace(/[^\w-]+/g, '-')}_${benchSel ? 'cycle' : 'all-cycles'}${kind === 'hours' ? '_per-hour' : ''}_${when}${one ? `_${one}` : ''}.csv`
     downloadCsv(kind === 'hours'
-      ? cycleHoursCsv(tableRows, { charging: isCharging, slotsOf: (sn) => hours?.[sn]?.h })
+      ? cycleHoursCsv(tableRows.filter((c) => serials.has(c.serial)), { charging: isCharging, slotsOf: (sn) => hours?.[sn]?.h })
       : cycleTableCsv(tableRows, { charging: isCharging, pad: isField, wlc: showPad ? padOf : null }), name)
   }
 
@@ -660,6 +666,10 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               </div>)}
           </div>
         </div>}>
+        {hoursPick && (
+          <PickDevicesDialog title="Export CSV · per hour" sub={`${testType} · the devices of the cycles in this table`}
+            counts={tableRows.reduce((m, c) => m.set(c.serial, (m.get(c.serial) || 0) + 1), new Map())}
+            onExport={(picked) => exportTable('hours', picked)} onClose={() => setHoursPick(false)} />)}
         <div className="table-wrap" style={{ maxHeight: 460 }}>
           <SortTable caption={`Every ${testType} cycle`} head={[
             ...(tableSerials.length === 1 ? [] : [{ label: 'Device', style: { textAlign: 'left' } }]), { label: 'Date' }, { label: 'Started' }, { label: 'Ended' },

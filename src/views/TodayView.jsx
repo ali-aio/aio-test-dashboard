@@ -116,11 +116,11 @@ export default function TodayView({ fleet }) {
   const hi = shown.length ? shown.reduce((a, b) => lastOf(b) > lastOf(a) ? b : a) : null
   const ptsOf = (c, pick = r => r.battery_pct) => c.rows.filter(r => Date.parse(r.timestamp) >= chartFrom && pick(r) != null)
     .map(r => ({ x: Date.parse(r.timestamp), y: pick(r) }))
-  // Each chart can show every ticked device or their average. Battery opens on every
-  // device (spot the outlier); temperature on the average (the fleet trend), as before.
-  const [battMode, setBattMode] = useState('all')
+  // Each chart can show every ticked device or their average; both open on the average (the
+  // lab's choice, Oct 2026). Clicking a device in the table switches to Every device with it.
+  const [battMode, setBattMode] = useState('avg')
   const [tempMode, setTempMode] = useState('avg')
-  const MODES = [{ id: 'all', label: 'Every device' }, { id: 'avg', label: 'Average' }]
+  const MODES = [{ id: 'avg', label: 'Average' }, { id: 'all', label: 'Every device' }]
   const only = picked != null && picked.size === 1 ? [...picked][0] : null
   const focusDevice = sn => {
     if (only === sn) { setPicked(null); return }

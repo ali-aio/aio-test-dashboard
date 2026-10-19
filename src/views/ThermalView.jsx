@@ -67,8 +67,8 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
     return next
   })
 
-  // Every device (T7's view: the hottest few, picker to change) or the average across runs.
-  const [tempMode, setTempMode] = useState('all')
+  // The average across runs (by default, the lab's choice) or every device (the hottest few, picker to change).
+  const [tempMode, setTempMode] = useState('avg')
   const avgTemp = useMemo(() => envelopeSeries(withTemp, 'tempSeries', 'Average temperature'), [withTemp])
   const maxHour = useMemo(
     () => plottedMaxHour(withTemp, 'tempSeries'),

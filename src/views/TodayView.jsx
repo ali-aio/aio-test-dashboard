@@ -21,7 +21,7 @@ const statusBadge = st => <span className={`pill ${{ declared: 'pill-run', confi
 
 const RECENT_H = 6 // a cycle that ended this recently is still shown, with its results
 
-/** One icon beside "Battery now": a bolt while most devices charge, a down arrow while they drain. */
+/** One icon beside "Battery": a bolt while most devices charge, a down arrow while they drain. */
 function ChargeIcon({ state }) {
   if (!state) return null
   const tip = `${state.charging ? 'Charging' : 'Discharging'} now · ${state.on} on charge, ${state.off} on battery`

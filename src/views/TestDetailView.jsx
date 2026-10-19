@@ -442,7 +442,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           tableRows={(() => {
             const limit = bySerial.medianDuration ? bySerial.medianDuration * 3 : null
             const shown = inBench.filter((c) => c.series.length && (limit == null || c.duration == null || c.duration <= limit))
-              .filter((c) => picker !== 'devices' || selectedDevices == null || selectedDevices.has(c.serial))
+              // the devices ticked apply in both per-device views (Every cycle keeps them too, as the lines do)
+              .filter((c) => activeMode !== 'serial' || selectedDevices == null || selectedDevices.has(c.serial))
             if (deviceView === 'all' && activeMode === 'serial') {
               return shown.filter((c) => selectedRuns == null || selectedRuns.has(c.id))
                 .sort((a, b) => compareSerial(a.serial, b.serial) || a.start - b.start)

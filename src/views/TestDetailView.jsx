@@ -600,7 +600,9 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                   <SortTable caption="Cycles contributing to this hour" head={[
                     { label: 'Device', style: { textAlign: 'left' } }, { label: 'Date' }, { label: 'Build', style: { textAlign: 'left' } },
                     { label: 'Battery at start' }, { label: 'Battery at end' }, { label: isCharging ? 'Gained' : 'Lost' },
-                    ...(isLoadTest ? [{ label: 'Load gained' }] : []), { label: 'Cycle length' },
+                    // the MDM never reports the load's own battery, so "Load gained" was always —;
+                    // in its place, whether the WLC was active (a load on the pad) in this hour
+                    ...(showPad ? [{ label: 'WLC', style: { textAlign: 'left' } }] : []), { label: 'Cycle length' },
                   ]}>
                       {hourRuns.map((r) => (
                         <tr key={r.id}>
@@ -610,7 +612,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                           <td>{fmtPct(r.from)}</td>
                           <td>{fmtPct(r.to)}</td>
                           <td>{isCharging ? fmtSigned(-r.drop, 2, '%') : `${r.drop}%`}</td>
-                          {isLoadTest && <td>{r.gain == null ? '—' : `+${r.gain}%`}</td>}
+                          {showPad && <td style={{ textAlign: 'left' }}>{r.wireless == null ? '—' : r.wireless ? 'WLC active' : 'WLC inactive'}</td>}
                           <td>{fmtHours(r.duration)}</td>
                         </tr>
                       ))}

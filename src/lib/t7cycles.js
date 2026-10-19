@@ -684,6 +684,8 @@ export function hourContributors(cycles, h) {
       to,
       drop: round(from - to, 2),
       gain: loadFrom != null && loadTo != null ? round(loadTo - loadFrom, 2) : null,
+      // a load on the wireless pad for most of this hour (adapt.js), null when not known
+      wireless: c.hourly?.find((e) => e.h === h)?.wireless ?? null,
     })
   }
   return rows.sort((a, b) => b.drop - a.drop

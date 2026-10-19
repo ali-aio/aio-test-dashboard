@@ -206,6 +206,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
 
   const dropGain = useMemo(() => dropGainByLoadType(cycles), [cycles])
   const hourly = useMemo(() => hourlyProfile(cycles), [cycles])
+  const devicesText = (n) => `${fmtInt(n)} device${n === 1 ? '' : 's'}`
   // each hour's count in bench cycles (one run of the test on the bench), not device runs
   const hourCycles = useMemo(() => new Map(hourly.map((h) => {
     const runs = hourContributors(cycles, h.h)
@@ -517,7 +518,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           sub={isCharging
             ? 'How many battery percentage points the T7 gains in each whole hour, averaged across charging cycles.'
             : isRestaurant
-              ? 'Mean T7 battery loss in each hour, split by whether a load sat on the wireless pad for most of that hour. Counts are cycles (one run of the bench). Firmware v2.0.3–2.0.4 (July – mid Aug) did not report the pad, so its hours count as WLC inactive.'
+              ? undefined // no subtitle on Restaurant Case (the lab's choice, Oct 2026)
               : testType === 'WLC on Phone'
                 ? 'Mean T7 battery lost and load battery gained in each whole hour. Both use percentage points on one axis; load-type averages are shown above.'
               : 'Average battery lost during each hour of a cycle.'}>
@@ -527,6 +528,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               : hourly.find((h) => h.h === hourPick)?.label ?? null}
             groups={hourly.map((h) => ({
               label: h.label, n: h.n, h: h.h, nText: hourCycles.get(h.h),
+              // Restaurant Case: how many devices are behind each side of the hour
+              counts: isRestaurant ? { wireless: devicesText(h.wirelessDevices), withoutWireless: devicesText(h.withoutWirelessDevices) } : undefined,
               values: isRestaurant
                 ? { wireless: h.wirelessDrop, withoutWireless: h.withoutWirelessDrop }
                 : isCharging ? { charge: h.drop == null ? null : -h.drop }

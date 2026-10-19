@@ -607,6 +607,7 @@ export function hourlyProfile(cycles) {
   const gain = new Map()
   const wirelessDrop = new Map()
   const withoutWirelessDrop = new Map()
+  const wirelessDev = new Map(), withoutWirelessDev = new Map() // hour -> the devices behind each side
   for (const c of cycles) {
     const bh = hourMapFromSeries(c.series)
     const lh = hourMapFromSeries(c.loadSeries)
@@ -625,6 +626,9 @@ export function hourlyProfile(cycles) {
         const target = entry.wireless ? wirelessDrop : withoutWirelessDrop
         if (!target.has(entry.h)) target.set(entry.h, [])
         target.get(entry.h).push(entry.drop)
+        const devs = entry.wireless ? wirelessDev : withoutWirelessDev
+        if (!devs.has(entry.h)) devs.set(entry.h, new Set())
+        devs.get(entry.h).add(c.serial)
       }
     }
   }
@@ -640,6 +644,8 @@ export function hourlyProfile(cycles) {
     withoutWirelessDrop: round(mean(withoutWirelessDrop.get(h) ?? []), 2),
     wirelessN: (wirelessDrop.get(h) ?? []).length,
     withoutWirelessN: (withoutWirelessDrop.get(h) ?? []).length,
+    wirelessDevices: wirelessDev.get(h)?.size ?? 0,
+    withoutWirelessDevices: withoutWirelessDev.get(h)?.size ?? 0,
     n: (drop.get(h) ?? []).length,
   }))
 }

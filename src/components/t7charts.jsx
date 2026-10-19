@@ -339,7 +339,8 @@ export function GroupedColumns({
             : hover.group.nText ? ` · ${hover.group.nText}` : hover.group.n != null ? ` · ${fmtInt(hover.group.n)} device cycle${hover.group.n === 1 ? '' : 's'}` : ''}</div>
           {measures.map((m) => (
             hover.group.values[m.key] != null && (
-              <TooltipRow key={m.key} color={m.color} name={m.label}
+              <TooltipRow key={m.key} color={m.color}
+                name={hover.group.counts?.[m.key] ? `${m.label} · ${hover.group.counts[m.key]}` : m.label}
                 value={formatValue(hover.group.values[m.key])} />
             )
           ))}

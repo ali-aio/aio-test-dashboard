@@ -416,7 +416,10 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               : picker === 'firmware' ? toggleFirmware : undefined}
           onSelectAllSeries={selectAllSeries}
           onClearAllSeries={clearAllSeries}
-          tableColumns={[
+          // the table says what the lines are: Every cycle -> one row per cycle; otherwise one row
+          // per device, averaged over all of its cycles (it used to show only the device's longest
+          // cycle, which read as "only the last cycle is counted")
+          tableColumns={deviceView === 'all' && activeMode === 'serial' ? [
             { key: 'serial', label: 'Serial' },
             { key: 'date', label: 'Date' },
             { key: 'build', label: 'Build' },
@@ -425,16 +428,38 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             { key: 'start', label: 'Start' },
             { key: 'end', label: isCharging ? 'Charged to' : 'End' },
             { key: 'drop', label: isCharging ? 'Charge rate' : 'Drain' },
+          ] : [
+            { key: 'serial', label: 'Serial' },
+            { key: 'n', label: 'Cycles' },
+            { key: 'dates', label: 'Dates' },
+            { key: 'fw', label: 'Firmware' },
+            { key: 'dur', label: 'Avg cycle time' },
+            { key: 'start', label: 'Avg start' },
+            { key: 'end', label: isCharging ? 'Avg charged to' : 'Avg end' },
+            { key: 'drop', label: isCharging ? 'Avg charge rate' : 'Avg drain' },
           ]}
-          // only the devices ticked in the picker, so the table matches the lines drawn
-          tableRows={bySerial.serials.filter((sn) => picker !== 'devices' || selectedDevices == null || selectedDevices.has(sn)).map((sn) => {
-            const c = bySerial.bySerial.get(sn)
-            return {
-              serial: sn, date: fmtDate(c.date), build: c.build, fw: c.firmware,
-              dur: fmtHours(c.duration), start: fmtPct(c.startBattery), end: fmtPct(c.endBattery),
-              drop: fmtRate(c.dropPerHr),
+          // only the devices (or cycles) ticked in the picker, so the table matches the lines drawn
+          tableRows={(() => {
+            const limit = bySerial.medianDuration ? bySerial.medianDuration * 3 : null
+            const shown = inBench.filter((c) => c.series.length && (limit == null || c.duration == null || c.duration <= limit))
+              .filter((c) => picker !== 'devices' || selectedDevices == null || selectedDevices.has(c.serial))
+            if (deviceView === 'all' && activeMode === 'serial') {
+              return shown.filter((c) => selectedRuns == null || selectedRuns.has(c.id))
+                .sort((a, b) => compareSerial(a.serial, b.serial) || a.start - b.start)
+                .map((c) => ({ serial: c.serial, date: fmtDate(c.date), build: c.build, fw: c.firmware,
+                  dur: fmtHours(c.duration), start: fmtPct(c.startBattery), end: fmtPct(c.endBattery), drop: fmtRate(c.dropPerHr) }))
             }
-          })}
+            const by = new Map()
+            for (const c of shown) { if (!by.has(c.serial)) by.set(c.serial, []); by.get(c.serial).push(c) }
+            return [...by.keys()].sort(compareSerial).map((sn) => {
+              const cs = by.get(sn).sort((a, b) => a.start - b.start), avg = (k) => mean(cs.map((c) => c[k]).filter(Number.isFinite))
+              const first = cs[0].date, last = cs[cs.length - 1].date
+              return { serial: sn, n: fmtInt(cs.length), dates: first === last ? fmtDate(first) : `${fmtDate(first)} – ${fmtDate(last)}`,
+                fw: [...new Set(cs.map((c) => c.firmware))].join(', '), dur: fmtHours(avg('duration')),
+                start: fmtPct(avg('startBattery') == null ? null : Math.round(avg('startBattery'))),
+                end: fmtPct(avg('endBattery') == null ? null : Math.round(avg('endBattery'))), drop: fmtRate(avg('dropPerHr')) }
+            })
+          })()}
         />
         {activeMode === 'serial' && bySerial.dropped > 0 && (
           <p className="hint" style={{ marginTop: 8 }}>

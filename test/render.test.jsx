@@ -248,6 +248,7 @@ const mdmCases = []
     localStorage.removeItem('cyclePlan:decls:v1:Test Cycles')
     want(out.length === 1 && out[0].testType === 'Charging Cycle', `only the planned charge: ${out.map((c) => c.testType)}`)
     want(out[0].series.length === 4 && out[0].batteryDelta === 75 && out[0].hourly.every((h) => h.drop < 0), `gain per hour: ${JSON.stringify(out[0].hourly)}`)
+    want('wirelessDrainPerHr' in out[0] && 'withoutWirelessDrainPerHr' in out[0], 'WLC active / inactive drain on every cycle')
   })
   check('a device taken out leaves the cycle and its cut-short run', () => {
     const at = (d, h) => new Date(2026, 9, d, h).getTime()

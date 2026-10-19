@@ -55,6 +55,7 @@ function fitsTest(cycle, name) {
   return !(h >= 1 && cycle.startPct != null && cycle.endPct != null && (cycle.startPct - cycle.endPct) / h < MIN_DRAIN);
 }
 const isNum = v => v != null && Number.isFinite(v);
+const meanDrop = hs => (hs.length ? Math.round(hs.reduce((a, e) => a + e.drop, 0) / hs.length * 100) / 100 : null);
 const round = (v, n = 2) => (isNum(v) ? Math.round(v * 10 ** n) / 10 ** n : null);
 
 // Which test was this run? Whatever the Cycle plan declared for the day it started. With
@@ -215,6 +216,10 @@ export function adaptCycle(d, c, rows, ctx) {
     minAbove40: c.thermal?.minAbove40 ?? null,
     minAbove45: c.thermal?.minAbove45 ?? null,
     series, tempSeries, hourly: built,
+    // mean battery lost per hour with the WLC active / inactive (the hours above), read by
+    // Restaurant Case's "Avg T7 drain · WLC active / inactive" cards
+    wirelessDrainPerHr: meanDrop(built.filter(e => e.wireless)),
+    withoutWirelessDrainPerHr: meanDrop(built.filter(e => !e.wireless)),
     // mean temperature in each third of the run (start / middle / end), as T7 computes it
     tempPhases: temperaturePhases(tempSeries, duration),
     // T7's views iterate these unconditionally, so they must be arrays even though the MDM

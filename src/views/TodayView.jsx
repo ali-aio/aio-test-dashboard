@@ -242,7 +242,7 @@ export default function TodayView({ fleet }) {
         {/* how long the devices have been running since they came off the charger, and how
             much of the planned cycle is left (to its end time on the Cycle plan) */}
         <Metric label={ended ? 'Ran for' : 'Running for'}
-          value={ended && runStart ? <>{fmtDur(T.endMs - runStart)}<span className="secondary" style={{ fontSize: 13 }}> · ended {when(T.endMs)}</span></>
+          value={ended && runStart ? <>{fmtDur(T.endMs - runStart)}<span className="secondary" style={{ fontSize: 13 }}> · ended {hm(T.endMs)}</span></>
             : runStart ? <>{fmtDur(now - runStart)}{T.endMs > now
             ? <span className="secondary" style={{ fontSize: 13 }}> · {fmtDur(T.endMs - now)} left</span>
             : <span className="secondary" style={{ fontSize: 13 }}> · planned end passed</span>}</> : 'Not started'}

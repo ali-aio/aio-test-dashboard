@@ -97,7 +97,8 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOp
       firmware: rows(splitBy(cycles, 'firmware')
         .sort((a, b) => compareFirmwareNewest(a.label, b.label)),
         (v) => onFilter?.({ firmware: v })),
-      os: rows(splitBy(cycles, 'android'), (v) => onFilter?.({ android: v })),
+      // only cycles since 25 Sep carry an OS (adapt.js): older ones are not listed
+      os: rows(splitBy(cycles.filter((c) => c.android), 'android'), (v) => onFilter?.({ android: v })),
     }
   }, [cycles, onPickTestType, onFilter])
 
@@ -152,7 +153,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOp
             <Stat label="FW version" value={fmtInt(inv.firmware.values.length)}
               breakdown={breakdowns.firmware} breakdownLabel="Battery cycles per firmware" />
             <Stat label="OS version" value={fmtInt(inv.os.values.length)}
-              breakdown={breakdowns.os} breakdownLabel="Battery cycles per OS version" />
+              breakdown={breakdowns.os} breakdownLabel="Battery cycles per OS version · since 25 Sep 2026 (the MDM reports no OS; the lab: Android 15 on every device)" />
       </div>
 
       <div className="grid grid-2">

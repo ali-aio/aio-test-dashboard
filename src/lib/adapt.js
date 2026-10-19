@@ -24,6 +24,7 @@ const H = 3600e3;
 // Planned tests count only runs from the day the Cycle plan began (the lab's choice, Oct 2026);
 // everything before is Old cycles, whatever a plan entry says.
 export const PLAN_FROM = new Date(2026, 8, 25).getTime();
+export const ANDROID_SINCE_PLAN = 'Android 15';
 // A run kept in a planned test must look like that test. A test with a fixed cycle time
 // (`hours` in TEST_TYPES: Restaurant Case 14 h) allows CYCLE_SLACK_H more — a device taken off
 // the charger an hour or two early, or put back late — and past that the device has left the
@@ -242,7 +243,9 @@ export function adaptCycle(d, c0, rows, ctx) {
     // left the cycle part-way: when and why (its data up to then is this cycle); null otherwise
     leftCycle: plan.cutAt != null ? { at: plan.cutAt, why: plan.why, endedAt: c0.end } : null,
     build: buildFromSerial(d.serial), // from the serial ("BU" = Production), as the MDM reports no build
-    android: null,        // not reported by the MDM — no OS/SDK field in the payload
+    // not reported by the MDM (no OS/SDK field in the payload); the lab: every device has run
+    // Android 15 since the Cycle plan began (25 Sep 2026), so from then on it is that
+    android: c.start >= PLAN_FROM ? ANDROID_SINCE_PLAN : null,
     firmware: firmware || c.buildId || 'Unknown',
     date: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`,
     week: null,

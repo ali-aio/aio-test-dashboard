@@ -21,13 +21,33 @@ import { runningCycle } from './window.js';
 import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
 
 const H = 3600e3;
+// Planned tests count only runs from the day the Cycle plan began (the lab's choice, Oct 2026);
+// everything before is Old cycles, whatever a plan entry says.
+export const PLAN_FROM = new Date(2026, 8, 25).getTime();
+// A run kept in a planned test must look like that test: a Restaurant Case is 14 h (a device
+// left off the charger runs on, and one forgotten on the bench for days read as 69 h), and a
+// discharge test drains (a device sitting idle at ~1 %/h was not on it).
+const MAX_HOURS = { 'Restaurant Case': 17 };
+const MIN_DRAIN = 2; // %/h, as the Auto plan's "not a test"
+function fitsTest(cycle, name) {
+  if (cycle.charging) return true;
+  const h = (cycle.durationMs ?? ((cycle.end ?? cycle.start) - cycle.start)) / H;
+  if (MAX_HOURS[name] && h > MAX_HOURS[name]) return false;
+  return !(h >= 1 && cycle.startPct != null && cycle.endPct != null && (cycle.startPct - cycle.endPct) / h < MIN_DRAIN);
+}
 const isNum = v => v != null && Number.isFinite(v);
 const round = (v, n = 2) => (isNum(v) ? Math.round(v * 10 ** n) / 10 ** n : null);
 
 // Which test was this run? Whatever the Cycle plan declared for the day it started. With
 // nothing declared it falls to Field Discharge / Field Charging — the same two buckets T7
 // uses for telemetry it had to cut out of a continuous stream itself.
-export function testTypeFor(cycle, { decls, rota, DEV }) {
+export function testTypeFor(cycle, ctx) {
+  const name = plannedTest(cycle, ctx), field = cycle.charging ? FIELD_CHARGING : FIELD_DISCHARGE;
+  if (name === FIELD_DISCHARGE || name === FIELD_CHARGING) return name;
+  if (cycle.start < PLAN_FROM || !fitsTest(cycle, name)) return field;
+  return name;
+}
+function plannedTest(cycle, { decls, rota, DEV }) {
   // The declared cycle whose window this run started in — today's, or yesterday's still
   // running overnight. A day can hold several cycles, each with its own window. Only a cycle
   // of its own kind: a discharge never belongs to a Charging Cycle, nor a charge to a

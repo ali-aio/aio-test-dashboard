@@ -221,6 +221,14 @@ const mdmCases = []
     const chg = testTypeFor({ start: at(12, 15), end: at(12, 20), serial: 'A', charging: true }, { decls, rota: {}, DEV: [] })
     want(dis !== 'Charging Cycle' && chg === 'Charging Cycle', `discharge ${dis} / charge ${chg}`)
     want(testTypeFor({ start: at(11, 12), end: at(11, 16), serial: 'A', charging: true }, { decls, rota: {}, DEV: [] }) === 'Field Charging', 'a charge in a discharge test')
+    // planned tests: nothing before 25 Sep, no 69 h Restaurant Case, no device idling on the bench
+    const rcd = [{ id: 'r', at: 1, testType: 'restaurant', from: '2026-10-16', to: '2026-10-16', startTime: '14:00', endTime: '04:00', spanDays: 1, group: { kind: 'all' } },
+      { id: 'o', at: 1, testType: 'restaurant', from: '2026-09-20', to: '2026-09-20', startTime: '10:00', endTime: '23:00', group: { kind: 'all' } }]
+    const run = (d, h, hrs, from, to) => testTypeFor({ serial: 'A', start: at(d, h), end: at(d, h) + hrs * 3600e3, durationMs: hrs * 3600e3, startPct: from, endPct: to }, { decls: rcd, rota: {}, DEV: [] })
+    want(run(16, 14, 14, 100, 18) === 'Restaurant Case', 'a real Restaurant Case')
+    want(run(16, 14, 69, 100, 30) === 'Old cycles', '69 h is not a Restaurant Case')
+    want(run(16, 14, 10, 100, 90) === 'Old cycles', 'idle at 1 %/h: not on the test')
+    want(new Date(2026, 8, 20, 11).getTime() < at(16, 0) && testTypeFor({ serial: 'A', start: new Date(2026, 8, 20, 11).getTime(), end: new Date(2026, 8, 21, 1).getTime(), durationMs: 14 * 3600e3, startPct: 100, endPct: 18 }, { decls: rcd, rota: {}, DEV: [] }) === 'Old cycles', 'before 25 Sep: Old cycles')
   })
   check('planned Charging Cycle: the sweep\'s charges, shown as gain', () => {
     const t0 = new Date(2026, 9, 12, 15).getTime(), H = 3600e3

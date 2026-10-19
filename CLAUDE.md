@@ -253,6 +253,10 @@ oversight; don't add restaurant filtering back in without being asked.
   in (`cycleAt`, which also checks cycles carried in from earlier days), and runs count on their
   start day. Devices are picked per cycle (all, or an explicit serial list); devices taken out
   mid-cycle are recorded on it (`removed`, with reason) and leave it from that moment.
+  **Planned tests count only runs from 25 Sep 2026 on** (`PLAN_FROM` in `adapt.js`): anything earlier is Old cycles
+  whatever a plan entry says, so no test's averages or per-hour charts mix in pre-plan runs. A run must also look like
+  its test (`fitsTest`): a Restaurant Case is at most 17 h (a device left off the charger on 16 Oct showed as 69 h) and a
+  discharge test drains ≥ 2 %/h (a device idling on the bench at ~1 %/h was not on it); otherwise Old cycles.
   A run only takes a declared cycle **of its own kind** (`testTypeFor` in `adapt.js`): a discharge never becomes a
   Charging Cycle, a charge never a discharge test. The charges themselves are the sweep's charge segments (`d.charges`,
   ≤ 30 % up to ≥ 90 %, with their own curve) and are added as cycles **only where a Charging Cycle is planned** — the

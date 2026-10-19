@@ -556,28 +556,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               : isRestaurant ? 'Mean T7 drain per hour, WLC active and WLC inactive'
                 : testType === 'WLC on Phone' ? 'Mean T7 drain and load gain by hour of the cycle'
                   : 'Mean battery change per hour window'}
-            // Restaurant Case and WLC on Load: chart only, no table view (the lab's choice, Oct 2026)
-            tableColumns={isRestaurant || testType === 'WLC on Load' ? undefined : [
-              { key: 'window', label: 'Hour' },
-              { key: 'n', label: 'Cycles' },
-              ...(isRestaurant ? [
-                { key: 'wireless', label: 'WLC active' },
-                { key: 'withoutWireless', label: 'WLC inactive' },
-              ] : isCharging ? [
-                { key: 'charge', label: 'Battery gained' },
-              ] : [
-                { key: 'drop', label: 'Battery lost' },
-                ...(isLoadTest ? [{ key: 'gain', label: 'Load battery gained' }] : []),
-              ]),
-            ]}
-            tableRows={hourly.map((h) => ({
-              window: h.label, n: hourCycles.get(h.h) ?? '—',
-              drop: h.drop != null ? `${h.drop}%` : '—',
-              charge: h.drop != null ? fmtSigned(-h.drop, 2, '%') : '—',
-              gain: h.gain != null ? `+${h.gain}%` : '—',
-              wireless: h.wirelessDrop != null ? `${h.wirelessDrop}%` : '—',
-              withoutWireless: h.withoutWirelessDrop != null ? `${h.withoutWirelessDrop}%` : '—',
-            }))}
+            // no table view: it repeated the bars (the lab, Oct 2026); a click on a bar lists its cycles below
           />
 
           {/* A bar is a mean, which is a dead end when it looks wrong: these

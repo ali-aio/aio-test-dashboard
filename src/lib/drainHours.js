@@ -85,6 +85,22 @@ export const matches = (f, { load = 'all', ads = 'all', temp = 'all', test = 'al
   && (temp === 'all' || (f.temp != null && TEMP_BANDS.find(b => b.id === temp)?.test(f.temp)))
   && (test === 'all' || f.test === test);
 
+/** One cycle's drain split by the wireless pad: %/h over its 15-min slots with a load on the pad
+ *  (for most of the slot) and without. `slots` = one device's hours.json `h`. A side with under
+ *  `minMin` minutes is null (Restaurant Case: ~3 h with, ~11 h without; WLC on Load: all with).
+ *  Firmware v2.0.3–v2.0.4 reported no pad at all, so its cycles read as all "without". */
+export function padSplit(slots, start, end, { minMin = 30 } = {}) {
+  const on = { d: 0, m: 0 }, off = { d: 0, m: 0 };
+  for (const x of slots || []) {
+    const mid = x[0] + SLOT / 2;
+    if (mid < start || mid > end || !x[2]) continue;
+    const b = x[3] * 2 >= x[2] ? on : off;
+    b.d += x[1] / 10; b.m += x[2];
+  }
+  const out = b => (b.m >= minMin ? { rate: b.d / (b.m / 60), hours: b.m / 60 } : null);
+  return { on: out(on), off: out(off) };
+}
+
 /** Every device's slots inside its counted cycles (or a sheet run, see the top), with their
  *  factors and the battery's age. A Cycle plan test wins over the sheet's. */
 export function tagSlots(cycles, hours, drops, sheetRuns = []) {

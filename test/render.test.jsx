@@ -28,7 +28,7 @@ import { sortValue, compareValues, SortTable } from '../src/components/SortTable
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 import { extendLedger, cumAt, lifetimeAt, drainByAge, liveLedgers } from '../src/lib/drainAge.js'
 import { runsFrom, benchesFrom, classifyBench, applyAuto } from '../src/lib/autoPlan.js'
-import { slotBuckets, extendSlots, tagSlots, drainBands, conditionBands } from '../src/lib/drainHours.js'
+import { slotBuckets, extendSlots, tagSlots, drainBands, conditionBands, padSplit } from '../src/lib/drainHours.js'
 import HealthView from '../src/views/HealthView.jsx'
 import { healthRows, capacityIndex, earlyIndex, earlyDrain, fleetBaselines, loadClass, stressIndex, fleetP90, stressFactors, hoursAtFull, chargeSegments, medianToFull, slowCharges, gaugeJumps, shutdownsAbove, scoreOf, gradeOf, GRADE, SHUTDOWN, NO_FULL, JUMP } from '../src/lib/health.js'
 
@@ -361,6 +361,10 @@ const mdmCases = []
     const cb = conditionBands(tg)
     want(cb.marks.join() === '10' && cb.rows.find(r => r.label === 'No load').at[10].rate < 5, JSON.stringify(cb.marks))
     want(!Object.keys(tagSlots([], { A: { h: hs } }, drops)).length, 'time outside a test does not count')
+    // one cycle split by the pad: 3 h with a load (+ the phone's slot), 4 h without
+    const ps = padSplit(hs, t0, t0 + 7 * H)
+    want(Math.abs(ps.on.rate - 11.4) < 1 && Math.abs(ps.on.hours - 3.25) < 0.01 && Math.abs(ps.off.rate - 4) < 0.5, `pad split ${JSON.stringify(ps)}`)
+    want(padSplit(hs, t0, t0 + 2 * H).off === null, 'no time without a load: —')
     // the lab's sheet: names an Old cycle's test, and counts a run the detector did not
     const old = [{ serial: 'A', start: t0, end: t0 + 7 * H, testType: 'Old cycles' }]
     const sheet = [{ serial: 'A', start: t0, end: t0 + 7 * H, test: 'Restaurant Case', pad: true }]

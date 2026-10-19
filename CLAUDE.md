@@ -209,6 +209,9 @@ oversight; don't add restaurant filtering back in without being asked.
   Firmware v2.0.3–v2.0.4 (July – mid Aug 2026) reported `wlc_status` 0 with a load on the pad: in a sheet run the load
   then comes from the test (Restaurant Case / WLC + Discharge: first 3 h), elsewhere a slot draining ≥ 9 %/h with no
   load reported is "load not known".
+  The same slots give each test's **Every cycle** table (`TestDetailView`) two columns, **Drain with WLC / without WLC**
+  (`padSplit`: %/h over the cycle's slots with a load on the pad for most of the slot / without; under 30 min = —),
+  for tests that place a load (Restaurant Case, WLC on Load, WLC + Discharge, WLC on Phone, Load only) and Old cycles.
 - **Battery health** (`#/nx/health`, nav "Health"; `src/views/HealthView.jsx` + `src/lib/health.js`, tested): one row per
   device for ONE discharge test picked at the top (the busiest by default). A run is comparable when it is a counted cycle of
   that test that started ≥ 95 %. Score = 0.6 × capacity + 0.1 × early drain + 0.3 × stress (early's weight goes to capacity

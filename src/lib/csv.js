@@ -124,7 +124,7 @@ export function cyclesCsv(cycles, chosen) {
 
 /** CSV text for the test page's Every cycle table: its rows as shown (already filtered and in
  *  table order), its columns; times local, HH:MM. */
-export function cycleTableCsv(cycles, { charging = false, pad = false } = {}) {
+export function cycleTableCsv(cycles, { charging = false, pad = false, wlc = null } = {}) {
   const cols = [
     ['Device', (c) => c.serial],
     ['Test', (c) => c.testType ?? ''],
@@ -138,6 +138,8 @@ export function cycleTableCsv(cycles, { charging = false, pad = false } = {}) {
     ['Start battery %', (c) => num(c.startBattery)],
     [charging ? 'Charged to %' : 'End battery %', (c) => num(c.endBattery)],
     [charging ? 'Charge rate %/h' : 'Drain %/h', (c) => num(c.dropPerHr == null ? null : Math.abs(c.dropPerHr), 2)],
+    // wlc(c) -> { on, off } (drainHours.js padSplit): drain with / without a load on the pad
+    ...(wlc ? [['Drain with WLC %/h', (c) => num(wlc(c)?.on?.rate, 2)], ['Drain without WLC %/h', (c) => num(wlc(c)?.off?.rate, 2)]] : []),
     ['Peak temp °C', (c) => num(c.maxTemp, 1)],
     ...CYCLE_COLUMNS.filter((c) => c.key === 'batteryCycles' || c.key === 'cyclesSource')
       .map((col) => [col.label, (c) => (CYCLE_COLUMNS.find((x) => x.key === 'batteryCycles').get(c) === '' ? '' : col.get(c))]),

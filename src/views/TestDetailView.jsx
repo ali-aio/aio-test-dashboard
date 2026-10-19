@@ -7,6 +7,7 @@ import { cycleTableCsv, downloadCsv } from '../lib/csv.js'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
 import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING } from '../lib/testtypes.js'
+import { padSplit } from '../lib/drainHours.js'
 import {
   kpis, fullDischargeCycles, batteryCycles, batteryCyclesBy, batteryBySerial, avgCurveBy, dropGainByLoadType, hourlyProfile,
   hourContributors, compareBy, mean, maxOf,
@@ -36,7 +37,7 @@ const DEVICE_VIEWS = [
   { id: 'all', label: 'Every cycle' },
 ]
 
-export default function TestDetailView({ cycles: allCycles, testType, allSerials, lifetime = null, initialBench = null }) {
+export default function TestDetailView({ cycles: allCycles, testType, allSerials, lifetime = null, initialBench = null, hours = null }) {
   // A device clicked in the Every cycle table narrows the charts and tiles above to it (as
   // on Today); the table keeps every device so another can be picked, and Show all restores.
   const [focus, setFocus] = useState(null)
@@ -74,6 +75,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const k = useMemo(() => kpis(cycles), [cycles])
   const fullDrain = useMemo(() => fullDischargeCycles(cycles), [cycles])
   const isLoadTest = LOAD_TEST_TYPES.has(testType)
+  // drain with / without a load on the wireless pad, per cycle: tests that place a load, and
+  // field cycles (which may have had one)
   const isField = FIELD_TEST_TYPES.has(testType)
   const isCharging = testType === 'Charging Cycle' || testType === FIELD_CHARGING
   const isRestaurant = testType === 'Restaurant Case'
@@ -265,11 +268,13 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const tableRows = [...inBench].filter((c) => { const q = tableQ.trim().toLowerCase(); return !q
     || [c.serial, c.firmware, c.date ? fmtDate(c.date) : ''].some((v) => String(v ?? '').toLowerCase().includes(q)) })
     .sort((a, b) => b.start - a.start)
+  const showPad = !isCharging && (isLoadTest || isField || ['WLC on Load', 'Discharge on Load only'].includes(testType))
+  const padOf = (c) => (showPad ? padSplit(hours?.[c.serial]?.h, c.start, c.end) : null)
   const exportTable = () => {
     const d = new Date(benchSel ? benchSel.start : Date.now()), p = (n) => String(n).padStart(2, '0')
     const when = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}${benchSel ? `_${p(d.getHours())}${p(d.getMinutes())}` : ''}`
     const name = `aio-${String(testType).replace(/[^\w-]+/g, '-')}_${benchSel ? 'cycle' : 'all-cycles'}_${when}${focus ? `_${focus}` : ''}.csv`
-    downloadCsv(cycleTableCsv(tableRows, { charging: isCharging, pad: isField }), name)
+    downloadCsv(cycleTableCsv(tableRows, { charging: isCharging, pad: isField, wlc: showPad ? padOf : null }), name)
   }
 
   return (
@@ -605,7 +610,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           this is that device's history for the test: which days it ran and how each went. */}
       <Card expandable title={tableSerials.length === 1 ? `Every cycle on ${tableSerials[0]}` : 'Every cycle'}
         sub={`${cyclesText(inBench)} on ${fmtInt(new Set(inBench.map((c) => c.date)).size)} days`
-          + `${tableSerials.length === 1 ? '' : ` across ${fmtInt(tableSerials.length)} devices`} · newest first · click a device to show only it in the charts above · click a heading to sort · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded`}
+          + `${tableSerials.length === 1 ? '' : ` across ${fmtInt(tableSerials.length)} devices`} · newest first · click a device to show only it in the charts above · click a heading to sort${showPad ? ' · with / without WLC = drain while a load sat on the wireless pad / while it was empty, from 15-min slots (firmware v2.0.3–2.0.4 did not report the pad)' : ''} · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded`}
         right={<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input className="control" type="search" placeholder="Search… (e.g. 044, v2.1.030, 12 Oct)" value={tableQ}
             onChange={(e) => setTableQ(e.target.value)} style={{ width: 250 }} aria-label="Search the Every cycle table" />
@@ -618,7 +623,9 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           <SortTable caption={`Every ${testType} cycle`} head={[
             ...(tableSerials.length === 1 ? [] : [{ label: 'Device', style: { textAlign: 'left' } }]), { label: 'Date' }, { label: 'Started' }, { label: 'Ended' },
             { label: 'Cycle time' }, { label: 'Start' }, { label: isCharging ? 'Charged to' : 'End' },
-            { label: isCharging ? 'Charge rate' : 'Drain' }, { label: 'Peak temp' }, { label: 'Battery cycles' },
+            { label: isCharging ? 'Charge rate' : 'Drain' },
+            ...(showPad ? [{ label: 'Drain with WLC' }, { label: 'Drain without WLC' }] : []),
+            { label: 'Peak temp' }, { label: 'Battery cycles' },
             { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'Wireless pad', style: { textAlign: 'left' } }] : []),
           ]}>
             {/* the search matches the serial, the firmware or the date as shown */}
@@ -633,6 +640,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                 <td>{fmtPct(c.startBattery)}</td>
                 <td>{fmtPct(c.endBattery)}</td>
                 <td>{fmtRate(c.dropPerHr)}</td>
+                {showPad && (() => { const p = padOf(c), cell = (x, what) => <td title={x ? `${fmtHours(x.hours)} ${what}` : `under 30 min ${what}`}>{x ? fmtRate(x.rate) : '—'}</td>
+                  return <>{cell(p?.on, 'with a load on the pad')}{cell(p?.off, 'with the pad empty')}</> })()}
                 <td>{fmtTemp(c.maxTemp)}</td>
                 {/* the MDM counter where it was recorded; before that, the cycle's own battery drop ÷ 100 (≈) */}
                 <td title={c.mdmCycles != null ? 'From the MDM cycle counter' : 'From this cycle’s readings: battery drop ÷ 100 (the MDM counter was not recorded yet)'}>

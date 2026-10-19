@@ -12,9 +12,9 @@ import { kpis, fullDischargeCycles, compareFirmwareNewest, avgCurveBy, maxOf, ex
 import { BUILD_COLOR, SERIES_VARS, MAX_SERIES, buildStyleMap } from '../lib/palette.js'
 import { fmtLifetime, fmtBC, bcText, runsText, fmtInt, fmtNum, fmtHours, fmtPct, fmtTemp, fmtRate, fmtHourTick, fmtDate, compareSerial } from '../lib/fmt.js'
 
-export default function OverviewView({ cycles, onPickTestType, onFilter, onOpenDevice, onOpenDevicePage, snapOf, testType = '__all__', allSerials = [], lifetime = null, initialBench = null }) {
+export default function OverviewView({ cycles, onPickTestType, onFilter, onOpenDevice, onOpenDevicePage, snapOf, testType = '__all__', allSerials = [], lifetime = null, initialBench = null, hours = null }) {
   if (testType !== '__all__') {
-    return <TestDetailView cycles={cycles} testType={testType} allSerials={allSerials} lifetime={lifetime} initialBench={initialBench} />
+    return <TestDetailView cycles={cycles} testType={testType} allSerials={allSerials} lifetime={lifetime} initialBench={initialBench} hours={hours} />
   }
   return <AllTestsOverview cycles={cycles} onPickTestType={onPickTestType} onFilter={onFilter} onOpenDevice={onOpenDevice} onOpenDevicePage={onOpenDevicePage} snapOf={snapOf} allSerials={allSerials} lifetime={lifetime} />
 }

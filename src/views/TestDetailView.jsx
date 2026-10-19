@@ -642,7 +642,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           this is that device's history for the test: which days it ran and how each went. */}
       <Card expandable title={tableSerials.length === 1 ? `Every cycle on ${tableSerials[0]}` : 'Every cycle'}
         sub={`${cyclesText(inBench)} on ${fmtInt(new Set(inBench.map((c) => c.date)).size)} days`
-          + `${tableSerials.length === 1 ? '' : ` across ${fmtInt(tableSerials.length)} devices`} · newest first · click a device to show only it in the charts above · click a heading to sort${showPad ? ' · with / without WLC = drain while a load sat on the wireless pad / while it was empty, from 15-min slots (firmware v2.0.3–2.0.4 did not report the pad)' : ''} · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded`}
+          + `${tableSerials.length === 1 ? '' : ` across ${fmtInt(tableSerials.length)} devices`} · newest first · click a device to show only it in the charts above · click a heading to sort${showPad ? ' · with / without WLC = drain while a load sat on the wireless pad / while it was empty, from 15-min slots (firmware v2.0.3–2.0.4 did not report the pad)' : ''} · ≈ = worked out from the cycle’s battery drop, before the MDM counter was recorded · left cycle = taken out, or no longer running the test (hover for why): counted up to then`}
         right={<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input className="control" type="search" placeholder="Search… (e.g. 044, v2.1.030, 12 Oct)" value={tableQ}
             onChange={(e) => setTableQ(e.target.value)} style={{ width: 250 }} aria-label="Search the Every cycle table" />
@@ -676,7 +676,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                 {tableSerials.length !== 1 && <td style={{ textAlign: 'left' }}><button type="button" className="link-btn plain-link mono" onClick={(e) => { e.stopPropagation(); pickDevice(c.serial) }}>{fmtSerial(c.serial)}</button></td>}
                 <td>{c.date ? fmtDate(c.date) : '—'}</td>
                 <td>{c.start != null ? new Date(c.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                <td>{fmtEnded(c)}</td>
+                <td title={c.leftCycle ? `Left the cycle at ${fmtEnded(c)}: ${c.leftCycle.why}. Counted up to then.` : undefined}>{fmtEnded(c)}{c.leftCycle ? <span className="left-cycle"> · left cycle</span> : null}</td>
                 <td>{fmtHours(c.duration)}</td>
                 <td>{fmtPct(c.startBattery)}</td>
                 <td>{fmtPct(c.endBattery)}</td>

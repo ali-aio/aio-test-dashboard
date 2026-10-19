@@ -262,7 +262,13 @@ oversight; don't add restaurant filtering back in without being asked.
   load comes off), from the 15-min slots (`padHours`; an hour without readings is not judged). The lab: a device that
   behaves differently from the test is not in the cycle (one left off the charger on 16 Oct showed as
   69 h; a device starting up to 3 h after the others is still in the cycle, held to its own run time), and a
-  discharge test drains ≥ 2 %/h (a device idling on the bench at ~1 %/h was not on it); otherwise Old cycles.
+  discharge test drains ≥ 2 %/h (a device idling on the bench at ~1 %/h was not on it).
+  **A device that leaves the cycle part-way keeps its data up to then** (`planFor` → `{ name, cutAt, why }`; the lab,
+  Oct 2026: devices are mostly taken out after a few hours): taken out on Today (`removed`), past the cycle time, a
+  load still on after the load hours, or none in one of them — `adaptCycle` cuts its curve, battery, duration and
+  hours at that moment, marks it `leftCycle: { at, why }` ("· left cycle" in the tables, a CSV column), and its hours
+  count for the test. Only a run that never ran the test is Old cycles: no load in hour 1, no pad readings in the load
+  hours, under 1 h kept, or under 2 %/h over the hours kept.
   A run only takes a declared cycle **of its own kind** (`testTypeFor` in `adapt.js`): a discharge never becomes a
   Charging Cycle, a charge never a discharge test. The charges themselves are the sweep's charge segments (`d.charges`,
   ≤ 30 % up to ≥ 90 %, with their own curve): **every charge from 25 Sep on is a Charging Cycle** with no plan entry

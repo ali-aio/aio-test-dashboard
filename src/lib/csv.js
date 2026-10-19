@@ -134,6 +134,8 @@ export function cycleTableCsv(cycles, { charging = false, pad = false, wlc = nul
     ['Started', (c) => local(c.start).slice(11, 16)],
     ['Ended date', (c) => (c.inProgress ? '' : local(c.end).slice(0, 10))],
     ['Ended', (c) => (c.inProgress ? 'running' : local(c.end).slice(11, 16))],
+    // the device left the cycle part-way (taken out, or stopped doing what the test does): counted up to then
+    ['Left the cycle', (c) => (c.leftCycle ? c.leftCycle.why : '')],
     ['Cycle time (h)', (c) => num(c.duration, 2)],
     ['Start battery %', (c) => num(c.startBattery)],
     [charging ? 'Charged to %' : 'End battery %', (c) => num(c.endBattery)],

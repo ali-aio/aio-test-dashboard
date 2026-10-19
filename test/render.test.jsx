@@ -22,7 +22,7 @@ import { takeOutReasons } from '../src/lib/plan.js'
 import RangePicker from '../src/components/RangePicker.jsx'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
-import { testTypeFor, temperaturePhases } from '../src/lib/adapt.js'
+import { testTypeFor, planFor, temperaturePhases } from '../src/lib/adapt.js'
 import { thermalTimingByDevice } from '../src/lib/thermal.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
@@ -227,15 +227,18 @@ const mdmCases = []
     const run = (d, h, hrs, from, to) => testTypeFor({ serial: 'A', start: at(d, h), end: at(d, h) + hrs * 3600e3, durationMs: hrs * 3600e3, startPct: from, endPct: to }, { decls: rcd, rota: {}, DEV: [] })
     want(run(16, 14, 14, 100, 18) === 'Restaurant Case', 'a real Restaurant Case')
     want(run(16, 14, 69, 100, 30) === 'Old cycles', '69 h is not a Restaurant Case')
-    want(run(16, 17, 15.5, 100, 15) === 'Restaurant Case' && run(16, 14, 16.5, 100, 15) === 'Old cycles', '14 h + 2 h allowed (a late start still in the cycle), more is out of it')
+    const plan = (d, h, hrs, from, to, more = {}) => planFor({ serial: 'A', start: at(d, h), end: at(d, h) + hrs * 3600e3, durationMs: hrs * 3600e3, startPct: from, endPct: to, ...more }, { decls: rcd, rota: {}, DEV: [] })
+    // past 14 h + 2 h the device left the cycle: its first 16 h still count
+    const long = plan(16, 14, 18, 100, 10)
+    want(run(16, 17, 15.5, 100, 15) === 'Restaurant Case' && long.name === 'Restaurant Case' && long.cutAt === at(16, 14) + 16 * 3600e3, `14 h + 2 h, then cut: ${JSON.stringify(long)}`)
     want(run(16, 14, 10, 100, 90) === 'Old cycles', 'idle at 1 %/h: not on the test')
-    const withPad = (padH) => testTypeFor({ serial: 'A', start: at(16, 14), end: at(16, 14) + 9 * 3600e3, durationMs: 9 * 3600e3, startPct: 100, endPct: 5, padH }, { decls: rcd, rota: {}, DEV: [] })
-    want(withPad(3.2) === 'Restaurant Case' && withPad(9) === 'Old cycles' && withPad(null) === 'Restaurant Case', 'a load all run on a Restaurant Case bench is another test')
     const byHour = (padHours) => testTypeFor({ serial: 'A', start: at(16, 14), end: at(16, 14) + 14 * 3600e3, durationMs: 14 * 3600e3, startPct: 100, endPct: 18, padH: 3, padHours }, { decls: rcd, rota: {}, DEV: [] })
     const ok = [true, true, true, false, false, false, false, false, false, false, false, false, false, false]
     want(byHour(ok) === 'Restaurant Case' && byHour(ok.map((v, i) => (i === 3 ? true : v))) === 'Restaurant Case', 'load hours 1-3, off by hour 4 or 5')
-    want(byHour(ok.map((v, i) => (i === 0 ? false : v))) === 'Old cycles', 'no load in hour 1: not in the cycle')
-    want(byHour(ok.map((v, i) => (i === 5 ? true : v))) === 'Old cycles', 'a load in hour 6: not in the cycle')
+    want(byHour(ok.map((v, i) => (i === 0 ? false : v))) === 'Old cycles', 'no load in hour 1: never in the cycle')
+    // a load still on in hour 6: the device left the cycle then; hours 1-5 still count
+    const late = plan(16, 14, 14, 100, 18, { padHours: ok.map((v, i) => (i === 5 ? true : v)) })
+    want(late.name === 'Restaurant Case' && late.cutAt === at(16, 14) + 5 * 3600e3 && /hour 6/.test(late.why), `load in hour 6: ${JSON.stringify(late)}`)
     want(byHour(ok.map((v, i) => (i === 1 ? null : v))) === 'Restaurant Case', 'an hour without readings is not judged')
     want(byHour(ok.map((v, i) => (i < 3 ? null : v))) === 'Old cycles', 'no readings in the load hours: not confirmed')
     want(byHour(ok.map(() => null)) === 'Restaurant Case', 'no pad readings at all (not loaded yet): not judged')
@@ -253,16 +256,20 @@ const mdmCases = []
     want(out[0].series.length === 4 && out[0].batteryDelta === 75 && out[0].hourly.every((h) => h.drop < 0), `gain per hour: ${JSON.stringify(out[0].hourly)}`)
     want('wirelessDrainPerHr' in out[0] && 'withoutWirelessDrainPerHr' in out[0], 'WLC active / inactive drain on every cycle')
   })
-  check('a device taken out leaves the cycle and its cut-short run', () => {
+  check('a device taken out leaves the cycle: its run counts up to then', () => {
     const at = (d, h) => new Date(2026, 9, d, h).getTime()
     const decl = { id: 'd1', at: 1, testType: 'wlc_load', from: '2026-10-11', to: '2026-10-11', startTime: '10:00', endTime: '04:00', group: { kind: 'all' },
       removed: [{ serial: 'B', at: at(11, 15), reason: 'Taken for debugging' }] }
     const DEV = [{ serial: 'A' }, { serial: 'B' }]
     want(activeSerials(decl, DEV, at(11, 12)).length === 2, 'B still in before it was taken')
     want(activeSerials(decl, DEV, at(11, 16)).join() === 'A', 'B gone after')
-    const tB = testTypeFor({ start: at(11, 10), end: at(11, 20), serial: 'B' }, { decls: [decl], rota: {}, DEV })
-    const tA = testTypeFor({ start: at(11, 10), end: at(11, 20), serial: 'A' }, { decls: [decl], rota: {}, DEV })
-    want(tB !== 'WLC on Load' && tA === 'WLC on Load', `B ${tB} / A ${tA}`)
+    // B taken out at 15:00 after starting at 10:00: its 5 h until then are the test's
+    const pB = planFor({ start: at(11, 10), end: at(11, 20), durationMs: 10 * 3600e3, startPct: 100, endPct: 10, serial: 'B' }, { decls: [decl], rota: {}, DEV })
+    const tA = testTypeFor({ start: at(11, 10), end: at(11, 20), durationMs: 10 * 3600e3, startPct: 100, endPct: 10, serial: 'A' }, { decls: [decl], rota: {}, DEV })
+    want(pB.name === 'WLC on Load' && pB.cutAt === at(11, 15) && /taken out/.test(pB.why) && tA === 'WLC on Load', `B ${JSON.stringify(pB)} / A ${tA}`)
+    // taken out within the first hour: nothing to keep
+    const early = planFor({ start: at(11, 14) + 30 * 60e3, end: at(11, 20), durationMs: 5.5 * 3600e3, startPct: 100, endPct: 40, serial: 'B' }, { decls: [decl], rota: {}, DEV })
+    want(early.name === 'Old cycles', `taken out after 30 min: ${early.name}`)
   })
   check('overlapping cycles are found; back-to-back ones are not', () => {
     const DEV = [{ serial: 'A' }, { serial: 'B' }]

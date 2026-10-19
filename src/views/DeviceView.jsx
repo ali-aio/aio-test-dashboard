@@ -115,7 +115,7 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
                 <tr key={c.id}>
                   <td>{c.date ? fmtDate(c.date) : DASH}</td>
                   <td>{new Date(c.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                  <td>{fmtEnded(c)}</td>
+                  <td title={c.leftCycle ? `Left the cycle at ${fmtEnded(c)}: ${c.leftCycle.why}. Counted up to then.` : undefined}>{fmtEnded(c)}{c.leftCycle ? <span className="left-cycle"> · left cycle</span> : null}</td>
                   <td style={{ textAlign: 'left' }}>{c.testType}</td>
                   <td>{fmtHours(c.duration)}</td>
                   <td>{fmtPct(c.startBattery)}</td>

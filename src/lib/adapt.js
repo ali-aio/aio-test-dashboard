@@ -12,7 +12,7 @@
 //   · android    — no OS/SDK field exists anywhere in the check-in payload
 //   · load gain  — the MDM reports the T7's own battery, never the phone/load's
 import { buildFromSerial } from './device.js';
-import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, windowOn, cycleAt, takenOutDuring, loadDecls, loadRota } from './plan.js';
+import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, windowOn, cycleAt, loadDecls, loadRota } from './plan.js';
 import { FIELD_DISCHARGE, FIELD_CHARGING } from './testtypes.js';
 import { perHourRate, HOUR_SNAP } from './t7cycles.js';
 import { mdmCyclesFor } from './mdmTrack.js';
@@ -33,28 +33,30 @@ export const PLAN_FROM = new Date(2026, 8, 25).getTime();
 // ~1 %/h was not on it.
 export const CYCLE_SLACK_H = 2;
 const MIN_DRAIN = 2; // %/h, as the Auto plan's "not a test"
-function fitsTest(cycle, name) {
-  if (cycle.charging) return true;
+const MIN_KEPT_H = 1; // a device that left the cycle within its first hour gave the test nothing
+/** Where a run stops being its test: { cutAt, why } (it left the cycle then — its data up to
+ *  that moment still counts, the lab's choice, Oct 2026: devices are often taken out after a
+ *  few hours), { out: true } (it never ran the test), or {} (all of it counts). */
+function leftTest(cycle, name) {
+  if (cycle.charging) return {};
   const h = (cycle.durationMs ?? ((cycle.end ?? cycle.start) - cycle.start)) / H;
   const tt = TEST_TYPES.find(t => t.name === name);
-  if (tt?.hours && h > tt.hours + CYCLE_SLACK_H) return false;
-  // a test with a set load time (`loadHours`: Restaurant Case, WLC + Discharge — 3 h): a device
-  // with the load on its pad far longer ran another test (1 Oct 2026: 4 devices ran WLC on Load
-  // the whole day on a Restaurant Case bench). Only where the pad was reported (cycle.padH).
-  if (tt?.loadHours && cycle.padH != null && cycle.padH > tt.loadHours + CYCLE_SLACK_H) return false;
-  // and hour by hour (the lab: a device that behaves differently is not in the cycle): the WLC
-  // active in each of the first `loadHours` hours, and inactive from the hour after the next on
-  // (hour 4 of a 3 h load is when it comes off). Hours with no pad readings are not judged.
+  let cutAt = null, why = null;
+  const cut = (t, w) => { if (cutAt == null || t < cutAt) { cutAt = t; why = w; } };
+  if (tt?.hours && h > tt.hours + CYCLE_SLACK_H) cut(cycle.start + (tt.hours + CYCLE_SLACK_H) * H, `ran past the ${tt.hours} h cycle`);
+  // a test with a set load time (`loadHours`: Restaurant Case, WLC + Discharge — 3 h), hour by
+  // hour: the WLC active in each of the first `loadHours` hours, inactive from the hour after the
+  // next (hour 4 of a 3 h load is when it comes off). Hours with no pad readings are not judged.
   if (tt?.loadHours && cycle.padHours) {
     // readings for the run, but none in its load hours: the load can't be confirmed
-    if (cycle.padHours.some(v => v != null) && cycle.padHours.slice(0, tt.loadHours).every(v => v == null)) return false;
-    for (let h = 0; h < cycle.padHours.length; h++) {
-      const on = cycle.padHours[h];
-      if (on === false && h < tt.loadHours) return false;
-      if (on === true && h > tt.loadHours) return false;
+    if (cycle.padHours.some(v => v != null) && cycle.padHours.slice(0, tt.loadHours).every(v => v == null)) return { out: true };
+    for (let k = 0; k < cycle.padHours.length; k++) {
+      const on = cycle.padHours[k];
+      if (on === false && k < tt.loadHours) { cut(cycle.start + k * H, `no load on the pad in hour ${k + 1}`); break; }
+      if (on === true && k > tt.loadHours) { cut(cycle.start + k * H, `load still on the pad in hour ${k + 1}`); break; }
     }
   }
-  return !(h >= 1 && cycle.startPct != null && cycle.endPct != null && (cycle.startPct - cycle.endPct) / h < MIN_DRAIN);
+  return cutAt == null ? {} : { cutAt, why };
 }
 const isNum = v => v != null && Number.isFinite(v);
 const meanDrop = hs => (hs.length ? Math.round(hs.reduce((a, e) => a + e.drop, 0) / hs.length * 100) / 100 : null);
@@ -63,11 +65,30 @@ const round = (v, n = 2) => (isNum(v) ? Math.round(v * 10 ** n) / 10 ** n : null
 // Which test was this run? Whatever the Cycle plan declared for the day it started. With
 // nothing declared it falls to Field Discharge / Field Charging — the same two buckets T7
 // uses for telemetry it had to cut out of a continuous stream itself.
-export function testTypeFor(cycle, ctx) {
-  const name = plannedTest(cycle, ctx), field = cycle.charging ? FIELD_CHARGING : FIELD_DISCHARGE;
-  if (name === FIELD_DISCHARGE || name === FIELD_CHARGING) return name;
-  if (cycle.start < PLAN_FROM || !fitsTest(cycle, name)) return field;
-  return name;
+export const testTypeFor = (cycle, ctx, pctAt) => planFor(cycle, ctx, pctAt).name;
+/** The run's test and, when the device left the cycle part-way (taken out on Today, or no longer
+ *  doing what the test does), when it left and why: { name, cutAt?, why? }. Its data up to then
+ *  counts for the test; a run that never ran the test is Old cycles. `pctAt(ms)` gives its battery
+ *  at a moment (default: a straight line from start to end), for the drain check. */
+export function planFor(cycle, ctx, pctAt) {
+  const field = cycle.charging ? FIELD_CHARGING : FIELD_DISCHARGE;
+  const { name, removedAt } = plannedTest(cycle, ctx);
+  if (name === FIELD_DISCHARGE || name === FIELD_CHARGING || cycle.start < PLAN_FROM) return { name: field };
+  const left = leftTest(cycle, name);
+  if (left.out) return { name: field };
+  let cutAt = left.cutAt ?? null, why = left.why ?? null;
+  if (removedAt != null && (cutAt == null || removedAt < cutAt)) { cutAt = removedAt; why = 'taken out of the cycle'; }
+  const end = cycle.end ?? cycle.start;
+  if (cutAt != null && cutAt >= end) cutAt = why = null;
+  const until = cutAt ?? end, keptH = (until - cycle.start) / H;
+  if (cutAt != null && keptH < MIN_KEPT_H) return { name: field };
+  // a discharge test drains: a device idling at ~1 %/h over the time it counts was not on it
+  if (!cycle.charging && keptH >= 1) {
+    const at = pctAt || (t => cycle.startPct + (cycle.endPct - cycle.startPct) * (t - cycle.start) / ((end - cycle.start) || 1));
+    const p0 = cycle.startPct, p1 = at(until);
+    if (p0 != null && p1 != null && (p0 - p1) / keptH < MIN_DRAIN) return { name: field };
+  }
+  return cutAt == null ? { name } : { name, cutAt, why };
 }
 function plannedTest(cycle, { decls, rota, DEV }) {
   // The declared cycle whose window this run started in — today's, or yesterday's still
@@ -79,21 +100,23 @@ function plannedTest(cycle, { decls, rota, DEV }) {
   const hit = cycleAt((decls || []).filter(sameKind), cycle.start);
   if (hit) {
     const serials = groupSerials(hit.decl.group, DEV);
-    if (serials.length && !serials.includes(cycle.serial)) return FIELD_DISCHARGE;
-    // taken out of the cycle before this run finished: not a run of this test
-    if (takenOutDuring(hit.decl, cycle.serial, cycle.end ?? cycle.start)) return FIELD_DISCHARGE;
-    return ttById(hit.decl.testType)?.name || FIELD_DISCHARGE;
+    if (serials.length && !serials.includes(cycle.serial)) return { name: FIELD_DISCHARGE };
+    // taken out of the cycle (Today) before this run finished: the test until then
+    const out = (hit.decl.removed || []).filter(r => r.serial === cycle.serial && r.at < (cycle.end ?? cycle.start)).map(r => r.at);
+    const removedAt = out.length ? Math.min(...out) : null;
+    if (removedAt != null && removedAt <= cycle.start) return { name: FIELD_DISCHARGE };
+    return { name: ttById(hit.decl.testType)?.name || FIELD_DISCHARGE, removedAt };
   }
   const key = dayKey(cycle.start);
   const r = resolveDay(key, { decls: [], rota, ran: 1, devices: 0 });
   const tt = r.testType ? ttById(r.testType) : null;
-  if (!tt || (tt.expect === 'charge') !== !!cycle.charging) return cycle.charging ? FIELD_CHARGING : FIELD_DISCHARGE;
+  if (!tt || (tt.expect === 'charge') !== !!cycle.charging) return { name: cycle.charging ? FIELD_CHARGING : FIELD_DISCHARGE };
   const src = r.rota || null;
   const serials = groupSerials(src && src.group, DEV);
-  if (serials.length && !serials.includes(cycle.serial)) return FIELD_DISCHARGE;
+  if (serials.length && !serials.includes(cycle.serial)) return { name: FIELD_DISCHARGE };
   const { startMs: from, endMs: to } = windowOn(key, src);
-  if (cycle.start < from || cycle.start > to) return FIELD_DISCHARGE;
-  return tt.name;
+  if (cycle.start < from || cycle.start > to) return { name: FIELD_DISCHARGE };
+  return { name: tt.name };
 }
 
 // Mean temperature in each third of a run, from its temperature curve ({ t: hours, v }).
@@ -148,9 +171,10 @@ function wholeHours(series) {
 }
 
 /** One of our detected cycles -> one T7 cycle. `rows` is optional history for the curve. */
-export function adaptCycle(d, c, rows, ctx) {
+export function adaptCycle(d, c0, rows, ctx) {
   const readings = ctx.readings;
-  const duration = c.durationMs / H;
+  let c = c0;
+  let duration = c.durationMs / H;
   if (!(duration > 0)) return null;
   // Prefer the run's stored curve (every run, even months old); fall back to the browser's
   // 7-day window for runs the sweep has not curved yet.
@@ -160,14 +184,12 @@ export function adaptCycle(d, c, rows, ctx) {
   const stored = ctx.curves?.[curveKey(d.serial, c.start)] || (rows && rows.length ? resampleRun(rows, c.start, c.end) : null);
   const fromWindow = seriesFor(rows, c);
   let { series, tempSeries } = stored ? curveSeries(stored) : fromWindow;
+  series = series || []; tempSeries = tempSeries || [];
   // a charge kept by the sweep carries its own curve: [minutes from start, battery %]
   if (!series.length && c.curve?.length) series = c.curve.map(([m, v]) => ({ t: round(m / 60, 3), v }));
   const firmware = (stored && stored.fw) || fromWindow.firmware;
   const wireless = stored ? !!stored.w : fromWindow.wireless;
-  const hourVals = wholeHours(series);
   const charging = c.endPct > c.startPct;
-  const linear = (c.startPct - c.endPct) / duration;
-  const hourly = perHourRate(hourVals, charging ? 'gain' : 'drop');
   // a load on the pad in each hour of the run, from the sweep's 15-min slots (hours.json): on
   // when it was on for most of that hour's time on battery. Without slots for the hour, the
   // run's own pad state (on if the pad was on at any point) stands in. Restaurant Case's
@@ -183,10 +205,30 @@ export function adaptCycle(d, c, rows, ctx) {
   // an hour without pad readings is not known (null) — never filled in from the run as a whole,
   // which put "WLC active" in hours 8–13 of a Restaurant Case
   const padInHour = h => padMeasured(h);
-  const padHours = Array.from({ length: Math.ceil(duration) }, (_, h) => padMeasured(h));
-  // hours with a load on the pad over the whole run (null without slots for it)
-  let padMin = null;
-  if (slots?.length) for (const x of slots) { const mid = x[0] + 7.5 * 60e3; if (mid >= c.start && mid <= c.end) padMin = (padMin || 0) + x[3]; }
+  let padHours = Array.from({ length: Math.ceil(duration) }, (_, h) => padMeasured(h));
+  // battery at a moment of the run, from its curve (straight line between points)
+  const pctAt = t => {
+    const x = (t - c.start) / H, s = series;
+    if (!s.length) return c.startPct + (c.endPct - c.startPct) * (t - c.start) / ((c.end - c.start) || 1);
+    if (x <= s[0].t) return s[0].v;
+    for (let i = 1; i < s.length; i++) if (s[i].t >= x) { const a = s[i - 1], b = s[i]; return a.v + (b.v - a.v) * (x - a.t) / ((b.t - a.t) || 1); }
+    return s[s.length - 1].v;
+  };
+  const plan = planFor({ ...c, serial: d.serial, charging, padHours }, ctx, pctAt);
+  // left the cycle part-way (taken out, or stopped doing what the test does): the run up to then
+  if (plan.cutAt != null) {
+    const cutH = (plan.cutAt - c.start) / H, endPct = Math.round(pctAt(plan.cutAt));
+    series = [...series.filter(p => p.t < cutH), { t: round(cutH, 3), v: endPct }];
+    tempSeries = tempSeries.filter(p => p.t <= cutH);
+    padHours = padHours.slice(0, Math.ceil(cutH));
+    duration = cutH;
+    const drop = c.startPct - endPct;
+    c = { ...c, end: plan.cutAt, durationMs: plan.cutAt - c.start, endPct, inProgress: false,
+      fullMs: drop > 0 ? (plan.cutAt - c.start) / drop * 100 : null, maxTemp: undefined, avgTemp: undefined, thermal: undefined };
+  }
+  const hourVals = wholeHours(series);
+  const linear = (c.startPct - c.endPct) / duration;
+  const hourly = perHourRate(hourVals, charging ? 'gain' : 'drop');
   const built = [];
   for (const h of [...hourVals.keys()].sort((a, b) => a - b)) {
     if (hourVals.has(h + 1)) built.push({ h, drop: hourVals.get(h) - hourVals.get(h + 1), wireless: padInHour(h) });
@@ -196,7 +238,9 @@ export function adaptCycle(d, c, rows, ctx) {
   return {
     id: `${d.serial}@${c.start}`,
     serial: d.serial,
-    testType: testTypeFor({ ...c, serial: d.serial, charging, padH: padMin == null ? null : padMin / 60, padHours }, ctx),
+    testType: plan.name,
+    // left the cycle part-way: when and why (its data up to then is this cycle); null otherwise
+    leftCycle: plan.cutAt != null ? { at: plan.cutAt, why: plan.why, endedAt: c0.end } : null,
     build: buildFromSerial(d.serial), // from the serial ("BU" = Production), as the MDM reports no build
     android: null,        // not reported by the MDM — no OS/SDK field in the payload
     firmware: firmware || c.buildId || 'Unknown',

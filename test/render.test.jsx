@@ -241,14 +241,15 @@ const mdmCases = []
     want(byHour(ok.map(() => null)) === 'Restaurant Case', 'no pad readings at all (not loaded yet): not judged')
     want(new Date(2026, 8, 20, 11).getTime() < at(16, 0) && testTypeFor({ serial: 'A', start: new Date(2026, 8, 20, 11).getTime(), end: new Date(2026, 8, 21, 1).getTime(), durationMs: 14 * 3600e3, startPct: 100, endPct: 18 }, { decls: rcd, rota: {}, DEV: [] }) === 'Old cycles', 'before 25 Sep: Old cycles')
   })
-  check('planned Charging Cycle: the sweep\'s charges, shown as gain', () => {
+  check('Charging Cycle: every charge since 25 Sep, shown as gain', () => {
     const t0 = new Date(2026, 9, 12, 15).getTime(), H = 3600e3
     localStorage.setItem('cyclePlan:decls:v1:Test Cycles', JSON.stringify([{ id: 'c', at: 1, testType: 'charging', from: '2026-10-12', to: '2026-10-12', startTime: '14:00', endTime: '20:00', spanDays: 0, group: { kind: 'all' }, repeat: 'none' }]))
     const seg = { start: t0, end: t0 + 3 * H, durationMs: 3 * H, startPct: 20, endPct: 95, maxTemp: 40, curve: [[0, 20], [60, 45], [120, 70], [180, 95]] }
     const night = { ...seg, start: t0 + 12 * H, end: t0 + 15 * H }
     const out = adaptAll([{ serial: 'AT070AABU00001', cycles: [], charges: [seg, night] }], () => null)
     localStorage.removeItem('cyclePlan:decls:v1:Test Cycles')
-    want(out.length === 1 && out[0].testType === 'Charging Cycle', `only the planned charge: ${out.map((c) => c.testType)}`)
+    want(out.length === 2 && out.every((c) => c.testType === 'Charging Cycle'), `every charge since 25 Sep: ${out.map((c) => c.testType)}`)
+    want(!adaptAll([{ serial: 'AT070AABU00001', cycles: [], charges: [{ ...seg, start: new Date(2026, 8, 20, 1).getTime(), end: new Date(2026, 8, 20, 4).getTime() }] }], () => null).length, 'not before 25 Sep')
     want(out[0].series.length === 4 && out[0].batteryDelta === 75 && out[0].hourly.every((h) => h.drop < 0), `gain per hour: ${JSON.stringify(out[0].hourly)}`)
     want('wirelessDrainPerHr' in out[0] && 'withoutWirelessDrainPerHr' in out[0], 'WLC active / inactive drain on every cycle')
   })

@@ -234,7 +234,8 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
 // the same test within 3 h, as everywhere else). A click opens the test with that cycle picked.
 // Runs no plan claimed ("Old cycles") are left out — they are not cycles of a planned test.
 function AllCycles({ cycles, decls, onOpen }) {
-  const rows = useMemo(() => benchCycles(cycles.filter((c) => !FIELD_TEST_TYPES.has(c.testType))).reverse().map((b) => {
+  // the daily recharge (Charging Cycle, from every charge since 25 Sep) is not a planned test: Overview only
+  const rows = useMemo(() => benchCycles(cycles.filter((c) => !FIELD_TEST_TYPES.has(c.testType) && c.testType !== 'Charging Cycle')).reverse().map((b) => {
     const avg = (xs) => { const v = xs.filter((x) => x != null && Number.isFinite(x)); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null }
     const temps = b.list.map((c) => c.maxTemp).filter((x) => x != null)
     return { b, devices: new Set(b.list.map((c) => c.serial)).size,

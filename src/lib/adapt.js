@@ -255,11 +255,13 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
       const a = adaptCycle(d, c, rows, ctx);
       if (a) out.push(a);
     }
-    // charges (the sweep's charge segments, ≤ 30 % up to ≥ 90 %), only where the Cycle plan
-    // declared a Charging Cycle: the lab recharges every night, and those are not a test
+    // charges (the sweep's charge segments, ≤ 30 % up to ≥ 90 %): every charge from 25 Sep on is
+    // a Charging Cycle — the lab recharges after every cycle, daily, with no plan entry needed
+    // (the lab's choice, Oct 2026); it shows on the Overview, not in the Cycle plan's list
     for (const s of d.charges || []) {
+      if (s.start < PLAN_FROM) continue;
       const a = adaptCycle(d, { ...s, reason: 'charge', fullMs: null }, rows, ctx);
-      if (a && a.testType === 'Charging Cycle') out.push(a);
+      if (a) out.push({ ...a, testType: 'Charging Cycle' });
     }
   }
   return out.sort((a, b) => a.start - b.start);

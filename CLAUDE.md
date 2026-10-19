@@ -265,8 +265,9 @@ oversight; don't add restaurant filtering back in without being asked.
   discharge test drains ≥ 2 %/h (a device idling on the bench at ~1 %/h was not on it); otherwise Old cycles.
   A run only takes a declared cycle **of its own kind** (`testTypeFor` in `adapt.js`): a discharge never becomes a
   Charging Cycle, a charge never a discharge test. The charges themselves are the sweep's charge segments (`d.charges`,
-  ≤ 30 % up to ≥ 90 %, with their own curve) and are added as cycles **only where a Charging Cycle is planned** — the
-  nightly recharges are not a test — so the Charging Cycle screen shows battery gained, not drained.
+  ≤ 30 % up to ≥ 90 %, with their own curve): **every charge from 25 Sep on is a Charging Cycle** with no plan entry
+  (the lab recharges after every cycle, daily; their choice, Oct 2026), shown on the Overview and its Charging Cycle
+  screen as battery gained, and left out of the Cycle plan's All cycles list.
   The Cycle plan screen ends with **All cycles** (`AllCycles` in `CyclePlanView.jsx`): one row per bench
   cycle of a planned test (`benchCycles`), newest first; a click opens that test with the cycle picked
   (`openCycle` in `App.jsx` -> `initialBench` on `TestDetailView`).

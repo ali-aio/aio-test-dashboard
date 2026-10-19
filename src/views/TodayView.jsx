@@ -60,7 +60,7 @@ export default function TodayView({ fleet }) {
   const [takingOut, setTakingOut] = useState(null) // serial whose take-out form is open
 
   const winTo = Math.min(now, T.endMs)
-  const conf = useMemo(() => T.serials.map(s => conform(s, T.tt, T.startMs, winTo)), [T, win.at2])
+  const conf = useMemo(() => T.serials.map(s => conform(s, T.tt, T.startMs, winTo, { ended: T.endMs < now })), [T, win.at2])
   const reporting = conf.filter(c => c.state !== 'silent')
   const conforming = conf.filter(c => c.state === 'conforming')
   const drifting = conf.filter(c => c.state === 'drifting')

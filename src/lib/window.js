@@ -140,13 +140,14 @@ export function dayStats(serial, from) {
 // Does a device's telemetry look like the declared test? A discharge test wants the
 // battery going down and the device off charge; a charging test the reverse. The 3-point
 // floor is the one the T7 dashboard uses to decide a run moved the battery at all.
-export function conform(serial, tt, from, to) {
+// `ended`: the cycle is over, so a device back on charge at its end did what the test does.
+export function conform(serial, tt, from, to, { ended = false } = {}) {
   const rows = rowsFor(serial).filter(r => { const t = Date.parse(r.timestamp); return t >= from && t <= to; });
   if (rows.length < 2) return { serial, state: 'silent', rows };
   const a = rows[0].battery_pct, b = rows[rows.length - 1].battery_pct, chg = !!rows[rows.length - 1].extra?.charging;
   const delta = b - a;
   if (!tt) return { serial, state: 'untyped', delta, rows };
-  const ok = tt.expect === 'charge' ? (delta >= 3 || chg) : (-delta >= 3 && !chg);
+  const ok = tt.expect === 'charge' ? (delta >= 3 || chg) : (-delta >= 3 && (ended || !chg));
   return { serial, state: ok ? 'conforming' : 'drifting', delta, charging: chg, rows };
 }
 

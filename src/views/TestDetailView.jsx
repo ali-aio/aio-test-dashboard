@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadDecls, takenOutOf, takenOutText } from '../lib/plan.js'
 import { CTX } from '../lib/adapt.js'
-import { cycleTableCsv, downloadCsv } from '../lib/csv.js'
+import { cycleTableCsv, cycleHoursCsv, downloadCsv } from '../lib/csv.js'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
 import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING } from '../lib/testtypes.js'
@@ -270,11 +270,24 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
     .sort((a, b) => b.start - a.start)
   const showPad = !isCharging && (isLoadTest || isField || ['WLC on Load', 'Discharge on Load only'].includes(testType))
   const padOf = (c) => (showPad ? padSplit(hours?.[c.serial]?.h, c.start, c.end) : null)
-  const exportTable = () => {
+  // Export: the table as shown (Overview), or every device's cycles hour by hour (Per hour)
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportRef = useRef(null)
+  useEffect(() => {
+    if (!exportOpen) return
+    const onDoc = (e) => { if (exportRef.current && !exportRef.current.contains(e.target)) setExportOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') setExportOpen(false) }
+    document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
+  }, [exportOpen])
+  const exportTable = (kind) => {
+    setExportOpen(false)
     const d = new Date(benchSel ? benchSel.start : Date.now()), p = (n) => String(n).padStart(2, '0')
     const when = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}${benchSel ? `_${p(d.getHours())}${p(d.getMinutes())}` : ''}`
-    const name = `aio-${String(testType).replace(/[^\w-]+/g, '-')}_${benchSel ? 'cycle' : 'all-cycles'}_${when}${focus ? `_${focus}` : ''}.csv`
-    downloadCsv(cycleTableCsv(tableRows, { charging: isCharging, pad: isField, wlc: showPad ? padOf : null }), name)
+    const name = `aio-${String(testType).replace(/[^\w-]+/g, '-')}_${benchSel ? 'cycle' : 'all-cycles'}${kind === 'hours' ? '_per-hour' : ''}_${when}${focus ? `_${focus}` : ''}.csv`
+    downloadCsv(kind === 'hours'
+      ? cycleHoursCsv(tableRows, { charging: isCharging, slotsOf: (sn) => hours?.[sn]?.h })
+      : cycleTableCsv(tableRows, { charging: isCharging, pad: isField, wlc: showPad ? padOf : null }), name)
   }
 
   return (
@@ -614,10 +627,19 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
         right={<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input className="control" type="search" placeholder="Search… (e.g. 044, v2.1.030, 12 Oct)" value={tableQ}
             onChange={(e) => setTableQ(e.target.value)} style={{ width: 250 }} aria-label="Search the Every cycle table" />
-          <button type="button" className="btn btn-sm" disabled={!tableRows.length} onClick={exportTable}
-            title={`Download these ${tableRows.length} rows as a CSV file (the search applies)`}>
-            <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 12.8h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            {' '}Export CSV</button>
+          <div ref={exportRef} style={{ position: 'relative' }}>
+            <button type="button" className="btn btn-sm" disabled={!tableRows.length} onClick={() => setExportOpen((o) => !o)}
+              aria-haspopup="menu" aria-expanded={exportOpen} title={`Download these ${tableRows.length} cycles as a CSV file (the search applies)`}>
+              <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 12.8h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              {' '}Export CSV</button>
+            {exportOpen && (
+              <div className="popover popover-right export-menu" role="menu" aria-label="Export CSV">
+                <button type="button" role="menuitem" className="export-opt" onClick={() => exportTable('overview')}>
+                  <b>Overview</b><span>One row per cycle, as in this table ({tableRows.length} rows)</span></button>
+                <button type="button" role="menuitem" className="export-opt" onClick={() => exportTable('hours')}>
+                  <b>Per hour</b><span>Every device's cycles hour by hour: battery at the start and end of each hour, {isCharging ? 'gained' : 'drained'}, minutes with a load on the wireless pad, temperature</span></button>
+              </div>)}
+          </div>
         </div>}>
         <div className="table-wrap" style={{ maxHeight: 460 }}>
           <SortTable caption={`Every ${testType} cycle`} head={[

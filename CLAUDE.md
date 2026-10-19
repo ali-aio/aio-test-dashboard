@@ -212,6 +212,9 @@ oversight; don't add restaurant filtering back in without being asked.
   The same slots give each test's **Every cycle** table (`TestDetailView`) two columns, **Drain with WLC / without WLC**
   (`padSplit`: %/h over the cycle's slots with a load on the pad for most of the slot / without; under 30 min = —),
   for tests that place a load (Restaurant Case, WLC on Load, WLC + Discharge, WLC on Phone, Load only) and Old cycles.
+  That table's **Export CSV** opens a menu: **Overview** (one row per cycle, as shown, search applied) or **Per hour**
+  (`cycleHoursCsv` in `csv.js`, tested: one row per device × cycle × hour — battery at the hour's start / end from the
+  cycle's curve, drained or gained, %/h, minutes with a load on the pad from the slots, average / peak battery temp).
 - **Battery health** (`#/nx/health`, nav "Health"; `src/views/HealthView.jsx` + `src/lib/health.js`, tested): one row per
   device for ONE discharge test picked at the top (the busiest by default). A run is comparable when it is a counted cycle of
   that test that started ≥ 95 %. Score = 0.6 × capacity + 0.1 × early drain + 0.3 × stress (early's weight goes to capacity

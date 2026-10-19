@@ -149,6 +149,41 @@ export function cycleTableCsv(cycles, { charging = false, pad = false, wlc = nul
   return [csvLine(cols.map((c) => c[0])), ...cycles.map((c) => csvLine(cols.map((col) => col[1](c))))].join('\r\n') + '\r\n'
 }
 
+/** Every cycle hour by hour: one row per device, cycle and hour of the cycle (the last one may be
+ *  shorter), sorted by device. Battery from the cycle's curve (`series`, hours from its start,
+ *  linear between points); temperature from `tempSeries`; minutes with a load on the wireless pad
+ *  from `slotsOf(serial)` (hours.json 15-min slots: [start, drop×10, min on battery, min with a
+ *  load, temp×10]), blank where there are none (a charge, or before the sweep kept them). */
+export function cycleHoursCsv(cycles, { charging = false, slotsOf = () => null } = {}) {
+  const at = (s, t) => {
+    if (!s.length || t < s[0].t - 0.1 || t > s[s.length - 1].t + 0.1) return null
+    let i = s.findIndex((p) => p.t >= t); if (i < 0) return s[s.length - 1].v; if (i === 0) return s[0].v
+    const a = s[i - 1], b = s[i]; return a.v + (b.v - a.v) * (t - a.t) / ((b.t - a.t) || 1)
+  }
+  const head = ['Device', 'Test', 'Date', 'Cycle started', 'Hour', 'From', 'To', 'Battery at start %', 'Battery at end %',
+    charging ? 'Gained %' : 'Drained %', charging ? 'Charge rate %/h' : 'Drain %/h', 'Load on wireless pad (min)', 'Avg battery temp °C', 'Peak battery temp °C']
+  const r1 = (v) => (v == null ? '' : +v.toFixed(1)) // 88 and 87.5, not 88.0
+  const rows = []
+  for (const c of [...cycles].sort((a, b) => String(a.serial).localeCompare(String(b.serial)) || a.start - b.start)) {
+    const s = (c.series || []).filter((p) => Number.isFinite(p.t) && Number.isFinite(p.v)).sort((a, b) => a.t - b.t)
+    const dur = c.duration ?? (c.end - c.start) / 3600e3
+    if (!s.length || !(dur > 0)) continue
+    const slots = slotsOf(c.serial)
+    for (let h = 0; h < dur - 0.01; h++) {
+      const to = Math.min(h + 1, dur), b0 = at(s, h), b1 = at(s, to), from = c.start + h * 3600e3, until = c.start + to * 3600e3
+      const temps = (c.tempSeries || []).filter((p) => p.t >= h && p.t <= to).map((p) => p.v)
+      let pad = null
+      if (slots?.length) for (const x of slots) { const mid = x[0] + 450e3; if (mid >= from && mid < until) pad = (pad || 0) + x[3] }
+      const moved = b0 == null || b1 == null ? null : charging ? b1 - b0 : b0 - b1
+      rows.push([c.serial, c.testType ?? '', c.date ?? '', local(c.start).slice(11, 16), h + 1, local(from).slice(11, 16),
+        c.inProgress && to === dur ? 'running' : local(until).slice(11, 16), r1(b0), r1(b1), r1(moved),
+        num(moved == null ? null : moved / (to - h), 2), num(pad, 0),
+        r1(temps.length ? temps.reduce((a, x) => a + x, 0) / temps.length : null), r1(temps.length ? Math.max(...temps) : null)])
+    }
+  }
+  return [csvLine(head), ...rows.map(csvLine)].join('\r\n') + '\r\n'
+}
+
 /** Save CSV text as a file (browser only); the BOM makes Excel read it as UTF-8. */
 export function downloadCsv(text, name) {
   const url = URL.createObjectURL(new Blob(['\ufeff' + text], { type: 'text/csv;charset=utf-8' }))

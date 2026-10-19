@@ -2127,3 +2127,11 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 /* Who set a planned cycle: Auto (read from the readings) or a person */
 .plan-src { font-weight: 500; margin-left: 6px; vertical-align: 1px; }
 .plan-auto { color: var(--text-primary); background: var(--select-bg); border-color: transparent; }
+
+/* ------------------------------------------- Every cycle: Export CSV menu */
+
+.export-menu { width: 300px; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+.export-opt { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 8px 10px; border: 0;
+  background: none; border-radius: var(--radius-sm); color: inherit; font: inherit; cursor: pointer; }
+.export-opt span { color: var(--text-secondary); font-size: 12px; line-height: 1.35; }
+.export-opt:hover, .export-opt:focus-visible { background: var(--surface-2); }

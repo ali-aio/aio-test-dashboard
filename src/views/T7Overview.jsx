@@ -100,8 +100,10 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOp
       firmware: rows(splitBy(cycles, 'firmware')
         .sort((a, b) => compareFirmwareNewest(a.label, b.label)),
         (v) => onFilter?.({ firmware: v })),
-      // only cycles since 25 Sep carry an OS (adapt.js): older ones are not listed
-      os: rows(splitBy(cycles.filter((c) => c.android), 'android'), (v) => onFilter?.({ android: v })),
+      // only cycles since 25 Sep carry an OS (adapt.js): older ones are not listed; counted in devices
+      os: [...cycles.filter((c) => c.android).reduce((m, c) => m.set(c.android, (m.get(c.android) || new Set()).add(c.serial)), new Map())]
+        .map(([os, devs]) => ({ id: os, label: os, value: devs.size, display: `${fmtInt(devs.size)} device${devs.size === 1 ? '' : 's'}`,
+          onClick: onFilter ? () => onFilter({ android: os }) : undefined })),
     }
   }, [cycles, onPickTestType, onFilter])
 
@@ -157,7 +159,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOp
             <Stat label="FW version" value={fmtInt(inv.firmware.values.length)}
               breakdown={breakdowns.firmware} breakdownLabel="Battery cycles per firmware" />
             <Stat label="OS version" value={fmtInt(inv.os.values.length)}
-              breakdown={breakdowns.os} breakdownLabel="Battery cycles per OS version · since 25 Sep 2026 (the MDM reports no OS; the lab: Android 15 on every device)" />
+              breakdown={breakdowns.os} breakdownLabel="Since 25 Sep" breakdownNoun="version" />
       </div>
 
       <div className="grid grid-2">

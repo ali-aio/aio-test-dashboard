@@ -62,9 +62,16 @@ export default function TodayView({ fleet }) {
       if (!last || now - Date.parse(last.timestamp) > 15 * MIN) continue
       reporting++
       if (!last.extra?.charging) continue
-      let i = r.length - 1
-      while (i > 0 && (r[i - 1].extra?.charging || r[i - 1].battery_pct < r[i].battery_pct) && Date.parse(r[i].timestamp) - Date.parse(r[i - 1].timestamp) < 30 * MIN) i--
-      out.set(d.serial, { t: Date.parse(r[i].timestamp), pct: r[i].battery_pct, now: last.battery_pct, at: Date.parse(last.timestamp) })
+      // the charge began at the bottom of the last discharge: walking back from now the level
+      // only falls (or holds at full, where it wobbles 99–100 and the flag flips) until that low,
+      // then rises again by more than 2 points going further back (the discharge before it)
+      let low = r.length - 1
+      for (let j = r.length - 2; j >= 0; j--) {
+        if (Date.parse(r[j + 1].timestamp) - Date.parse(r[j].timestamp) > 2 * H) break
+        if (r[j].battery_pct < r[low].battery_pct) low = j
+        else if (r[j].battery_pct > r[low].battery_pct + 2) break
+      }
+      out.set(d.serial, { t: Date.parse(r[low].timestamp), pct: r[low].battery_pct, now: last.battery_pct, at: Date.parse(last.timestamp) })
     }
     return { by: out, reporting }
   }, [DEV, win.at2])

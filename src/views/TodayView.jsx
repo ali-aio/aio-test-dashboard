@@ -51,7 +51,31 @@ export default function TodayView({ fleet }) {
     const src = r.decl || r.rota || null
     return { ...r, key: k, tt: testType(r.testType), src, ran, serials: groupSerials(src && src.group, DEV), ...windowOn(k, src) }
   }
+  // Each device's charge now (latest reading ≤ 15 min old and on charge): since when (the start
+  // of its current stretch on charge) and from what level. Every charge since 25 Sep is a
+  // Charging Cycle with no plan entry (adapt.js), so with no planned test running and most
+  // devices on charge, Today shows that Charging Cycle (the lab, Oct 2026).
+  const charges = useMemo(() => {
+    const out = new Map(); let reporting = 0
+    for (const d of DEV) {
+      const r = rowsFor(d.serial); const last = r[r.length - 1]
+      if (!last || now - Date.parse(last.timestamp) > 15 * MIN) continue
+      reporting++
+      if (!last.extra?.charging) continue
+      let i = r.length - 1
+      while (i > 0 && (r[i - 1].extra?.charging || r[i - 1].battery_pct < r[i].battery_pct) && Date.parse(r[i].timestamp) - Date.parse(r[i - 1].timestamp) < 30 * MIN) i--
+      out.set(d.serial, { t: Date.parse(r[i].timestamp), pct: r[i].battery_pct, now: last.battery_pct, at: Date.parse(last.timestamp) })
+    }
+    return { by: out, reporting }
+  }, [DEV, win.at2])
+  const chargingMost = charges.reporting > 0 && charges.by.size * 2 > charges.reporting
   const T = useMemo(() => {
+    const decls0 = DECLS()
+    if (!cycleAt(decls0, now) && chargingMost) {
+      const starts = [...charges.by.values()].map(c => c.t)
+      return { key: todayKey(), charging: true, status: 'inferred', testType: 'charging', tt: testType('charging'), src: null, decl: null,
+        serials: [...charges.by.keys()], removed: [], startMs: median(starts), endMs: now + H, overnight: false, cycleNo: 1, cycleCount: 1 }
+    }
     // A day can hold several cycles. Show the one running now (including yesterday's still
     // going past midnight), else one that ended in the last RECENT_H (its results stay up until
     // the next starts — at 00:06 a cycle planned to 00:04 is "just ended", not "no test set"),
@@ -67,7 +91,7 @@ export default function TodayView({ fleet }) {
       // devices taken out of this cycle leave its charts and table from the moment they left
       serials: activeSerials(src, DEV, now), removed: removedFrom(src), startMs: pick.startMs, endMs: pick.endMs, overnight: pick.overnight,
       cycleNo: cyclesOn(decls, pick.key).findIndex(c => c.decl.id === src.id) + 1, cycleCount: cyclesOn(decls, pick.key).length }
-  }, [DEV, allCycles, win.at2, todayKey(), planRev, planSync.v])
+  }, [DEV, allCycles, win.at2, todayKey(), planRev, planSync.v, chargingMost])
   const key = T.key
   const ended = T.tt && T.endMs < now // the cycle shown has finished (the last one, until the next starts)
   // charging or discharging right now: what most of the cycle's devices report on their latest
@@ -111,7 +135,12 @@ export default function TodayView({ fleet }) {
   const when = t => (dayKey(t) === key ? hm(t) : dt(t))
   // Start the charts half an hour before the run so the drop-off is visible, not four
   // hours of a flat line at 100% while the devices sat on the charger.
-  const chartFrom = runStart ? Math.max(T.startMs, runStart - 30 * MIN) : T.startMs
+  const chartFrom = T.charging ? T.startMs - 30 * MIN : runStart ? Math.max(T.startMs, runStart - 30 * MIN) : T.startMs
+  // charging: each device's %/h since its charge began, and when the median reaches 95 %
+  const chRates = T.charging ? [...charges.by.values()].map(c => (c.at - c.t) / H >= 1 / 3 ? (c.now - c.pct) / ((c.at - c.t) / H) : null).filter(v => v != null && v > 0) : []
+  const chRate = chRates.length ? median(chRates) : null
+  const FULL = 95, full = T.charging ? [...charges.by.values()].filter(c => c.now >= FULL).length : 0
+  const etaFull = chRate && medNow != null && medNow < FULL ? now + (FULL - medNow) / chRate * H : null
 
 
   // Which devices the two charts show. null = every device (the default); a Set narrows
@@ -224,13 +253,14 @@ export default function TodayView({ fleet }) {
         <div className="card-body today-head">
         <div className="today-head-main">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11.5, letterSpacing: '.04em', color: 'var(--text-3)', fontWeight: 600 }}>
-            {dayLong(key)} {statusBadge(T.status)}
+            {dayLong(key)} {T.charging ? <span className="pill pill-ok">On charge</span> : statusBadge(T.status)}
             {ended ? <span className="pill">Ended {when(T.endMs)}</span> : null}
             <span className={`pill ${reporting.length ? 'pill-run pill-live' : ''}`}>Live · {reporting.length} device{reporting.length === 1 ? '' : 's'} reporting</span>
           </div>
           <h1 style={{ margin: '6px 0 4px', fontSize: 26, lineHeight: 1.15 }}>{T.tt ? T.tt.name : 'No test set'}{T.cycleCount > 1 ? <span className="secondary" style={{ fontSize: 14, fontWeight: 500 }}> · cycle {T.cycleNo} of {T.cycleCount}</span> : null}</h1>
           <div className="secondary" style={{ fontSize: 12.5 }}>
-            {T.tt ? <>{T.source === 'rota' ? 'From the standing weekly rota' : T.src?.auto ? <>Added automatically from the readings<PlanSource decl={T.src} /></> : <>Planned{T.src?.by ? <> by <b>{T.src.by}</b></> : null}{T.src?.at ? ` at ${hm(T.src.at)}` : ''}</>}
+            {T.charging ? <>Every device back on charge counts as a Charging Cycle, no plan entry needed · {charges.by.size} of {charges.reporting} reporting devices charging</>
+              : T.tt ? <>{T.source === 'rota' ? 'From the standing weekly rota' : T.src?.auto ? <>Added automatically from the readings<PlanSource decl={T.src} /></> : <>Planned{T.src?.by ? <> by <b>{T.src.by}</b></> : null}{T.src?.at ? ` at ${hm(T.src.at)}` : ''}</>}
               {' '}· {T.serials.length} devices · window {hm(T.startMs)}–{hm(T.endMs)}{T.overnight ? ' next day' : ''}</>
               : <>The MDM can't tell which test is running. <a className="link" href="#/nx/plan">Set one on the Cycle plan</a>.</>}
           </div>
@@ -241,6 +271,15 @@ export default function TodayView({ fleet }) {
       <div className="stat-row">
         {/* how long the devices have been running since they came off the charger, and how
             much of the planned cycle is left (to its end time on the Cycle plan) */}
+        {T.charging ? <>
+        <Metric label="Charging for" value={fmtDur(now - T.startMs)} delta={`on charge since ${when(T.startMs)} (median of ${charges.by.size} devices)`} />
+        <Metric label="Battery" value={medNow != null ? <>{medNow}%<ChargeIcon state={chargeNow} /></> : '—'}
+          delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />
+        <Metric label="Charge rate" value={chRate ? <>{chRate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
+          delta={chRate ? `${(chRate / 6).toFixed(2)}% per 10 min · median of ${chRates.length}` : 'needs 20 min on charge'} />
+        <Metric label={`Reaches ${FULL}%`} value={etaFull ? when(etaFull) : medNow != null && medNow >= FULL ? 'Done' : '—'}
+          delta={etaFull ? `${fmtDur(etaFull - now)} from now` : `${full} of ${charges.by.size} devices at ${FULL}% or more`} />
+        </> : <>
         <Metric label={ended ? 'Ran for' : 'Running for'}
           value={ended && runStart ? <>{fmtDur(T.endMs - runStart)}<span className="secondary" style={{ fontSize: 13 }}> · ended {hm(T.endMs)}</span></>
             : runStart ? <>{fmtDur(now - runStart)}{T.endMs > now
@@ -254,6 +293,7 @@ export default function TodayView({ fleet }) {
           delta={rate ? `${(rate / 6).toFixed(2)}% per 10 min · median of ${rates.length}` : 'needs 20 min of running'} />
         <Metric label={`Reaches ${END_BAND}%`} value={etaEnd ? <>{hm(etaEnd)}{dayKey(etaEnd) !== key && <span className="secondary" style={{ fontSize: 13, fontWeight: 500 }}> {new Date(etaEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</> : medNow != null && medNow <= END_BAND ? 'Done' : '—'}
           delta={etaEnd ? `${fmtDur(etaEnd - now)} from now${etaEmpty ? ` · empty ≈ ${when(etaEmpty)}` : ''}` : medNow != null && medNow <= END_BAND ? 'median is in the end band' : 'at the current rate'} />
+        </>}
         <Metric label="On track with plan" color={T.tt && conforming.length === T.serials.length ? 'var(--ok)' : drifting.length ? 'var(--warn)' : null}
           value={<>{conforming.length}<span className="secondary" style={{ fontSize: 13 }}> / {T.serials.length}</span></>}
           delta={!T.tt ? 'nothing declared to match' : drifting.length || silent
@@ -298,7 +338,7 @@ export default function TodayView({ fleet }) {
         {/* battery and temperature side by side; stacked again on narrow screens (.grid-2) */}
         <div className="grid grid-2" ref={chartsRef} style={{ scrollMarginTop: 80 }}>
         <div className="card">
-          <div className="card-head"><div><h2>T7 battery, {ended ? 'last cycle' : 'today'}</h2><div className="card-sub">from {hm(chartFrom)} · live from MDM · every check-in</div></div>
+          <div className="card-head"><div><h2>T7 battery, {T.charging ? 'charging' : ended ? 'last cycle' : 'today'}</h2><div className="card-sub">from {hm(chartFrom)} · live from MDM · every check-in</div></div>
             <Segmented ariaLabel="Battery chart" options={MODES} value={battMode} onChange={setBattMode} /></div>
           <div className="card-body">
             {picker}
@@ -318,7 +358,7 @@ export default function TodayView({ fleet }) {
           </div>
         </div>
         <div className="card">
-          <div className="card-head"><div><h2>Battery temperature, {ended ? 'last cycle' : 'today'}</h2><div className="card-sub">{shown.length} device{shown.length === 1 ? '' : 's'} · °C</div></div>
+          <div className="card-head"><div><h2>Battery temperature, {T.charging ? 'charging' : ended ? 'last cycle' : 'today'}</h2><div className="card-sub">{shown.length} device{shown.length === 1 ? '' : 's'} · °C</div></div>
             <Segmented ariaLabel="Temperature chart" options={MODES} value={tempMode} onChange={setTempMode} /></div>
           <div className="card-body">
             {picker}

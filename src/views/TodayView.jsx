@@ -160,7 +160,9 @@ export default function TodayView({ fleet }) {
   const runStart = started.length ? median(started.map(r => r.start.t)) : null
   const nows = all.map(r => r.now), medNow = nows.length ? median(nows) : null
   const rates = started.map(r => r.rate).filter(v => v != null && v > 0)
-  const rate = rates.length ? median(rates) : null
+  // a drain needs a few devices behind it: one device 20 min in is not the bench's rate (it put
+  // "Reaches 20 %" three days away at the start of a run)
+  const rate = rates.length >= Math.min(3, Math.max(1, Math.ceil(started.length / 2))) ? median(rates) : null
   // The lab's daily run goes back on charge at 15–25%, so 20% is "the run is done".
   const END_BAND = 20
   const etaEnd = rate && medNow > END_BAND ? now + (medNow - END_BAND) / rate * H : null

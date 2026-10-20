@@ -76,8 +76,34 @@ export default function TodayView({ fleet }) {
     return { by: out, reporting }
   }, [DEV, win.at2])
   const chargingMost = charges.reporting > 0 && charges.by.size * 2 > charges.reporting
+  // A bench off the charger with no test planned yet (the Auto plan names it once it can tell,
+  // e.g. after ~1.5 h of load): each discharging device's run began at the last top of its
+  // level — walking back from now it rises to that top (holding there while it sat on the
+  // charger) and then falls by more than 2 points going further back (the charge before).
+  const bench = useMemo(() => {
+    const starts = []
+    for (const d of DEV) {
+      const r = rowsFor(d.serial); const last = r[r.length - 1]
+      if (!last || now - Date.parse(last.timestamp) > 15 * MIN || last.extra?.charging) continue
+      let top = r.length - 1
+      for (let j = r.length - 2; j >= 0; j--) {
+        if (Date.parse(r[j + 1].timestamp) - Date.parse(r[j].timestamp) > 2 * H) break
+        if (r[j].battery_pct > r[top].battery_pct) top = j
+        else if (r[j].battery_pct < r[top].battery_pct - 2) break
+      }
+      if (r[top].battery_pct >= 90 && r[top].battery_pct - last.battery_pct >= 1) starts.push(Date.parse(r[top].timestamp))
+    }
+    if (starts.length < 3) return null
+    const mid = median(starts), near = starts.filter(t => Math.abs(t - mid) <= 3 * H)
+    return near.length >= 3 && now - mid < 20 * H ? { start: mid, n: near.length } : null
+  }, [DEV, win.at2])
   const T = useMemo(() => {
     const decls0 = DECLS()
+    if (!cycleAt(decls0, now) && !chargingMost && bench) {
+      // running, but no test on the plan for it yet: timed from when the bench came off the charger
+      return { key: dayKey(bench.start), running: true, status: 'unclassified', testType: null, tt: null, src: null, decl: null,
+        serials: DEV.map(d => d.serial), removed: [], startMs: bench.start, endMs: now + H, overnight: false, cycleNo: 1, cycleCount: 1 }
+    }
     if (!cycleAt(decls0, now) && chargingMost) {
       const starts = [...charges.by.values()].map(c => c.t)
       return { key: todayKey(), charging: true, status: 'inferred', testType: 'charging', tt: testType('charging'), src: null, decl: null,
@@ -98,7 +124,7 @@ export default function TodayView({ fleet }) {
       // devices taken out of this cycle leave its charts and table from the moment they left
       serials: activeSerials(src, DEV, now), removed: removedFrom(src), startMs: pick.startMs, endMs: pick.endMs, overnight: pick.overnight,
       cycleNo: cyclesOn(decls, pick.key).findIndex(c => c.decl.id === src.id) + 1, cycleCount: cyclesOn(decls, pick.key).length }
-  }, [DEV, allCycles, win.at2, todayKey(), planRev, planSync.v, chargingMost])
+  }, [DEV, allCycles, win.at2, todayKey(), planRev, planSync.v, chargingMost, bench?.start])
   const key = T.key
   const ended = T.tt && T.endMs < now // the cycle shown has finished (the last one, until the next starts)
   // charging or discharging right now: what most of the cycle's devices report on their latest
@@ -260,15 +286,16 @@ export default function TodayView({ fleet }) {
         <div className="card-body today-head">
         <div className="today-head-main">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11.5, letterSpacing: '.04em', color: 'var(--text-3)', fontWeight: 600 }}>
-            {dayLong(key)} {T.charging ? <span className="pill pill-ok">On charge</span> : statusBadge(T.status)}
+            {dayLong(key)} {T.charging ? <span className="pill pill-ok">On charge</span> : T.running ? <span className="pill pill-run">Running</span> : statusBadge(T.status)}
             {ended ? <span className="pill">Ended {when(T.endMs)}</span> : null}
             <span className={`pill ${reporting.length ? 'pill-run pill-live' : ''}`}>Live · {reporting.length} device{reporting.length === 1 ? '' : 's'} reporting</span>
           </div>
-          <h1 style={{ margin: '6px 0 4px', fontSize: 26, lineHeight: 1.15 }}>{T.tt ? T.tt.name : 'No test set'}{T.cycleCount > 1 ? <span className="secondary" style={{ fontSize: 14, fontWeight: 500 }}> · cycle {T.cycleNo} of {T.cycleCount}</span> : null}</h1>
+          <h1 style={{ margin: '6px 0 4px', fontSize: 26, lineHeight: 1.15 }}>{T.tt ? T.tt.name : T.running ? <>Cycle running <span className="secondary" style={{ fontSize: 16, fontWeight: 500 }}>· test not known yet</span></> : 'No test set'}{T.cycleCount > 1 ? <span className="secondary" style={{ fontSize: 14, fontWeight: 500 }}> · cycle {T.cycleNo} of {T.cycleCount}</span> : null}</h1>
           <div className="secondary" style={{ fontSize: 12.5 }}>
             {T.charging ? <>Every device back on charge counts as a Charging Cycle, no plan entry needed · {charges.by.size} of {charges.reporting} reporting devices charging</>
               : T.tt ? <>{T.source === 'rota' ? 'From the standing weekly rota' : T.src?.auto ? <>Added automatically from the readings<PlanSource decl={T.src} /></> : <>Planned{T.src?.by ? <> by <b>{T.src.by}</b></> : null}{T.src?.at ? ` at ${hm(T.src.at)}` : ''}</>}
               {' '}· {T.serials.length} devices · window {hm(T.startMs)}–{hm(T.endMs)}{T.overnight ? ' next day' : ''}</>
+              : T.running ? <>{bench.n} devices came off the charger around {hm(T.startMs)}. The Auto plan names the test from the readings once it can tell (a load on the pad for ~1.5 h, or none) — or <a className="link" href="#/nx/plan">set it on the Cycle plan</a>.</>
               : <>The MDM can't tell which test is running. <a className="link" href="#/nx/plan">Set one on the Cycle plan</a>.</>}
           </div>
         </div>
@@ -289,10 +316,11 @@ export default function TodayView({ fleet }) {
         </> : <>
         <Metric label={ended ? 'Ran for' : 'Running for'}
           value={ended && runStart ? <>{fmtDur(T.endMs - runStart)}<span className="secondary" style={{ fontSize: 13 }}> · ended {hm(T.endMs)}</span></>
+            : T.running && runStart ? fmtDur(now - runStart)
             : runStart ? <>{fmtDur(now - runStart)}{T.endMs > now
             ? <span className="secondary" style={{ fontSize: 13 }}> · {fmtDur(T.endMs - now)} left</span>
             : <span className="secondary" style={{ fontSize: 13 }}> · planned end passed</span>}</> : 'Not started'}
-          delta={runStart ? `off charger ${hm(runStart)} · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`
+          delta={T.running ? `off charger ${hm(runStart || T.startMs)} · no test planned yet` : runStart ? `off charger ${hm(runStart)} · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`
             : `${started.length} of ${all.length} devices off charger · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`} />
         <Metric label="Battery" value={medNow != null ? <>{medNow}%<ChargeIcon state={chargeNow} /></> : '—'}
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />

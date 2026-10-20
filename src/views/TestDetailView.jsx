@@ -81,10 +81,9 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const isField = FIELD_TEST_TYPES.has(testType)
   const isCharging = testType === 'Charging Cycle' || testType === FIELD_CHARGING
   const isRestaurant = testType === 'Restaurant Case'
-  const showSecondaryChart = ![
-    'Charging Cycle', 'Restaurant Case', 'Ads only', 'WLC + Discharge on Ads',
-    'Burn-in Test', 'WLC on Load', 'WLC on Phone', 'Discharge on Load only',
-  ].includes(testType)
+  // The "Cycle time by build / pad state" strip (only Idle Cycle, Old cycles and Field Charging
+  // still had it) is gone (the lab, Oct 2026): the battery chart and Drain by hour share one row
+  const showSecondaryChart = false
   const drainLabel = testType === 'Ads only'
     ? 'Avg T7 drain · ads only, no load'
     : testType === 'WLC + Discharge on Ads'

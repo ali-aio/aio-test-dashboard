@@ -242,6 +242,10 @@ const mdmCases = []
     want(byHour(ok.map((v, i) => (i === 1 ? null : v))) === 'Restaurant Case', 'an hour without readings is not judged')
     want(byHour(ok.map((v, i) => (i < 3 ? null : v))) === 'Old cycles', 'no readings in the load hours: not confirmed')
     want(byHour(ok.map(() => null)) === 'Restaurant Case', 'no pad readings at all (not loaded yet): not judged')
+    // an Idle Cycle for two devices (added later, so newest) is only theirs; idle drains ~1 %/h and still counts
+    const idle = [...rcd, { id: 'i', at: 9, testType: 'idle', from: '2026-10-16', to: '2026-10-16', startTime: '14:00', endTime: '23:59', spanDays: 6, group: { kind: 'serials', serials: ['I1', 'I2'] } }]
+    const on = (serial, hrs, to) => testTypeFor({ serial, start: at(16, 14) + 30 * 60e3, end: at(16, 14) + hrs * 3600e3, durationMs: hrs * 3600e3, startPct: 100, endPct: to }, { decls: idle, rota: {}, DEV: [] })
+    want(on('I1', 80, 18) === 'Idle Cycle' && on('A', 14, 18) === 'Restaurant Case', `idle: ${on('I1', 80, 18)} / bench: ${on('A', 14, 18)}`)
     want(new Date(2026, 8, 20, 11).getTime() < at(16, 0) && testTypeFor({ serial: 'A', start: new Date(2026, 8, 20, 11).getTime(), end: new Date(2026, 8, 21, 1).getTime(), durationMs: 14 * 3600e3, startPct: 100, endPct: 18 }, { decls: rcd, rota: {}, DEV: [] }) === 'Old cycles', 'before 25 Sep: Old cycles')
   })
   check('Charging Cycle: every charge since 25 Sep, shown as gain', () => {

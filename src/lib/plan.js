@@ -46,7 +46,13 @@ export const TEST_TYPES = [
     about: 'A load on the pad for 3 h; the cycle runs 14 h in all.' },
   { id: 'load_only',  code: 'LO', name: 'Discharge on Load only', expect: 'discharge',
     about: 'Only a load on the wireless pad, no ads, until the T7 powers off (0 %).' },
+  // a device left on, off the charger, with nothing running: how long it lasts idle (~1 %/h). Set
+  // by hand for the devices it applies to; never guessed by Auto, and not the bench's test on Today.
+  { id: 'idle',       code: 'IC', name: 'Idle Cycle',             expect: 'discharge', idle: true,
+    about: 'The T7 on and off the charger with nothing running (no load, no test), until it powers off. Set by hand for the devices it applies to.' },
 ];
+/** Plan entries for the bench as a whole: an Idle Cycle (a device or two left idle) is not it. */
+export const benchDecls = decls => (decls || []).filter(d => !TEST_TYPES.find(t => t.id === d.testType)?.idle);
 export const testType = id => TEST_TYPES.find(t => t.id === id) || null;
 export const ttSlot = id => Math.max(0, TEST_TYPES.findIndex(t => t.id === id)) + 1;
 

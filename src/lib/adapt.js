@@ -84,7 +84,7 @@ export function planFor(cycle, ctx, pctAt) {
   const until = cutAt ?? end, keptH = (until - cycle.start) / H;
   if (cutAt != null && keptH < MIN_KEPT_H) return { name: field };
   // a discharge test drains: a device idling at ~1 %/h over the time it counts was not on it
-  if (!cycle.charging && keptH >= 1) {
+  if (!cycle.charging && keptH >= 1 && !TEST_TYPES.find(t => t.name === name)?.idle) {
     const at = pctAt || (t => cycle.startPct + (cycle.endPct - cycle.startPct) * (t - cycle.start) / ((end - cycle.start) || 1));
     const p0 = cycle.startPct, p1 = at(until);
     if (p0 != null && p1 != null && (p0 - p1) / keptH < MIN_DRAIN) return { name: field };
@@ -98,7 +98,9 @@ function plannedTest(cycle, { decls, rota, DEV }) {
   // discharge test (14 Oct 2026: a Charging Cycle saved to end the next morning took that
   // day's Restaurant Case, and the Charging Cycle screen showed a discharge).
   const sameKind = d => (ttById(d.testType)?.expect === 'charge') === !!cycle.charging;
-  const hit = cycleAt((decls || []).filter(sameKind), cycle.start);
+  // an entry for some devices only (e.g. an Idle Cycle for two) is never another device's cycle
+  const covers = d => d.group?.kind !== 'serials' || !cycle.serial || (d.group.serials || []).includes(cycle.serial);
+  const hit = cycleAt((decls || []).filter(d => sameKind(d) && covers(d)), cycle.start);
   if (hit) {
     const serials = groupSerials(hit.decl.group, DEV);
     if (serials.length && !serials.includes(cycle.serial)) return { name: FIELD_DISCHARGE };

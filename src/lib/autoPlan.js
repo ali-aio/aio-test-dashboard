@@ -158,7 +158,9 @@ export function applyAuto(decls, benches, { now = Date.now(), state = {}, from =
     const fields = { testType: c.tt, from: key, to: key, startTime: hm(startMs), endTime: hm(c.endMs), spanDays: Math.max(0, daysBetween(key, endKey)),
       repeat: 'none', group: { kind: 'serials', serials } };
     // a Charging Cycle window (often overnight into the morning) never holds a discharge bench
-    const hit = cycleAt(list.filter(d => d.testType !== 'charging'), b.start)?.decl;
+    // an entry for only some of the bench's devices (e.g. an Idle Cycle for two) is not its entry
+    const coversBench = d => d.group?.kind !== 'serials' || serials.filter(s => (d.group.serials || []).includes(s)).length * 2 > serials.length;
+    const hit = cycleAt(list.filter(d => d.testType !== 'charging' && coversBench(d)), b.start)?.decl;
     if (hit && hit.auto) {
       // ours: refresh while it runs; a person's later edit removes `auto` and ends this
       // on a person's entry Auto replaced, only the test is Auto's: their times and devices stay

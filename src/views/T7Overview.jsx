@@ -33,7 +33,7 @@ function countsBy(cycles, key) {
 }
 
 /** Distinct values of a field, with the placeholders left out. */
-const OVERVIEW_FIRST = ['Restaurant Case', 'WLC on Load', 'Ads only', 'Charging Cycle']
+const OVERVIEW_FIRST = ['Restaurant Case', 'WLC on Load', 'Ads only', 'Charging Cycle', 'Idle Cycle']
 const OVERVIEW_ORDER = [...OVERVIEW_FIRST, ...ALL_TEST_TYPES.filter((t) => !OVERVIEW_FIRST.includes(t) && t !== 'Old cycles'), 'Old cycles']
 
 function inventory(cycles, key) {

@@ -1792,6 +1792,7 @@ button.stat.is-open .stat-chevron {
   --bad: var(--status-critical);
   --tt-1: var(--series-1); --tt-2: var(--series-2); --tt-3: var(--series-3); --tt-4: var(--series-4);
   --tt-5: var(--series-5); --tt-6: var(--series-6); --tt-7: var(--series-7); --tt-8: var(--series-8);
+  --tt-9: var(--text-muted); /* Idle Cycle */
 }
 
 /* Status pills: a tag plus a reserved status colour and a glyph, never colour

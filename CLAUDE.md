@@ -170,6 +170,7 @@ oversight; don't add restaurant filtering back in without being asked.
   | Burn-in Test (BI) | Production only: 4K video played continuously, no ads. |
   | Restaurant Case (RC) | A load on the pad for 3 h; the cycle runs 14 h. |
   | Discharge on Load only (LO) | Only a load on the pad, no ads, until the T7 powers off (0 %). |
+  | Idle Cycle (IC) | On, off the charger, nothing running (no load, no test) until it powers off (~1 %/h). **Set by hand** for the devices it applies to (first: 00606, 00485 from 16 Oct 2026); never guessed by Auto, exempt from the 2 %/h floor, and not the bench's test on Today / alerts / Auto (`benchDecls`). |
 - **Auto Cycle plan** (`src/lib/autoPlan.js`, tested; `server/autoplan.mjs`, run at the end of every sweep): the lab no
   longer has to enter each day. The server reads each bench's test from the readings and writes it into the shared plan
   (`data/plan.json`) with `auto: { at, final, basis, was? }` and `by: 'Auto'`; the Cycle plan and Today show an **Auto**
@@ -274,7 +275,7 @@ oversight; don't add restaurant filtering back in without being asked.
   hours at that moment, marks it `leftCycle: { at, why }` ("· left cycle" in the tables, a CSV column), and its hours
   count for the test. Only a run that never ran the test is Old cycles: no load in hour 1, no pad readings in the load
   hours, under 1 h kept, or under 2 %/h over the hours kept.
-  A run only takes a declared cycle **of its own kind** (`testTypeFor` in `adapt.js`): a discharge never becomes a
+  A plan entry for some devices only (`group.kind: 'serials'`) is never another device's cycle (`plannedTest` filters by the run's serial; Auto ignores one covering under half a bench). A run only takes a declared cycle **of its own kind** (`testTypeFor` in `adapt.js`): a discharge never becomes a
   Charging Cycle, a charge never a discharge test. The charges themselves are the sweep's charge segments (`d.charges`,
   ≤ 30 % up to ≥ 90 %, with their own curve): **every charge from 25 Sep on is a Charging Cycle** with no plan entry
   (the lab recharges after every cycle, daily; their choice, Oct 2026), shown on the Overview and its Charging Cycle

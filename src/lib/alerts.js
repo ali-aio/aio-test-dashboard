@@ -8,7 +8,7 @@
 //
 // The log (what was raised, when, whether it was read) is per browser, in localStorage:
 // "read" is one person's state, not the lab's.
-import { cycleAt, activeSerials, testType, loadDecls } from './plan.js';
+import { cycleAt, benchDecls, activeSerials, testType, loadDecls } from './plan.js';
 
 const KEY = 'alertsLog';
 const KEEP_MS = 3 * 86400e3, MAX = 80;
@@ -43,7 +43,7 @@ const median = xs => { const a = [...xs].sort((x, y) => x - y), m = a.length >> 
 
 /** Every device of the cycle running now that differs from the rest. */
 export function findOddOnes(decls, DEV, now = Date.now()) {
-  const cyc = cycleAt(decls, now);
+  const cyc = cycleAt(benchDecls(decls), now);
   if (!cyc || now < cyc.startMs) return null; // not started yet (cycleAt also returns one about to start)
   const serials = new Set(activeSerials(cyc.decl, DEV, now));
   const mine = DEV.filter(d => serials.has(d.serial) && d.snap);

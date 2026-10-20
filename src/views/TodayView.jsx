@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } fro
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, refineStarts, refinedStart, drainSince, WINDOW_HOURS } from '../lib/window.js'
-import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, takeOutReasons, loadDecls, loadRota } from '../lib/plan.js'
+import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, benchDecls, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, takeOutReasons, loadDecls, loadRota } from '../lib/plan.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
 import { median, pctl, hm, dt, ago, MIN, H } from '../lib/format.js'
@@ -98,7 +98,7 @@ export default function TodayView({ fleet }) {
     return near.length >= 3 && now - mid < 20 * H ? { start: mid, n: near.length } : null
   }, [DEV, win.at2])
   const T = useMemo(() => {
-    const decls0 = DECLS()
+    const decls0 = benchDecls(DECLS())
     if (!cycleAt(decls0, now) && !chargingMost && bench) {
       // running, but no test on the plan for it yet: timed from when the bench came off the charger
       return { key: dayKey(bench.start), running: true, status: 'unclassified', testType: null, tt: null, src: null, decl: null,
@@ -113,7 +113,7 @@ export default function TodayView({ fleet }) {
     // going past midnight), else one that ended in the last RECENT_H (its results stay up until
     // the next starts — at 00:06 a cycle planned to 00:04 is "just ended", not "no test set"),
     // else the next one to start today, else today's last one.
-    const decls = DECLS(), todays = cyclesOn(decls, todayKey())
+    const decls = benchDecls(DECLS()), todays = cyclesOn(decls, todayKey())
     const recent = [...cyclesOn(decls, dayKey(now - 24 * H)), ...todays]
       .filter(c => c.endMs <= now && now - c.endMs <= RECENT_H * H).sort((a, b) => a.endMs - b.endMs).pop() || null
     const next = todays.find(c => c.startMs > now)

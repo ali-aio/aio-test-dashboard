@@ -548,6 +548,6 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   `window.js`: each gap between readings counts for its first reading's `wlc_status`), so a Restaurant Case's 3 h of
   load and the rest aren't one blended number.
 - Battery chart (Average): the **end labels** at the right (highest, average = middle device, lowest) are buttons: a
-  click switches both charts to Every device with only that device ticked. The legend stays plain (the user didn't
-  like device serials in it).
+  click switches both charts to Every device with only that device ticked. The legend's **Highest device / Lowest device** do the
+  same, with no serial shown (it is on hover; the user didn't like serials in the legend).
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).

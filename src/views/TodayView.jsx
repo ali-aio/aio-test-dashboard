@@ -400,8 +400,12 @@ export default function TodayView({ fleet }) {
             <div className="legend" style={{ margin: '8px 0 10px' }}>
               {battMode === 'avg' ? <>
                 <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average battery of {shown.length} device{shown.length === 1 ? '' : 's'}</span>
-                <span className="legend-item"><i className="legend-key-line" style={{ background: keyBackground('var(--series-8)', '3 3') }} />Highest device</span>
-                <span className="legend-item"><i className="legend-key-line" style={{ background: keyBackground('var(--series-3)', '3 3') }} />Lowest device</span>
+                {/* a click shows that device alone (Every device); the serial is on hover */}
+                {[[hi, 'Highest device', 'var(--series-8)'], [lo, 'Lowest device', 'var(--series-3)']].map(([c, name, color]) => (
+                  <button key={name} type="button" className="legend-item clickable legend-btn" disabled={!c}
+                    title={c ? `${c.serial} · ${lastOf(c)}% · click to show it alone` : undefined} onClick={() => c && focusDevice(c.serial)}>
+                    <i className="legend-key-line" style={{ background: keyBackground(color, '3 3') }} />{name}</button>
+                ))}
               </> : <>
                 {drifting.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)', height: 3 }} />Thicker line = not following the planned test</span> : null}
               </>}

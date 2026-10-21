@@ -423,6 +423,9 @@ button.card-toggle:focus-visible { outline: 2px solid var(--series-1); outline-o
 }
 .legend-item.clickable { cursor: pointer; }
 .legend-item.clickable:hover { color: var(--text-primary); }
+/* a legend item that is a button keeps the legend's look */
+.legend-btn { background: none; border: 0; padding: 0; font: inherit; color: inherit; }
+.legend-btn:hover { text-decoration: underline; }
 .legend-item.is-off { opacity: 0.4; }
 .legend-key-line { width: 14px; height: 2px; border-radius: 1px; flex: none; }
 .legend-key-rect { width: 11px; height: 11px; border-radius: 2px; flex: none; }

@@ -3,7 +3,7 @@ import { renderToString } from 'react-dom/server'
 import fs from 'node:fs'
 import { reclassify, DEFAULTS, dedupeOverlapping } from '../src/lib/cycles.js'
 import { adaptAll } from '../src/lib/adapt.js'
-import { filterCycles, filtersFor, distinct } from '../src/lib/t7cycles.js'
+import { filterCycles, filtersFor, distinct, kpis } from '../src/lib/t7cycles.js'
 import T7Overview from '../src/views/T7Overview.jsx'
 import TestDetail from '../src/views/TestDetailView.jsx'
 import Comparison from '../src/views/ComparisonView.jsx'
@@ -529,7 +529,7 @@ const mdmCases = []
     // noon today: a window of now ± 1 h must not cross midnight (the test failed after 23:00 and before 01:00)
     const d = new Date(), now = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12).getTime(), key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     const hhmm = (t) => { const x = new Date(t); return `${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}` }
-    const decl = { id: 'D-T', at: 1, repeat: 'none', testType: 'restaurant', from: key, to: key, group: { kind: 'all' }, startTime: hhmm(now - 60 * 60e3), endTime: hhmm(Math.min(now + 60 * 60e3, new Date(key + 'T23:59').getTime())) }
+    const decl = { id: 'D-T', at: 1, repeat: 'none', testType: 'wlc_load', from: key, to: key, group: { kind: 'all' }, startTime: hhmm(now - 60 * 60e3), endTime: hhmm(Math.min(now + 60 * 60e3, new Date(key + 'T23:59').getTime())) }
     const dev = (sn, o = {}) => ({ serial: sn, snap: { last_seen_at: new Date(now - (o.silent ? 3600e3 : 30e3)).toISOString(), charging: !!o.charging,
       battery_pct: o.pct ?? 70, battery_temp_c: o.temp ?? 38, extra: { wlc_status: o.load === false ? 0 : 1, wlc_charging: true } } })
     const kinds = (devs) => findOddOnes([decl], devs, now).odd.map((o) => `${o.serial}:${o.kind}`).sort().join(' ')
@@ -554,6 +554,18 @@ const mdmCases = []
     want(mergeAlerts(log, next, now + 6 * 3600e3).length === 0, 'next cycle clears the previous one\'s')
     want(mergeAlerts(log, null, now + 60e3).length === 1, 'kept for the rest of the day with no cycle running')
     want(mergeAlerts(log, null, now + 2 * 86400e3).length === 0, 'gone the next day')
+  })
+  check('Restaurant Case: complete within 30 min of 14 h, else a short cycle (table, average, bell)', () => {
+    const d = new Date(), now = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12).getTime(), key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const hhmm = (t) => { const x = new Date(t); return `${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}` }
+    const decl = { id: 'D-R', at: 1, repeat: 'none', testType: 'restaurant', from: key, to: key, group: { kind: 'all' }, startTime: hhmm(now - 3 * 3600e3), endTime: '23:59' }
+    const dev = (sn, charging) => ({ serial: sn, snap: { last_seen_at: new Date(now - 30e3).toISOString(), charging, battery_pct: 70, battery_temp_c: 38, extra: { wlc_status: 1, wlc_charging: true } } })
+    const all = findOddOnes([decl], ['A', 'B', 'C', 'D'].map((sn) => dev(sn, true)), now).odd.map((o) => o.kind)
+    want(all.length === 4 && all.every((k) => k === 'short'), `the whole bench back on charge 3 h in: ${all}`)
+    const one = findOddOnes([decl], [dev('A', true), dev('B', false), dev('C', false), dev('D', false)], now).odd.map((o) => `${o.serial}:${o.kind}`)
+    want(one.join() === 'A:short', `one device, once (not also "on charge"): ${one}`)
+    // the cycle time: 13.9 h counts as 14, 12 h is short and stays out of the average
+    want(kpis([{ duration: 14, short: false }, { duration: 14.5, short: false }, { duration: 12, short: true }]).avgDuration === 14.25, 'short runs out of the average')
   })
   check('Today: drain split into WLC active / inactive / ads only', () => {
     const t0 = Date.UTC(2026, 9, 21, 5), row = (min, pct, wlc) => ({ timestamp: new Date(t0 + min * 60e3).toISOString(), battery_pct: pct, extra: { charging: false, wlc_status: wlc } })

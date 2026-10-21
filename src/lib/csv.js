@@ -137,6 +137,9 @@ export function cycleTableCsv(cycles, { charging = false, pad = false, wlc = nul
     // the device left the cycle part-way (taken out, or stopped doing what the test does): counted up to then
     ['Left the cycle', (c) => (c.leftCycle ? c.leftCycle.why : '')],
     ['Cycle time (h)', (c) => num(c.duration, 2)],
+    // what it actually ran; a complete fixed-time run's cycle time is the test's full time
+    ['Ran (h)', (c) => num(c.ranH ?? c.duration, 2)],
+    ['Short cycle', (c) => (c.short ? 'yes' : '')],
     ['Start battery %', (c) => num(c.startBattery)],
     [charging ? 'Charged to %' : 'End battery %', (c) => num(c.endBattery)],
     [charging ? 'Charge rate %/h' : 'Drain %/h', (c) => num(c.dropPerHr == null ? null : Math.abs(c.dropPerHr), 2)],
@@ -168,7 +171,7 @@ export function cycleHoursCsv(cycles, { charging = false, slotsOf = () => null }
   const rows = []
   for (const c of [...cycles].sort((a, b) => String(a.serial).localeCompare(String(b.serial)) || a.start - b.start)) {
     const s = (c.series || []).filter((p) => Number.isFinite(p.t) && Number.isFinite(p.v)).sort((a, b) => a.t - b.t)
-    const dur = c.duration ?? (c.end - c.start) / 3600e3
+    const dur = c.ranH ?? c.duration ?? (c.end - c.start) / 3600e3
     if (!s.length || !(dur > 0)) continue
     const slots = slotsOf(c.serial)
     for (let h = 0; h < dur - 0.01; h++) {

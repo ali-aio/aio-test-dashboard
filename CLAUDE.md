@@ -503,6 +503,13 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   a load still on at hour 5+, past 14 h + 2 h slack, idling under 2 %/h). It **keeps its data up to the moment it left**
   (`planFor` → `cutAt`), shown as "· left cycle" with the reason on hover. A device starting up to 3 h late is still in.
 - An hour without readings is neither WLC active nor inactive (null), never filled from the run's flag.
+- **Complete vs short (fixed-time tests, Restaurant Case 14 h)** — the lab, 21 Oct 2026: a run within 30 min of the cycle
+  time (`FULL_CYCLE_MARGIN_H`, ≥ 13 h 30 m) is a **complete cycle and counts as 14 h** (`duration` = 14, the real time in
+  `ranH`, on hover and in the CSV's "Ran (h)"); anything shorter is a **short cycle — alarming**: `short: true`, red
+  "· short" in Every cycle, a **Short cycles** tile (breakdown: device, date, ran, why), left out of Avg cycle time
+  (`kpis`, `compareBy`, per-device rows), and on the **bell** while it happens (`alerts.js`: back on charge from 1 h in
+  until 13 h 30 m, any number of devices; it replaces the "on charge" odd-one alert for that device). A device that left
+  the cycle part-way is a short run too.
 - A run only takes a test of its own kind: a discharge is never a Charging Cycle, a charge never a discharge test.
 - **Every charge since 25 Sep is a Charging Cycle** (the daily recharge), shown as battery **gained**; on the Overview,
   not in the Cycle plan's All cycles.

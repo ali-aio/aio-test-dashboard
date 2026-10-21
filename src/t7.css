@@ -2150,6 +2150,8 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 
 /* a run counted only up to the moment its device left the cycle */
 .left-cycle { color: var(--text-muted); font-size: 11.5px; white-space: nowrap; }
+/* a fixed-time run that stopped over 30 min early: alarming */
+.short-cycle { color: var(--status-critical); font-weight: 600; white-space: nowrap; }
 
 /* Per hour export's device picker: a serial and its cycle count on one line, never overlapping */
 .pick-devices-list { grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); }

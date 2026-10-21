@@ -15,6 +15,11 @@ const KEEP_MS = 3 * 86400e3, MAX = 80;
 const MIN_DEVICES = 3;      // fewer than this and there is no "rest" to differ from
 const BATTERY_GAP = 15;     // points from the cycle's median battery
 const TEMP_GAP = 8, TEMP_FLOOR = 40; // °C above the median, and hot in its own right
+// A fixed-time test (Restaurant Case, 14 h): a device back on charge more than this before the
+// cycle's time is a short cycle — alarming whether one device does it or the whole bench (the
+// lab, 21 Oct 2026). Same margin as adapt.js FULL_CYCLE_MARGIN_H; from 1 h in, so a device
+// still being unplugged at the start is not one.
+const SHORT_MARGIN_H = 0.5, SHORT_FROM_H = 1;
 
 /** How many may differ and still be "the odd ones": 1 or 2, or a fifth of a big cycle. */
 export const oddLimit = n => Math.max(2, Math.floor(n * 0.2));
@@ -49,6 +54,17 @@ export function findOddOnes(decls, DEV, now = Date.now()) {
   const mine = DEV.filter(d => serials.has(d.serial) && d.snap);
   const live = mine.filter(d => onlineAt(d, now));
   const out = [], n = live.length;
+
+  // short cycle: back on charge well before a fixed-time test's end, any number of devices
+  const tt = testType(cyc.decl.testType), inH = (now - cyc.startMs) / 3600e3;
+  const short = new Set();
+  if (tt?.hours && inH >= SHORT_FROM_H && inH < tt.hours - SHORT_MARGIN_H) for (const d of live) {
+    if (!d.snap.charging) continue;
+    short.add(d.serial);
+    const h = Math.floor(inH), m = Math.round((inH - h) * 60);
+    out.push({ serial: d.serial, kind: 'short', title: `short cycle: on charge ${h}h ${m}m into the ${tt.hours} h cycle`,
+      others: `a complete cycle runs at least ${tt.hours - SHORT_MARGIN_H} h` });
+  }
   if (n < MIN_DEVICES) return { cyc, live: n, odd: out };
 
   for (const f of FEATURES) {
@@ -57,7 +73,7 @@ export function findOddOnes(decls, DEV, now = Date.now()) {
     const yes = vals.filter(x => x.v), no = vals.filter(x => !x.v);
     const [few, most] = yes.length < no.length ? [yes, no] : [no, yes];
     if (!few.length || few.length > oddLimit(vals.length)) continue;
-    for (const { d, v } of few) out.push({ serial: d.serial, kind: `${f.kind}:${v ? 'on' : 'off'}`,
+    for (const { d, v } of few) if (!(f.kind === 'charging' && short.has(d.serial))) out.push({ serial: d.serial, kind: `${f.kind}:${v ? 'on' : 'off'}`,
       title: f.say(v), others: `${f.say(!v)} (${most.length} of ${vals.length})` });
   }
 

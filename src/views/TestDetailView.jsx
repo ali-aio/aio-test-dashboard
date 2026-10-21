@@ -7,6 +7,8 @@ import { cycleTableCsv, cycleHoursCsv, downloadCsv } from '../lib/csv.js'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
 import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING } from '../lib/testtypes.js'
+import { FULL_CYCLE_MARGIN_H } from '../lib/adapt.js'
+import { TEST_TYPES } from '../lib/plan.js'
 import { padSplit } from '../lib/drainHours.js'
 import PickDevicesDialog from '../components/PickDevicesDialog.jsx'
 import {
@@ -52,6 +54,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const benchSel = bench ? benches.find((b) => b.key === bench) : null
   const inBench = useMemo(() => (benchSel ? benchSel.list : allCycles), [allCycles, benchSel])
   const cycles = useMemo(() => (focus ? inBench.filter((c) => c.serial === focus) : inBench), [inBench, focus])
+  // fixed-time runs that stopped over 30 min early (adapt.js `short`), newest first
+  const shortRuns = useMemo(() => cycles.filter((c) => c.short).sort((a, b) => b.start - a.start), [cycles])
   // Picking a device also switches the battery chart to Per device with only it ticked, so
   // its picker reads "1/22" and the other devices of the cycle stay a tick away.
   const pickDevice = (sn) => {
@@ -79,6 +83,9 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   // drain with / without a load on the wireless pad, per cycle: tests that place a load, and
   // field cycles (which may have had one)
   const isField = FIELD_TEST_TYPES.has(testType)
+  // a fixed cycle time (Restaurant Case 14 h): complete within 30 min of it, else a short cycle
+  const fixedH = TEST_TYPES.find((t) => t.name === testType)?.hours || null
+  const shortLimit = fixedH ? `${Math.floor(fixedH - FULL_CYCLE_MARGIN_H)}h ${Math.round(((fixedH - FULL_CYCLE_MARGIN_H) % 1) * 60)}m` : null // "13h 30m"
   const isCharging = testType === 'Charging Cycle' || testType === FIELD_CHARGING
   const isRestaurant = testType === 'Restaurant Case'
   // The "Cycle time by build / pad state" strip (only Idle Cycle, Old cycles and Field Charging
@@ -325,7 +332,13 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             })} />
         })()}
         <Stat label="Avg cycle time" value={fmtNum(k.avgDuration, 1)} unit="h"
-          foot="per cycle" />
+          foot={fixedH ? `complete cycles · ${fixedH} h if within ${FULL_CYCLE_MARGIN_H * 60} min` : 'per cycle'} />
+        {/* a fixed-time test (Restaurant Case 14 h): runs that stopped over 30 min early are alarming */}
+        {fixedH ? <Stat label="Short cycles" value={<span style={shortRuns.length ? { color: 'var(--status-critical)' } : undefined}>{fmtInt(shortRuns.length)}</span>}
+          foot={shortRuns.length ? `ran under ${shortLimit} · of ${fmtInt(cycles.filter((c) => !c.inProgress).length)} device runs` : `none under ${shortLimit}`}
+          breakdownLabel={`Ran under ${shortLimit} (the cycle is ${fixedH} h) · newest first`} breakdownWide breakdownRight breakdownNoun="run"
+          breakdown={shortRuns.map((c) => ({ id: c.id, label: `${fmtSerial(c.serial)} · ${fmtDate(c.date)}`, value: c.ranH, display: fmtHours(c.ranH),
+            hint: c.leftCycle ? `· ${c.leftCycle.why}` : '· back on charge early', highlight: true, onClick: () => pickDevice(c.serial) }))} /> : null}
         {isRestaurant ? restaurantRates.map((mode) => (
           <Stat key={mode.rateKey} label={mode.label} value={fmtRate(mode.rate)}
             foot={mode.rate != null
@@ -464,7 +477,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             const by = new Map()
             for (const c of shown) { if (!by.has(c.serial)) by.set(c.serial, []); by.get(c.serial).push(c) }
             return [...by.keys()].sort(compareSerial).map((sn) => {
-              const cs = by.get(sn).sort((a, b) => a.start - b.start), avg = (k) => mean(cs.map((c) => c[k]).filter(Number.isFinite))
+              const cs = by.get(sn).sort((a, b) => a.start - b.start), avg = (k) => mean((k === 'duration' ? cs.filter((c) => !c.short) : cs).map((c) => c[k]).filter(Number.isFinite))
               const first = cs[0].date, last = cs[cs.length - 1].date
               return { serial: sn, n: fmtInt(cs.length), dates: first === last ? fmtDate(first) : `${fmtDate(first)} – ${fmtDate(last)}`,
                 fw: [...new Set(cs.map((c) => c.firmware))].join(', '), dur: fmtHours(avg('duration')),
@@ -686,7 +699,9 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                 <td>{c.date ? fmtDate(c.date) : '—'}</td>
                 <td>{c.start != null ? new Date(c.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                 <td title={c.leftCycle ? `Left the cycle at ${fmtEnded(c)}: ${c.leftCycle.why}. Counted up to then.` : undefined}>{fmtEnded(c)}{c.leftCycle ? <span className="left-cycle"> · left cycle</span> : null}</td>
-                <td>{fmtHours(c.duration)}</td>
+                <td className={c.short ? 'short-cycle' : undefined}
+                  title={c.short ? `Short cycle: ran ${fmtHours(c.ranH)}, under ${shortLimit} of the ${fixedH} h cycle` : c.ranH != null && c.ranH !== c.duration ? `Ran ${fmtHours(c.ranH)}: within ${FULL_CYCLE_MARGIN_H * 60} min of ${fixedH} h, counted as a complete cycle` : undefined}>
+                  {fmtHours(c.duration)}{c.short ? <span> · short</span> : null}</td>
                 <td>{fmtPct(c.startBattery)}</td>
                 <td>{fmtPct(c.endBattery)}</td>
                 <td>{fmtRate(c.dropPerHr)}</td>

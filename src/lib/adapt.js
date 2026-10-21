@@ -33,6 +33,11 @@ export const ANDROID_SINCE_PLAN = 'Android 15';
 // time that is held to the cycle time. And a discharge test drains: a device sitting idle at
 // ~1 %/h was not on it.
 export const CYCLE_SLACK_H = 2;
+// A fixed-time test (Restaurant Case, 14 h) that ran to within 30 min of its time is a complete cycle
+// and counts as its full time (13 h 54 m -> 14 h); anything shorter is a SHORT cycle, which is
+// alarming: flagged in red in the tables, left out of the average cycle time, raised on the bell
+// while it happens (the lab, 21 Oct 2026: "13.55 consider 14 h, less than 13.30 is alarming").
+export const FULL_CYCLE_MARGIN_H = 0.5;
 const MIN_DRAIN = 2; // %/h, as the Auto plan's "not a test"
 const MIN_KEPT_H = 1; // a device that left the cycle within its first hour gave the test nothing
 /** Where a run stops being its test: { cutAt, why } (it left the cycle then — its data up to
@@ -229,6 +234,11 @@ export function adaptCycle(d, c0, rows, ctx) {
     c = { ...c, end: plan.cutAt, durationMs: plan.cutAt - c.start, endPct, inProgress: false,
       fullMs: drop > 0 ? (plan.cutAt - c.start) / drop * 100 : null, maxTemp: undefined, avgTemp: undefined, thermal: undefined };
   }
+  // complete (within FULL_CYCLE_MARGIN_H of the test's time) or short, for a fixed-time test
+  const tt = TEST_TYPES.find(t => t.name === plan.name);
+  const finished = !charging && !c.inProgress && tt?.hours;
+  const fullTime = finished && duration >= tt.hours - FULL_CYCLE_MARGIN_H && duration < tt.hours;
+  const shortRun = finished && duration < tt.hours - FULL_CYCLE_MARGIN_H;
   const hourVals = wholeHours(series);
   const linear = (c.startPct - c.endPct) / duration;
   const hourly = perHourRate(hourVals, charging ? 'gain' : 'drop');
@@ -251,7 +261,10 @@ export function adaptCycle(d, c0, rows, ctx) {
     firmware: firmware || c.buildId || 'Unknown',
     date: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`,
     week: null,
-    duration: round(duration, 3),
+    // cycle time: the test's full time for a complete fixed-time run, else what it ran (ranH)
+    duration: round(fullTime ? tt.hours : duration, 3),
+    ranH: round(duration, 3),
+    short: !!shortRun,
     startBattery: c.startPct,
     endBattery: c.endPct,
     batteryDelta: c.endPct - c.startPct,

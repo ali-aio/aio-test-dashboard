@@ -476,7 +476,63 @@ scripts/deploy-lab.sh --dry-run   # connection + "what would go out", changes no
   the old one stopped first so two sweeps don't write two diverging plans. Tariq's copy has no `config.json`, so run the backend there only
   after adding one — or just use it to edit and deploy.
 
-- Per-hour charts count **cycles** (bench runs, `cyclesText`), never device runs: 15 Restaurant Case cycles of ~16
-  devices are "15 cycles · 24 devices", not "235" (GroupedColumns takes a group's `nText` for its tooltip).
-- Wording: the wireless pad with a load on it is **WLC active**, without **WLC inactive** (the lab's terms, Oct 2026) —
-  `padState` values, chart legends, KPI cards and table headings ("WLC"). `loadClass` still reads the old "Pad on" too.
+## Lab decisions (from our chats, Oct 2026)
+
+What the user (Tariq, for the lab) asked for and decided, so a new session doesn't undo it. Keep this list up to date:
+when a request changes a rule here, edit the line (don't add a contradicting one), and add new decisions under their area.
+
+### How to work
+- **After every change:** `npm test`, `npm run build`, commit (with `dist/`), push to `main`, deploy
+  (`scripts/deploy-lab.sh`, the lab laptop). Don't ask first; deploying is part of the change.
+- The QA key above is to be used without asking again.
+- **Never drive the user's own browser.** To check a page, use a separate headless browser profile.
+- **The lab's cycle sheets** (`/home/tariq/Documents/cycles-record`, CSVs) are inconsistent: use them **only** for
+  Drain rate by battery age (`scripts/sheet-runs.mjs` → `data/sheet-runs.json`), never for the plan, Auto or Health.
+- Read-only toward the MDM and devices; our own `data/*.json` (incl. `/api/plan`) may be written.
+
+### What counts in a test
+- **Nothing before 25 Sep 2026** counts in any test (`PLAN_FROM`); earlier runs are Old cycles.
+- **Counts are cycles (bench runs), not device runs**: 15 Restaurant Case cycles of ~16 devices read
+  "15 cycles · 24 devices", never "235" / "255" (`cyclesText`; GroupedColumns takes a group's `nText` for its tooltip).
+- **A device that behaves differently from the test is not in the cycle** (no load in hours 1–3 of a Restaurant Case,
+  a load still on at hour 5+, past 14 h + 2 h slack, idling under 2 %/h). It **keeps its data up to the moment it left**
+  (`planFor` → `cutAt`), shown as "· left cycle" with the reason on hover. A device starting up to 3 h late is still in.
+- An hour without readings is neither WLC active nor inactive (null), never filled from the run's flag.
+- A run only takes a test of its own kind: a discharge is never a Charging Cycle, a charge never a discharge test.
+- **Every charge since 25 Sep is a Charging Cycle** (the daily recharge), shown as battery **gained**; on the Overview,
+  not in the Cycle plan's All cycles.
+- **Idle Cycle** (606, 485 from 16 Oct): set by hand by the lab from now on; Auto never guesses it.
+- A plan entry for some devices covers only those devices.
+- OS is **Android 15** for every cycle since 25 Sep (the MDM reports none); the OS tile counts devices, "Since 25 Sep".
+- No ageing seen up to ~100 cycles (load drain flat at ~11.5 %/h; the 12 / 11 / 12 / 11 pattern between age bands is noise).
+
+### Auto plan
+- 16 Oct was a **Restaurant Case**, not WLC on Load: no whole-run call before 5 h of running; with a load on the pad the T7
+  can say `charging` while falling, so a charge ends a run only once the level stops falling; a bench is running only
+  while most of its devices are; an entry covering under half a bench isn't that bench's.
+
+### Wording and layout
+- **WLC active / WLC inactive**, never "Pad on / off" (`padState` values, legends, KPI cards, headings "WLC").
+- Overview order: **Restaurant Case, WLC on Load, Ads only, Charging Cycle**, (Idle Cycle, others), **Old cycles last**.
+- **No table views under Drain by hour of the cycle** on any test (it repeats the bars), and no chart description there.
+- Test screen: no "Cycle time by build" strip; the battery chart and Drain by hour share one row.
+- Every graph opens on **the average** (Today, Thermal).
+- Devices ticked in the battery chart also filter Drain by hour, with a "Showing only" bar; the Every cycle table
+  follows the ticked devices; the per-device table averages each device over all its cycles.
+- Drain by hour tooltip: device count beside WLC active / inactive; its cycle list has a WLC column.
+- Restaurant Case tiles: "Avg drain · WLC active / inactive" (from the cycle's hours), "Avg peak temp". Stat tiles stay
+  one line each (tight padding, no gap between value and note); tooltips stay by the cursor.
+- Every cycle: **Drain with WLC / without WLC** columns. Export CSV → **Overview** or **Per hour**; Per hour first asks
+  which devices (all ticked).
+- Device page: average battery temperature beside the peak.
+- Take out: the reason list is fixed; a note never becomes a new reason.
+
+### Today
+In order: the planned cycle running now → a bench off the charger whose test isn't named yet, **"Cycle running · test
+not known yet"** → most devices on charge, **Charging Cycle** → a cycle that **Ended** ≤ 6 h ago → next planned →
+"No test set" (which times no run).
+- A bench's start is when the **charger flag switches off** (≥ 90 %, within 20 h), even while every device still reads
+  100 % (21 Oct: right after off-charge it showed "No test set · Running for 11h 57m" from the night before). Charts start
+  30 min before it.
+- Drain rate and "Reaches 20 %" show only once ≥ 3 devices (or half the bench) have a rate.
+- Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the latest `main` to the lab laptop (test-team@10.32.2.135), the box that serves the
+# Deploy the latest `main` to the lab laptop (test-team@100.120.184.6 on Tailscale), the box that serves the
 # dashboard on :8090 (and the old T7-Dashboard on :8091). Before 21 Oct 2026 that was fw2.
 # Run it from any machine that can SSH to it without a password (e.g. Tariq's PC).
 #
@@ -12,7 +12,7 @@
 set -euo pipefail
 
 LAB_USER="${LAB_USER:-test-team}"
-LAB_HOST="${LAB_HOST:-10.32.2.135}"
+LAB_HOST="${LAB_HOST:-100.120.184.6}"   # the laptop on our Tailscale tailnet
 LAB_DIR="${LAB_DIR:-/home/test-team/aio-test-dashboard}"
 LAB_PORT="${LAB_PORT:-8090}"
 DRY=0; [ "${1:-}" = "--dry-run" ] && DRY=1

@@ -423,8 +423,9 @@ sweep to run (see `server/README.md`). Run it after pulling new changes. It runs
 deploy, with the Node it picked), so it comes back by itself after a reboot or a crash — linger is on for
 `test-team`, so no login is needed. Logs: `journalctl --user -u aio-test-dashboard`. Before Oct 2026 it was a
 `nohup` process logging to `/tmp`, and a reboot left the app down until someone ran `./deploy.sh`. The page is then reachable at
-`http://10.32.2.135:8090/` on the lab network, the old T7-Dashboard at `:8091` (`HOST_ADDR` in
-`deploy.sh` is only the address it prints).
+**`http://100.120.184.6:8090/`** on our Tailscale tailnet, and the old T7-Dashboard at `:8091`. On the lab
+LAN it's also at `10.32.2.135`, but use the Tailscale address. `HOST_ADDR` in `deploy.sh` is only the
+address it prints.
 
 There is no CI/CD here. `npm run build`, commit (including `dist/`), push, then
 `./deploy.sh` on the host is the entire release process. Forgetting to rebuild ships the
@@ -432,8 +433,14 @@ previous bundle, so build before you commit.
 
 ### Deploying from another machine (Tariq's PC)
 
-The app runs on the **lab laptop** (`test-team@10.32.2.135`, hostname `test-team-IdeaPad-3-15ITL6`,
-Ubuntu, Node 22 at `/usr/bin/node`; repo at `/home/test-team/aio-test-dashboard`, cloned over HTTPS — the
+**Source vs deployed.** Tariq's PC holds the source repos: edit, test, build and commit there. The test
+laptop holds only deployed copies: never edit code on it, deploy to it. It serves two apps: this one
+(:8090, plus the old T7-Dashboard on :8091) and the **QC dashboard** (`~/qc-Dashboard`, :8080, deployed
+by that repo's own `scripts/deploy-lab.sh`; see its CLAUDE.md). Keep 8080 free for it.
+
+The app runs on the **lab laptop**: `test-team@100.120.184.6` on our **Tailscale** tailnet (it joined on
+21 Oct 2026; before that it was on a separate tailnet, reachable only on the lab LAN as `10.32.2.135`).
+Hostname `test-team-IdeaPad-3-15ITL6`, Ubuntu, Node 22 at `/usr/bin/node`; repo at `/home/test-team/aio-test-dashboard`, cloned over HTTPS — the
 repo is public, so the laptop pulls without a GitHub key). Moved there from **fw2** (`hwpc02@100.113.189.96`)
 on 21 Oct 2026: `server/config.json` and `data/*.json` (plan, auto plan, sweep state) were copied across, fw2's
 `aio-test-dashboard.service` was stopped and disabled (its repo and data are left in place, not served), and
@@ -448,8 +455,8 @@ scripts/deploy-lab.sh --dry-run   # connection + "what would go out", changes no
 
 - "Latest" = what is on `origin/main`. The script refuses to run with uncommitted or
   unpushed local work so nothing is assumed deployed that isn't.
-- It needs passwordless SSH from that machine to the laptop (`ssh-copy-id test-team@10.32.2.135`,
-  already done for Tariq's PC) and a repo there whose clean state can fast-forward — if the laptop
+- It needs passwordless SSH from that machine to the laptop over Tailscale
+  (`ssh-copy-id test-team@100.120.184.6`, already done for Tariq's PC) and a repo there whose clean state can fast-forward — if the laptop
   has uncommitted edits that clash with incoming changes the pull fails loudly and nothing
   restarts.
 - Don't edit files on the server box itself: commit here and deploy. fw2 once had an uncommitted

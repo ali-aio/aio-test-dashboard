@@ -4,7 +4,7 @@
 set -euo pipefail
 
 PORT="${PORT:-8090}"
-HOST_ADDR="${HOST_ADDR:-10.32.2.135}"   # how the lab reaches this box (the lab laptop)
+HOST_ADDR="${HOST_ADDR:-100.120.184.6}"   # the lab laptop on our Tailscale tailnet
 T7_PORT="${T7_PORT:-8091}"   # the old T7-Dashboard, served by the same process
 cd "$(dirname "${BASH_SOURCE[0]}")"
 

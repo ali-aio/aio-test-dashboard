@@ -16,7 +16,7 @@ API contract, file structure, and the ground rules for working in this repo
 
 Starts the Node backend on `:8090` (static files + a 30-min cycle sweep that writes
 `data/topup.json`; see `server/README.md` — it wants `server/config.json` with the
-QA key). Open `http://10.32.2.135:8090/` (the lab laptop), go to Settings, and set the QA API key.
+QA key). Open `http://100.120.184.6:8090/` (the lab laptop, on Tailscale), go to Settings, and set the QA API key.
 
 ## Pages
 

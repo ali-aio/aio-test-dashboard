@@ -1,4 +1,4 @@
-import React, { useRef, useState, useLayoutEffect } from 'react'
+import React, { useRef, useState, useLayoutEffect, useMemo, useEffect } from 'react'
 
 // One axis, recessive grid, crosshair + tooltip. Both charts apply a moving-average
 // smoothing before drawing: raw battery readings are jittery enough to look broken
@@ -79,11 +79,16 @@ export function LineChart({ pts, h = 180, yMax = 100, yFmt = v => v, xFmt, tip, 
 export function MultiLineChart({ series, h = 220, yMax = 100, yMin = 0, yFmt = v => v, xFmt, refs = [], tip, smooth = true, x0, x1, empty = 'No readings in this window yet.', y2 = null }) {
   const [ref, W] = useWidth()
   const [hitX, setHitX] = useState(null)
-  const live = series.filter(s => s.pts.length > 1)
-  if (!live.length) return <div className="chart" ref={ref}><div className="empty">{empty}</div></div>
+  // the pointer at most once per screen frame (each update re-renders the crosshair and tooltip)
+  const frame = useRef(0), lastX = useRef(null)
+  useEffect(() => () => cancelAnimationFrame(frame.current), [])
+  const live = useMemo(() => series.filter(s => s.pts.length > 1), [series])
+  // the smoothed line of every series, worked out once per data / size change, not on every
+  // pointer move (24 devices x hundreds of readings made hovering on Today lag, Oct 2026)
+  const smoothed = useMemo(() => new Map(live.map(s => [s, smoothY(s.pts, smooth && s.smooth !== false)])), [live, smooth])
   const pl = 38, pr = 54, pt = 10, pb = 22
-  const xa = x0 ?? Math.min(...live.map(s => s.pts[0].x))
-  const xb = x1 ?? Math.max(...live.map(s => s.pts[s.pts.length - 1].x))
+  const xa = x0 ?? (live.length ? Math.min(...live.map(s => s.pts[0].x)) : 0)
+  const xb = x1 ?? (live.length ? Math.max(...live.map(s => s.pts[s.pts.length - 1].x)) : 1)
   const dx = (xb - xa) || 1, span = (yMax - yMin) || 1
   const X = v => pl + (v - xa) / dx * (W - pl - pr)
   const Y = v => pt + (1 - (Math.min(Math.max(v, yMin), yMax) - yMin) / span) * (h - pt - pb)
@@ -91,11 +96,18 @@ export function MultiLineChart({ series, h = 220, yMax = 100, yMin = 0, yFmt = v
   const Y2 = v => pt + (1 - (Math.min(Math.max(v, y2min), y2?.max ?? 1) - y2min) / span2) * (h - pt - pb)
   const Yof = s => (y2 && s.axis === 'right' ? Y2 : Y)
   // a series can opt out (`smooth: false`): a two-point projection averaged with itself goes flat
-  const path = s => { const ys = smoothY(s.pts, smooth && s.smooth !== false), Ys = Yof(s); return ys.map((v, i) => `${i ? 'L' : 'M'}${X(s.pts[i].x).toFixed(1)},${Ys(v).toFixed(1)}`).join('') }
+  const path = s => { const ys = smoothed.get(s), Ys = Yof(s); return ys.map((v, i) => `${i ? 'L' : 'M'}${X(s.pts[i].x).toFixed(1)},${Ys(v).toFixed(1)}`).join('') }
   const xt = (W < 460 ? [0, .5, 1] : [0, .25, .5, .75, 1]).map(f => xa + f * dx)
   const labs = live.filter(s => s.endLabel).map(s => ({ s, y: Yof(s)(s.pts[s.pts.length - 1].y) })).sort((a, b) => a.y - b.y)
   for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i - 1].y < 12) labs[i].y = labs[i - 1].y + 12
-  const near = (s, t) => s.pts.reduce((b, p) => Math.abs(p.x - t) < Math.abs(b.x - t) ? p : b, s.pts[0])
+  // nearest reading by binary search (the points are in time order)
+  const near = (s, t) => { const a = s.pts; let lo = 0, hi = a.length - 1
+    while (lo < hi) { const m = (lo + hi) >> 1; if (a[m].x < t) lo = m + 1; else hi = m }
+    return lo > 0 && Math.abs(a[lo - 1].x - t) <= Math.abs(a[lo].x - t) ? a[lo - 1] : a[lo] }
+  // the lines, rebuilt only when the data or the size changes (not on hover)
+  const lanes = useMemo(() => live.map((s, k) => <path key={s.id ?? k} className="lane" d={path(s)} stroke={s.color} strokeWidth={s.width || 1.6}
+    opacity={s.opacity ?? 1} strokeDasharray={s.dash || undefined} />), [live, smoothed, W, h, yMax, yMin, xa, xb, y2])
+  if (!live.length) return <div className="chart" ref={ref}><div className="empty">{empty}</div></div>
   return (
     <div className="chart" ref={ref}>
       <svg viewBox={`0 0 ${W} ${h}`} style={{ height: h }}>
@@ -109,15 +121,17 @@ export function MultiLineChart({ series, h = 220, yMax = 100, yMin = 0, yFmt = v
           <line x1={pl} x2={W - pr} y1={Y(r.v)} y2={Y(r.v)} stroke={r.color || 'var(--text-3)'} strokeDasharray="4 3" />
           <text x={pl + 4} y={Y(r.v) - 4} fill={r.color || 'var(--text-3)'}>{r.label}</text>
         </g>)}
-        {live.map((s, k) => <path key={s.id ?? k} className="lane" d={path(s)} stroke={s.color} strokeWidth={s.width || 1.6}
-          opacity={s.opacity ?? 1} strokeDasharray={s.dash || undefined} />)}
+        {lanes}
         {/* a series with onLabel makes its end label a button (Today: highest / middle / lowest device) */}
         {labs.map(({ s, y }, k) => <text key={k} className={`endlab${s.onLabel ? ' is-link' : ''}`} x={W - pr + 6} y={y + 3} fill={s.labelColor || s.color}
           onClick={s.onLabel || undefined} role={s.onLabel ? 'button' : undefined}>{s.labelTitle ? <title>{s.labelTitle}</title> : null}{s.endLabel}</text>)}
         {hitX != null && <line y1={pt} y2={h - pb} x1={X(hitX)} x2={X(hitX)} stroke="var(--border-strong)" />}
         <rect x={pl} y={0} width={W - pl - pr} height={h} fill="transparent" className="hit"
-          onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); setHitX(xa + (e.clientX - r.left) / (W - pl - pr) * dx) }}
-          onMouseLeave={() => setHitX(null)} />
+          onMouseMove={e => {
+            const r = e.currentTarget.getBoundingClientRect(); lastX.current = xa + (e.clientX - r.left) / (W - pl - pr) * dx
+            if (!frame.current) frame.current = requestAnimationFrame(() => { frame.current = 0; if (lastX.current != null) setHitX(lastX.current) })
+          }}
+          onMouseLeave={() => { lastX.current = null; setHitX(null) }} />
       </svg>
       {hitX != null && tip && (() => {
         // A line only answers for times it covers (10 min of slack): the projection starts

@@ -539,6 +539,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - Every cycle: **Drain with WLC / without WLC** columns. Export CSV → **Overview** or **Per hour**; Per hour first asks
   which devices (all ticked).
 - Device page: average battery temperature beside the peak.
+- **Charts must stay smooth on hover** (21 Oct: "too much lag"): a pointer move re-renders only the crosshair and
+  tooltip — lines, dots, axes and legend are `useMemo`'d (`staticLayer` / `legendBlock` in `t7charts.jsx`, `lanes` and
+  `smoothed` in `charts.jsx`), pointer updates are coalesced to one per frame (`usePlotPointer`), the nearest reading is a
+  binary search. Keep it that way in any new chart.
 - Take out: the reason list is fixed; a note never becomes a new reason.
 
 ### Today

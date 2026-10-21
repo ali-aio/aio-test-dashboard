@@ -89,8 +89,8 @@ export function LineChart({
   const plotW = Math.max(40, width - M.left - M.right)
   const plotH = Math.max(40, height - M.top - M.bottom)
 
-  const available = series.filter((s) => s.points?.length)
-  const live = available.filter((s) => selectedSeries == null || selectedSeries.has(s.id))
+  const available = useMemo(() => series.filter((s) => s.points?.length), [series])
+  const live = useMemo(() => available.filter((s) => selectedSeries == null || selectedSeries.has(s.id)), [available, selectedSeries])
 
   const [x0, x1] = useMemo(() => {
     if (xDomain) return xDomain
@@ -133,45 +133,10 @@ export function LineChart({
     }).filter(Boolean)
   }, [live, hoverX])
 
-  if (!available.length) return empty(emptyState)
-
-  const legend = <Legend items={live.map((s) => ({
-    id: s.id, label: s.label, sub: s.sub, color: s.color, dash: s.dash || (s.dashed ? '5 4' : null), shape: 'line',
-  }))} note={legendNote} />
-
-  return (
-    <div className="chart-shell" ref={ref}>
-      {legendDisclosure && onToggleSeries ? (
-        <details className="chart-legend-details">
-          <summary>{legendDisclosure} ({live.length}/{available.length})</summary>
-          <div className="series-legend-actions">
-            <button type="button" className="btn" onClick={onSelectAllSeries}>Select all</button>
-            <button type="button" className="btn" onClick={onClearAllSeries}>Clear all</button>
-          </div>
-          <div className="legend series-legend" role="group" aria-label={`${legendDisclosure} to show on graph`}>
-            {available.map((s) => (
-              <label className="series-legend-item" key={s.id}>
-                <input type="checkbox" checked={selectedSeries == null || selectedSeries.has(s.id)}
-                  onChange={() => onToggleSeries(s.id)} />
-                <span className="legend-key-line" style={{ background: keyBackground(s.color, s.dash || (s.dashed ? '5 4' : null)) }} aria-hidden="true" />
-                <span>{s.label}</span>
-              </label>
-            ))}
-          </div>
-        </details>
-      ) : legendDisclosure && live.length > 1 ? (
-        <details className="chart-legend-details">
-          <summary>{legendDisclosure} ({live.length})</summary>
-          {legend}
-        </details>
-      ) : legend}
-      {!live.length && (
-        <EmptyPlot noData={false} reason={`No ${legendDisclosure?.toLowerCase() ?? 'series'} selected.`}
-          hint={`Select ${legendDisclosure?.toLowerCase() ?? 'series'} above or choose Select all.`} />
-      )}
-      {live.length > 0 && width > 0 && (
-        <svg ref={svgRef} height={height} viewBox={`0 0 ${width} ${height}`} style={{ marginTop: 8 }}
-          role="img" aria-label={caption} {...handlers}>
+  // Everything but the crosshair and tooltip, built once per data / size change rather than
+  // on every pointer move (hundreds of lines and dots made hovering lag, Oct 2026).
+  const staticLayer = useMemo(() => (
+        <>
           <GridY scale={sy} ticks={yTicks} x0={M.left} x1={M.left + plotW} />
           <AxisY scale={sy} ticks={yTicks} x={M.left} format={formatY} label={yLabel} />
           <AxisX scale={sx} ticks={xTicks} y={M.top + plotH} format={formatX} label={xLabel} unit={xUnit} />
@@ -199,6 +164,55 @@ export function LineChart({
             )) : null
           ))}
 
+        </>
+  ), [live, width, height, x0, x1, y0, y1, area, markers, clipId, formatX, formatY, xLabel, yLabel, xUnit, xTicksProp])
+
+  // the legend / device picker, also outside the hover re-render
+  const legendBlock = useMemo(() => {
+    const legend = <Legend items={live.map((s) => ({
+      id: s.id, label: s.label, sub: s.sub, color: s.color, dash: s.dash || (s.dashed ? '5 4' : null), shape: 'line',
+    }))} note={legendNote} />
+    return (<>
+      {legendDisclosure && onToggleSeries ? (
+        <details className="chart-legend-details">
+          <summary>{legendDisclosure} ({live.length}/{available.length})</summary>
+          <div className="series-legend-actions">
+            <button type="button" className="btn" onClick={onSelectAllSeries}>Select all</button>
+            <button type="button" className="btn" onClick={onClearAllSeries}>Clear all</button>
+          </div>
+          <div className="legend series-legend" role="group" aria-label={`${legendDisclosure} to show on graph`}>
+            {available.map((s) => (
+              <label className="series-legend-item" key={s.id}>
+                <input type="checkbox" checked={selectedSeries == null || selectedSeries.has(s.id)}
+                  onChange={() => onToggleSeries(s.id)} />
+                <span className="legend-key-line" style={{ background: keyBackground(s.color, s.dash || (s.dashed ? '5 4' : null)) }} aria-hidden="true" />
+                <span>{s.label}</span>
+              </label>
+            ))}
+          </div>
+        </details>
+      ) : legendDisclosure && live.length > 1 ? (
+        <details className="chart-legend-details">
+          <summary>{legendDisclosure} ({live.length})</summary>
+          {legend}
+        </details>
+      ) : legend}
+    </>)
+  }, [live, available, selectedSeries, legendDisclosure, legendNote, onToggleSeries, onSelectAllSeries, onClearAllSeries])
+
+  if (!available.length) return empty(emptyState)
+
+  return (
+    <div className="chart-shell" ref={ref}>
+      {legendBlock}
+      {!live.length && (
+        <EmptyPlot noData={false} reason={`No ${legendDisclosure?.toLowerCase() ?? 'series'} selected.`}
+          hint={`Select ${legendDisclosure?.toLowerCase() ?? 'series'} above or choose Select all.`} />
+      )}
+      {live.length > 0 && width > 0 && (
+        <svg ref={svgRef} height={height} viewBox={`0 0 ${width} ${height}`} style={{ marginTop: 8 }}
+          role="img" aria-label={caption} {...handlers}>
+          {staticLayer}
           {hoverX != null && readings.length > 0 && (
             <>
               <line x1={pointer.px} x2={pointer.px} y1={M.top} y2={M.top + plotH}

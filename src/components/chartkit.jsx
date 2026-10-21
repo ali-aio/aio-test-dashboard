@@ -329,23 +329,33 @@ export function TableView({
 /* ------------------------------------------------------------ interaction */
 
 /** Pointer position inside the plot box, or null when outside it. */
+// At most one update per screen frame: a mouse fires pointermove far more often than the
+// screen redraws, and each update re-renders the chart's crosshair and tooltip.
 export function usePlotPointer(svgRef, plot) {
   const [pointer, setPointer] = useState(null)
+  const frame = useRef(0), last = useRef(null)
+  useEffect(() => () => cancelAnimationFrame(frame.current), [])
   const onPointerMove = useCallback((e) => {
-    const svg = svgRef.current
-    if (!svg) return
-    const rect = svg.getBoundingClientRect()
-    const px = e.clientX - rect.left
-    const py = e.clientY - rect.top
-    if (px < plot.x0 - 6 || px > plot.x1 + 6 || py < plot.y0 - 10 || py > plot.y1 + 10) {
-      setPointer(null)
-      return
-    }
-    setPointer({ px: Math.min(plot.x1, Math.max(plot.x0, px)), py })
+    last.current = { x: e.clientX, y: e.clientY }
+    if (frame.current) return
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0
+      const svg = svgRef.current
+      if (!svg || !last.current) return
+      const rect = svg.getBoundingClientRect()
+      const px = last.current.x - rect.left
+      const py = last.current.y - rect.top
+      if (px < plot.x0 - 6 || px > plot.x1 + 6 || py < plot.y0 - 10 || py > plot.y1 + 10) {
+        setPointer(null)
+        return
+      }
+      setPointer({ px: Math.min(plot.x1, Math.max(plot.x0, px)), py })
+    })
   }, [svgRef, plot.x0, plot.x1, plot.y0, plot.y1])
-  const clearPointer = useCallback(() => setPointer(null), [])
+  const clearPointer = useCallback(() => { last.current = null; setPointer(null) }, [])
   const onPointerLeave = useCallback((e) => {
     if (e.relatedTarget?.closest?.('.chart-tooltip.is-interactive')) return
+    last.current = null
     setPointer(null)
   }, [])
   return [pointer, { onPointerMove, onPointerLeave }, clearPointer]

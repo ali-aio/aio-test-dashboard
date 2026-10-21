@@ -547,4 +547,6 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
 - For a test that puts a load on the pad, two more tiles: **Drain · WLC + ads** and **Drain · ads only** (`drainSplit` in
   `window.js`: each gap between readings counts for its first reading's `wlc_status`), so a Restaurant Case's 3 h of
   load and the rest aren't one blended number.
+- Battery chart legend: **Highest / Middle / Lowest device** (by battery now) are buttons: a click switches both charts
+  to Every device with only that device ticked.
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).

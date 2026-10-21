@@ -217,6 +217,8 @@ export default function TodayView({ fleet }) {
   const lastOf = c => c.rows[c.rows.length - 1].battery_pct
   const lo = shown.length ? shown.reduce((a, b) => lastOf(b) < lastOf(a) ? b : a) : null
   const hi = shown.length ? shown.reduce((a, b) => lastOf(b) > lastOf(a) ? b : a) : null
+  // the device in the middle by battery now (the median one), beside the lowest and highest
+  const mid = shown.length ? [...shown].sort((a, b) => lastOf(a) - lastOf(b))[Math.floor((shown.length - 1) / 2)] : null
   const ptsOf = (c, pick = r => r.battery_pct) => c.rows.filter(r => Date.parse(r.timestamp) >= chartFrom && pick(r) != null)
     .map(r => ({ x: Date.parse(r.timestamp), y: pick(r) }))
   // Each chart can show every ticked device or their average; both open on the average (the
@@ -398,8 +400,12 @@ export default function TodayView({ fleet }) {
             <div className="legend" style={{ margin: '8px 0 10px' }}>
               {battMode === 'avg' ? <>
                 <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average battery of {shown.length} device{shown.length === 1 ? '' : 's'}</span>
-                <span className="legend-item"><i className="legend-key-line" style={{ background: keyBackground('var(--series-8)', '3 3') }} />Highest device</span>
-                <span className="legend-item"><i className="legend-key-line" style={{ background: keyBackground('var(--series-3)', '3 3') }} />Lowest device</span>
+                {/* each opens Every device with only that device ticked (click the device in the list again for all) */}
+                {[[hi, 'Highest', keyBackground('var(--series-8)', '3 3')], [mid, 'Middle', null], [lo, 'Lowest', keyBackground('var(--series-3)', '3 3')]].map(([c, name, key]) => c && (
+                  <button key={name} type="button" className="legend-item clickable link-btn" title={`Show only ${c.serial} (Every device)`} onClick={() => focusDevice(c.serial)}>
+                    {key ? <i className="legend-key-line" style={{ background: key }} /> : null}{name} device · <span className="mono">{tail(c.serial)}</span> {lastOf(c)}%
+                  </button>
+                ))}
               </> : <>
                 {drifting.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)', height: 3 }} />Thicker line = not following the planned test</span> : null}
               </>}

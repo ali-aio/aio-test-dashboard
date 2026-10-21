@@ -256,9 +256,9 @@ export default function TodayView({ fleet }) {
 
   const series = battMode === 'avg'
     ? [
-        { id: 'max', label: 'Highest', pts: battMax, color: 'var(--series-8)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMax.length ? pctLabel(battMax[battMax.length - 1].y) : null, labelColor: 'var(--series-8)' },
-        { id: 'min', label: 'Lowest', pts: battMin, color: 'var(--series-3)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMin.length ? pctLabel(battMin[battMin.length - 1].y) : null, labelColor: 'var(--series-3)' },
-        { id: 'avg', label: 'Average', pts: battAvg, color: 'var(--series-1)', width: 2.4, endLabel: battAvg.length ? pctLabel(battAvg[battAvg.length - 1].y) : null },
+        { id: 'max', label: 'Highest', pts: battMax, color: 'var(--series-8)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMax.length ? pctLabel(battMax[battMax.length - 1].y) : null, labelColor: 'var(--series-8)', onLabel: hi && (() => focusDevice(hi.serial)), labelTitle: hi && `${hi.serial} · show it alone` },
+        { id: 'min', label: 'Lowest', pts: battMin, color: 'var(--series-3)', width: 1.25, opacity: .8, dash: '3 3', endLabel: battMin.length ? pctLabel(battMin[battMin.length - 1].y) : null, labelColor: 'var(--series-3)', onLabel: lo && (() => focusDevice(lo.serial)), labelTitle: lo && `${lo.serial} · show it alone` },
+        { id: 'avg', label: 'Average', pts: battAvg, color: 'var(--series-1)', width: 2.4, endLabel: battAvg.length ? pctLabel(battAvg[battAvg.length - 1].y) : null, onLabel: mid && (() => focusDevice(mid.serial)), labelTitle: mid && `Middle device ${mid.serial} (${lastOf(mid)}%) · show it alone` },
       ]
     : [
         ...shown.map(c => {
@@ -400,12 +400,8 @@ export default function TodayView({ fleet }) {
             <div className="legend" style={{ margin: '8px 0 10px' }}>
               {battMode === 'avg' ? <>
                 <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average battery of {shown.length} device{shown.length === 1 ? '' : 's'}</span>
-                {/* each opens Every device with only that device ticked (click the device in the list again for all) */}
-                {[[hi, 'Highest', keyBackground('var(--series-8)', '3 3')], [mid, 'Middle', null], [lo, 'Lowest', keyBackground('var(--series-3)', '3 3')]].map(([c, name, key]) => c && (
-                  <button key={name} type="button" className="legend-item clickable link-btn" title={`Show only ${c.serial} (Every device)`} onClick={() => focusDevice(c.serial)}>
-                    {key ? <i className="legend-key-line" style={{ background: key }} /> : null}{name} device · <span className="mono">{tail(c.serial)}</span> {lastOf(c)}%
-                  </button>
-                ))}
+                <span className="legend-item"><i className="legend-key-line" style={{ background: keyBackground('var(--series-8)', '3 3') }} />Highest device</span>
+                <span className="legend-item"><i className="legend-key-line" style={{ background: keyBackground('var(--series-3)', '3 3') }} />Lowest device</span>
               </> : <>
                 {drifting.length ? <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--status-warning)', height: 3 }} />Thicker line = not following the planned test</span> : null}
               </>}

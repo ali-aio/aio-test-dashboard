@@ -111,7 +111,9 @@ export function MultiLineChart({ series, h = 220, yMax = 100, yMin = 0, yFmt = v
         </g>)}
         {live.map((s, k) => <path key={s.id ?? k} className="lane" d={path(s)} stroke={s.color} strokeWidth={s.width || 1.6}
           opacity={s.opacity ?? 1} strokeDasharray={s.dash || undefined} />)}
-        {labs.map(({ s, y }, k) => <text key={k} className="endlab" x={W - pr + 6} y={y + 3} fill={s.labelColor || s.color}>{s.endLabel}</text>)}
+        {/* a series with onLabel makes its end label a button (Today: highest / middle / lowest device) */}
+        {labs.map(({ s, y }, k) => <text key={k} className={`endlab${s.onLabel ? ' is-link' : ''}`} x={W - pr + 6} y={y + 3} fill={s.labelColor || s.color}
+          onClick={s.onLabel || undefined} role={s.onLabel ? 'button' : undefined}>{s.labelTitle ? <title>{s.labelTitle}</title> : null}{s.endLabel}</text>)}
         {hitX != null && <line y1={pt} y2={h - pb} x1={X(hitX)} x2={X(hitX)} stroke="var(--border-strong)" />}
         <rect x={pl} y={0} width={W - pl - pr} height={h} fill="transparent" className="hit"
           onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(); setHitX(xa + (e.clientX - r.left) / (W - pl - pr) * dx) }}

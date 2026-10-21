@@ -1773,6 +1773,8 @@ button.stat.is-open .stat-chevron {
 .chart text { font: 11px var(--font); fill: var(--text-muted); }
 .chart .lane { fill: none; stroke-linejoin: round; stroke-linecap: round; }
 .chart .endlab { font: 600 11px var(--font); }
+.chart .endlab.is-link { cursor: pointer; pointer-events: auto; text-decoration: underline dotted; }
+.chart .endlab.is-link:hover { text-decoration: underline; }
 .spark { width: 84px; height: 22px; }
 .spin { width: 13px; height: 13px; border: 2px solid var(--border-strong); border-top-color: var(--series-1); border-radius: 50%; animation: t7spin .7s linear infinite; display: inline-block; vertical-align: -2px; }
 @keyframes t7spin { to { transform: rotate(360deg); } }

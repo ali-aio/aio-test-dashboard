@@ -85,6 +85,10 @@ export default function TodayView({ fleet }) {
     for (const d of DEV) {
       const r = rowsFor(d.serial); const last = r[r.length - 1]
       if (!last || now - Date.parse(last.timestamp) > 15 * MIN || last.extra?.charging) continue
+      // just off the charger (still at 100 %, nothing dropped yet): the charger flag's last switch-off
+      let k = r.length - 1
+      while (k > 0 && !r[k - 1].extra?.charging && Date.parse(r[k].timestamp) - Date.parse(r[k - 1].timestamp) <= 30 * MIN) k--
+      if (k > 0 && r[k - 1].extra?.charging && r[k - 1].battery_pct >= 90 && now - Date.parse(r[k].timestamp) < 20 * H) { starts.push(Date.parse(r[k].timestamp)); continue }
       let top = r.length - 1
       for (let j = r.length - 2; j >= 0; j--) {
         if (Date.parse(r[j + 1].timestamp) - Date.parse(r[j].timestamp) > 2 * H) break
@@ -146,7 +150,8 @@ export default function TodayView({ fleet }) {
   // window opens when the plan says (07:00); the run starts when someone pulls the devices.
   const coarse = useMemo(() => conf.filter(c => c.rows?.length).map(c => ({ c,
     // from 2 h before the window, so a device pulled early (09:46 for a 10:00 window) is seen leaving the charger
-    start: runStartOf(rowsFor(c.serial).filter(r => { const t = Date.parse(r.timestamp); return t >= T.startMs - 2 * H && t <= winTo })) })), [conf])
+    // with no test and no run on the bench there is no run to time (it found last night's cycle's tail)
+    start: !T.tt && !T.running ? null : runStartOf(rowsFor(c.serial).filter(r => { const t = Date.parse(r.timestamp); return t >= T.startMs - 2 * H && t <= winTo })) })), [conf])
     // then pin each switch-off to the minute between the last reading on charge and the first off it
   const [refineRev, setRefineRev] = useState(0)
   useEffect(() => { let live = true

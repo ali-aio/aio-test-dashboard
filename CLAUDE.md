@@ -418,7 +418,11 @@ process is serving the current code.
 
 This restarts the Node backend (`server/server.mjs`) on port 8090 so it's serving
 whatever is currently on disk. It needs `server/config.json` with the QA key for the
-sweep to run (see `server/README.md`). Run it after pulling new changes. The page is then reachable on
+sweep to run (see `server/README.md`). Run it after pulling new changes. It runs the server as a
+**systemd user service**, `aio-test-dashboard.service` (unit written to `~/.config/systemd/user/` on every
+deploy, with the Node it picked), so it comes back by itself after a reboot or a crash — linger is on for
+`hwpc02`, so no login is needed. Logs: `journalctl --user -u aio-test-dashboard`. Before Oct 2026 it was a
+`nohup` process logging to `/tmp`, and a reboot left the app down until someone ran `./deploy.sh`. The page is then reachable on
 the tailnet at `http://100.113.189.96:8090/` (not `localhost` — this box is reached
 over Tailscale from other machines).
 

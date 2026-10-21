@@ -27,6 +27,9 @@ cp server/config.example.json server/config.json   # paste the QA key (gitignore
 ./deploy.sh
 ```
 
+`deploy.sh` runs it as the systemd user service `aio-test-dashboard.service` (starts at boot,
+restarts on a crash); logs with `journalctl --user -u aio-test-dashboard`.
+
 Environment overrides: `MDM_API_KEY`, `MDM_BASE`, `CYCLES_GROUP`, `PORT`, `SWEEP_MIN`, `RATE_PER_MIN`.
 
 With the backend serving the page, browsers need no API key at all — `shared/data.js`

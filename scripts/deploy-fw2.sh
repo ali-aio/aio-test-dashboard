@@ -55,4 +55,4 @@ got="$(ssh_fw2 "cd '$FW2_DIR' && git rev-parse --short HEAD")"
 echo "fw2 is on $got${want:+ (origin/main is $want)}"
 [ -z "$want" ] || [ "$want" = "$got" ] || { echo "fw2 is NOT on origin/main." >&2; exit 1; }
 curl -fsS -m 8 "http://$FW2_HOST:$FW2_PORT/api/status" >/dev/null && echo "App answering at http://$FW2_HOST:$FW2_PORT/" \
-  || { echo "App did not answer on :$FW2_PORT — check /tmp/aio-test-dashboard-server.log on fw2." >&2; exit 1; }
+  || { echo "App did not answer on :$FW2_PORT — check journalctl --user -u aio-test-dashboard on fw2." >&2; exit 1; }

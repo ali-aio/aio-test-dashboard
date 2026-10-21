@@ -73,7 +73,7 @@ else
 fi
 sleep 1
 
-if curl -sS -o /dev/null -w '%{http_code}' "http://localhost:$PORT/index.html" | grep -q 200; then
+if curl -sS -o /dev/null -w '%{http_code}' "http://localhost:$PORT/" | grep -q 200; then
   echo "Deployed. Reachable at http://$HOST_ADDR:$PORT/"
   curl -sS "http://localhost:$PORT/api/status"; echo
   echo "Log: $LOG"

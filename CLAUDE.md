@@ -127,8 +127,10 @@ oversight; don't add restaurant filtering back in without being asked.
 
 - `app.html` + `src/` — **the React app (v2)**, hash-routed: `src/main.jsx` ->
   `src/App.jsx` (shell, source list, status bar, inspector, v1/v2 picker, theme) ->
-  `src/views/*.jsx`. Built with `npm run build` into `dist/`, served at `/dist/app.html`
-  until the v1 views are ported and it takes over `/`.
+  `src/views/*.jsx`. Built with `npm run build` into `dist/` (Vite `base: '/dist/'`) and
+  **served at `/`** (`server.mjs` answers `/` with `dist/app.html`; `/index.html`, `/dist/` and
+  `/dist/app.html` redirect to `/`, keeping the `#/nx/…` part). It is the only dashboard: the v1 page is
+  no longer reachable (the user, 21 Oct 2026: "we don't need the old view").
 - **Device search + device page** — `src/components/DeviceSearch.jsx` sits in the header on every
   screen (`/` focuses it); a match opens `#/nx/device/<serial>` (`src/views/DeviceView.jsx`): status
   now, totals, battery curve per test, tests it has run (click → that test filtered to the device)
@@ -289,7 +291,8 @@ oversight; don't add restaurant filtering back in without being asked.
   The Cycle plan screen ends with **All cycles** (`AllCycles` in `CyclePlanView.jsx`): one row per bench
   cycle of a planned test (`benchCycles`), newest first; a click opens that test with the cycle picked
   (`openCycle` in `App.jsx` -> `initialBench` on `TestDetailView`).
-- `index.html` + (inline module script) — **the previous dashboard (v1)**, one page, hash-routed:
+- `index.html` + (inline module script) — **the previous dashboard (v1), no longer served** (its address
+  redirects to the React app; the file stays for reference and for `shared/`'s callers), one page, hash-routed:
   Overview (KPIs, weekly runtime trend, needs-attention, bench grid) · Devices (sortable
   table + inspector → device detail with runtime-per-cycle + cycle history) · Test cycles (UI label; code and routes still say "runs")
   (list → run detail) · Settings. Mac document-window shell; styles live in `app.css`

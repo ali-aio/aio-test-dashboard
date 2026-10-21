@@ -141,6 +141,10 @@ http.createServer(async (req, res) => {
     } catch (e) { return json(req, res, 502, { error: e.message }); }
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
+  // the React app is the dashboard at `/`; the old addresses (the v1 page, /dist/app.html) send
+  // the browser there, which keeps the #/nx/… part of the link
+  if (p === '/') return serveStatic(req, res, '/dist/app.html');
+  if (p === '/index.html' || p === '/dist/' || p === '/dist/app.html') { res.writeHead(302, { location: '/' + url.search }); return res.end(); }
   serveStatic(req, res, decodeURIComponent(p));
 }).listen(CFG.port, '0.0.0.0', () => console.log(`aio-test-dashboard on :${CFG.port} · group "${CFG.group}" · sweep every ${CFG.sweepMin} min · ${CFG.ratePerMin} req/min per client · key ${CFG.key ? 'set' : 'MISSING'}`));
 

@@ -141,9 +141,9 @@ export function Pill({ level = 'neutral', children }) {
  * worth meeting first.
  */
 export function Card({
-  title, sub, right, children, flush = false, collapsible = false, expandable = false,
+  title, sub, right, children, flush = false, collapsible = false, expandable = false, defaultOpen = false,
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const [full, setFull] = useState(false)
   const shown = !collapsible || open
   // room for a chart in full screen: the window, less the card header, legend and controls
@@ -190,6 +190,7 @@ export function Card({
             {heading}
           </button>
           <div className="header-spacer" />
+          {open && right}
           <span className="hint">{open ? 'Hide' : 'Show'}</span>
           {open && expandButton}
         </div>

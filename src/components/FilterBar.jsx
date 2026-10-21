@@ -133,7 +133,8 @@ export default function FilterBar({ cycles, filters, onChange, onReset, allSeria
       </Field>
 
       <div className="header-spacer" />
-      <button className="btn btn-sm btn-reset" onClick={onReset}>Reset filters</button>
+      {/* highlighted only while a filter is set; at rest it is a plain button */}
+      <button className={`btn btn-sm${hasFilters(filters, allSerials) ? ' btn-reset' : ''}`} onClick={onReset}>Reset filters</button>
     </div>
   )
 }
@@ -245,6 +246,12 @@ function SerialPicker({ serials, selected, onChange }) {
 }
 
 /* -------------------------------------------------------------- active pills */
+
+/** Any filter set — what the pills list (all devices ticked is the resting state). */
+export function hasFilters(f, allSerials = []) {
+  return f.testType !== '__all__' || !!(f.build || f.firmware || f.android || f.loadType || f.charger || f.week || f.date || f.range)
+    || (f.serials.length > 0 && f.serials.length !== allSerials.length)
+}
 
 export function FilterPills({ filters, onChange, onReset, count, allSerials = [] }) {
   const totalSerials = allSerials.length

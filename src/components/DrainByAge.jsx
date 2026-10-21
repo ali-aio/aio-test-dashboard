@@ -47,7 +47,7 @@ export default function DrainByAge({ cycles, drops: stored, hours, sheetRuns, sn
     </select>)
 
   return (
-    <Card title="Drain rate by battery age"
+    <Card title="Drain rate by battery age" collapsible
       right={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {sel(load, setLoad, 'Load on the wireless pad', [[ALL, 'With and without load'], ['on', 'Load placed'], ['off', 'No load']])}
         {sel(ads, setAds, 'Ads running', [[ALL, 'With and without ads'], ['on', 'Ads running'], ['off', 'No ads']])}

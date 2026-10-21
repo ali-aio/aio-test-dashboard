@@ -147,6 +147,9 @@ oversight; don't add restaurant filtering back in without being asked.
   maps), committed so the server box serves it; `server.mjs` serves it on that second port because its bundle asks for
   `/assets/…` at the root. To update it: build T7-Dashboard there, then
   `rsync -a --delete --exclude '*.map' ~/Projects/T7-Dashboard/dist/ t7-dashboard/`.
+  On a browser's first visit it opens onto the lab's CSVs in `~/Projects/T7-Dashboard/history/` (its Vite build copies
+  them to `history/` with an `index.json`; `loadBundledHistory` in its `src/lib/sample.js`) and keeps them in that
+  browser's history; a localStorage flag (`t7-history-loaded`) stops removed files coming back. New CSVs go in that folder, then rebuild.
 - **Header tools** (`src/components/HeaderTools.jsx`): the Live pill opens the last sweep time
   (no "cycles checked" text in the bar) and a Reload button (`location.reload()`), and the
   notification bell. The bell's rule is `src/lib/alerts.js` (tested): in the planned cycle running now
@@ -517,7 +520,9 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - **WLC active / WLC inactive**, never "Pad on / off" (`padState` values, legends, KPI cards, headings "WLC").
 - Overview order: **Restaurant Case, WLC on Load, Ads only, Charging Cycle**, (Idle Cycle, others), **Old cycles last**.
 - **No table views under Drain by hour of the cycle** on any test (it repeats the bars), and no chart description there.
-- No Health tab: Battery health is the Summary's last card. Old data sits in the Live pill's panel, not the header row.
+- No Health tab: Battery health is the Summary's last card. On Summary, **Drain rate by battery age** and **Battery
+  health** are collapsible cards, closed by default (their pickers show once opened).
+- **Reset filters** is highlighted only while a filter is set (`hasFilters` in `FilterBar.jsx`). Old data sits in the Live pill's panel, not the header row.
 - Test screen: no "Cycle time by build" strip; the battery chart and Drain by hour share one row.
 - Every graph opens on **the average** (Today, Thermal).
 - Devices ticked in the battery chart also filter Drain by hour, with a "Showing only" bar; the Every cycle table

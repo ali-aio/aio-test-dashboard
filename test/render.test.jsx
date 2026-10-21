@@ -720,7 +720,7 @@ const mdmCases = []
     want(gradeOf(95, [ev(SHUTDOWN), ev(SHUTDOWN)]) === GRADE.replace, 'two shutdowns -> replace')
     want(gradeOf(85, [ev(JUMP)]) === GRADE.watch && gradeOf(79, []) === GRADE.replace, 'watch band / replace band')
     want(gradeOf(null) === GRADE.few && gradeOf(null, [ev(JUMP)]) === GRADE.few, 'no score -> not enough runs')
-    const h = renderToString(<HealthView fleet={{ DEV, allCycles: DEV.flatMap(d => d.cycles), DMAP: new Map(DEV.map(d => [d.serial, d])), opts: DEFAULTS, at: 1 }} cycles={cycles} />)
+    const h = renderToString(<HealthView fleet={{ DEV, allCycles: DEV.flatMap(d => d.cycles), DMAP: new Map(DEV.map(d => [d.serial, d])), opts: DEFAULTS, at: 1 }} cycles={cycles} open />)
     want(h.includes('Battery health ·') && h.includes('Not enough runs') && h.includes('replace line'), 'health page did not draw its table')
   })
 }

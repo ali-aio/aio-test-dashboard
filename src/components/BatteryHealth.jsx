@@ -45,7 +45,7 @@ const head = COLS.map(([label, title, style]) => ({ label: <span title={title}>{
  * interrupted discharges. Computed here, only while the Summary screen is open (its last card;
  * it was its own Health screen until Oct 2026).
  */
-export default function BatteryHealth({ fleet, cycles }) {
+export default function BatteryHealth({ fleet, cycles, open = false }) {
   const { DEV, opts } = fleet
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
   const now = Date.now()
@@ -83,7 +83,7 @@ export default function BatteryHealth({ fleet, cycles }) {
 
   return (
     <>
-      <Card title={`Battery health${testType ? ` · ${testType}` : ''}`}
+      <Card title={`Battery health${testType ? ` · ${testType}` : ''}`} collapsible defaultOpen={open}
         sub={health?.comparable ? `${fmtInt(health.rows.length)} devices · ${fmtInt(health.comparable)} comparable runs · worst first · click a row for its detail, the serial for its page · capacity = runtime vs the unit's first runs; ${REPLACE_AT} % is the replace line` : undefined}
         right={
           <div className="row row-wrap" style={{ gap: 8 }}>

@@ -16,7 +16,7 @@ API contract, file structure, and the ground rules for working in this repo
 
 Starts the Node backend on `:8090` (static files + a 30-min cycle sweep that writes
 `data/topup.json`; see `server/README.md` — it wants `server/config.json` with the
-QA key). Open `http://100.113.189.96:8090/`, go to Settings, and set the QA API key.
+QA key). Open `http://10.32.2.135:8090/` (the lab laptop), go to Settings, and set the QA API key.
 
 ## Pages
 
@@ -35,5 +35,5 @@ built). The remaining `*-demos.html` / `app-demo*.html` are old design explorati
 
 ## Releasing from another machine
 
-`scripts/deploy-fw2.sh` pulls `origin/main` on fw2 and restarts the app; commit and push
+`scripts/deploy-lab.sh` pulls `origin/main` on the lab laptop and restarts the app; commit and push
 first. Details in [CLAUDE.md](CLAUDE.md#deploying).

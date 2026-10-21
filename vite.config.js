@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 // `app.html` is the entry while the React port runs alongside the old page; index.html
 // stays the shipped vanilla dashboard until every view is ported. Relative base so the
-// build can be served from any path (it currently lives at /dist/ on fw2).
+// build can be served from any path (it currently lives at /dist/ on the lab laptop).
 export default defineConfig({
   plugins: [react()],
   base: './',

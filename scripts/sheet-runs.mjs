@@ -16,7 +16,7 @@
 //     ≥ 8 %/h; Ads only / Burn-in: under 7 %/h and no such first 3 h).
 // Runs from AUTO_FROM on are skipped: the Cycle plan covers those.
 //
-//   node scripts/sheet-runs.mjs <folder of CSVs> <hours.json from fw2> [out]
+//   node scripts/sheet-runs.mjs <folder of CSVs> <hours.json from the server> [out]
 import fs from 'node:fs';
 import path from 'node:path';
 import { AUTO_FROM } from '../src/lib/autoPlan.js';

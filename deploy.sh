@@ -4,6 +4,7 @@
 set -euo pipefail
 
 PORT="${PORT:-8090}"
+HOST_ADDR="${HOST_ADDR:-10.32.2.135}"   # how the lab reaches this box (the lab laptop)
 T7_PORT="${T7_PORT:-8091}"   # the old T7-Dashboard, served by the same process
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -73,11 +74,11 @@ fi
 sleep 1
 
 if curl -sS -o /dev/null -w '%{http_code}' "http://localhost:$PORT/index.html" | grep -q 200; then
-  echo "Deployed. Reachable on the tailnet at http://100.113.189.96:$PORT/"
+  echo "Deployed. Reachable at http://$HOST_ADDR:$PORT/"
   curl -sS "http://localhost:$PORT/api/status"; echo
   echo "Log: $LOG"
   if curl -sS -o /dev/null -w '%{http_code}' "http://localhost:$T7_PORT/" | grep -q 200; then
-    echo "Old T7-Dashboard on http://100.113.189.96:$T7_PORT/"
+    echo "Old T7-Dashboard on http://$HOST_ADDR:$T7_PORT/"
   else
     echo "Warning: the old T7-Dashboard is not answering on :$T7_PORT" >&2
   fi

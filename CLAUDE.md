@@ -141,7 +141,7 @@ oversight; don't add restaurant filtering back in without being asked.
 - **Old data** (header button, `OldDataLink` in `src/components/HeaderTools.jsx`): opens the previous
   T7-Dashboard (the lab's imported CSVs, its own app) in a new tab on the same host, port `t7Port` from
   `/api/status` (8091, `T7_PORT`). `t7-dashboard/` is a copy of `~/Projects/T7-Dashboard/dist/` (no source
-  maps), committed so fw2 serves it; `server.mjs` serves it on that second port because its bundle asks for
+  maps), committed so the server box serves it; `server.mjs` serves it on that second port because its bundle asks for
   `/assets/…` at the root. To update it: build T7-Dashboard there, then
   `rsync -a --delete --exclude '*.map' ~/Projects/T7-Dashboard/dist/ t7-dashboard/`.
 - **Header tools** (`src/components/HeaderTools.jsx`): the Live pill opens the last sweep time
@@ -209,7 +209,7 @@ oversight; don't add restaurant filtering back in without being asked.
   cycles at time t = today's counter − what drained since t. Checked against the MDM: the counter's rise over 6 days matched
   the summed drops within ~2%; the counter is higher than the history's total only by what drained before the history starts.
   **Before the Cycle plan (25 Sep 2026) the test comes from the lab's own sheets** (`data/sheet-runs.json`, made by
-  `scripts/sheet-runs.mjs` from the lab's CSVs + fw2's `data/hours.json`; committed). The lab calls those sheets
+  `scripts/sheet-runs.mjs` from the lab's CSVs + the server's `data/hours.json`; committed). The lab calls those sheets
   inconsistent, so **this table is the only thing allowed to read them** (not the plan, Auto or Health), and a sheet run
   is kept only where the readings agree: date (day/month and month/day both tried), drain within 25 %, load on the pad
   fits the test. A plan test wins over the sheet's; a sheet run counts even where the detector counted no cycle.
@@ -253,7 +253,7 @@ oversight; don't add restaurant filtering back in without being asked.
   telemetry cannot supply. A declaration is (test type, date window, device group, time
   window); resolution order is explicit declaration > standing weekly rota > inferred from
   telemetry > unclassified. **Shared through our own backend** (owner's OK, Oct 2026): `data/plan.json`
-  on fw2 (gitignored), `GET/PUT /api/plan?group=` in `server/plan.mjs`, synced by `src/lib/planSync.js`
+  on the server box (the lab laptop, gitignored), `GET/PUT /api/plan?group=` in `server/plan.mjs`, synced by `src/lib/planSync.js`
   (pull every minute and on tab focus, push on every save, 409 + merge by id on a concurrent save,
   a browser's own plans merged in once on its first sync). localStorage is the per-browser cache;
   served without the backend it falls back to per-browser only.
@@ -321,7 +321,7 @@ oversight; don't add restaurant filtering back in without being asked.
   picks proxy vs direct once at boot (`detectBackend()`); served without the backend, the
   pages call the MDM directly with the key from Settings and fall back to the old in-browser
   `topUp()`. Two more endpoints, both ours: `GET /api/status` (last sweep time, counts,
-  last error, MDM client stats — what the app and `scripts/deploy-fw2.sh` use to check the
+  last error, MDM client stats — what the app and `scripts/deploy-lab.sh` use to check the
   backend is up) and `POST /api/sweep` (sweep now; Settings → "Check for new cycles").
   See `server/README.md`.
 - **UI shell** (`index.html` + `app.css`): the "Finder / Activity Monitor" option from
@@ -363,7 +363,7 @@ oversight; don't add restaurant filtering back in without being asked.
   small write endpoint on *our own* backend (`data/plan.json`) — "no write actions" below
   means no writes to the MDM or to devices; a write to this repo's own file is a separate
   decision that needs the owner's OK. Nothing in `index.html` reads a plan yet.
-- `scripts/deploy-fw2.sh` — release from another machine, see Deploying.
+- `scripts/deploy-lab.sh` — release from another machine, see Deploying.
 - Point-in-time design exploration, not linked from the real nav, safe to ignore or delete
   when stale: `mac-demos.html` (the three macOS-style directions, B chosen),
   `toolbar-demos.html`, `design-demos.html`, `app-demo.html`, `app-demo2.html`,
@@ -396,9 +396,9 @@ oversight; don't add restaurant filtering back in without being asked.
 
 ## Deploying
 
-There **is** a build step now, and it runs **on your machine, never on fw2** — fw2's
-default `node` is v10.19.0 and Vite needs >= 18. So `dist/` is **committed on purpose**:
-build locally, commit the result, and fw2 only ever serves static files.
+There **is** a build step now, and it runs **on your machine, never on the server box** (the lab
+laptop has no `node_modules`; fw2, the old host, had only Node v10 and Vite needs >= 18). So `dist/` is
+**committed on purpose**: build locally, commit the result, and the server only ever serves static files.
 
 ```bash
 npm test          # server-renders every view x every test type against real history
@@ -421,10 +421,10 @@ whatever is currently on disk. It needs `server/config.json` with the QA key for
 sweep to run (see `server/README.md`). Run it after pulling new changes. It runs the server as a
 **systemd user service**, `aio-test-dashboard.service` (unit written to `~/.config/systemd/user/` on every
 deploy, with the Node it picked), so it comes back by itself after a reboot or a crash — linger is on for
-`hwpc02`, so no login is needed. Logs: `journalctl --user -u aio-test-dashboard`. Before Oct 2026 it was a
-`nohup` process logging to `/tmp`, and a reboot left the app down until someone ran `./deploy.sh`. The page is then reachable on
-the tailnet at `http://100.113.189.96:8090/` (not `localhost` — this box is reached
-over Tailscale from other machines).
+`test-team`, so no login is needed. Logs: `journalctl --user -u aio-test-dashboard`. Before Oct 2026 it was a
+`nohup` process logging to `/tmp`, and a reboot left the app down until someone ran `./deploy.sh`. The page is then reachable at
+`http://10.32.2.135:8090/` on the lab network, the old T7-Dashboard at `:8091` (`HOST_ADDR` in
+`deploy.sh` is only the address it prints).
 
 There is no CI/CD here. `npm run build`, commit (including `dist/`), push, then
 `./deploy.sh` on the host is the entire release process. Forgetting to rebuild ships the
@@ -432,30 +432,38 @@ previous bundle, so build before you commit.
 
 ### Deploying from another machine (Tariq's PC)
 
-The app runs on **fw2** (`hwpc02@100.113.189.96`, repo at `/home/hwpc02/aio-test-dashboard`).
+The app runs on the **lab laptop** (`test-team@10.32.2.135`, hostname `test-team-IdeaPad-3-15ITL6`,
+Ubuntu, Node 22 at `/usr/bin/node`; repo at `/home/test-team/aio-test-dashboard`, cloned over HTTPS — the
+repo is public, so the laptop pulls without a GitHub key). Moved there from **fw2** (`hwpc02@100.113.189.96`)
+on 21 Oct 2026: `server/config.json` and `data/*.json` (plan, auto plan, sweep state) were copied across, fw2's
+`aio-test-dashboard.service` was stopped and disabled (its repo and data are left in place, not served), and
+the laptop's old `aio-dashboard-forward.socket` (a proxy of :8090 to fw2) was disabled to free the port.
 A second working copy lives on Tariq's PC (`tariq@tariq-pw0bk71a`, `~/Projects/aio-test-dashboard`).
 To release from there, commit and **push to `main`**, then:
 
 ```bash
-scripts/deploy-fw2.sh             # fw2: git pull --ff-only origin main, then ./deploy.sh
-scripts/deploy-fw2.sh --dry-run   # connection + "what would go out", changes nothing
+scripts/deploy-lab.sh             # laptop: git pull --ff-only origin main, then ./deploy.sh
+scripts/deploy-lab.sh --dry-run   # connection + "what would go out", changes nothing
 ```
 
 - "Latest" = what is on `origin/main`. The script refuses to run with uncommitted or
   unpushed local work so nothing is assumed deployed that isn't.
-- It needs passwordless SSH from that machine to fw2 (`ssh-copy-id hwpc02@100.113.189.96`,
-  already done for Tariq's PC) and a repo on fw2 whose clean state can fast-forward — if fw2
+- It needs passwordless SSH from that machine to the laptop (`ssh-copy-id test-team@10.32.2.135`,
+  already done for Tariq's PC) and a repo there whose clean state can fast-forward — if the laptop
   has uncommitted edits that clash with incoming changes the pull fails loudly and nothing
   restarts.
-- Afterwards it checks fw2 is on the same commit as `origin/main` and that `/api/status`
-  answers on :8090. Overrides: `FW2_USER`, `FW2_HOST`, `FW2_DIR`, `FW2_PORT`.
+- Don't edit files on the server box itself: commit here and deploy. fw2 once had an uncommitted
+  `deploy.sh` (the systemd change) that blocked every pull until it was brought into git.
+- Afterwards it checks the laptop is on the same commit as `origin/main` and that `/api/status`
+  answers on :8090. Overrides: `LAB_USER`, `LAB_HOST`, `LAB_DIR`, `LAB_PORT`.
 - `deploy.sh` picks a Node ≥ 20 (PATH, else the newest under `~/.nvm`) **before** stopping the
   running server. This matters over SSH: a non-interactive shell skips nvm and finds
-  fw2's `/usr/bin/node` (v10), which can't run the ES-module server — an early version of
+  `/usr/bin/node` first, which on fw2 was v10, which can't run the ES-module server — an early version of
   the script stopped the app and then failed to start it. Now a bad Node aborts with the
   old server still running.
-- `server/config.json` (the QA key) and `data/topup.json` are never copied between machines;
-  each host keeps its own. Tariq's copy has no `config.json`, so run the backend there only
+- `server/config.json` (the QA key) and `data/*.json` are not in git. Only the server box has the
+  live ones (the shared Cycle plan is `data/plan.json`); copy them only when moving the server, with
+  the old one stopped first so two sweeps don't write two diverging plans. Tariq's copy has no `config.json`, so run the backend there only
   after adding one — or just use it to edit and deploy.
 
 - Per-hour charts count **cycles** (bench runs, `cyclesText`), never device runs: 15 Restaurant Case cycles of ~16

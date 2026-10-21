@@ -544,9 +544,9 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   100 % (21 Oct: right after off-charge it showed "No test set · Running for 11h 57m" from the night before). The charts
   start at that day's cycle start (the bench off the charger, ~10:00), not before.
 - Drain rate and "Reaches 20 %" show only once ≥ 3 devices (or half the bench) have a rate.
-- For a test that puts a load on the pad, two more tiles: **Drain · WLC + ads** and **Drain · ads only** (`drainSplit` in
-  `window.js`: each gap between readings counts for its first reading's `wlc_status`), so a Restaurant Case's 3 h of
-  load and the rest aren't one blended number.
+- **Drain rate** is one tile; its drop-down splits it into **WLC active** (a load on the pad), **WLC inactive** (pad on,
+  no load) and **Ads only** (pad off) — `drainSplit` in `window.js`: each gap between readings counts for its first
+  reading's `wlc_status` / `wlc_charging` — so a Restaurant Case's 3 h of load and the rest aren't one blended number.
 - Battery chart (Average): the **end labels** at the right (highest, average = middle device, lowest) are buttons: a
   click switches both charts to Every device with only that device ticked. The legend's **Highest device / Lowest device** do the
   same, with no serial shown (it is on hover; the user didn't like serials in the legend).

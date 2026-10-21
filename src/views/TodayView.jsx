@@ -168,12 +168,10 @@ export default function TodayView({ fleet }) {
   // a drain needs a few devices behind it: one device 20 min in is not the bench's rate (it put
   // "Reaches 20 %" three days away at the start of a run)
   const rate = rates.length >= Math.min(3, Math.max(1, Math.ceil(started.length / 2))) ? median(rates) : null
-  // with WLC + ads and with ads only, for a test that puts a load on the pad (Restaurant Case: the
-  // first 3 h and the rest); the same few-devices rule for each
+  // the same split by what the T7 was doing (WLC active / inactive / ads only), in the Drain rate
+  // tile's drop-down; the same few-devices rule for each
   const enough = (xs) => xs.length >= Math.min(3, Math.max(1, Math.ceil(started.length / 2)))
   const splitOf = (k) => { const xs = started.map(r => r.split?.[k]).filter(v => v != null && v > 0); return { n: xs.length, rate: enough(xs) ? median(xs) : null } }
-  const wlcRate = splitOf('wlc'), adsRate = splitOf('ads')
-  const loadTest = T.tt ? ['restaurant', 'wlc_disch', 'wlc_load', 'wlc_phone', 'load_only'].includes(T.tt.id) : wlcRate.n > 0
   // The lab's daily run goes back on charge at 15–25%, so 20% is "the run is done".
   const END_BAND = 20
   const etaEnd = rate && medNow > END_BAND ? now + (medNow - END_BAND) / rate * H : null
@@ -341,12 +339,15 @@ export default function TodayView({ fleet }) {
             : `${started.length} of ${all.length} devices off charger · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`} />
         <Metric label="Battery" value={medNow != null ? <>{medNow}%<ChargeIcon state={chargeNow} /></> : '—'}
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />
-        <Metric label="Drain rate" value={rate ? <>{rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
-          delta={rate ? `${(rate / 6).toFixed(2)}% per 10 min · median of ${rates.length}` : 'needs 20 min of running'} />
-        {loadTest && [['wlc', 'Drain · WLC + ads', wlcRate, 'a load on the pad'], ['ads', 'Drain · ads only', adsRate, T.tt?.loadHours ? `from hour ${T.tt.loadHours + 1}, the load off` : 'no load on the pad']].map(([k, label, x, none]) => (
-          <Metric key={k} label={label} value={x.rate ? <>{x.rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
-            delta={x.rate ? `${(x.rate / 6).toFixed(2)}% per 10 min · median of ${x.n}` : `needs 20 min with ${none}`} />
-        ))}
+        {/* one tile; its drop-down splits the drain by what the T7 was doing (the user, Oct 2026) */}
+        <Stat label="Drain rate" value={rate ? <>{rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
+          foot={rate ? `${(rate / 6).toFixed(2)}% per 10 min · median of ${rates.length}` : 'needs 20 min of running'}
+          breakdownLabel="Drain by what the T7 was doing (ads run in all three)" breakdownRight breakdownNoun="state"
+          breakdown={[['active', 'WLC active', 'a load on the pad'], ['inactive', 'WLC inactive', 'pad on, no load'], ['ads', 'Ads only', 'pad off']].map(([k, label, what]) => {
+            const x = splitOf(k)
+            return { id: k, label, value: x.rate ?? 0, display: x.rate ? `${x.rate.toFixed(2)} %/h` : '—',
+              hint: x.rate ? `· ${what} · median of ${x.n}` : `· ${what} · needs 20 min`, highlight: x.rate != null }
+          })} />
         <Metric label={`Reaches ${END_BAND}%`} value={etaEnd ? <>{hm(etaEnd)}{dayKey(etaEnd) !== key && <span className="secondary" style={{ fontSize: 13, fontWeight: 500 }}> {new Date(etaEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</> : medNow != null && medNow <= END_BAND ? 'Done' : '—'}
           delta={etaEnd ? `${fmtDur(etaEnd - now)} from now${etaEmpty ? ` · empty ≈ ${when(etaEmpty)}` : ''}` : medNow != null && medNow <= END_BAND ? 'median is in the end band' : 'at the current rate'} />
         </>}

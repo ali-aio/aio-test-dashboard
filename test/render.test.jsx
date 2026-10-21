@@ -555,12 +555,12 @@ const mdmCases = []
     want(mergeAlerts(log, null, now + 60e3).length === 1, 'kept for the rest of the day with no cycle running')
     want(mergeAlerts(log, null, now + 2 * 86400e3).length === 0, 'gone the next day')
   })
-  check('Today: drain split into WLC + ads and ads only', () => {
+  check('Today: drain split into WLC active / inactive / ads only', () => {
     const t0 = Date.UTC(2026, 9, 21, 5), row = (min, pct, wlc) => ({ timestamp: new Date(t0 + min * 60e3).toISOString(), battery_pct: pct, extra: { charging: false, wlc_status: wlc } })
     // 1 h with a load at 12 %/h (a reading every 10 min), then 1 h without at 4 %/h
     const rows = [...Array.from({ length: 7 }, (_, i) => row(i * 10, 100 - 2 * i, i < 6 ? 1 : 0)), ...Array.from({ length: 6 }, (_, i) => row(70 + i * 10, 88 - (2 * (i + 1)) / 3, 0))]
     const x = drainSplit(rows, { t: t0, pct: 100 })
-    want(Math.abs(x.wlc - 12) < 0.01 && Math.abs(x.ads - 4) < 0.01, JSON.stringify(x))
+    want(Math.abs(x.active - 12) < 0.01 && x.inactive === null && Math.abs(x.ads - 4) < 0.01, JSON.stringify(x))
     want(drainSplit(rows.slice(0, 3), { t: t0, pct: 100 }).ads === null, 'under 20 min in a state -> null')
   })
   check('off charger = when charging went off, not the last 100% reading', () => {

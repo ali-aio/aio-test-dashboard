@@ -257,23 +257,23 @@ export function runningCycle(rows, lastFinished, now = Date.now()) {
     fullMs: drained >= 1 ? durationMs / drained * 100 : null };
 }
 
-// The same run split by what the T7 was doing: points per hour with a load on its wireless pad
-// (wlc_status ≠ 0: WLC active, ads running too) and without (ads only). Each gap between two
-// readings off the charger, ≤ 30 min apart, counts for the state of its first reading; a state
-// needs 20 min of readings, else null. Restaurant Case: 3 h WLC + ads, then ads only — one
-// number for both hides each (the user, Oct 2026).
+// The same run split by what the T7 was doing, in points per hour: WLC active (a load on its
+// wireless pad, wlc_status ≠ 0), WLC inactive (the pad on, wlc_charging, but no load) and ads only
+// (the pad off). Ads run in all three. Each gap between two readings off the charger, ≤ 30 min apart,
+// counts for the state of its first reading; a state needs 20 min of readings, else null.
+// Restaurant Case: 3 h with the load, then without — one number for both hides each (the user, Oct 2026).
 export function drainSplit(rows, start) {
-  const acc = { wlc: [0, 0], ads: [0, 0] };
-  if (!start || !rows) return { wlc: null, ads: null };
+  const acc = { active: [0, 0], inactive: [0, 0], ads: [0, 0] };
+  if (!start || !rows) return { active: null, inactive: null, ads: null };
   const rs = rows.filter((r) => !r.empty && Date.parse(r.timestamp) >= start.t);
   for (let i = 1; i < rs.length; i++) {
     const a = rs[i - 1], b = rs[i], dt = Date.parse(b.timestamp) - Date.parse(a.timestamp);
     if (dt <= 0 || dt > 30 * 60e3 || a.extra?.charging || b.extra?.charging) continue;
-    const k = a.extra?.wlc_status != null && +a.extra.wlc_status !== 0 ? 'wlc' : 'ads';
+    const k = a.extra?.wlc_status != null && +a.extra.wlc_status !== 0 ? 'active' : a.extra?.wlc_charging === true ? 'inactive' : 'ads';
     acc[k][0] += a.battery_pct - b.battery_pct; acc[k][1] += dt;
   }
   const rate = ([d, ms]) => (ms >= 20 * 60e3 ? d / (ms / H) : null);
-  return { wlc: rate(acc.wlc), ads: rate(acc.ads) };
+  return { active: rate(acc.active), inactive: rate(acc.inactive), ads: rate(acc.ads) };
 }
 
 // Drain since the run started, in percentage points per hour, from the device's own

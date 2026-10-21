@@ -566,6 +566,11 @@ const mdmCases = []
     want(one.join() === 'A:short', `one device, once (not also "on charge"): ${one}`)
     // the cycle time: 13.9 h counts as 14, 12 h is short and stays out of the average
     want(kpis([{ duration: 14, short: false }, { duration: 14.5, short: false }, { duration: 12, short: true }]).avgDuration === 14.25, 'short runs out of the average')
+    // 20 of 24 ran the cycle, 4 were taken out at 4 h: the averages are the 20's (the lab, 21 Oct 2026)
+    const bench = [...Array.from({ length: 20 }, () => ({ duration: 14, endBattery: 20, dropPerHr: 5.7, maxTemp: 52 })),
+      ...Array.from({ length: 4 }, () => ({ duration: 4, endBattery: 65, dropPerHr: 8.8, maxTemp: 45, incomplete: true }))]
+    const k = kpis(bench)
+    want(k.avgDuration === 14 && k.avgEndBattery === 20 && Math.abs(k.avgDropPerHr - 5.7) < 1e-9 && k.avgPeakTemp === 52, JSON.stringify(k))
   })
   check('Today: drain split into WLC active / inactive / ads only', () => {
     const t0 = Date.UTC(2026, 9, 21, 5), row = (min, pct, wlc) => ({ timestamp: new Date(t0 + min * 60e3).toISOString(), battery_pct: pct, extra: { charging: false, wlc_status: wlc } })

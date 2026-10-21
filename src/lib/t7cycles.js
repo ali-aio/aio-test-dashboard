@@ -403,15 +403,18 @@ export function pruneFilters(cycles, filters, allSerials) {
 
 /* --------------------------------------------------------------------- KPIs */
 
+// The whole-run averages count only runs that finished with their bench: not one that left the
+// cycle part-way or a short fixed-time run (adapt.js `incomplete`), and not one still running.
+export const finishedRuns = (cycles) => cycles.filter((c) => !c.incomplete && !c.short && !c.inProgress)
 export function kpis(cycles) {
+  const done = finishedRuns(cycles)
   return {
     totalCycles: cycles.length,
-    // a short fixed-time run (adapt.js FULL_CYCLE_MARGIN_H) is flagged, not averaged into the cycle time
-    avgDuration: mean(cycles.filter((c) => !c.short && !c.inProgress).map((c) => c.duration)), // a running cycle has no cycle time yet
+    avgDuration: mean(done.map((c) => c.duration)),
     avgStartBattery: mean(cycles.map((c) => c.startBattery)),
-    avgEndBattery: mean(cycles.map((c) => c.endBattery)),
-    avgPeakTemp: mean(cycles.map((c) => c.maxTemp)),
-    avgDropPerHr: mean(cycles.map((c) => c.dropPerHr)),
+    avgEndBattery: mean(done.map((c) => c.endBattery)),
+    avgPeakTemp: mean(done.map((c) => c.maxTemp)),
+    avgDropPerHr: mean(done.map((c) => c.dropPerHr)),
     avgGainPerHr: mean(cycles.map((c) => c.loadGainPerHr)),
     serials: new Set(cycles.map((c) => c.serial)).size,
     dates: new Set(cycles.map((c) => c.date).filter(Boolean)).size,
@@ -727,18 +730,18 @@ export function compareBy(cycles, key) {
     groups.get(g).push(c)
   }
   return [...groups.entries()].map(([label, list]) => {
-    const peaks = list.map((c) => c.maxTemp).filter(isNum)
+    const done = finishedRuns(list), peaks = list.map((c) => c.maxTemp).filter(isNum) // hottest: every run
     return {
       label,
       cycles: list.length,
       serials: new Set(list.map((c) => c.serial)).size,
-      avgDuration: mean(list.filter((c) => !c.short && !c.inProgress).map((c) => c.duration)),
-      avgDropPerHr: mean(list.map((c) => c.dropPerHr)),
-      avgDrop10: mean(list.map((c) => c.dropPer10Min)),
+      avgDuration: mean(done.map((c) => c.duration)),
+      avgDropPerHr: mean(done.map((c) => c.dropPerHr)),
+      avgDrop10: mean(done.map((c) => c.dropPer10Min)),
       avgGainPerHr: mean(list.map((c) => c.loadGainPerHr)),
       avgStartBattery: mean(list.map((c) => c.startBattery)),
-      avgEndBattery: mean(list.map((c) => c.endBattery)),
-      avgPeakTemp: mean(peaks),
+      avgEndBattery: mean(done.map((c) => c.endBattery)),
+      avgPeakTemp: mean(done.map((c) => c.maxTemp)),
       maxTemp: maxOf(peaks),
       dates: [...new Set(list.map((c) => c.date).filter(Boolean))].sort(),
     }

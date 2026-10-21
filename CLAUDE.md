@@ -503,6 +503,11 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   a load still on at hour 5+, past 14 h + 2 h slack, idling under 2 %/h). It **keeps its data up to the moment it left**
   (`planFor` → `cutAt`), shown as "· left cycle" with the reason on hover. A device starting up to 3 h late is still in.
 - An hour without readings is neither WLC active nor inactive (null), never filled from the run's flag.
+- **Whole-run averages count only the devices that ran the cycle with their bench** (the user, 21 Oct 2026: "if 20 of 24
+  reach 14 h, include those, not the ones taken out"): `incomplete` (left the cycle part-way, any test, or a short
+  fixed-time run) and running runs are left out of Avg cycle time, end battery, drain and peak temp (`finishedRuns` in
+  `kpis` / `compareBy` / the per-device rows); their hours still count in Drain by hour, the WLC drains and the curves,
+  and they are listed in the Avg cycle time tile's drop-down.
 - **Complete vs short (fixed-time tests, Restaurant Case 14 h)** — the lab, 21 Oct 2026: a run within 30 min of the cycle
   time (`FULL_CYCLE_MARGIN_H`, ≥ 13 h 30 m) is a **complete cycle and counts as 14 h** (`duration` = 14, the real time in
   `ranH`, on hover and in the CSV's "Ran (h)"); anything shorter is a **short cycle — alarming**: `short: true`, red

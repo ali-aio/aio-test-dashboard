@@ -291,6 +291,11 @@ export function adaptCycle(d, c0, rows, ctx) {
     duration: round(fullTime ? tt.hours : duration, 3),
     ranH: round(duration, 3),
     short: !!shortRun,
+    // didn't run the cycle with the rest of its bench: left part-way (taken out, or stopped doing
+    // what the test does) or a short fixed-time run. Its hours still count; the whole-run averages
+    // (cycle time, end battery, drain, peak temp) leave it out (the lab, 21 Oct 2026: "if 20 of 24
+    // reach 14 h, average those, not the ones taken out")
+    incomplete: !!shortRun || plan.cutAt != null,
     startBattery: c.startPct,
     endBattery: c.endPct,
     batteryDelta: c.endPct - c.startPct,

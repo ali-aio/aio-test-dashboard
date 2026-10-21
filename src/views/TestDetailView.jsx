@@ -13,7 +13,7 @@ import { padSplit } from '../lib/drainHours.js'
 import PickDevicesDialog from '../components/PickDevicesDialog.jsx'
 import {
   kpis, fullDischargeCycles, batteryCycles, batteryCyclesBy, batteryBySerial, avgCurveBy, dropGainByLoadType, hourlyProfile,
-  hourContributors, compareBy, mean, maxOf,
+  hourContributors, compareBy, mean, maxOf, finishedRuns,
   explainEmpty, explainNoRate, plottedMaxHour } from '../lib/t7cycles.js'
 import { buildColorMap, buildStyleMap, MAX_SERIES, SERIES_VARS, BUILD_COLOR, MEASURE_COLOR } from '../lib/palette.js'
 import {
@@ -54,8 +54,10 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const benchSel = bench ? benches.find((b) => b.key === bench) : null
   const inBench = useMemo(() => (benchSel ? benchSel.list : allCycles), [allCycles, benchSel])
   const cycles = useMemo(() => (focus ? inBench.filter((c) => c.serial === focus) : inBench), [inBench, focus])
-  // fixed-time runs that stopped over 30 min early (adapt.js `short`), newest first
-  const shortRuns = useMemo(() => cycles.filter((c) => c.short).sort((a, b) => b.start - a.start), [cycles])
+  // runs left out of the whole-run averages (adapt.js `incomplete`: left the cycle part-way, or a
+  // fixed-time run that stopped over 30 min early), newest first
+  const shortRuns = useMemo(() => cycles.filter((c) => c.incomplete || c.short).sort((a, b) => b.start - a.start), [cycles])
+  const nShort = shortRuns.filter((c) => c.short).length
   // Picking a device also switches the battery chart to Per device with only it ticked, so
   // its picker reads "1/22" and the other devices of the cycle stay a tick away.
   const pickDevice = (sn) => {
@@ -334,13 +336,14 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
         {/* a fixed-time test (Restaurant Case 14 h): the short runs (alarming) are in this tile's drop-down,
             not a tile of their own (the lab, 21 Oct 2026) */}
         <Stat label="Avg cycle time" value={fmtNum(k.avgDuration, 1)} unit="h"
-          foot={!fixedH ? 'per cycle' : shortRuns.length
-            ? <span className="short-cycle">{fmtInt(shortRuns.length)} short (under {shortLimit})</span>
-            : `complete cycles · none under ${shortLimit}`}
-          {...(fixedH && shortRuns.length ? {
-            breakdownLabel: `Short cycles: ran under ${shortLimit} of the ${fixedH} h · left out of the average · newest first`, breakdownWide: true, breakdownRight: true, breakdownNoun: 'run',
-            breakdown: shortRuns.map((c) => ({ id: c.id, label: `${fmtSerial(c.serial)} · ${fmtDate(c.date)}`, value: c.ranH, display: fmtHours(c.ranH),
-              hint: c.leftCycle ? `· ${c.leftCycle.why}` : '· back on charge early', highlight: true, onClick: () => pickDevice(c.serial) })),
+          foot={nShort ? <span className="short-cycle">{fmtInt(nShort)} short (under {shortLimit})</span>
+            : shortRuns.length ? `${fmtInt(shortRuns.length)} left the cycle · not averaged`
+            : fixedH ? `complete cycles · none under ${shortLimit}` : 'per cycle'}
+          {...(shortRuns.length ? {
+            breakdownLabel: `${fixedH ? `Short cycles (under ${shortLimit} of the ${fixedH} h) and runs` : 'Runs'} that left the cycle · not in the averages · newest first`,
+            breakdownWide: true, breakdownRight: true, breakdownNoun: 'run',
+            breakdown: shortRuns.map((c) => ({ id: c.id, label: `${fmtSerial(c.serial)} · ${fmtDate(c.date)}`, value: c.ranH ?? c.duration, display: fmtHours(c.ranH ?? c.duration),
+              hint: c.leftCycle ? `· ${c.leftCycle.why}` : '· back on charge early', highlight: !!c.short, onClick: () => pickDevice(c.serial) })),
           } : {})} />
         {isRestaurant ? restaurantRates.map((mode) => (
           <Stat key={mode.rateKey} label={mode.label} value={fmtRate(mode.rate)}
@@ -480,7 +483,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             const by = new Map()
             for (const c of shown) { if (!by.has(c.serial)) by.set(c.serial, []); by.get(c.serial).push(c) }
             return [...by.keys()].sort(compareSerial).map((sn) => {
-              const cs = by.get(sn).sort((a, b) => a.start - b.start), avg = (k) => mean((k === 'duration' ? cs.filter((c) => !c.short) : cs).map((c) => c[k]).filter(Number.isFinite))
+              const cs = by.get(sn).sort((a, b) => a.start - b.start), done = finishedRuns(cs), avg = (k) => mean((k === 'startBattery' ? cs : done).map((c) => c[k]).filter(Number.isFinite))
               const first = cs[0].date, last = cs[cs.length - 1].date
               return { serial: sn, n: fmtInt(cs.length), dates: first === last ? fmtDate(first) : `${fmtDate(first)} – ${fmtDate(last)}`,
                 fw: [...new Set(cs.map((c) => c.firmware))].join(', '), dur: fmtHours(avg('duration')),

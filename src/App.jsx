@@ -189,10 +189,11 @@ export default function App() {
           <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 2v8M4.5 6.8 8 10.3l3.5-3.5M3 13.5h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
           Export CSV</button>}
         {exporting && <ExportDialog devices={DEV} cycles={cycles} group={GROUP} onClose={() => setExporting(false)} />}
-        <LiveBadge error={error} ready={ready} server={fleet.server} />
         <NotificationBell log={alerts} onRead={id => markRead([id])} onReadAll={() => markRead(true)}
           onOpen={() => { location.hash = '#/nx/today'; window.scrollTo(0, 0) }} />
         <ThemeButton />
+        {/* rightmost (the user, Oct 2026) */}
+        <LiveBadge error={error} ready={ready} server={fleet.server} />
       </header>
       <main className="app-main">
         <HistoryStatus.Provider value={{ loading: win.loading, at: win.at, err: win.err,

@@ -522,6 +522,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - **No table views under Drain by hour of the cycle** on any test (it repeats the bars), and no chart description there.
 - No Health tab: Battery health is the Summary's last card. On Summary, **Drain rate by battery age** and **Battery
   health** are collapsible cards, closed by default (their pickers show once opened).
+- Header, right to left: the **Live** pill is the rightmost item, then the theme button and the bell.
 - **Reset filters** is highlighted only while a filter is set (`hasFilters` in `FilterBar.jsx`). Old data sits in the Live pill's panel, not the header row.
 - Test screen: no "Cycle time by build" strip; the battery chart and Drain by hour share one row.
 - Every graph opens on **the average** (Today, Thermal).

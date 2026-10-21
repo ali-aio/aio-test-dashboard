@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { statShort, statLong, statHint, typical } from '../lib/stat.js'
 import { subscribeWindow, getWindow, rowsFor, currentCycleStart } from '../lib/window.js'
 import { fetchHistoryRange } from '../lib/data.js'
 import { normalize } from '../lib/cycles.js'
@@ -15,8 +16,8 @@ import { fmtLifetime, fmtInt, fmtNum, fmtPct, fmtTemp, fmtHours, fmtRate, fmtDat
 // One device's whole history, opened from the header search (#/nx/device/<serial>):
 // how it is right now, what it has run (every test, every run, newest first) and its
 // battery curve per test. Filters don't apply here — this page is "everything for it".
-// mean of the cycles' average battery temperatures (null when none has one)
-const avgOf = (list) => { const v = list.map((c) => c.avgTemp).filter(Number.isFinite); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null }
+// the cycles' average battery temperatures: their mean, or P95 (the app's switch); null when none has one
+const avgOf = (list) => typical(list.map((c) => c.avgTemp), 'high')
 
 export default function DeviceView({ serial, d, cycles, onOpenTest }) {
   const mine = useMemo(() => cycles.filter((c) => c.serial === serial).sort((a, b) => b.start - a.start), [cycles, serial])
@@ -68,15 +69,15 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
           <Stat label="Cycles" value={fmtLifetime(lifetimeCycles(s))}
             foot={`battery cycles (MDM) · ${runsText(mine.length).replace('cycle', 'test run')} recorded since ${fmtDate(mine[mine.length - 1].date)}`} />
           <Stat label="Test days" value={fmtInt(days)} foot={`${fmtDate(mine[mine.length - 1].date)} → ${fmtDate(mine[0].date)}`} />
-          <Stat label="Avg cycle time" value={fmtNum(k.avgDuration, 1)} unit="h" foot="per cycle" />
-          <Stat label="Avg drain" value={fmtRate(k.avgDropPerHr)} foot="battery per hour" />
-          <Stat label="Avg temp" value={fmtNum(avgTempAll, 1)} unit="°C" foot="battery, over its cycles" />
+          <Stat label={`${statShort()} cycle time`} value={fmtNum(k.avgDuration, 1)} unit="h" foot="per cycle" />
+          <Stat label={`${statShort()} drain`} value={fmtRate(k.avgDropPerHr)} foot="battery per hour" />
+          <Stat label={`${statShort()} temp`} value={fmtNum(avgTempAll, 1)} unit="°C" foot="battery, over its cycles" />
           <Stat label="Hottest cycle" value={fmtNum(peakRun?.maxTemp, 1)} unit="°C" foot={peakRun ? `${peakRun.testType} · ${fmtDate(peakRun.date)}` : 'no temperature'} />
         </div>
 
         <LiveChart serial={serial} d={d} />
 
-        <Card expandable title="Battery over a cycle, by test" sub="This device’s mean battery at each whole hour, one line per test type">
+        <Card expandable title="Battery over a cycle, by test" sub={`This device’s ${statShort() === 'P95' ? 'P95' : 'mean'} battery at each whole hour, one line per test type`}>
           <LineChart series={curves} xDomain={[0, Math.ceil(plottedMaxHour(mine))]} yDomain={[0, 100]}
             formatX={fmtHourTick} formatY={(v) => `${v}%`} xLabel="elapsed time" xUnit="h" height={260}
             caption={`Battery per hour for ${serial}, by test type`} />
@@ -85,8 +86,8 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
         <Card title="Tests it has run" sub="Click a test to open it for this device — curves, drain by hour and its cycles">
           <div className="table-wrap">
             <SortTable caption={`Tests ${serial} has run`} head={[
-              { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycles' }, { label: 'Avg cycle time' },
-              { label: 'Avg drain' }, { label: 'Avg temp' }, { label: 'Avg peak temp' }, { label: 'Hottest' }, { label: 'Last cycle' },
+              { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycles' }, { label: `${statShort()} cycle time` },
+              { label: `${statShort()} drain` }, { label: `${statShort()} temp` }, { label: `${statShort()} peak temp` }, { label: 'Hottest' }, { label: 'Last cycle' },
             ]}>
               {tests.map((t) => (
                 <tr key={t.tt} className="row-link" onClick={() => onOpenTest(serial, t.tt)}>

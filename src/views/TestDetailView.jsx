@@ -1,5 +1,6 @@
 import { splitText, splitBy, cyclesText, deviceCyclesText, countCycles, benchCycles } from '../lib/splitCycles.js'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { statShort, statLong, statHint, typical } from '../lib/stat.js'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadDecls, takenOutOf, takenOutText } from '../lib/plan.js'
 import { CTX } from '../lib/adapt.js'
@@ -17,24 +18,24 @@ import { buildColorMap, buildStyleMap, MAX_SERIES, SERIES_VARS, BUILD_COLOR, MEA
 import {
   fmtBC, bcText, runsText, fmtInt, fmtNum, fmtPct, fmtHours, fmtTemp, fmtRate, fmtSigned, fmtHourTick, fmtDate, fmtSerial, compareSerial, fmtEnded } from '../lib/fmt.js'
 
-const BENCH_CURVE_MODES = [
+const BENCH_CURVE_MODES = () => [
   { id: 'serial', label: 'Per device' },
-  { id: 'build', label: 'Mean by build' },
-  { id: 'firmware', label: 'Mean by firmware' },
+  { id: 'build', label: `${statLong()} by build` },
+  { id: 'firmware', label: `${statLong()} by firmware` },
 ]
 
 /* Field cycles come from MDM telemetry, which carries no build or firmware
    column — pad state is the dimension that data actually distinguishes. */
-const FIELD_CURVE_MODES = [
+const FIELD_CURVE_MODES = () => [
   { id: 'serial', label: 'Per device' },
-  { id: 'padState', label: 'Mean by WLC' },
+  { id: 'padState', label: `${statLong()} by WLC` },
 ]
 
 /* A device usually ran the test several times. Showing its longest run alone
    answered neither "what does this device do" nor "how consistent is it", so
    the reader says which of the two they are after. */
-const DEVICE_VIEWS = [
-  { id: 'average', label: 'Average per device' },
+const DEVICE_VIEWS = () => [
+  { id: 'average', label: `${statLong()} per device` },
   { id: 'all', label: 'Every cycle' },
 ]
 
@@ -85,12 +86,12 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   // still had it) is gone (the lab, Oct 2026): the battery chart and Drain by hour share one row
   const showSecondaryChart = false
   const drainLabel = testType === 'Ads only'
-    ? 'Avg T7 drain · ads only, no load'
+    ? `${statShort()} T7 drain · ads only, no load`
     : testType === 'WLC + Discharge on Ads'
-      ? 'Avg T7 drain · ads, load on the pad for 3 h'
+      ? `${statShort()} T7 drain · ads, load on the pad for 3 h`
       : testType === 'Discharge on Load only'
-        ? 'Avg T7 drain · load only, no ads'
-        : 'Avg T7 drain'
+        ? `${statShort()} T7 drain · load only, no ads`
+        : `${statShort()} T7 drain`
 
   /* Colour follows the serial across the whole app, so filtering a device out
      never repaints the others. */
@@ -111,7 +112,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
     [cycles],
   )
 
-  const curveModes = isField ? FIELD_CURVE_MODES : BENCH_CURVE_MODES
+  const curveModes = isField ? FIELD_CURVE_MODES() : BENCH_CURVE_MODES()
   // Field telemetry has no build column, so pad state is its grouped mean.
   const defaultMode = isField ? 'padState' : 'build'
   const activeMode = curveModes.some((m) => m.id === mode) ? mode : defaultMode
@@ -259,16 +260,16 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   /* --- the second KPI row, which depends on what the test measures -------- */
   const loadKpis = isLoadTest ? ['iPhone 1', 'iPhone 2', 'iPhone 3'].map((lt) => {
     const own = cycles.filter((c) => c.loadType === lt)
-    return { lt, n: own.length, gain: mean(own.map((c) => c.loadGainPerHr)), drop: mean(own.map((c) => c.dropPerHr)) }
+    return { lt, n: own.length, gain: typical(own.map((c) => c.loadGainPerHr), 'low'), drop: typical(own.map((c) => c.dropPerHr), 'high') }
   }).filter((x) => x.n) : []
   const restaurantRates = isRestaurant ? [
-    { label: 'Avg drain · WLC active', rateKey: 'wirelessDrainPerHr' },
-    { label: 'Avg drain · WLC inactive', rateKey: 'withoutWirelessDrainPerHr' },
+    { label: `${statShort()} drain · WLC active`, rateKey: 'wirelessDrainPerHr' },
+    { label: `${statShort()} drain · WLC inactive`, rateKey: 'withoutWirelessDrainPerHr' },
   ].map((mode) => {
     const rated = cycles.filter((c) => c[mode.rateKey] != null)
     return {
       ...mode,
-      rate: mean(rated.map((c) => c[mode.rateKey])),
+      rate: typical(rated.map((c) => c[mode.rateKey]), 'high'),
     }
   }) : []
 
@@ -324,7 +325,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                 onClick: () => { setBench((k) => (k === b.key ? null : b.key)); setFocus(null); setDeviceChoice({ testType, selected: null }) } }
             })} />
         })()}
-        <Stat label="Avg cycle time" value={fmtNum(k.avgDuration, 1)} unit="h"
+        <Stat label={`${statShort()} cycle time`} value={fmtNum(k.avgDuration, 1)} unit="h"
           foot="per cycle" />
         {isRestaurant ? restaurantRates.map((mode) => (
           <Stat key={mode.rateKey} label={mode.label} value={fmtRate(mode.rate)}
@@ -332,17 +333,17 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               ? `${Math.abs(mode.rate / 6).toFixed(2)}% per 10 min`
               : 'needs consecutive hourly readings in this mode'} />
         )) : (
-          <Stat label={isCharging ? 'Avg charge rate' : drainLabel} value={fmtRate(k.avgDropPerHr)}
+          <Stat label={isCharging ? `${statShort()} charge rate` : drainLabel} value={fmtRate(k.avgDropPerHr)}
             foot={k.avgDropPerHr != null
               ? `${Math.abs(k.avgDropPerHr / 6).toFixed(2)}% per 10 min`
               : 'needs two whole-hour readings'} />
         )}
         <Stat label="Avg start battery" value={fmtPct(k.avgStartBattery)} />
-        <Stat label={isCharging ? 'Avg charged to' : 'Avg end battery'} value={fmtPct(k.avgEndBattery)}
+        <Stat label={isCharging ? `${statShort()} charged to` : `${statShort()} end battery`} value={fmtPct(k.avgEndBattery)}
           foot="at cycle end" />
         {/* The average of the peaks hides the worst one, which is the figure a
             thermal problem actually shows up in. */}
-        <Stat label="Avg peak temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
+        <Stat label={`${statShort()} peak temp`} value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
           foot={hottestRun == null
             ? 'no temperature recorded'
             : `hottest cycle ${fmtTemp(hottestRun)}`}
@@ -352,7 +353,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
 
       {isField && (
         <div className="stat-row">
-          <Stat label="Avg RAM used" value={fmtPct(mean(cycles.map((c) => c.avgRam)), 1)}
+          <Stat label={`${statShort()} RAM used`} value={fmtPct(typical(cycles.map((c) => c.avgRam), 'high'), 1)}
             foot="recorded only by MDM telemetry" />
           <Stat label="Peak RAM used" value={fmtPct(maxOf(cycles.map((c) => c.maxRam)), 1)} />
           <Stat label="Cycles on a misplaced pad"
@@ -401,7 +402,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             header squeeze the title until it wraps a word per line. */}
         {activeMode === 'serial' && (
           <div className="chart-subcontrol">
-            <Segmented ariaLabel="Per-device detail" options={DEVICE_VIEWS}
+            <Segmented ariaLabel="Per-device detail" options={DEVICE_VIEWS()}
               value={deviceView} onChange={setDeviceView} />
           </div>
         )}
@@ -444,10 +445,10 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             { key: 'n', label: 'Cycles' },
             { key: 'dates', label: 'Dates' },
             { key: 'fw', label: 'Firmware' },
-            { key: 'dur', label: 'Avg cycle time' },
-            { key: 'start', label: 'Avg start' },
-            { key: 'end', label: isCharging ? 'Avg charged to' : 'Avg end' },
-            { key: 'drop', label: isCharging ? 'Avg charge rate' : 'Avg drain' },
+            { key: 'dur', label: `${statShort()} cycle time` },
+            { key: 'start', label: 'Avg start' }, // how runs were set up: always the mean
+            { key: 'end', label: isCharging ? `${statShort()} charged to` : `${statShort()} end` },
+            { key: 'drop', label: isCharging ? `${statShort()} charge rate` : `${statShort()} drain` },
           ]}
           // only the devices (or cycles) ticked in the picker, so the table matches the lines drawn
           tableRows={(() => {
@@ -464,7 +465,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             const by = new Map()
             for (const c of shown) { if (!by.has(c.serial)) by.set(c.serial, []); by.get(c.serial).push(c) }
             return [...by.keys()].sort(compareSerial).map((sn) => {
-              const cs = by.get(sn).sort((a, b) => a.start - b.start), avg = (k) => mean(cs.map((c) => c[k]).filter(Number.isFinite))
+              const cs = by.get(sn).sort((a, b) => a.start - b.start), avg = (k) => (k === 'startBattery' ? mean : (v) => typical(v, k === 'duration' ? (isCharging ? 'high' : 'low') : k === 'dropPerHr' ? (isCharging ? 'low' : 'high') : 'low'))(cs.map((c) => c[k]).filter(Number.isFinite))
               const first = cs[0].date, last = cs[cs.length - 1].date
               return { serial: sn, n: fmtInt(cs.length), dates: first === last ? fmtDate(first) : `${fmtDate(first)} – ${fmtDate(last)}`,
                 fw: [...new Set(cs.map((c) => c.firmware))].join(', '), dur: fmtHours(avg('duration')),
@@ -532,13 +533,13 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               unit="h"
               labelWidth={isField ? 124 : 100}
               emptyState={explainEmpty(cycles, 'duration', 'a cycle time')}
-              caption={`Mean cycle time by ${isField ? 'pad state' : 'hardware build'}`}
+              caption={`${statLong()} cycle time by ${isField ? 'pad state' : 'hardware build'}`}
               tableColumns={[
                 { key: 'build', label: isField ? 'Pad state' : 'Build' },
                 { key: 'n', label: 'Cycles' },
-                { key: 'dur', label: 'Avg cycle time' },
-                { key: 'drop', label: isCharging ? 'Avg charge rate' : 'Avg drain' },
-                { key: 'temp', label: 'Avg peak temp' },
+                { key: 'dur', label: `${statShort()} cycle time` },
+                { key: 'drop', label: isCharging ? `${statShort()} charge rate` : `${statShort()} drain` },
+                { key: 'temp', label: `${statShort()} peak temp` },
               ]}
               tableRows={secondary.map((b) => ({
                 build: b.label, n: groupCount(b.label, b.cycles), dur: fmtHours(b.avgDuration),
@@ -553,12 +554,12 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           ? 'T7 drain and load gain by hour of the cycle'
           : isCharging ? 'Battery gained by hour of the cycle' : 'Drain by hour of the cycle'}
           sub={isCharging
-            ? 'How many battery percentage points the T7 gains in each whole hour, averaged across charging cycles.'
+            ? `How many battery percentage points the T7 gains in each whole hour, ${statShort() === 'P95' ? 'P95 (the slowest 5 % left out)' : 'averaged'} across charging cycles.`
             : isRestaurant
               ? undefined // no subtitle on Restaurant Case (the lab's choice, Oct 2026)
               : testType === 'WLC on Phone'
                 ? 'Mean T7 battery lost and load battery gained in each whole hour. Both use percentage points on one axis; load-type averages are shown above.'
-              : 'Average battery lost during each hour of a cycle.'}>
+              : `${statLong()} battery lost during each hour of a cycle.`}>
           <GroupedColumns
             onSelectGroup={(g) => setHourPick((cur) => (cur === g.h ? null : g.h))}
             selectedGroup={hourPick == null ? null

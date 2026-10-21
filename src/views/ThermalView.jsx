@@ -1,5 +1,6 @@
 import { countCycles, deviceCyclesText } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
+import { statShort, statLong, statHint, typical } from '../lib/stat.js'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { ModeSwitch, envelopeSeries } from '../components/CurveModes.jsx'
 import { LineChart, Heatmap } from '../components/t7charts.jsx'
@@ -69,7 +70,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
 
   // The average across runs (by default, the lab's choice) or every device (the hottest few, picker to change).
   const [tempMode, setTempMode] = useState('avg')
-  const avgTemp = useMemo(() => envelopeSeries(withTemp, 'tempSeries', 'Average temperature'), [withTemp])
+  const avgTemp = useMemo(() => envelopeSeries(withTemp, 'tempSeries', `${statLong()} temperature`), [withTemp])
   const maxHour = useMemo(
     () => plottedMaxHour(withTemp, 'tempSeries'),
     [withTemp],
@@ -91,7 +92,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
     }
     const cells = []
     for (const v of acc.values()) {
-      const m = mean(v.vals)
+      const m = typical(v.vals, 'high')
       if (m == null) continue
       cells.push({ row: v.row, col: v.col, value: m, n: v.vals.length })
       if (m < lo) lo = m
@@ -226,7 +227,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
           breakdown={hottestCycles} breakdownWide
           breakdownLabel="Hottest cycles · hottest first — click one to isolate it" />
         <Stat label="Typical hottest point" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
-          foot={`averaged over ${deviceCyclesText(withTemp.length)}`} />
+          foot={`${statShort()} over ${deviceCyclesText(withTemp.length)}`} />
         <Stat label="Middle of all readings" value={fmtNum(median(allTemps), 1)} unit="°C"
           foot={`half of the ${fmtInt(allTemps.length)} readings are above this`} />
         <Stat label="Cycles that got hot (55 °C+)" value={fmtInt(hotCycles)}
@@ -241,8 +242,8 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
           foot="left out of everything on this page" />
       </div>
 
-      <Card expandable title={tempMode === 'avg' ? 'How hot cycles get, on average' : 'How hot each device gets during a cycle'}
-        sub={tempMode === 'avg' ? 'Mean battery temperature at each whole hour, with the hottest and coolest device'
+      <Card expandable title={tempMode === 'avg' ? `How hot cycles get, ${statShort() === 'P95' ? 'P95' : 'on average'}` : 'How hot each device gets during a cycle'}
+        sub={tempMode === 'avg' ? `${statLong()} battery temperature at each whole hour, with the hottest and coolest device`
           : 'One line per device, following its longest cycle that recorded temperature'}
         right={<ModeSwitch value={tempMode} onChange={setTempMode} />}>
         <LineChart
@@ -335,7 +336,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
       </Card>
 
       <Card collapsible expandable title="Which hour of a cycle each device is hottest"
-        sub="Average temperature at each hour — the darker the square, the hotter it was">
+        sub={`${statLong()} temperature at each hour — the darker the square, the hotter it was`}>
         <Heatmap
           rows={heat.rows}
           cols={heat.cols}
@@ -352,7 +353,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
           tableColumns={[
             { key: 'serial', label: 'Serial' },
             { key: 'hottest', label: 'Hottest hour' },
-            { key: 'peak', label: 'Average at that hour' },
+            { key: 'peak', label: `${statLong()} at that hour` },
             { key: 'swing', label: 'Hottest minus coolest' },
           ]}
           tableRows={heat.rows.map((serial) => {

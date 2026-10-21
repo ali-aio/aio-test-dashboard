@@ -516,6 +516,22 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   can say `charging` while falling, so a charge ends a run only once the level stops falling; a bench is running only
   while most of its devices are; an entry covering under half a bench isn't that bench's.
 
+### Average or P95 (21 Oct 2026 — may be reverted)
+- The user is **going with P95** for every figure over many cycles, but **both are kept for now** and they may say
+  revert. One switch, **Figure: P95 | Average**, in the filter bar (Overview, test screens, Comparison, Thermal,
+  Summary; the device page follows it); the browser keeps its choice (localStorage `statMode`), the default is
+  `STAT_DEFAULT` in `src/lib/stat.js` (**'p95'**). **To revert: set `STAT_DEFAULT = 'avg'`** (or remove the switch too).
+- P95 is read on the **bad side** of each measure, so it always means "95 % of runs were at least this good": the
+  95th percentile where higher is worse (drain, temperature, time to charge, RAM), the 5th where lower is worse
+  (runtime / cycle time of a discharge, battery level and the battery curves, end battery, charge rate, load gain).
+  Excel's `PERCENTILE.INC` (`percentileInc`), so the lab's sheet gives the same number.
+- `typical(values, worse)` replaces the mean in `kpis`, `compareBy`, `avgCurveBy`, `envelopeBy`, `hourlyProfile`,
+  `dropGainByLoadType`, the Restaurant Case WLC tiles, the per-device rows, the device page, Thermal's heat map and
+  Drain by age's fleet rows. Labels follow (`statShort()` "Avg"/"P95", `statLong()` "Average"/"P95"); the property
+  names stay `avg*`. **Start battery stays the mean** (how a run was set up, not a result), and so does anything
+  within one cycle or one moment (Today, a cycle's own average temperature, All cycles' battery).
+- Under 20 runs a P95 is close to the worst run; nothing hides it yet.
+
 ### Wording and layout
 - **WLC active / WLC inactive**, never "Pad on / off" (`padState` values, legends, KPI cards, headings "WLC").
 - Overview order: **Restaurant Case, WLC on Load, Ads only, Charging Cycle**, (Idle Cycle, others), **Old cycles last**.

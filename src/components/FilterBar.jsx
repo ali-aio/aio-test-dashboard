@@ -7,11 +7,12 @@ import { ALL_TEST_TYPES, LOAD_TEST_TYPES } from '../lib/testtypes.js'
 import { cascadeOptions, pruneFilters } from '../lib/t7cycles.js'
 import { fmtDate, fmtWeek } from '../lib/fmt.js'
 import { splitText } from '../lib/splitCycles.js'
-import { useKeepOnScreen } from './Primitives.jsx'
+import { useKeepOnScreen, Segmented } from './Primitives.jsx'
+import { statHint } from '../lib/stat.js'
 import RangePicker from './RangePicker.jsx'
 import { rangeLabel } from '../lib/range.js'
 
-export default function FilterBar({ cycles, filters, onChange, onReset, allSerials = [], declaredTypes = [], allCycles = null }) {
+export default function FilterBar({ cycles, filters, onChange, onReset, allSerials = [], declaredTypes = [], allCycles = null, stat = null, onStat = null }) {
   // every local day with a run -> how many, whatever range is applied: the calendar's dots
   // and the picker's list of test dates
   const daysWithRuns = useMemo(() => {
@@ -131,6 +132,14 @@ export default function FilterBar({ cycles, filters, onChange, onReset, allSeria
         <RangePicker value={filters.range || null} daysWithRuns={daysWithRuns}
           onChange={(range) => onChange({ ...filters, range, date: '' })} />
       </Field>
+
+      {/* which figure stands for many cycles, everywhere in the app (src/lib/stat.js) */}
+      {onStat && (
+        <Field label="Figure">
+          <span title={statHint()}><Segmented ariaLabel="Average or P95" value={stat} onChange={onStat}
+            options={[{ id: 'p95', label: 'P95' }, { id: 'avg', label: 'Average' }]} /></span>
+        </Field>
+      )}
 
       <div className="header-spacer" />
       {/* highlighted only while a filter is set; at rest it is a plain button */}

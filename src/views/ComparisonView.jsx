@@ -1,5 +1,6 @@
 import { splitText, splitBy } from '../lib/splitCycles.js'
 import React, { useMemo, useState, useEffect, useRef } from 'react'
+import { statShort, statLong, statHint, typical } from '../lib/stat.js'
 import { Card, EmptyNote, Segmented, useKeepOnScreen } from '../components/Primitives.jsx'
 import { ModeSwitch, deviceSeries, useDevicePicker } from '../components/CurveModes.jsx'
 import { LineChart, GroupedColumns } from '../components/t7charts.jsx'
@@ -209,10 +210,10 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
       <Card expandable title={curveMode === 'all' ? 'Battery curve, every device' : 'Mean battery curve by group'}
         sub={`${curveMode === 'all'
           ? (dimension === 'serial'
-            ? `The ${perDevice.length} device${perDevice.length === 1 ? '' : 's'} chosen above, mean battery`
-            : `${perDevice.length} device${perDevice.length === 1 ? '' : 's'} in the ${visible.length} ${GROUP_PLURAL[dimension]} chosen above, mean battery`)
+            ? `The ${perDevice.length} device${perDevice.length === 1 ? '' : 's'} chosen above, ${statShort() === 'P95' ? 'P95' : 'mean'} battery`
+            : `${perDevice.length} device${perDevice.length === 1 ? '' : 's'} in the ${visible.length} ${GROUP_PLURAL[dimension]} chosen above, ${statShort() === 'P95' ? 'P95' : 'mean'} battery`)
           : 'Mean battery'} at each whole hour${testType === '__all__' ? ' across every test type in scope' : ` · ${testType}`}`}
-        right={<ModeSwitch value={curveMode} onChange={setCurveMode} avgLabel="Average per group" />}>
+        right={<ModeSwitch value={curveMode} onChange={setCurveMode} avgLabel={`${statLong()} per group`} />}>
         <LineChart
           series={curveMode === 'all' ? perDevice : curves}
           {...(curveMode === 'all' && dimension !== 'serial' ? picker : {})}
@@ -225,7 +226,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
           height={320}
           emptyState={explainEmpty(cycles, (c) => c.series.length, 'a battery reading')}
           caption="Mean battery percentage over elapsed hours, by comparison group"
-          valueLabel="mean battery"
+          valueLabel={statShort() === 'P95' ? 'P95 battery' : 'mean battery'}
           legendNote={[
             visible.length - drawable.length > 0
               ? `${visible.length - drawable.length} of the ${visible.length} selected ${GROUP_PLURAL[dimension]} logged no reading on a whole hour, so there is no curve to draw for them`
@@ -238,7 +239,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
       </Card>
 
       <Card expandable title="Measures side by side"
-        sub={`Average cycle time and ${chargingOnly ? 'charge' : 'drain'} rate for each group`}>
+        sub={`${statLong()} cycle time and ${chargingOnly ? 'charge' : 'drain'} rate for each group`}>
         <GroupedColumns
           groups={visible.map((g) => ({
             label: g.label.replace(' Build', ''),
@@ -249,8 +250,8 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
             },
           }))}
           measures={[
-            { key: 'duration', label: 'Avg cycle time (h)', color: 'var(--series-1)' },
-            { key: 'drain', label: chargingOnly ? 'Avg T7 charge rate (%/h)' : 'Avg T7 drain (%/h)', color: 'var(--series-2)' },
+            { key: 'duration', label: `${statShort()} cycle time (h)`, color: 'var(--series-1)' },
+            { key: 'drain', label: chargingOnly ? `${statShort()} T7 charge rate (%/h)` : `${statShort()} T7 drain (%/h)`, color: 'var(--series-2)' },
           ]}
           formatValue={(v) => `${v}`}
           xLabel={DIMENSIONS.find((d) => d.id === dimension)?.label}
@@ -264,11 +265,11 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
             { key: 'label', label: DIMENSIONS.find((d) => d.id === dimension)?.label ?? 'Group' },
             { key: 'n', label: 'Cycles' },
             { key: 'serials', label: 'Devices' },
-            { key: 'dur', label: 'Avg cycle time', better: 'up' },
-            { key: 'drain', label: chargingOnly ? 'Avg charge rate' : 'Avg drain', better: chargingOnly ? 'up' : 'down' },
+            { key: 'dur', label: `${statShort()} cycle time`, better: 'up' },
+            { key: 'drain', label: chargingOnly ? `${statShort()} charge rate` : `${statShort()} drain`, better: chargingOnly ? 'up' : 'down' },
             { key: 'start', label: 'Avg start' },
-            { key: 'end', label: chargingOnly ? 'Avg charged to' : 'Avg end', better: 'up' },
-            { key: 'temp', label: 'Avg peak temp', better: 'down' },
+            { key: 'end', label: chargingOnly ? `${statShort()} charged to` : `${statShort()} end`, better: 'up' },
+            { key: 'temp', label: `${statShort()} peak temp`, better: 'down' },
             { key: 'max', label: 'Max temp', better: 'down' },
           ]}
           tableNote={visible.length > 1 ? (

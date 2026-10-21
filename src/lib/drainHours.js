@@ -20,6 +20,7 @@
 // Plain JS, no DOM.
 import { lifetimeAt } from './drainAge.js';
 import { FIELD_DISCHARGE } from './testtypes.js';
+import { typical } from './stat.js';
 
 const H = 3600e3, MAX_STEP = 30 * 60e3;
 export const SLOT = 15 * 60e3;
@@ -165,7 +166,7 @@ export function conditionBands(tagged, base = {}, { step = 5 } = {}) {
     { label: 'Ads running', f: { ads: 'on' } }, { label: 'No ads', f: { ads: 'off' } },
     ...TEMP_BANDS.map(b => ({ label: b.label, f: { temp: b.id } })),
   ];
-  const mean = xs => (xs.length ? xs.reduce((a, x) => a + x, 0) / xs.length : null);
+  const mean = xs => typical(xs, 'high'); // across devices: the mean, or P95 (src/lib/stat.js)
   const all = conds.map(c => ({ ...c, t: drainBands(tagged, { ...base, ...c.f }, { step }) }));
   const marks = [...new Set(all.flatMap(c => c.t.marks))].sort((a, b) => a - b);
   return { marks, rows: all.map(c => ({ label: c.label,

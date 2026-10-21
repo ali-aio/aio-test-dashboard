@@ -1,6 +1,7 @@
 import { splitBy } from '../lib/splitCycles.js'
 import { cyclesText, benchCycles } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
+import { statShort, statLong, statHint, typical } from '../lib/stat.js'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { LineChart } from '../components/t7charts.jsx'
 import { useDevicePicker } from '../components/CurveModes.jsx'
@@ -171,7 +172,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOp
 
 // One test-type card. Average = T7's mean curve per pad state (or build); Every cycle = one
 // line per bench cycle (its devices averaged), with a Cycles picker to tick which are drawn.
-const MODES = [{ id: 'avg', label: 'Average' }, { id: 'cycles', label: 'Every cycle' }]
+const MODES = () => [{ id: 'avg', label: statLong() }, { id: 'cycles', label: 'Every cycle' }]
 const cycleName = (t) => new Date(t).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('Sept', 'Sep')
 
 /** One averaged curve per bench cycle, oldest first; styles assigned over all of them so
@@ -194,9 +195,9 @@ function OverviewPanel({ p, allSerials, onPickTestType, onOpenDevice }) {
   return (
     <Card expandable
       title={p.testType}
-      sub={`${cyclesText(p.cycles)} · ${p.k.serials} devices · ${mode === 'cycles' ? 'one line per cycle, its devices averaged' : `mean battery by ${p.groupKey === 'build' ? 'build' : 'pad state'}`}`}
+      sub={`${cyclesText(p.cycles)} · ${p.k.serials} devices · ${mode === 'cycles' ? 'one line per cycle, its devices averaged' : `${statShort() === 'P95' ? 'P95' : 'mean'} battery by ${p.groupKey === 'build' ? 'build' : 'pad state'}`}`}
       right={<>
-        <Segmented ariaLabel="Curve view" value={mode} onChange={setMode} options={MODES} />
+        <Segmented ariaLabel="Curve view" value={mode} onChange={setMode} options={MODES()} />
         <button className="btn btn-sm" onClick={() => onPickTestType(p.testType)}>
           Open ›
         </button>
@@ -216,9 +217,9 @@ function OverviewPanel({ p, allSerials, onPickTestType, onOpenDevice }) {
         tableColumns={[
           mode === 'cycles' ? { key: 'build', label: 'Cycle' } : { key: 'build', label: p.groupKey === 'build' ? 'Build' : 'Pad state' },
           { key: 'n', label: mode === 'cycles' ? 'Devices' : 'Cycles' },
-          { key: 'dur', label: 'Avg cycle time' },
-          { key: 'drop', label: p.charging ? 'Avg charge rate' : 'Avg drain' },
-          { key: 'end', label: p.charging ? 'Avg charged to' : 'Avg end battery' },
+          { key: 'dur', label: `${statShort()} cycle time` },
+          { key: 'drop', label: p.charging ? `${statShort()} charge rate` : `${statShort()} drain` },
+          { key: 'end', label: p.charging ? `${statShort()} charged to` : `${statShort()} end battery` },
           { key: 'temp', label: 'Peak temp' },
         ]}
         // Average: one row per build / pad state. Every cycle: one row per cycle ticked in the

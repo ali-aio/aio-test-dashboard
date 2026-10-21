@@ -6,6 +6,7 @@ import { tagSlots, drainBands, conditionBands, TEMP_BANDS } from '../lib/drainHo
 import { rowsFor, subscribeWindow, getWindow } from '../lib/window.js'
 import { CHARGING_TEST_TYPES } from '../lib/testtypes.js'
 import { fmtSerial, compareSerial, DASH } from '../lib/fmt.js'
+import { typical, statLong } from '../lib/stat.js'
 
 const ALL = 'all'
 const STEP = 5
@@ -36,7 +37,8 @@ export default function DrainByAge({ cycles, drops: stored, hours, sheetRuns, sn
   const { marks, rows } = useMemo(() => drainBands(tagged, { load, ads, temp, test }, { step: STEP }), [tagged, load, ads, temp, test])
   const cond = useMemo(() => conditionBands(tagged, { test }, { step: STEP }), [tagged, test])
   const sorted = rows.slice().sort((a, b) => compareSerial(a.serial, b.serial))
-  const avg = (xs) => { const v = xs.filter((x) => x != null); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null }
+  // the fleet row: the mean, or P95 (the app's Average / P95 switch; more drain is worse)
+  const avg = (xs) => typical(xs, 'high')
   const cell = (x) => x
     ? <span title={`${x.hours.toFixed(1)} h on battery · load on the pad ${pct(x.loadShare)} of it${x.temp != null ? ` · battery ${x.temp.toFixed(1)} °C on average` : ''}`}>{per15(x.rate)}</span>
     : DASH
@@ -70,7 +72,7 @@ export default function DrainByAge({ cycles, drops: stored, hours, sheetRuns, sn
                 </tr>
               ))}
               <tr data-pinned className="row-total">
-                <td style={{ textAlign: 'left' }}><b>Average</b></td>
+                <td style={{ textAlign: 'left' }}><b>{statLong()}</b></td>
                 {marks.map((m) => { const a = avg(sorted.map((r) => r.at[m]?.rate)); return <td key={m}><b>{a == null ? DASH : per15(a)}</b></td> })}
                 <td><b>{(() => { const a = avg(sorted.map((r) => r.latest?.rate)); return a == null ? DASH : per15(a) })()}</b></td>
                 <td />
@@ -78,15 +80,15 @@ export default function DrainByAge({ cycles, drops: stored, hours, sheetRuns, sn
             </SortTable>
           </div>)}
       {drops && hours && cond.marks.length > 0 && <>
-        <h3 style={{ margin: '16px 0 6px', fontSize: 13 }}>Average by condition{test !== ALL ? ` · ${test}` : ''}</h3>
+        <h3 style={{ margin: '16px 0 6px', fontSize: 13 }}>{statLong()} by condition{test !== ALL ? ` · ${test}` : ''}</h3>
         <div className="table-wrap" style={{ maxHeight: 360 }}>
           <SortTable caption="Average drain by condition and battery age" head={[{ label: 'Condition', style: { textAlign: 'left' } },
             ...cond.marks.map(band), { label: 'Last 7 days' }]}>
             {cond.rows.map((r) => (
               <tr key={r.label}>
                 <td style={{ textAlign: 'left' }}>{r.label}</td>
-                {cond.marks.map((m) => <td key={m}>{r.at[m] ? <span title={`average of ${r.at[m].devices} device${r.at[m].devices === 1 ? '' : 's'}`}>{per15(r.at[m].rate)}</span> : DASH}</td>)}
-                <td>{r.latest ? <span title={`average of ${r.latest.devices} devices`}>{per15(r.latest.rate)}</span> : DASH}</td>
+                {cond.marks.map((m) => <td key={m}>{r.at[m] ? <span title={`${statLong().toLowerCase()} of ${r.at[m].devices} device${r.at[m].devices === 1 ? '' : 's'}`}>{per15(r.at[m].rate)}</span> : DASH}</td>)}
+                <td>{r.latest ? <span title={`${statLong().toLowerCase()} of ${r.latest.devices} devices`}>{per15(r.latest.rate)}</span> : DASH}</td>
               </tr>))}
           </SortTable>
         </div>

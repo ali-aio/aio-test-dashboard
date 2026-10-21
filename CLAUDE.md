@@ -138,6 +138,12 @@ oversight; don't add restaurant filtering back in without being asked.
   history rows per device, at a chosen interval, `empty` rows dropped) or cycles (one row each);
   devices, time span and columns are picked by checkbox. Column definitions and CSV text live in
   `src/lib/csv.js` (tested). Readings fetches retry on the proxy's 429.
+- **Old data** (header button, `OldDataLink` in `src/components/HeaderTools.jsx`): opens the previous
+  T7-Dashboard (the lab's imported CSVs, its own app) in a new tab on the same host, port `t7Port` from
+  `/api/status` (8091, `T7_PORT`). `t7-dashboard/` is a copy of `~/Projects/T7-Dashboard/dist/` (no source
+  maps), committed so fw2 serves it; `server.mjs` serves it on that second port because its bundle asks for
+  `/assets/…` at the root. To update it: build T7-Dashboard there, then
+  `rsync -a --delete --exclude '*.map' ~/Projects/T7-Dashboard/dist/ t7-dashboard/`.
 - **Header tools** (`src/components/HeaderTools.jsx`): the Live pill opens the last sweep time
   (no "cycles checked" text in the bar) and a Reload button (`location.reload()`), and the
   notification bell. The bell's rule is `src/lib/alerts.js` (tested): in the planned cycle running now

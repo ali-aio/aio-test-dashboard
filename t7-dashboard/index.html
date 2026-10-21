@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>T7 Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>" />
+    <script type="module" crossorigin src="/assets/index-CfOpduBp.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BTN_AD-A.css">
+  </head>
+  <body>
+    <script>
+      /* Stamp the theme before first paint. Without this the page flashes
+         light while the bundle loads, which is worse in a dim room than the
+         light theme would have been. */
+      try {
+        /* Anything other than an explicit "light" — including the "system"
+           value older versions stored — resolves to dark. */
+        var t = localStorage.getItem('t7-theme') === 'light' ? 'light' : 'dark'
+        document.documentElement.setAttribute('data-theme', t)
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+      }
+    </script>
+    <div id="root"></div>
+  </body>
+</html>

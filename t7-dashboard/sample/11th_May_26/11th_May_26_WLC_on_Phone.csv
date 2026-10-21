@@ -1,0 +1,217 @@
+Test Type,Serial No,Build,Android Version,Firmware Version,Time (Hrs),T7 Battery %,PCB Temperature (°C),Load Type,Load %,Date
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,0,99%,36.2,iPhone 2,0%,9/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,1,89%,47.8,iPhone 2,26%,9/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,2,76%,48.7,iPhone 2,50%,9/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3,64%,49.1,iPhone 2,72%,9/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3.37,59%,49.3,iPhone 2,80%,9/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,0,100%,35.3,iPhone 3,0%,9/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,1,90%,45.4,iPhone 3,25%,9/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,2,79%,44.0,iPhone 3,47%,9/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3,67%,46.3,iPhone 3,68%,9/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3.6,61%,47.2,iPhone 3,80%,9/3/2026
+WLC_on_Phone,AT070AA2600030,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,0,100%,32.6,iPhone 1,0%,9/3/2026
+WLC_on_Phone,AT070AA2600030,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,1,91%,45.8,iPhone 1,20%,9/3/2026
+WLC_on_Phone,AT070AA2600030,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,2,78%,47.3,iPhone 1,48%,9/3/2026
+WLC_on_Phone,AT070AA2600030,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3,65%,48.2,iPhone 1,75%,9/3/2026
+WLC_on_Phone,AT070AA2600030,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3.3,61%,48.1,iPhone 1,81%,9/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,0,54%,35.8,iPhone 3,0%,11/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,1,43%,56.1,iPhone 3,28%,11/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,2,29%,54.0,iPhone 3,49%,11/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3,14%,55.0,iPhone 3,70%,11/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3.5,6%,52.9,iPhone 3,80%,11/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,0,55%,32.8,iPhone 2,0%,11/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,1,44%,53.1,iPhone 2,24%,11/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,2,31%,54.6,iPhone 2,44%,11/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3,17%,55.7,iPhone 2,64%,11/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3.75,1%,53.0,iPhone 2,78%,11/3/2026
+WLC_on_Phone,AT070AA2600030,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,0,56%,36.1,iPhone 1,0%,11/3/2026
+WLC_on_Phone,AT070AA2600030,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,1,47%,49.9,iPhone 1,18%,11/3/2026
+WLC_on_Phone,AT070AA2600030,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,2,37%,51.0,iPhone 1,35%,11/3/2026
+WLC_on_Phone,AT070AA2600030,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3,27%,52.2,iPhone 1,51%,11/3/2026
+WLC_on_Phone,AT070AA2600030,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,4,14%,50.3,iPhone 1,70%,11/3/2026
+WLC_on_Phone,AT070AA2600030,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,4.37,7%,49.3,iPhone 1,80%,11/3/2026
+WLC_on_Phone,AT070AA2600027,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,0,100%,34.5,iPhone 1,0%,18/3/2026
+WLC_on_Phone,AT070AA2600027,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,1,93%,50.8,iPhone 1,21%,18/3/2026
+WLC_on_Phone,AT070AA2600027,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,2,82%,51.1,iPhone 1,49%,18/3/2026
+WLC_on_Phone,AT070AA2600027,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3,69%,52.5,iPhone 1,77%,18/3/2026
+WLC_on_Phone,AT070AA2600027,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3.13,69%,53.7,iPhone 1,80%,18/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,0,100%,29.4,iPhone 2,0%,18/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,1,88%,38.3,iPhone 2,28%,18/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,2,76%,39.5,iPhone 2,52%,18/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3,64%,39.7,iPhone 2,75%,18/3/2026
+WLC_on_Phone,AT070AA2600029,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3.22,62%,39.4,iPhone 2,80%,18/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,0,100%,34.6,iPhone 3,0%,18/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,1,91%,47.9,iPhone 3,27%,18/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,2,80%,23.9,iPhone 3,49%,18/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3,67%,24.7,iPhone 3,71%,18/3/2026
+WLC_on_Phone,AT070AA2600021,Validation Build,A-15,A15 V-1.52-reverse-MO test-keys,3.43,62%,23.5,iPhone 3,80%,18/3/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,0,100%,26.60,iPhone 1,0%,11/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,1,90%,43.4,iPhone 1,26%,11/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,2,79%,44.50,iPhone 1,49%,11/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3,68%,44.30,iPhone 1,72%,11/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3.3,63%,44.40,iPhone 1,80%,11/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,0,99%,27.40,iPhone 2,0%,11/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,1,90%,44.9,iPhone 2,27%,11/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,2,78%,46.30,iPhone 2,52%,11/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3,66%,46.40,iPhone 2,77%,11/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3.18,64%,44.30,iPhone 2,81%,11/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,0,100%,25.90,iPhone 3,0%,11/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,1,92%,40.7,iPhone 3,19%,11/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,2,84%,41.40,iPhone 3,35%,11/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3,74%,42.90,iPhone 3,51%,11/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,4,65%,42.90,iPhone 3,66%,11/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,5,55%,43.90,iPhone 3,80%,11/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.20,iPhone 3,0%,13/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,1,91%,48.5,iPhone 3,27%,13/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,2,80%,49.20,iPhone 3,50%,13/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3,69%,49.40,iPhone 3,72%,13/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3.4,64%,49.70,iPhone 3,80%,13/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.40,iPhone 1,0%,13/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,1,91%,46.3,iPhone 1,22%,13/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,2,83%,46.60,iPhone 1,33%,13/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3,73%,48.00,iPhone 1,55%,13/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,4,61%,47.30,iPhone 1,77%,13/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,4.23,58%,47.20,iPhone 1,82%,13/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.40,iPhone 2,0%,13/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,1,93%,43.2,iPhone 2,23%,13/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,2,88%,42.50,iPhone 2,29%,13/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3,83%,42.10,iPhone 2,31%,13/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,4,78%,43.80,iPhone 2,33%,13/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,5,67%,47.20,iPhone 2,53%,13/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,6,56%,47.20,iPhone 2,72%,13/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,6.42,52%,47.20,iPhone 2,80%,13/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.30,iPhone 2,0%,14/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,1,91%,48.1,iPhone 2,24%,14/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,2,80%,49.20,iPhone 2,47%,14/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3,68%,48.90,iPhone 2,69%,14/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3.57,61%,49.50,iPhone 2,80%,14/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.20,iPhone 3,0%,14/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,1,90%,49.6,iPhone 3,29%,14/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,2,79%,50.70,iPhone 3,52%,14/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3,67%,50.90,iPhone 3,75%,14/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3.27,64%,49.90,iPhone 3,80%,14/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.30,iPhone 1,0%,14/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,1,92%,47.9,iPhone 1,20%,14/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,2,84%,46.50,iPhone 1,38%,14/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3,75%,46.70,iPhone 1,56%,14/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,4,65%,45.90,iPhone 1,74%,14/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,4.42,61%,46.30,iPhone 1,80%,14/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,0,100%,29.50,iPhone 1,0%,15/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,1,91%,49.9,iPhone 1,25%,15/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,2,80%,51.50,iPhone 1,53%,15/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3,67%,49.50,iPhone 1,80%,15/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,0,100%,30.00,iPhone 2,0%,15/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,1,90%,51,iPhone 2,26%,15/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,2,79%,52.00,iPhone 2,47%,15/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3,67%,52.30,iPhone 2,68%,15/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3.6,60%,52.50,iPhone 2,80%,15/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,0,100%,29.90,iPhone 3,0%,15/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,1,95%,45.4,iPhone 3,6%,15/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,2,89%,48.30,iPhone 3,11%,15/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3,80%,49.00,iPhone 3,33%,15/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,4,69%,49.30,iPhone 3,54%,15/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,5,58%,48.90,iPhone 3,74%,15/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,5.32,54%,48.90,iPhone 3,80%,15/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.10,iPhone 2,0%,16/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,1,91%,50.3,iPhone 2,23%,16/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,2,79%,51.90,iPhone 2,49%,16/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3,67%,52.10,iPhone 2,71%,16/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3.42,63%,52.20,iPhone 2,80%,16/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.50,iPhone 3,0%,16/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,1,91%,51.4,iPhone 3,27%,16/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,2,79%,52.90,iPhone 3,52%,16/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3,67%,53.00,iPhone 3,73%,16/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,6.45,64%,53.50,iPhone 3,80%,16/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.60,iPhone 1,0%,16/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,1,92%,49.3,iPhone 1,24%,16/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,2,81%,50.50,iPhone 1,49%,16/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3,71%,50.20,iPhone 1,70%,16/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3.5,65%,51.40,iPhone 1,80%,16/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,0,100%,28.30,iPhone 3,0%,17/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,1,90%,45.3,iPhone 3,29%,17/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,2,79%,47.60,iPhone 3,53%,17/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3,67%,48.40,iPhone 3,76%,17/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3.18,65%,48.90,iPhone 3,80%,17/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,0,100%,28.80,iPhone 1,0%,17/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,1,90%,46.5,iPhone 1,28%,17/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,2,78%,48.10,iPhone 1,55%,17/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3,66%,48.70,iPhone 1,80%,17/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,0,100%,28.50,iPhone 2,0%,17/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,1,91%,45.3,iPhone 2,25%,17/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,2,81%,46.30,iPhone 2,46%,17/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3,70%,46.80,iPhone 2,65%,17/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3.78,61%,47.10,iPhone 2,80%,17/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.40,iPhone 1,0%,18/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,1,90%,48.6,iPhone 1,28%,18/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,2,80%,50.00,iPhone 1,53%,18/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3,68%,50.20,iPhone 1,80%,18/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.30,iPhone 2,0%,18/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,1,90%,49.9,iPhone 2,26%,18/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,2,80%,50.90,iPhone 2,47%,18/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3,67%,51.40,iPhone 2,70%,18/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3.33,64%,51.60,iPhone 2,80%,18/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.00,iPhone 3,0%,18/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,1,91%,47.7,iPhone 3,26%,18/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,2,82%,49.00,iPhone 3,45%,18/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3,71%,49.30,iPhone 3,67%,18/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3.45,65%,50.40,iPhone 3,80%,18/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.60,iPhone 2,0%,20/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,1,91%,46.9,iPhone 2,24%,20/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,2,80%,47.30,iPhone 2,48%,20/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3,65%,48.10,iPhone 2,75%,20/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3.37,62%,48.60,iPhone 2,80%,20/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.90,iPhone 3,0%,20/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,1,90%,48.9,iPhone 3,30%,20/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,2,79%,48.90,iPhone 3,53%,20/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3,65%,49.00,iPhone 3,79%,20/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3.18,64%,49.10,iPhone 3,80%,20/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.80,iPhone 1,0%,20/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,1,91%,47.2,iPhone 1,28%,20/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,2,81%,47.20,iPhone 1,51%,20/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3,68%,47.10,iPhone 1,77%,20/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3.32,66%,47.30,iPhone 1,81%,20/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.20,iPhone 3,0%,21/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,1,90%,48.4,iPhone 3,28%,21/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,2,77%,49.30,iPhone 3,56%,21/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3,67%,50.00,iPhone 3,75%,21/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3.23,64%,51.10,iPhone 3,80%,21/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.50,iPhone 1,0%,21/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,1,90%,50.3,iPhone 1,25%,21/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,2,77%,51.20,iPhone 1,55%,21/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3,66%,51.60,iPhone 1,76%,21/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3.18,64%,51.70,iPhone 1,80%,21/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,0,100%,32.20,iPhone 2,0%,21/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,1,91%,50.1,iPhone 2,24%,21/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,2,79%,49.30,iPhone 2,48%,21/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3,70%,49.50,iPhone 2,65%,21/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3.8,61%,49.60,iPhone 2,80%,21/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,0,100%,30.90,iPhone 1,0%,24/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,1,91%,47.6,iPhone 1,22%,24/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,2,80%,49.10,iPhone 1,50%,24/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3,67%,49.60,iPhone 1,77%,24/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3.12,66%,49.60,iPhone 1,80%,24/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.80,iPhone 2,0%,24/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,1,89%,46.8,iPhone 2,26%,24/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,2,77%,48.10,iPhone 2,49%,24/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3,65%,48.20,iPhone 2,70%,24/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3.62,58%,47.50,iPhone 2,83%,24/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,0,100%,31.10,iPhone 3,0%,24/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,1,91%,47.7,iPhone 3,22%,24/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,2,81%,48.90,iPhone 3,43%,24/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3,71%,48.50,iPhone 3,64%,24/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3.83,61%,47.90,iPhone 3,80%,24/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,0,100%,32.50,iPhone 3,0%,27/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,1,91%,49.9,iPhone 3,27%,27/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,2,79%,50.30,iPhone 3,52%,27/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3,67%,50.60,iPhone 3,75%,27/4/2026
+WLC_on_Phone,AT070AA2600023,Validation Build,A-15,A15-V1.62 test-keys,3.27,64%,50.60,iPhone 3,80%,27/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,0,100%,32.70,iPhone 2,0%,27/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,1,89%,51.8,iPhone 2,25%,27/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,2,76%,52.20,iPhone 2,48%,27/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,3,63%,52.70,iPhone 2,70%,27/4/2026
+WLC_on_Phone,AT070AA2600022,Validation Build,A-15,A15-V1.62 test-keys,35,57%,53.20,iPhone 2,80%,27/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,0,100%,30.10,iPhone 1,0%,27/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,1,91%,49.9,iPhone 1,22%,27/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,2,81%,49.90,iPhone 1,46%,27/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3,70%,50.20,iPhone 1,69%,27/4/2026
+WLC_on_Phone,AT070AA2600025,Validation Build,A-15,A15-V1.62 test-keys,3.53,64%,50.80,iPhone 1,80%,27/4/2026

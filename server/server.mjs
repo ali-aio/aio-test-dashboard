@@ -34,6 +34,7 @@ const CFG = {
   key: process.env.MDM_API_KEY || fileCfg.apiKey || '',
   group: process.env.CYCLES_GROUP || fileCfg.group || 'Test Cycles',
   port: +(process.env.PORT || fileCfg.port || 8090),
+  t7Port: +(process.env.T7_PORT || fileCfg.t7Port || 8091),
   sweepMin: +(process.env.SWEEP_MIN || fileCfg.sweepMin || 30),
   ratePerMin: +(process.env.RATE_PER_MIN || fileCfg.ratePerMin || 120),
 };
@@ -84,10 +85,10 @@ const RFC = s => { const t = Date.parse(s || ''); return isNaN(t) ? null : t; };
 
 // gzip'd static files are kept in memory keyed by path+mtime — the repo is a few MB at most
 const gz = new Map();
-function serveStatic(req, res, rel) {
+function serveStatic(req, res, rel, root = ROOT) {
   if (rel.endsWith('/')) rel += 'index.html';
-  const file = path.resolve(ROOT, '.' + rel);
-  if (!file.startsWith(ROOT + path.sep) || file.startsWith(path.join(ROOT, 'server') + path.sep) || rel.includes('/.')) { res.writeHead(404); return res.end('not found'); }
+  const file = path.resolve(root, '.' + rel);
+  if (!file.startsWith(root + path.sep) || file.startsWith(path.join(ROOT, 'server') + path.sep) || rel.includes('/.')) { res.writeHead(404); return res.end('not found'); }
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404); return res.end('not found'); }
     const ext = path.extname(file).toLowerCase(), etag = `"${st.mtimeMs.toString(36)}-${st.size.toString(36)}"`;
@@ -111,7 +112,7 @@ http.createServer(async (req, res) => {
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
     const retry = limited(ip); if (retry) return json(req, res, 429, { error: `rate limit: ${CFG.ratePerMin} requests per minute` }, { 'retry-after': String(retry) });
     try {
-      if (p === '/api/status') return json(req, res, 200, { ...state, client: mdm.stats() });
+      if (p === '/api/status') return json(req, res, 200, { ...state, t7Port: CFG.t7Port, client: mdm.stats() });
       if (p === '/api/sweep') { if (req.method !== 'POST') return json(req, res, 405, { error: 'POST' }); await runSweep('manual'); return json(req, res, state.lastError ? 502 : 200, state); }
       if (p === '/api/plan') {
         const g = (url.searchParams.get('group') || CFG.group).slice(0, 120);
@@ -142,3 +143,11 @@ http.createServer(async (req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
   serveStatic(req, res, decodeURIComponent(p));
 }).listen(CFG.port, '0.0.0.0', () => console.log(`aio-test-dashboard on :${CFG.port} · group "${CFG.group}" · sweep every ${CFG.sweepMin} min · ${CFG.ratePerMin} req/min per client · key ${CFG.key ? 'set' : 'MISSING'}`));
+
+// the old T7-Dashboard (the lab's CSV imports), a copy of its built dist/ in t7-dashboard/, on its own port:
+// its bundle asks for /assets/… at the root, and its browser storage stays apart from this app's
+const T7_ROOT = path.join(ROOT, 't7-dashboard');
+http.createServer((req, res) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
+  serveStatic(req, res, decodeURIComponent(new URL(req.url, 'http://x').pathname), T7_ROOT);
+}).listen(CFG.t7Port, '0.0.0.0', () => console.log(`T7-Dashboard (old data) on :${CFG.t7Port}`));

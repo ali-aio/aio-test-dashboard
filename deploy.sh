@@ -29,7 +29,7 @@ pkill -f "[h]ttp.server $PORT" 2>/dev/null || true
 pkill -f "[n]ode server/server.mjs" 2>/dev/null || true
 sleep 1
 
-PORT="$PORT" setsid nohup "$NODE" server/server.mjs > /tmp/aio-test-dashboard-server.log 2>&1 < /dev/null &
+PORT="$PORT" T7_PORT="${T7_PORT:-8091}" setsid nohup "$NODE" server/server.mjs > /tmp/aio-test-dashboard-server.log 2>&1 < /dev/null &
 disown
 sleep 1
 
@@ -37,6 +37,12 @@ if curl -sS -o /dev/null -w '%{http_code}' "http://localhost:$PORT/index.html" |
   echo "Deployed. Reachable on the tailnet at http://100.113.189.96:$PORT/"
   curl -sS "http://localhost:$PORT/api/status"; echo
   echo "Log: /tmp/aio-test-dashboard-server.log"
+  T7_PORT="${T7_PORT:-8091}"
+  if curl -sS -o /dev/null -w '%{http_code}' "http://localhost:$T7_PORT/" | grep -q 200; then
+    echo "Old T7-Dashboard on http://100.113.189.96:$T7_PORT/"
+  else
+    echo "Warning: the old T7-Dashboard is not answering on :$T7_PORT" >&2
+  fi
 else
   echo "Server did not come up — check /tmp/aio-test-dashboard-server.log" >&2
   exit 1

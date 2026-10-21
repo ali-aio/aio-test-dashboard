@@ -7,7 +7,7 @@ import { startPlanSync, subscribePlan, getPlanSync } from './lib/planSync.js'
 import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials, batteryCycles } from './lib/t7cycles.js'
 import { initThemeToggle } from './lib/theme.js'
 import { checkAlerts, loadAlerts, saveAlerts } from './lib/alerts.js'
-import { NotificationBell, LiveBadge } from './components/HeaderTools.jsx'
+import { NotificationBell, LiveBadge, OldDataLink } from './components/HeaderTools.jsx'
 import { fmtInt, fmtDateLong, fmtBC, fmtLifetime } from './lib/fmt.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { HistoryStatus } from './components/historyStatus.js'
@@ -191,6 +191,7 @@ export default function App() {
         {ready && <button type="button" className="btn btn-sm header-export" onClick={() => setExporting(true)} title="Download readings or cycles as CSV">
           <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 2v8M4.5 6.8 8 10.3l3.5-3.5M3 13.5h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
           Export CSV</button>}
+        <OldDataLink server={fleet.server} />
         {exporting && <ExportDialog devices={DEV} cycles={cycles} group={GROUP} onClose={() => setExporting(false)} />}
         <LiveBadge error={error} ready={ready} server={fleet.server} />
         <NotificationBell log={alerts} onRead={id => markRead([id])} onReadAll={() => markRead(true)}

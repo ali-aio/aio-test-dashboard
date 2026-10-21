@@ -6,7 +6,6 @@ import { loadDecls, loadRota, testType as ttById } from './lib/plan.js'
 import { startPlanSync, subscribePlan, getPlanSync } from './lib/planSync.js'
 import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials, batteryCycles } from './lib/t7cycles.js'
 import { initThemeToggle } from './lib/theme.js'
-import { setStat, STAT_DEFAULT } from './lib/stat.js'
 import { checkAlerts, loadAlerts, saveAlerts } from './lib/alerts.js'
 import { NotificationBell, LiveBadge } from './components/HeaderTools.jsx'
 import { fmtInt, fmtDateLong, fmtBC, fmtLifetime } from './lib/fmt.js'
@@ -65,11 +64,6 @@ export default function App() {
   const hash = useHash()
   const view = ROUTE(hash)
   const [filters, setFilters] = useState(EMPTY_FILTERS)
-  // Average or P95 for every figure over many cycles (src/lib/stat.js); the browser keeps its choice.
-  // Set before the views render; switching remounts them so every memo recomputes.
-  const [statMode, setStatMode] = useState(() => { try { return localStorage.getItem('statMode') || STAT_DEFAULT } catch { return STAT_DEFAULT } })
-  setStat(statMode)
-  const changeStat = m => { try { localStorage.setItem('statMode', m) } catch { /* private mode */ } setStatMode(m) }
   const [exporting, setExporting] = useState(false) // the Export CSV dialog
 
   useEffect(() => { boot(); return startPolling() }, [])
@@ -143,7 +137,7 @@ export default function App() {
     : view === 'plan' ? <CyclePlanView fleet={fleet} cycles={cycles} onOpenCycle={openCycle} />
     : (
       <div className="view-stack">
-        <FilterBar cycles={inRange} allCycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} declaredTypes={declaredTypes} stat={statMode} onStat={changeStat} />
+        <FilterBar cycles={inRange} allCycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} declaredTypes={declaredTypes} />
         <FilterPills filters={filters} onChange={setFilters} onReset={resetFilters} count={splitText(scoped)} allSerials={allSerials} />
         {fleet.seed && !fleet.seed.ok && (
           <div className="banner banner-warn"><span aria-hidden="true">◆</span>
@@ -204,7 +198,7 @@ export default function App() {
       <main className="app-main">
         <HistoryStatus.Provider value={{ loading: win.loading, at: win.at, err: win.err,
           days: Math.round(WINDOW_HOURS / 24), reload: () => loadWindow(DEV, true) }}>
-          <ErrorBoundary title="This view could not be drawn"><React.Fragment key={statMode}>{body}</React.Fragment></ErrorBoundary>
+          <ErrorBoundary title="This view could not be drawn">{body}</ErrorBoundary>
         </HistoryStatus.Provider>
       </main>
     </div>

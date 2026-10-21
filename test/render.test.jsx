@@ -18,7 +18,6 @@ import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
 import { findOddOnes, mergeAlerts } from '../src/lib/alerts.js'
 import { runStartOf, drainSplit } from '../src/lib/window.js'
-import { setStat, percentileInc, typical } from '../src/lib/stat.js'
 import { takeOutReasons } from '../src/lib/plan.js'
 import RangePicker from '../src/components/RangePicker.jsx'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
@@ -74,14 +73,6 @@ for (const [name, [C, p]] of Object.entries(cases)) {
   try { renderToString(<C {...p} />); console.log('OK  ', name, `(${p.cycles.length})`) }
   catch (e) { failed++; console.log('FAIL', name, '->', e.message); console.log((e.stack || '').split('\n').slice(1, 5).join('\n')) }
 }
-// the same screens with P95 in place of the mean (the app's Average / P95 switch), then back
-setStat('p95')
-for (const [name, [C, p]] of Object.entries(cases)) {
-  try { renderToString(<C {...p} />) }
-  catch (e) { failed++; console.log('FAIL', 'P95:', name, '->', e.message); console.log((e.stack || '').split('\n').slice(1, 5).join('\n')) }
-}
-console.log('OK   every screen again with P95')
-setStat('avg')
 // Average battery cycles (the Overview's MDM tile): the real mean per device, and "—" (never 0) when no
 // ticked device reports discharge_total_pct.
 const snaps = { [all[0]]: { discharge_total_pct: 1492 }, [all[1]]: { discharge_total_pct: 9207 }, [all[2]]: {} }
@@ -563,15 +554,6 @@ const mdmCases = []
     want(mergeAlerts(log, next, now + 6 * 3600e3).length === 0, 'next cycle clears the previous one\'s')
     want(mergeAlerts(log, null, now + 60e3).length === 1, 'kept for the rest of the day with no cycle running')
     want(mergeAlerts(log, null, now + 2 * 86400e3).length === 0, 'gone the next day')
-  })
-  check('P95: Excel PERCENTILE.INC, read on the bad side', () => {
-    const xs = Array.from({ length: 20 }, (_, i) => i + 1)
-    want(Math.abs(percentileInc(xs, 0.95) - 19.05) < 1e-9 && Math.abs(percentileInc(xs, 0.05) - 1.95) < 1e-9, 'PERCENTILE.INC(1..20, 0.95) = 19.05')
-    want(percentileInc([7], 0.95) === 7 && percentileInc([], 0.95) === null, 'one value / none')
-    setStat('p95')
-    const hi = typical(xs, 'high'), lo = typical(xs, 'low')
-    setStat('avg')
-    want(Math.abs(hi - 19.05) < 1e-9 && Math.abs(lo - 1.95) < 1e-9 && typical(xs, 'high') === 10.5, `p95 ${hi} / ${lo}, mean ${typical(xs)}`)
   })
   check('Today: drain split into WLC active / inactive / ads only', () => {
     const t0 = Date.UTC(2026, 9, 21, 5), row = (min, pct, wlc) => ({ timestamp: new Date(t0 + min * 60e3).toISOString(), battery_pct: pct, extra: { charging: false, wlc_status: wlc } })

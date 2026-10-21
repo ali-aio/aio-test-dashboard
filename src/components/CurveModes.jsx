@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react'
-import { statLong } from '../lib/stat.js'
 import { avgCurveBy, envelopeBy } from '../lib/t7cycles.js'
 import { buildStyleMap } from '../lib/palette.js'
 import { compareSerial } from '../lib/fmt.js'
@@ -11,7 +10,7 @@ import { Segmented } from './Primitives.jsx'
 
 export const CURVE_MODES = [{ id: 'avg', label: 'Average' }, { id: 'all', label: 'Every device' }]
 
-export function ModeSwitch({ value, onChange, avgLabel = statLong() }) {
+export function ModeSwitch({ value, onChange, avgLabel = 'Average' }) {
   return <Segmented ariaLabel="Curve view" value={value} onChange={onChange}
     options={[{ id: 'avg', label: avgLabel }, { id: 'all', label: 'Every device' }]} />
 }
@@ -28,7 +27,7 @@ export function deviceSeries(cycles, allSerials, key = 'series') {
 }
 
 /** Average plus the highest and lowest device at each hour, as three T7 series. */
-export function envelopeSeries(cycles, key = 'series', avgLabel = statLong()) {
+export function envelopeSeries(cycles, key = 'series', avgLabel = 'Average') {
   const e = envelopeBy(cycles, key)
   if (!e.avg.length) return []
   return [

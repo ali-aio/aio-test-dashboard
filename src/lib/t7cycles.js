@@ -11,10 +11,6 @@
 
 import { compareSerial } from './fmt.js';
 import { TEST_TYPE_NAMES, FIELD_DISCHARGE, FIELD_CHARGING, LOAD_TEST_TYPES } from './testtypes.js';
-import { typical } from './stat.js';
-
-// a charge is slow when its time is long; a discharge is bad when its time is short
-const chargeSet = (cycles) => cycles.length > 0 && cycles.every((c) => c.testType === 'Charging Cycle' || c.testType === FIELD_CHARGING);
 
 const HOUR_SNAP = 0.05;   // how close to an integer hour a row must sit to count
 const isNum = (v) => v != null && Number.isFinite(v);
@@ -407,18 +403,15 @@ export function pruneFilters(cycles, filters, allSerials) {
 
 /* --------------------------------------------------------------------- KPIs */
 
-// The avg* figures are the mean or P95 (src/lib/stat.js, the app's Average / P95 switch). Start
-// battery is how a run was set up, not a result, so it stays the mean.
 export function kpis(cycles) {
-  const charge = chargeSet(cycles)
   return {
     totalCycles: cycles.length,
-    avgDuration: typical(cycles.map((c) => c.duration), charge ? 'high' : 'low'),
+    avgDuration: mean(cycles.map((c) => c.duration)),
     avgStartBattery: mean(cycles.map((c) => c.startBattery)),
-    avgEndBattery: typical(cycles.map((c) => c.endBattery), 'low'),
-    avgPeakTemp: typical(cycles.map((c) => c.maxTemp), 'high'),
-    avgDropPerHr: typical(cycles.map((c) => c.dropPerHr), charge ? 'low' : 'high'),
-    avgGainPerHr: typical(cycles.map((c) => c.loadGainPerHr), 'low'),
+    avgEndBattery: mean(cycles.map((c) => c.endBattery)),
+    avgPeakTemp: mean(cycles.map((c) => c.maxTemp)),
+    avgDropPerHr: mean(cycles.map((c) => c.dropPerHr)),
+    avgGainPerHr: mean(cycles.map((c) => c.loadGainPerHr)),
     serials: new Set(cycles.map((c) => c.serial)).size,
     dates: new Set(cycles.map((c) => c.date).filter(Boolean)).size,
     builds: new Set(cycles.map((c) => c.build)).size,
@@ -576,7 +569,7 @@ export function avgCurveBy(cycles, key) {
     // reached by at least 5% of the group's runs, and at least 3 — the same cut the axis uses.
     const need = minRunsFor(list.length)
     const points = [...byHour.entries()]
-      .map(([t, vals]) => ({ t, v: round(typical(vals, 'low'), 1), n: vals.length })) // battery: lower is worse
+      .map(([t, vals]) => ({ t, v: round(mean(vals), 1), n: vals.length }))
       .filter((p) => p.n >= need)
       .sort((a, b) => a.t - b.t)
     if (points.length) out.push({ label, points, count: list.length })
@@ -600,8 +593,8 @@ export function dropGainByLoadType(cycles) {
   }
   return [...groups.entries()].map(([label, v]) => ({
     label,
-    drop: round(typical(v.drop, 'high'), 2),
-    gain: round(typical(v.gain, 'low'), 2),
+    drop: round(mean(v.drop), 2),
+    gain: round(mean(v.gain), 2),
     n: Math.max(v.drop.length, v.gain.length),
   }))
 }
@@ -646,11 +639,10 @@ export function hourlyProfile(cycles) {
   return hours.map((h) => ({
     h,
     label: String(h + 1),
-    // drop: more is worse; gain (a charge, or the load's): less is worse
-    drop: round(typical(drop.get(h) ?? [], 'high'), 2),
-    gain: round(typical(gain.get(h) ?? [], 'low'), 2),
-    wirelessDrop: round(typical(wirelessDrop.get(h) ?? [], 'high'), 2),
-    withoutWirelessDrop: round(typical(withoutWirelessDrop.get(h) ?? [], 'high'), 2),
+    drop: round(mean(drop.get(h) ?? []), 2),
+    gain: round(mean(gain.get(h) ?? []), 2),
+    wirelessDrop: round(mean(wirelessDrop.get(h) ?? []), 2),
+    withoutWirelessDrop: round(mean(withoutWirelessDrop.get(h) ?? []), 2),
     wirelessN: (wirelessDrop.get(h) ?? []).length,
     withoutWirelessN: (withoutWirelessDrop.get(h) ?? []).length,
     wirelessDevices: wirelessDev.get(h)?.size ?? 0,
@@ -734,18 +726,18 @@ export function compareBy(cycles, key) {
     groups.get(g).push(c)
   }
   return [...groups.entries()].map(([label, list]) => {
-    const peaks = list.map((c) => c.maxTemp).filter(isNum), charge = chargeSet(list)
+    const peaks = list.map((c) => c.maxTemp).filter(isNum)
     return {
       label,
       cycles: list.length,
       serials: new Set(list.map((c) => c.serial)).size,
-      avgDuration: typical(list.map((c) => c.duration), charge ? 'high' : 'low'),
-      avgDropPerHr: typical(list.map((c) => c.dropPerHr), charge ? 'low' : 'high'),
-      avgDrop10: typical(list.map((c) => c.dropPer10Min), charge ? 'low' : 'high'),
-      avgGainPerHr: typical(list.map((c) => c.loadGainPerHr), 'low'),
+      avgDuration: mean(list.map((c) => c.duration)),
+      avgDropPerHr: mean(list.map((c) => c.dropPerHr)),
+      avgDrop10: mean(list.map((c) => c.dropPer10Min)),
+      avgGainPerHr: mean(list.map((c) => c.loadGainPerHr)),
       avgStartBattery: mean(list.map((c) => c.startBattery)),
-      avgEndBattery: typical(list.map((c) => c.endBattery), 'low'),
-      avgPeakTemp: typical(peaks, 'high'),
+      avgEndBattery: mean(list.map((c) => c.endBattery)),
+      avgPeakTemp: mean(peaks),
       maxTemp: maxOf(peaks),
       dates: [...new Set(list.map((c) => c.date).filter(Boolean))].sort(),
     }
@@ -820,8 +812,7 @@ export function envelopeBy(cycles, key = 'series') {
   }
   const hours = [...byHour.keys()].sort((a, b) => a - b)
   const pts = (f) => hours.map((t) => ({ t, v: round(f(byHour.get(t)), 1), n: byHour.get(t).length }))
-  // the middle line is the mean or P95 (temperature: higher is worse; battery: lower)
-  return { avg: pts((a) => typical(a, key === 'tempSeries' ? 'high' : 'low')), min: pts((a) => Math.min(...a)), max: pts((a) => Math.max(...a)) }
+  return { avg: pts(mean), min: pts((a) => Math.min(...a)), max: pts((a) => Math.max(...a)) }
 }
 
 /** Battery cycles in a set of T7-shaped cycles: total % drained ÷ 100 (charging excluded). */

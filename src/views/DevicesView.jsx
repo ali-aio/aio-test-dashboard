@@ -1,6 +1,5 @@
 import { lifetimeCycles } from '../lib/device.js'
 import React, { useMemo, useState } from 'react'
-import { statShort, statLong, statHint, typical } from '../lib/stat.js'
 import { SortTable } from '../components/SortTable.jsx'
 import { Card, Stat, Pill, EmptyNote } from '../components/Primitives.jsx'
 import EventForm from '../components/EventForm.jsx'
@@ -219,18 +218,18 @@ export default function DevicesView({
                             <div><dt>Test days</dt><dd>{fmtInt(r.k.dates)}</dd></div>
                             <div><dt>First cycle</dt><dd>{r.firstDate ? fmtDate(r.firstDate) : DASH}</dd></div>
                             <div><dt>Last cycle</dt><dd>{r.lastDate ? fmtDate(r.lastDate) : DASH}</dd></div>
-                            <div><dt>{statShort()} cycle time</dt><dd>{fmtHours(r.k.avgDuration)}</dd></div>
-                            <div><dt>{statShort()} drain</dt><dd>{fmtRate(r.k.avgDropPerHr)}</dd></div>
-                            <div><dt>{statShort()} end battery</dt><dd>{fmtPct(r.k.avgEndBattery)}</dd></div>
-                            <div><dt>{statShort()} peak temp</dt><dd>{fmtTemp(r.k.avgPeakTemp)}</dd></div>
+                            <div><dt>Avg cycle time</dt><dd>{fmtHours(r.k.avgDuration)}</dd></div>
+                            <div><dt>Avg drain</dt><dd>{fmtRate(r.k.avgDropPerHr)}</dd></div>
+                            <div><dt>Avg end battery</dt><dd>{fmtPct(r.k.avgEndBattery)}</dd></div>
+                            <div><dt>Avg peak temp</dt><dd>{fmtTemp(r.k.avgPeakTemp)}</dd></div>
                             <div><dt>Hottest cycle</dt><dd>{Number.isFinite(r.peak) ? fmtTemp(r.peak) : DASH}</dd></div>
                           </dl>
 
                           <h4 className="device-sub">What it has run</h4>
                           <div className="table-wrap">
                             <SortTable caption="Tests this device has run" head={[
-                              { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycles' }, { label: `${statShort()} cycle time` },
-                              { label: `${statShort()} drain` }, { label: `${statShort()} peak temp` }, { label: 'Hottest' }, { label: 'Last cycle' },
+                              { label: 'Test', style: { textAlign: 'left' } }, { label: 'Cycles' }, { label: 'Avg cycle time' },
+                              { label: 'Avg drain' }, { label: 'Avg peak temp' }, { label: 'Hottest' }, { label: 'Last cycle' },
                             ]}>
                                 {/* a row opens that test's full page for just this device: every run, by day */}
                                 {r.tests.map((tst) => (

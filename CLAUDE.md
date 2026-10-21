@@ -140,7 +140,8 @@ oversight; don't add restaurant filtering back in without being asked.
   history rows per device, at a chosen interval, `empty` rows dropped) or cycles (one row each);
   devices, time span and columns are picked by checkbox. Column definitions and CSV text live in
   `src/lib/csv.js` (tested). Readings fetches retry on the proxy's 429.
-- **Old data** (header button, `OldDataLink` in `src/components/HeaderTools.jsx`): opens the previous
+- **Old data** (a button in the Live pill's panel, `OldDataLink` in `src/components/HeaderTools.jsx`; not in the header row,
+  which the user found too full, Oct 2026): opens the previous
   T7-Dashboard (the lab's imported CSVs, its own app) in a new tab on the same host, port `t7Port` from
   `/api/status` (8091, `T7_PORT`). `t7-dashboard/` is a copy of `~/Projects/T7-Dashboard/dist/` (no source
   maps), committed so the server box serves it; `server.mjs` serves it on that second port because its bundle asks for
@@ -224,7 +225,8 @@ oversight; don't add restaurant filtering back in without being asked.
   That table's **Export CSV** opens a menu: **Overview** (one row per cycle, as shown, search applied) or **Per hour**
   (`cycleHoursCsv` in `csv.js`, tested: one row per device × cycle × hour — battery at the hour's start / end from the
   cycle's curve, drained or gained, %/h, minutes with a load on the pad from the slots, average / peak battery temp).
-- **Battery health** (`#/nx/health`, nav "Health"; `src/views/HealthView.jsx` + `src/lib/health.js`, tested): one row per
+- **Battery health** (the **last card of the Summary screen**; until 21 Oct 2026 its own Health screen, whose address
+  `#/nx/health` now opens Summary; `src/components/BatteryHealth.jsx` + `src/lib/health.js`, tested): one row per
   device for ONE discharge test picked at the top (the busiest by default). A run is comparable when it is a counted cycle of
   that test that started ≥ 95 %. Score = 0.6 × capacity + 0.1 × early drain + 0.3 × stress (early's weight goes to capacity
   when fewer than 3 runs have a curve). A load on the wireless pad drains ~3× faster (ads ~4 %/h, pad + ads ~13 %/h) and both
@@ -515,6 +517,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - **WLC active / WLC inactive**, never "Pad on / off" (`padState` values, legends, KPI cards, headings "WLC").
 - Overview order: **Restaurant Case, WLC on Load, Ads only, Charging Cycle**, (Idle Cycle, others), **Old cycles last**.
 - **No table views under Drain by hour of the cycle** on any test (it repeats the bars), and no chart description there.
+- No Health tab: Battery health is the Summary's last card. Old data sits in the Live pill's panel, not the header row.
 - Test screen: no "Cycle time by build" strip; the battery chart and Drain by hour share one row.
 - Every graph opens on **the average** (Today, Thermal).
 - Devices ticked in the battery chart also filter Drain by hour, with a "Showing only" bar; the Every cycle table
@@ -535,4 +538,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   100 % (21 Oct: right after off-charge it showed "No test set · Running for 11h 57m" from the night before). Charts start
   30 min before it.
 - Drain rate and "Reaches 20 %" show only once ≥ 3 devices (or half the bench) have a rate.
+- For a test that puts a load on the pad, two more tiles: **Drain · WLC + ads** and **Drain · ads only** (`drainSplit` in
+  `window.js`: each gap between readings counts for its first reading's `wlc_status`), so a Restaurant Case's 3 h of
+  load and the rest aren't one blended number.
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).

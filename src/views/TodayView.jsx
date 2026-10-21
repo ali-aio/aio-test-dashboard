@@ -2,7 +2,7 @@ import PlanSource from '../components/PlanSource.jsx'
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
-import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, refineStarts, refinedStart, drainSince, WINDOW_HOURS } from '../lib/window.js'
+import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, refineStarts, refinedStart, drainSince, drainSplit, WINDOW_HOURS } from '../lib/window.js'
 import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, benchDecls, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, takeOutReasons, loadDecls, loadRota } from '../lib/plan.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
@@ -159,7 +159,7 @@ export default function TodayView({ fleet }) {
     return () => { live = false } }, [coarse])
   const runs = useMemo(() => new Map(coarse.map(({ c, start: s0 }) => {
     const start = refinedStart(c.serial, s0) || s0
-    return [c.serial, { start, rate: drainSince(c.rows, start), now: c.rows[c.rows.length - 1].battery_pct }]
+    return [c.serial, { start, rate: drainSince(c.rows, start), split: drainSplit(c.rows, start), now: c.rows[c.rows.length - 1].battery_pct }]
   })), [coarse, refineRev])
   const all = [...runs.values()], started = all.filter(r => r.start)
   const runStart = started.length ? median(started.map(r => r.start.t)) : null
@@ -168,6 +168,12 @@ export default function TodayView({ fleet }) {
   // a drain needs a few devices behind it: one device 20 min in is not the bench's rate (it put
   // "Reaches 20 %" three days away at the start of a run)
   const rate = rates.length >= Math.min(3, Math.max(1, Math.ceil(started.length / 2))) ? median(rates) : null
+  // with WLC + ads and with ads only, for a test that puts a load on the pad (Restaurant Case: the
+  // first 3 h and the rest); the same few-devices rule for each
+  const enough = (xs) => xs.length >= Math.min(3, Math.max(1, Math.ceil(started.length / 2)))
+  const splitOf = (k) => { const xs = started.map(r => r.split?.[k]).filter(v => v != null && v > 0); return { n: xs.length, rate: enough(xs) ? median(xs) : null } }
+  const wlcRate = splitOf('wlc'), adsRate = splitOf('ads')
+  const loadTest = T.tt ? ['restaurant', 'wlc_disch', 'wlc_load', 'wlc_phone', 'load_only'].includes(T.tt.id) : wlcRate.n > 0
   // The lab's daily run goes back on charge at 15–25%, so 20% is "the run is done".
   const END_BAND = 20
   const etaEnd = rate && medNow > END_BAND ? now + (medNow - END_BAND) / rate * H : null
@@ -333,6 +339,10 @@ export default function TodayView({ fleet }) {
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />
         <Metric label="Drain rate" value={rate ? <>{rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
           delta={rate ? `${(rate / 6).toFixed(2)}% per 10 min · median of ${rates.length}` : 'needs 20 min of running'} />
+        {loadTest && [['wlc', 'Drain · WLC + ads', wlcRate, 'a load on the pad'], ['ads', 'Drain · ads only', adsRate, T.tt?.loadHours ? `from hour ${T.tt.loadHours + 1}, the load off` : 'no load on the pad']].map(([k, label, x, none]) => (
+          <Metric key={k} label={label} value={x.rate ? <>{x.rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
+            delta={x.rate ? `${(x.rate / 6).toFixed(2)}% per 10 min · median of ${x.n}` : `needs 20 min with ${none}`} />
+        ))}
         <Metric label={`Reaches ${END_BAND}%`} value={etaEnd ? <>{hm(etaEnd)}{dayKey(etaEnd) !== key && <span className="secondary" style={{ fontSize: 13, fontWeight: 500 }}> {new Date(etaEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</> : medNow != null && medNow <= END_BAND ? 'Done' : '—'}
           delta={etaEnd ? `${fmtDur(etaEnd - now)} from now${etaEmpty ? ` · empty ≈ ${when(etaEmpty)}` : ''}` : medNow != null && medNow <= END_BAND ? 'median is in the end band' : 'at the current rate'} />
         </>}

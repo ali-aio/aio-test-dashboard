@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react'
-import { SortTable } from '../components/SortTable.jsx'
-import { Card, Stat, Pill, EmptyNote } from '../components/Primitives.jsx'
-import { LineChart } from '../components/t7charts.jsx'
+import { SortTable } from './SortTable.jsx'
+import { Card, Stat, Pill, EmptyNote } from './Primitives.jsx'
+import { LineChart } from './t7charts.jsx'
 import { subscribeWindow, getWindow, rowsFor } from '../lib/window.js'
 import { GROUP } from '../lib/fleet.js'
 import { TEST_TYPES, loadDecls, loadRota } from '../lib/plan.js'
@@ -42,9 +42,10 @@ const head = COLS.map(([label, title, style]) => ({ label: <span title={title}>{
  * Battery health, one row per device of the group, for one discharge test at a time. The
  * figures are all from src/lib/health.js over data the app already holds: the counted
  * cycles, the MDM's lifetime counter, the 7-day readings window and the detector's
- * interrupted discharges. Computed here, only while this screen is open.
+ * interrupted discharges. Computed here, only while the Summary screen is open (its last card;
+ * it was its own Health screen until Oct 2026).
  */
-export default function HealthView({ fleet, cycles }) {
+export default function BatteryHealth({ fleet, cycles }) {
   const { DEV, opts } = fleet
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
   const now = Date.now()
@@ -81,36 +82,27 @@ export default function HealthView({ fleet, cycles }) {
   const row = health?.rows.find((r) => r.serial === selected) || null
 
   return (
-    <div className="view-stack">
-      <div className="filter-bar">
-        <label className="filter-field"><span className="filter-label">Test type</span>
-          <select className="control" value={testType || ''} onChange={(e) => { setPick(e.target.value); setSelected(null) }} aria-label="Test type for battery health" disabled={!types.length}>
-            {!types.length && <option value="">No discharge tests yet</option>}
-            {types.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </label>
-        <label className="filter-field"><span className="filter-label">Load</span>
-          <select className="control" value={load} onChange={(e) => setLoad(e.target.value)} aria-label="Load on the wireless pad" title="Each run is compared with runs of its own load class; pick one class to see only those runs">
-            <option value="all">With and without load</option>
-            <option value="load">Load placed</option>
-            <option value="none">No load</option>
-          </select>
-        </label>
-        {health && (
-          <div className="row row-wrap" style={{ gap: 6 }} aria-label="Devices per grade">
-            {Object.values(GRADE).map((g) => <Pill key={g} level={LEVEL[g]}>{g} {fmtInt(health.counts[g])}</Pill>)}
+    <>
+      <Card title={`Battery health${testType ? ` · ${testType}` : ''}`}
+        sub={health?.comparable ? `${fmtInt(health.rows.length)} devices · ${fmtInt(health.comparable)} comparable runs · worst first · click a row for its detail, the serial for its page · capacity = runtime vs the unit's first runs; ${REPLACE_AT} % is the replace line` : undefined}
+        right={
+          <div className="row row-wrap" style={{ gap: 8 }}>
+            {health && Object.values(GRADE).map((g) => <Pill key={g} level={LEVEL[g]}>{g} {fmtInt(health.counts[g])}</Pill>)}
+            <select className="control" value={testType || ''} onChange={(e) => { setPick(e.target.value); setSelected(null) }} aria-label="Test type for battery health" disabled={!types.length}>
+              {!types.length && <option value="">No discharge tests yet</option>}
+              {types.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select className="control" value={load} onChange={(e) => setLoad(e.target.value)} aria-label="Load on the wireless pad" title="Each run is compared with runs of its own load class; pick one class to see only those runs">
+              <option value="all">With and without load</option>
+              <option value="load">Load placed</option>
+              <option value="none">No load</option>
+            </select>
           </div>
-        )}
-        <div className="header-spacer" />
-        <span className="hint">Capacity = runtime vs the unit's first runs; {REPLACE_AT} % is the replace line</span>
-      </div>
-
-      {!health || !health.comparable ? (
-        <EmptyNote>{testType ? `No comparable runs of ${testType} yet — a run counts once it is a finished cycle that started at ${opts?.fullPct ?? 95} % or more.`
-          : 'No finished discharge cycles in this group yet.'}</EmptyNote>
-      ) : (
-        <Card title={`Battery health · ${testType}`}
-          sub={`${fmtInt(health.rows.length)} devices · ${fmtInt(health.comparable)} comparable runs · worst first · click a row for its detail, the serial for its page`}>
+        }>
+        {!health || !health.comparable ? (
+          <EmptyNote>{testType ? `No comparable runs of ${testType} yet — a run counts once it is a finished cycle that started at ${opts?.fullPct ?? 95} % or more.`
+            : 'No finished discharge cycles in this group yet.'}</EmptyNote>
+        ) : (
           <div className="table-wrap" style={{ maxHeight: 620 }}>
             <SortTable caption={`Battery health per device, ${testType}`} head={head}>
               {health.rows.map((r) => (
@@ -135,11 +127,11 @@ export default function HealthView({ fleet, cycles }) {
               ))}
             </SortTable>
           </div>
-        </Card>
-      )}
+        )}
+      </Card>
 
       {row && <Detail row={row} testType={testType} fleet={health} />}
-    </div>
+    </>
   )
 }
 

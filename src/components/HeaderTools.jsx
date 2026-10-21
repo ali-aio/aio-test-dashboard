@@ -80,6 +80,7 @@ export function LiveBadge({ error, ready, server }) {
             <p>Live device readings update every 30 seconds.</p>
             {server?.lastSweepAt ? <p>{server.sweeping ? 'The server is checking the MDM for new cycles now.'
               : <>Cycles checked <b>{ago(server.lastSweepAt)}</b> ({new Date(server.lastSweepAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}). The server checks the MDM for finished cycles every 30 minutes.</>}</p> : null}
+            <p><OldDataLink server={server} /></p>
           </div>
         </div>
       )}
@@ -88,11 +89,12 @@ export function LiveBadge({ error, ready, server }) {
 }
 
 /** Old data: the previous T7-Dashboard (the lab's CSV imports), served by our server on its own port
- *  (`t7Port` in /api/status, 8091 by default), opened in a new tab on the same host. */
-export function OldDataLink({ server }) {
+ *  (`t7Port` in /api/status, 8091 by default), opened in a new tab on the same host. In the Live pill's
+ *  panel, not the header row (the user, Oct 2026: too much in the top row). */
+function OldDataLink({ server }) {
   const href = `${location.protocol}//${location.hostname}:${server?.t7Port || 8091}/`
   return (
-    <a className="btn btn-sm header-export" href={href} target="_blank" rel="noopener" style={{ textDecoration: 'none' }}
+    <a className="btn btn-sm" href={href} target="_blank" rel="noopener" style={{ textDecoration: 'none' }}
       title="Open the old T7-Dashboard (the lab's imported CSV data) in a new tab">
       <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M11.5 9.5v3.5h-9v-9H6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
       Old data</a>

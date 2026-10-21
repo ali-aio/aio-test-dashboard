@@ -7,7 +7,7 @@ import { startPlanSync, subscribePlan, getPlanSync } from './lib/planSync.js'
 import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials, batteryCycles } from './lib/t7cycles.js'
 import { initThemeToggle } from './lib/theme.js'
 import { checkAlerts, loadAlerts, saveAlerts } from './lib/alerts.js'
-import { NotificationBell, LiveBadge, OldDataLink } from './components/HeaderTools.jsx'
+import { NotificationBell, LiveBadge } from './components/HeaderTools.jsx'
 import { fmtInt, fmtDateLong, fmtBC, fmtLifetime } from './lib/fmt.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { HistoryStatus } from './components/historyStatus.js'
@@ -24,7 +24,6 @@ import DeviceSearch from './components/DeviceSearch.jsx'
 import ExportDialog from './components/ExportDialog.jsx'
 import TodayView from './views/TodayView.jsx'
 import CyclePlanView from './views/CyclePlanView.jsx'
-import HealthView from './views/HealthView.jsx'
 
 CTX.group = GROUP
 
@@ -39,13 +38,12 @@ const VIEWS = [
   { id: 'comparison', hash: '#/nx/comparison', label: 'Comparison' },
   { id: 'thermal', hash: '#/nx/thermal', label: 'Thermal' },
   { id: 'summary', hash: '#/nx/summary', label: 'Summary' },
-  { id: 'health', hash: '#/nx/health', label: 'Health' },
 ]
 const ROUTE = h => h.startsWith('#/nx/device/') ? 'device'
   : h.startsWith('#/nx/comparison') ? 'comparison'
   : h.startsWith('#/nx/thermal') ? 'thermal'
   : h.startsWith('#/nx/summary') ? 'summary'
-  : h.startsWith('#/nx/health') ? 'health'
+  : h.startsWith('#/nx/health') ? 'summary' // Health is now the Summary's last card
   : h.startsWith('#/nx/today') ? 'today'
   : h.startsWith('#/nx/plan') ? 'plan'
   : 'overview' // v2 only now: any other address opens the Overview
@@ -137,7 +135,6 @@ export default function App() {
     : view === 'device' ? (() => { const sn = decodeURIComponent(hash.slice('#/nx/device/'.length)); return <DeviceView key={sn} serial={sn} d={fleet.DMAP.get(sn)} cycles={cycles} onOpenTest={openDeviceTest} /> })()
     : view === 'today' ? <TodayView fleet={fleet} />
     : view === 'plan' ? <CyclePlanView fleet={fleet} cycles={cycles} onOpenCycle={openCycle} />
-    : view === 'health' ? <HealthView fleet={fleet} cycles={cycles} />
     : (
       <div className="view-stack">
         <FilterBar cycles={inRange} allCycles={cycles} filters={filters} onChange={setFilters} onReset={resetFilters} allSerials={allSerials} declaredTypes={declaredTypes} />
@@ -162,7 +159,7 @@ export default function App() {
           {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} onOpenDevice={openDeviceTest} onOpenDevicePage={sn => { location.hash = `#/nx/device/${encodeURIComponent(sn)}`; window.scrollTo(0, 0) }} snapOf={sn => fleet.DMAP.get(sn)?.snap} testType={filters.testType} allSerials={allSerials} lifetime={lifetime} initialBench={benchPick} hours={fleet.hours} />}
           {view === 'comparison' && <ComparisonView cycles={scoped} testType={filters.testType} allSerials={allSerials} />}
           {view === 'thermal' && <ThermalView cycles={scoped} allSerials={allSerials} onFilter={applyFilter} />}
-          {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={[]} onEventsChanged={() => {}} onFilter={applyFilter} onOpenTest={openDeviceTest} issues={[]} files={[]} snapOf={sn => fleet.DMAP.get(sn)?.snap} drops={fleet.drops} hours={fleet.hours} sheetRuns={fleet.sheetRuns} />}
+          {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={[]} onEventsChanged={() => {}} onFilter={applyFilter} onOpenTest={openDeviceTest} issues={[]} files={[]} snapOf={sn => fleet.DMAP.get(sn)?.snap} drops={fleet.drops} hours={fleet.hours} sheetRuns={fleet.sheetRuns} fleet={fleet} healthCycles={cycles} />}
         </ErrorBoundary>
       </div>
     )
@@ -191,7 +188,6 @@ export default function App() {
         {ready && <button type="button" className="btn btn-sm header-export" onClick={() => setExporting(true)} title="Download readings or cycles as CSV">
           <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 2v8M4.5 6.8 8 10.3l3.5-3.5M3 13.5h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
           Export CSV</button>}
-        <OldDataLink server={fleet.server} />
         {exporting && <ExportDialog devices={DEV} cycles={cycles} group={GROUP} onClose={() => setExporting(false)} />}
         <LiveBadge error={error} ready={ready} server={fleet.server} />
         <NotificationBell log={alerts} onRead={id => markRead([id])} onReadAll={() => markRead(true)}

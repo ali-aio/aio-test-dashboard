@@ -5,6 +5,7 @@ import { Card, Stat, Pill, EmptyNote } from '../components/Primitives.jsx'
 import EventForm from '../components/EventForm.jsx'
 import DataQualityCard from '../components/DataQualityCard.jsx'
 import DrainByAge from '../components/DrainByAge.jsx'
+import BatteryHealth from '../components/BatteryHealth.jsx'
 import { kpis, maxOf, batteryCycles } from '../lib/t7cycles.js'
 import {
   eventsBySerial, worstSeverity, SEVERITY_LEVEL, removeEvent,
@@ -29,7 +30,7 @@ const fmtWhen = (ms) => {
  * is usually the explanation for whatever the numbers show.
  */
 export default function DevicesView({
-  cycles, allSerials, events, onEventsChanged, onFilter, onOpenTest, issues = [], files = [], snapOf = () => null, drops = null, hours = null, sheetRuns = null }) {
+  cycles, allSerials, events, onEventsChanged, onFilter, onOpenTest, issues = [], files = [], snapOf = () => null, drops = null, hours = null, sheetRuns = null, fleet = null, healthCycles = null }) {
   const [editing, setEditing] = useState(null)   // an event, {} for new, or null
   const [expanded, setExpanded] = useState(() => new Set())
   /* Only the devices something has been logged against, by default. A list of
@@ -327,6 +328,8 @@ export default function DevicesView({
       <DrainByAge cycles={cycles} drops={drops} hours={hours} sheetRuns={sheetRuns} snapOf={snapOf} />
 
       <DataQualityCard issues={issues} files={files} />
+
+      {fleet && <BatteryHealth fleet={fleet} cycles={healthCycles || cycles} />}
 
       {editing && (
         <EventForm

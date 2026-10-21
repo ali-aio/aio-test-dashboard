@@ -547,6 +547,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - Every cycle: **Drain with WLC / without WLC** columns. Export CSV → **Overview** or **Per hour**; Per hour first asks
   which devices (all ticked).
 - Device page: average battery temperature beside the peak.
+- **The page must not freeze** (21 Oct: "the whole dashboard sometimes lags" — `adaptAll` re-ran on every new batch of
+  readings and froze it 1–6 s): in `adaptCycle` a cycle reads only its own readings and 15-min slots, found by binary
+  search (`rowsBetween`, `padMeasured`), never a scan of the device's whole history. Profiled with a headless Chromium
+  CPU profile: 17.4 s → 1.6 s of CPU over the same 2 min, longest freeze 6 s → 0.6 s.
 - **Charts must stay smooth on hover** (21 Oct: "too much lag"): a pointer move re-renders only the crosshair and
   tooltip — lines, dots, axes and legend are `useMemo`'d (`staticLayer` / `legendBlock` in `t7charts.jsx`, `lanes` and
   `smoothed` in `charts.jsx`), pointer updates are coalesced to one per frame (`usePlotPointer`), the nearest reading is a

@@ -140,6 +140,27 @@ export function temperaturePhases(tempSeries, duration) {
   return sums.map((s, i) => counts[i] ? Math.round(s / counts[i] * 100) / 100 : null);
 }
 
+// A device's readings / slots, cut to one cycle's time by binary search. adaptAll runs for ~300
+// cycles on every new batch of readings; scanning a device's whole 7-day window (and every 15-min
+// slot since July, once per hour of every cycle) froze the page for 1–6 s each time (Oct 2026).
+const TIMES = new WeakMap(); // rows -> their timestamps (ms), parsed once; null when out of order
+function timesOf(rows) {
+  if (TIMES.has(rows)) return TIMES.get(rows);
+  let t = new Float64Array(rows.length);
+  for (let i = 0; i < rows.length; i++) { t[i] = Date.parse(rows[i].timestamp); if (i && t[i] < t[i - 1]) { t = null; break; } }
+  TIMES.set(rows, t);
+  return t;
+}
+const firstAtOrAfter = (n, at, x) => { let lo = 0, hi = n; while (lo < hi) { const m = (lo + hi) >> 1; if (at(m) < x) lo = m + 1; else hi = m; } return lo; };
+/** The rows from `from` to `to` (inclusive); every row when they are not in time order. */
+export function rowsBetween(rows, from, to) {
+  if (!rows || !rows.length) return rows;
+  const t = timesOf(rows);
+  if (!t) return rows.filter(r => { const x = Date.parse(r.timestamp); return x >= from && x <= to; });
+  const i = firstAtOrAfter(t.length, k => t[k], from), j = firstAtOrAfter(t.length, k => t[k], to + 1);
+  return i === 0 && j === rows.length ? rows : rows.slice(i, j);
+}
+
 // Per-hour battery readings for one cycle, from whatever history rows we hold for it.
 // `rows` are normalized samples ({ timestamp, battery_pct, extra }). Without rows the
 // cycle still carries its summary, and the curve charts simply have one fewer line.
@@ -189,8 +210,10 @@ export function adaptCycle(d, c0, rows, ctx) {
   // no stored curve (e.g. the cycle running now, or one newer than the last sweep): resample
   // the live readings the way the sweep does, onto an even 10-min grid, so the averaged
   // curves get a point at every whole hour instead of only where a reading happened to land
-  const stored = ctx.curves?.[curveKey(d.serial, c.start)] || (rows && rows.length ? resampleRun(rows, c.start, c.end) : null);
-  const fromWindow = seriesFor(rows, c);
+  // only this run's readings (and 20 min either side, which resampleRun checks for)
+  const near = rowsBetween(rows, c.start - 30 * 60e3, c.end + 30 * 60e3);
+  const stored = ctx.curves?.[curveKey(d.serial, c.start)] || (near && near.length ? resampleRun(near, c.start, c.end) : null);
+  const fromWindow = seriesFor(near, c);
   let { series, tempSeries } = stored ? curveSeries(stored) : fromWindow;
   series = series || []; tempSeries = tempSeries || [];
   // a charge kept by the sweep carries its own curve: [minutes from start, battery %]
@@ -204,10 +227,13 @@ export function adaptCycle(d, c0, rows, ctx) {
   // "pad on / pad off" per hour reads this: its first 3 h on, the rest off.
   const slots = ctx.hours?.[d.serial]?.h;
   // measured: true / false from the slots, null with under 15 min of them in the hour
+  // (slots are in time order: start at the hour's first by binary search, stop past its end)
   const padMeasured = h => {
     if (!slots?.length) return null;
-    const a = c.start + h * H, b = a + H; let m = 0, pad = 0;
-    for (const x of slots) { const mid = x[0] + 7.5 * 60e3; if (mid >= a && mid < b) { m += x[2]; pad += x[3]; } }
+    const a = c.start + h * H, b = a + H, half = 7.5 * 60e3; let m = 0, pad = 0;
+    for (let i = firstAtOrAfter(slots.length, k => slots[k][0] + half, a); i < slots.length; i++) {
+      const x = slots[i]; if (x[0] + half >= b) break; m += x[2]; pad += x[3];
+    }
     return m >= 15 ? pad * 2 >= m : null;
   };
   // an hour without pad readings is not known (null) — never filled in from the run as a whole,

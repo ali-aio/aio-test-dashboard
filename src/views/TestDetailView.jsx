@@ -331,14 +331,17 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                 onClick: () => { setBench((k) => (k === b.key ? null : b.key)); setFocus(null); setDeviceChoice({ testType, selected: null }) } }
             })} />
         })()}
+        {/* a fixed-time test (Restaurant Case 14 h): the short runs (alarming) are in this tile's drop-down,
+            not a tile of their own (the lab, 21 Oct 2026) */}
         <Stat label="Avg cycle time" value={fmtNum(k.avgDuration, 1)} unit="h"
-          foot={fixedH ? `complete cycles · ${fixedH} h if within ${FULL_CYCLE_MARGIN_H * 60} min` : 'per cycle'} />
-        {/* a fixed-time test (Restaurant Case 14 h): runs that stopped over 30 min early are alarming */}
-        {fixedH ? <Stat label="Short cycles" value={<span style={shortRuns.length ? { color: 'var(--status-critical)' } : undefined}>{fmtInt(shortRuns.length)}</span>}
-          foot={shortRuns.length ? `ran under ${shortLimit} · of ${fmtInt(cycles.filter((c) => !c.inProgress).length)} device runs` : `none under ${shortLimit}`}
-          breakdownLabel={`Ran under ${shortLimit} (the cycle is ${fixedH} h) · newest first`} breakdownWide breakdownRight breakdownNoun="run"
-          breakdown={shortRuns.map((c) => ({ id: c.id, label: `${fmtSerial(c.serial)} · ${fmtDate(c.date)}`, value: c.ranH, display: fmtHours(c.ranH),
-            hint: c.leftCycle ? `· ${c.leftCycle.why}` : '· back on charge early', highlight: true, onClick: () => pickDevice(c.serial) }))} /> : null}
+          foot={!fixedH ? 'per cycle' : shortRuns.length
+            ? <span className="short-cycle">{fmtInt(shortRuns.length)} short (under {shortLimit})</span>
+            : `complete cycles · none under ${shortLimit}`}
+          {...(fixedH && shortRuns.length ? {
+            breakdownLabel: `Short cycles: ran under ${shortLimit} of the ${fixedH} h · left out of the average · newest first`, breakdownWide: true, breakdownRight: true, breakdownNoun: 'run',
+            breakdown: shortRuns.map((c) => ({ id: c.id, label: `${fmtSerial(c.serial)} · ${fmtDate(c.date)}`, value: c.ranH, display: fmtHours(c.ranH),
+              hint: c.leftCycle ? `· ${c.leftCycle.why}` : '· back on charge early', highlight: true, onClick: () => pickDevice(c.serial) })),
+          } : {})} />
         {isRestaurant ? restaurantRates.map((mode) => (
           <Stat key={mode.rateKey} label={mode.label} value={fmtRate(mode.rate)}
             foot={mode.rate != null

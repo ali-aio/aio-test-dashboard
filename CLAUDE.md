@@ -506,7 +506,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - **Complete vs short (fixed-time tests, Restaurant Case 14 h)** — the lab, 21 Oct 2026: a run within 30 min of the cycle
   time (`FULL_CYCLE_MARGIN_H`, ≥ 13 h 30 m) is a **complete cycle and counts as 14 h** (`duration` = 14, the real time in
   `ranH`, on hover and in the CSV's "Ran (h)"); anything shorter is a **short cycle — alarming**: `short: true`, red
-  "· short" in Every cycle, a **Short cycles** tile (breakdown: device, date, ran, why), left out of Avg cycle time
+  "· short" in Every cycle, listed in the **Avg cycle time** tile's drop-down (device, date, ran, why; no tile of
+  its own — the user, 21 Oct), left out of Avg cycle time (as is a cycle still running)
   (`kpis`, `compareBy`, per-device rows), and on the **bell** while it happens (`alerts.js`: back on charge from 1 h in
   until 13 h 30 m, any number of devices; it replaces the "on charge" odd-one alert for that device). A device that left
   the cycle part-way is a short run too.

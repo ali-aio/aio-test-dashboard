@@ -407,7 +407,7 @@ export function kpis(cycles) {
   return {
     totalCycles: cycles.length,
     // a short fixed-time run (adapt.js FULL_CYCLE_MARGIN_H) is flagged, not averaged into the cycle time
-    avgDuration: mean(cycles.filter((c) => !c.short).map((c) => c.duration)),
+    avgDuration: mean(cycles.filter((c) => !c.short && !c.inProgress).map((c) => c.duration)), // a running cycle has no cycle time yet
     avgStartBattery: mean(cycles.map((c) => c.startBattery)),
     avgEndBattery: mean(cycles.map((c) => c.endBattery)),
     avgPeakTemp: mean(cycles.map((c) => c.maxTemp)),
@@ -732,7 +732,7 @@ export function compareBy(cycles, key) {
       label,
       cycles: list.length,
       serials: new Set(list.map((c) => c.serial)).size,
-      avgDuration: mean(list.filter((c) => !c.short).map((c) => c.duration)),
+      avgDuration: mean(list.filter((c) => !c.short && !c.inProgress).map((c) => c.duration)),
       avgDropPerHr: mean(list.map((c) => c.dropPerHr)),
       avgDrop10: mean(list.map((c) => c.dropPer10Min)),
       avgGainPerHr: mean(list.map((c) => c.loadGainPerHr)),

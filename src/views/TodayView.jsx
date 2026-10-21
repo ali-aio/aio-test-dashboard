@@ -181,7 +181,9 @@ export default function TodayView({ fleet }) {
   const when = t => (dayKey(t) === key ? hm(t) : dt(t))
   // Start the charts half an hour before the run so the drop-off is visible, not four
   // hours of a flat line at 100% while the devices sat on the charger.
-  const chartFrom = T.charging || T.running ? T.startMs - 30 * MIN : runStart ? Math.max(T.startMs, runStart - 30 * MIN) : T.startMs
+  // the charts start when the cycle did: the bench off the charger that day (10:00, not the plan's 07:00 or 30 min
+  // before), or the charge's start; each day's own start, so it moves with the day's cycle (the user, 21 Oct 2026)
+  const chartFrom = T.charging ? T.startMs : runStart || T.startMs
   // charging: each device's %/h since its charge began, and when the median reaches 95 %
   const chRates = T.charging ? [...charges.by.values()].map(c => (c.at - c.t) / H >= 1 / 3 ? (c.now - c.pct) / ((c.at - c.t) / H) : null).filter(v => v != null && v > 0) : []
   const chRate = chRates.length ? median(chRates) : null

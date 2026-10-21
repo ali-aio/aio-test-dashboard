@@ -541,8 +541,8 @@ In order: the planned cycle running now → a bench off the charger whose test i
 not known yet"** → most devices on charge, **Charging Cycle** → a cycle that **Ended** ≤ 6 h ago → next planned →
 "No test set" (which times no run).
 - A bench's start is when the **charger flag switches off** (≥ 90 %, within 20 h), even while every device still reads
-  100 % (21 Oct: right after off-charge it showed "No test set · Running for 11h 57m" from the night before). Charts start
-  30 min before it.
+  100 % (21 Oct: right after off-charge it showed "No test set · Running for 11h 57m" from the night before). The charts
+  start at that day's cycle start (the bench off the charger, ~10:00), not before.
 - Drain rate and "Reaches 20 %" show only once ≥ 3 devices (or half the bench) have a rate.
 - For a test that puts a load on the pad, two more tiles: **Drain · WLC + ads** and **Drain · ads only** (`drainSplit` in
   `window.js`: each gap between readings counts for its first reading's `wlc_status`), so a Restaurant Case's 3 h of

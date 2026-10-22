@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react'
+import PartStatus from './PartStatus.jsx'
 import { SortTable } from './SortTable.jsx'
 import { Card, Stat, Pill, EmptyNote } from './Primitives.jsx'
 import { LineChart } from './t7charts.jsx'
@@ -99,6 +100,7 @@ export default function BatteryHealth({ fleet, cycles, open = false }) {
             </select>
           </div>
         }>
+        <PartStatus window DEV={DEV} />
         {!health || !health.comparable ? (
           <EmptyNote>{testType ? `No comparable runs of ${testType} yet — a run counts once it is a finished cycle that started at ${opts?.fullPct ?? 95} % or more.`
             : 'No finished discharge cycles in this group yet.'}</EmptyNote>

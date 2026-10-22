@@ -1,5 +1,6 @@
 import PlanSource from '../components/PlanSource.jsx'
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import PartStatus from '../components/PartStatus.jsx'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, refineStarts, refinedStart, drainSince, drainSplit, WINDOW_HOURS } from '../lib/window.js'
@@ -317,6 +318,8 @@ export default function TodayView({ fleet }) {
         </div>
       </div>
 
+      {/* readings that did not come for some devices: said here, retried by itself */}
+      <PartStatus window DEV={DEV} />
       <div className="stat-row">
         {/* how long the devices have been running since they came off the charger, and how
             much of the planned cycle is left (to its end time on the Cycle plan) */}

@@ -14,7 +14,10 @@ import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
 import { H, MIN, median } from './format.js';
 
 export const WINDOW_HOURS = 24 * 7;
-const state = { rows: {}, at: 0, loading: false, err: null, failed: 0 };
+const state = { rows: {}, at: 0, loading: false, err: null, failed: 0, failedSerials: [], retryIn: 0 };
+// devices whose readings did not come: fetched again after WIN_RETRY_MS, up to WIN_RETRY_ROUNDS times
+const WIN_RETRY_MS = 15e3, WIN_RETRY_ROUNDS = 3;
+let retryRound = 0, retryTimer = null;
 const subs = new Set();
 let snapshot = { ...state };
 const bump = () => { snapshot = { ...state, at2: Date.now() }; subs.forEach(f => f()); };
@@ -69,9 +72,11 @@ async function writeCache(rows, at) {
 }
 
 let restored = false;
-export async function loadWindow(DEV, force = false) {
+export async function loadWindow(DEV, force = false, retry = false) {
   if (state.loading || !DEV.length) return;
-  if (!force && state.at && Date.now() - state.at < 5 * MIN) return;
+  if (!force && !retry && state.at && Date.now() - state.at < 5 * MIN) return;
+  if (!retry) retryRound = 0;
+  clearTimeout(retryTimer); state.retryIn = 0;
   state.loading = true; state.err = null;
   try {
     // Read the stored copy before announcing the load, so a return visit never shows the
@@ -92,7 +97,13 @@ export async function loadWindow(DEV, force = false) {
       const fresh = normalize(await fetchHistoryRange(d.serial, since, now, IV));
       out[d.serial] = [...old.filter(r => Date.parse(r.timestamp) < since), ...fresh];
     });
-    state.failed = DEV.filter(d => !out[d.serial]).length; // mapLimit swallows per-device errors
+    state.failedSerials = DEV.filter(d => !out[d.serial]).map(d => d.serial); // mapLimit swallows per-device errors
+    state.failed = state.failedSerials.length;
+    // try the missing devices again shortly (the rest only fetch what came in since)
+    if (state.failed && retryRound < WIN_RETRY_ROUNDS) {
+      retryRound++; state.retryIn = Date.now() + WIN_RETRY_MS;
+      retryTimer = setTimeout(() => loadWindow(DEV, false, true), WIN_RETRY_MS);
+    }
     if (state.failed === DEV.length) throw new Error('history unavailable for every device');
     // a device whose request failed keeps the copy it had rather than going blank
     for (const d of DEV) if (!out[d.serial] && state.rows[d.serial]) out[d.serial] = state.rows[d.serial];

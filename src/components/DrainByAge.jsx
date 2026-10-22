@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useSyncExternalStore } from 'react'
+import PartStatus from './PartStatus.jsx'
 import { Card } from './Primitives.jsx'
 import { SortTable } from './SortTable.jsx'
 import { liveLedgers } from '../lib/drainAge.js'
@@ -54,7 +55,8 @@ export default function DrainByAge({ cycles, drops: stored, hours, sheetRuns, sn
         {sel(temp, setTemp, 'Battery temperature', [[ALL, 'Any battery temperature'], ...TEMP_BANDS.map((b) => [b.id, b.label])])}
         {types.length > 1 && sel(test, setPick, 'Test type for drain by battery age', [[ALL, 'All discharge tests'], ...types.map((t) => [t, t])])}
       </div>}>
-      {!drops || !hours ? <p className="secondary">The server has not built the 15-minute history yet (it reads every device's readings once, on its next check of the MDM). This fills in after that.</p>
+      <PartStatus parts={['hours', 'drops', 'sheetRuns']} missing="The server has not built the 15-minute history yet (it reads every device's readings once, on its next check of the MDM). This fills in after that." />
+      {!drops || !hours ? null
         : !rows.length ? <p className="secondary">No hours on battery match these choices.</p> : (
           <div className="table-wrap" style={{ maxHeight: 560 }}>
             <SortTable caption="Drain rate by battery age" head={[{ label: 'Device', style: { textAlign: 'left' } },

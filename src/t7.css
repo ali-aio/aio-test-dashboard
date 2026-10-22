@@ -2162,3 +2162,11 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 .charge-icon { display: inline-flex; vertical-align: middle; margin-left: 8px; position: relative; top: -2px; }
 .charge-icon.is-charging { color: var(--ok); }
 .charge-icon.is-draining { color: var(--text-secondary); }
+
+/* a part of the page whose data is still loading or failed (src/components/PartStatus.jsx) */
+.part-status-list { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; }
+.part-status { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary);
+  padding: 7px 10px; border: 1px dashed var(--border-strong); border-radius: 8px; background: var(--surface-2, transparent); }
+.part-status.is-bad { color: var(--text-primary); border-color: color-mix(in srgb, var(--status-critical) 55%, transparent); }
+.part-status.is-bad > span:first-child { color: var(--status-critical); }
+.part-status .btn { margin-left: auto; }

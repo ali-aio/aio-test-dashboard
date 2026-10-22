@@ -17,6 +17,7 @@ import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
 import { findOddOnes, mergeAlerts } from '../src/lib/alerts.js'
+import { loadPart, getSnapshot } from '../src/lib/fleet.js'
 import { runStartOf, drainSplit } from '../src/lib/window.js'
 import { takeOutReasons } from '../src/lib/plan.js'
 import RangePicker from '../src/components/RangePicker.jsx'
@@ -111,6 +112,7 @@ const mdmCases = []
   }
   const covered = adaptAll(DEV, () => null, readings), bare = adaptAll(DEV, () => null, null)
   const check = (name, fn) => { mdmCases.push(name); try { fn(); console.log('OK  ', name) } catch (e) { failed++; console.log('FAIL', name, '->', e.message) } }
+  const checkAsync = async (name, fn) => { mdmCases.push(name); try { await fn(); console.log('OK  ', name) } catch (e) { failed++; console.log('FAIL', name, '->', e.message) } }
   const want = (cond, msg) => { if (!cond) throw new Error(msg) }
   check('runs covered -> "cycles (MDM)"', () => { const t = splitText(covered.slice(0, 20)); want(/cycles \(MDM\)$/.test(t), t) })
   check('no readings -> run count', () => { const t = splitText(bare.slice(0, 20)); want(t === cyclesText(bare.slice(0, 20)) && countCycles(bare.slice(0, 20)) < 20, t) })
@@ -571,6 +573,18 @@ const mdmCases = []
       ...Array.from({ length: 4 }, () => ({ duration: 4, endBattery: 65, dropPerHr: 8.8, maxTemp: 45, incomplete: true }))]
     const k = kpis(bench)
     want(k.avgDuration === 14 && k.avgEndBattery === 20 && Math.abs(k.avgDropPerHr - 5.7) < 1e-9 && k.avgPeakTemp === 52, JSON.stringify(k))
+  })
+  await checkAsync('a data file: retried, then ok / missing / failed (the page shows each)', async () => {
+    const real = globalThis.fetch, calls = []
+    const answer = (list) => { globalThis.fetch = async (url) => { calls.push(url); const a = list.shift(); if (a === 'net') throw new Error('Failed to fetch'); return { ok: a === 200, status: a, json: async () => ({ curves: { k: 1 } }) } } }
+    try {
+      answer(['net', 500, 200]); await loadPart('curves', 1)
+      want(getSnapshot().parts.curves.state === 'ok' && getSnapshot().curves?.k === 1 && calls.length === 3, `ok on the 3rd try: ${JSON.stringify(getSnapshot().parts.curves)}`)
+      answer(['net', 'net', 'net']); await loadPart('curves', 1)
+      want(getSnapshot().parts.curves.state === 'error' && getSnapshot().curves?.k === 1, 'failed 3 times: error, and the copy loaded before is kept')
+      answer([404]); await loadPart('hours', 1)
+      want(getSnapshot().parts.hours.state === 'missing', 'not written yet')
+    } finally { globalThis.fetch = real }
   })
   check('Today: drain split into WLC active / inactive / ads only', () => {
     const t0 = Date.UTC(2026, 9, 21, 5), row = (min, pct, wlc) => ({ timestamp: new Date(t0 + min * 60e3).toISOString(), battery_pct: pct, extra: { charging: false, wlc_status: wlc } })

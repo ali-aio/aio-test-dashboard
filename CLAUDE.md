@@ -558,6 +558,13 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   readings and froze it 1–6 s): in `adaptCycle` a cycle reads only its own readings and 15-min slots, found by binary
   search (`rowsBetween`, `padMeasured`), never a scan of the device's whole history. Profiled with a headless Chromium
   CPU profile: 17.4 s → 1.6 s of CPU over the same 2 min, longest freeze 6 s → 0.6 s.
+- **A part whose data hasn't fully loaded says so, there, and is fetched again** (the user, 22 Oct 2026): every data file
+  is its own part (`PARTS` / `loadPart` in `fleet.js`: curves, hours, drops, readings, sheet runs), retried 3 times (2 s,
+  6 s, 18 s); a failed reload keeps the copy loaded before; 404 = not built yet. Devices whose readings didn't come are
+  fetched again after 15 s, 3 rounds (`window.js`). `src/components/PartStatus.jsx` shows it in the card that uses it —
+  spinner "Loading the battery curves (try 2 of 3)…", or "Couldn't load … · Retry": the battery / drain-by-hour charts and
+  Every cycle on a test screen, the Overview above its cards, Today above its tiles, Thermal, Comparison, the device page,
+  Drain by battery age, Battery health. Nothing shows once all is in.
 - **Charts must stay smooth on hover** (21 Oct: "too much lag"): a pointer move re-renders only the crosshair and
   tooltip — lines, dots, axes and legend are `useMemo`'d (`staticLayer` / `legendBlock` in `t7charts.jsx`, `lanes` and
   `smoothed` in `charts.jsx`), pointer updates are coalesced to one per frame (`usePlotPointer`), the nearest reading is a

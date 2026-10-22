@@ -1,5 +1,6 @@
 import { splitText, splitBy } from '../lib/splitCycles.js'
 import React, { useMemo, useState, useEffect, useRef } from 'react'
+import PartStatus from '../components/PartStatus.jsx'
 import { Card, EmptyNote, Segmented, useKeepOnScreen } from '../components/Primitives.jsx'
 import { ModeSwitch, deviceSeries, useDevicePicker } from '../components/CurveModes.jsx'
 import { LineChart, GroupedColumns } from '../components/t7charts.jsx'
@@ -213,6 +214,7 @@ export default function ComparisonView({ cycles, testType, allSerials = [] }) {
             : `${perDevice.length} device${perDevice.length === 1 ? '' : 's'} in the ${visible.length} ${GROUP_PLURAL[dimension]} chosen above, mean battery`)
           : 'Mean battery'} at each whole hour${testType === '__all__' ? ' across every test type in scope' : ` · ${testType}`}`}
         right={<ModeSwitch value={curveMode} onChange={setCurveMode} avgLabel="Average per group" />}>
+        <PartStatus parts={['curves']} window />
         <LineChart
           series={curveMode === 'all' ? perDevice : curves}
           {...(curveMode === 'all' && dimension !== 'serial' ? picker : {})}

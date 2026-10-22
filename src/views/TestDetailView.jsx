@@ -1,5 +1,6 @@
 import { splitText, splitBy, cyclesText, deviceCyclesText, countCycles, benchCycles } from '../lib/splitCycles.js'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import PartStatus from '../components/PartStatus.jsx'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadDecls, takenOutOf, takenOutText } from '../lib/plan.js'
 import { CTX } from '../lib/adapt.js'
@@ -416,6 +417,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             : "One line per device, averaging that device's cycles at each whole hour")
           : `Mean battery at each whole hour, grouped by ${activeMode === 'padState' ? 'pad state' : activeMode}`}
         right={<Segmented ariaLabel="Curve grouping" options={curveModes} value={activeMode} onChange={setMode} />}>
+        <PartStatus parts={['curves']} window />
         {/* Below the header, not beside it: two segmented controls in one card
             header squeeze the title until it wraps a word per line. */}
         {activeMode === 'serial' && (
@@ -578,6 +580,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               : testType === 'WLC on Phone'
                 ? 'Mean T7 battery lost and load battery gained in each whole hour. Both use percentage points on one axis; load-type averages are shown above.'
               : 'Average battery lost during each hour of a cycle.'}>
+          <PartStatus parts={isRestaurant ? ['curves', 'hours'] : ['curves']} />
           <GroupedColumns
             onSelectGroup={(g) => setHourPick((cur) => (cur === g.h ? null : g.h))}
             selectedGroup={hourPick == null ? null
@@ -684,6 +687,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               </div>)}
           </div>
         </div>}>
+        {showPad && <PartStatus parts={['hours']} />}
         {hoursPick && (
           <PickDevicesDialog title="Export CSV · per hour" sub={`${testType} · the devices of the cycles in this table`}
             counts={tableRows.reduce((m, c) => m.set(c.serial, (m.get(c.serial) || 0) + 1), new Map())}

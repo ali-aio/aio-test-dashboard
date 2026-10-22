@@ -1,6 +1,7 @@
 import { splitBy } from '../lib/splitCycles.js'
 import { cyclesText, benchCycles } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
+import PartStatus from '../components/PartStatus.jsx'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { LineChart } from '../components/t7charts.jsx'
 import { useDevicePicker } from '../components/CurveModes.jsx'
@@ -162,6 +163,8 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOp
               breakdown={breakdowns.os} breakdownLabel="Since 25 Sep" breakdownNoun="version" />
       </div>
 
+      {/* the cards' curves still loading (or failed): said once, above them */}
+      <PartStatus parts={['curves', 'readings']} window />
       <div className="grid grid-2">
         {panels.map((p) => <OverviewPanel key={p.testType} p={p} allSerials={allSerialsHere} onPickTestType={onPickTestType} onOpenDevice={onOpenDevice} />)}
       </div>

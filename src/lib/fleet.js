@@ -18,6 +18,7 @@ const TOPKEY = `histTopup:v3:${GROUP}`;
 const state = {
   DEV: [], DMAP: new Map(), allCycles: [], runs: [], cycleRun: new Map(),
   meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null, readings: null, curves: null, drops: null, hours: null, sheetRuns: null,
+  parts: {}, // each data file's load: { state: 'loading' | 'ok' | 'missing' | 'error', tries, err } (see loadPart)
 };
 let snapshot = { ...state }, HIST = {}, TOP = {}, local = loadRuns(GROUP);
 const subs = new Set();
@@ -88,25 +89,47 @@ async function topUpFromServer(force) {
 }
 // The MDM counter recorded by the sweep (src/lib/mdmTrack.js). Optional: without it every
 // split figure falls back to a run count.
+// The data files the sweep writes, each loaded on its own: url, what to keep from it, and what the
+// page calls it while it loads ("Loading battery curves…").
+//   readings  — the MDM counter recorded by the sweep (src/lib/mdmTrack.js); without it every
+//               split figure falls back to a run count
+//   curves    — per-run curves (src/lib/curves.js), so every run back to the start can be drawn
+//   drops     — the drop ledger (src/lib/drainAge.js): battery cycles at any past moment
+//   hours     — each device's 15-min slots off the charger (src/lib/drainHours.js): load, temp
+//   sheetRuns — which test ran before the Cycle plan, from the lab's sheets — drain by age ONLY
+export const PARTS = {
+  readings: { url: '/data/lifetime.json', pick: j => j, label: 'battery-cycle counter', fresh: true },
+  curves: { url: '/data/curves.json', pick: j => j.curves || null, label: 'battery curves' },
+  drops: { url: '/data/drops.json', pick: j => j.devices || null, label: 'battery-age ledger' },
+  hours: { url: '/data/hours.json', pick: j => j.devices || null, label: '15-minute history' },
+  sheetRuns: { url: '/data/sheet-runs.json', pick: j => j.runs || null, label: 'lab sheet runs' },
+};
+const RETRIES = 3, sleep = ms => new Promise(r => setTimeout(r, ms));
+const setPart = (name, p) => { state.parts = { ...state.parts, [name]: p }; bump(); };
+// One file, retried RETRIES times (2 s, 6 s, 18 s apart). A failed reload keeps what was loaded
+// before rather than blanking that part of the page; 404 = the sweep has not written it yet.
+// The page shows each part's state where that data is used (src/components/PartStatus.jsx).
+export async function loadPart(name, waitMs = 2000) {
+  const { url, pick, fresh } = PARTS[name];
+  for (let i = 0; i < RETRIES; i++) {
+    setPart(name, { state: 'loading', tries: i + 1 });
+    try {
+      const r = await fetch(url, fresh ? { cache: 'no-store' } : undefined);
+      if (r.status === 404) { state[name] = null; setPart(name, { state: 'missing' }); return; }
+      if (!r.ok) throw new Error(`the server answered ${r.status}`);
+      state[name] = pick(await r.json());
+      setPart(name, { state: 'ok' });
+      return;
+    } catch (e) {
+      if (i === RETRIES - 1) { setPart(name, { state: 'error', err: e.message === 'Failed to fetch' ? 'network error' : e.message }); return; }
+      await sleep(waitMs * 3 ** i);
+    }
+  }
+}
+/** Retry one part from the page ("Couldn't load … · Retry"). */
+export const retryPart = name => loadPart(name);
 async function loadReadings() {
-  try { const r = await fetch('/data/lifetime.json', { cache: 'no-store' }); state.readings = r.ok ? await r.json() : null; }
-  catch (e) { state.readings = null; }
-  // Per-run curves the sweep stores (src/lib/curves.js), so every run back to the start of
-  // the history can be drawn, not only the last 7 days. ETag'd, so a reload is a 304.
-  try { const r = await fetch('/data/curves.json'); state.curves = r.ok ? (await r.json()).curves || null : null; }
-  catch (e) { state.curves = null; }
-  // The drop ledger (src/lib/drainAge.js): lifetime battery cycles at any past moment, for
-  // drain rate by battery age on the Summary screen.
-  try { const r = await fetch('/data/drops.json'); state.drops = r.ok ? (await r.json()).devices || null : null; }
-  catch (e) { state.drops = null; }
-  // each device's hours off the charger (src/lib/drainHours.js): the same table split by load,
-  // ads and battery temperature
-  try { const r = await fetch('/data/hours.json'); state.hours = r.ok ? (await r.json()).devices || null : null; }
-  catch (e) { state.hours = null; }
-  // which test ran before the Cycle plan, from the lab's sheets, checked against the readings
-  // (scripts/sheet-runs.mjs) — for drain rate by battery age ONLY
-  try { const r = await fetch('/data/sheet-runs.json'); state.sheetRuns = r.ok ? (await r.json()).runs || null : null; }
-  catch (e) { state.sheetRuns = null; }
+  await Promise.all(Object.keys(PARTS).map(loadPart));
 }
 
 export async function topUp(force = false) {

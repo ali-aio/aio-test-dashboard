@@ -1,5 +1,6 @@
 import { countCycles, deviceCyclesText } from '../lib/splitCycles.js'
 import React, { useMemo, useState } from 'react'
+import PartStatus from '../components/PartStatus.jsx'
 import { Card, Stat, EmptyNote } from '../components/Primitives.jsx'
 import { ModeSwitch, envelopeSeries } from '../components/CurveModes.jsx'
 import { LineChart, Heatmap } from '../components/t7charts.jsx'
@@ -245,6 +246,7 @@ export default function ThermalView({ cycles, allSerials, onFilter }) {
         sub={tempMode === 'avg' ? 'Mean battery temperature at each whole hour, with the hottest and coolest device'
           : 'One line per device, following its longest cycle that recorded temperature'}
         right={<ModeSwitch value={tempMode} onChange={setTempMode} />}>
+        <PartStatus parts={['curves']} window />
         <LineChart
           series={tempMode === 'avg' ? avgTemp : curves}
           xDomain={[0, maxHour]}

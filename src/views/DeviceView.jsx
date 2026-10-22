@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import PartStatus from '../components/PartStatus.jsx'
 import { subscribeWindow, getWindow, rowsFor, currentCycleStart } from '../lib/window.js'
 import { fetchHistoryRange } from '../lib/data.js'
 import { normalize } from '../lib/cycles.js'
@@ -77,6 +78,7 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
         <LiveChart serial={serial} d={d} />
 
         <Card expandable title="Battery over a cycle, by test" sub="This device’s mean battery at each whole hour, one line per test type">
+          <PartStatus parts={['curves']} window />
           <LineChart series={curves} xDomain={[0, Math.ceil(plottedMaxHour(mine))]} yDomain={[0, 100]}
             formatX={fmtHourTick} formatY={(v) => `${v}%`} xLabel="elapsed time" xUnit="h" height={260}
             caption={`Battery per hour for ${serial}, by test type`} />

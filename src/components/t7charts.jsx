@@ -311,12 +311,15 @@ export function GroupedColumns({
           <AxisY scale={sy} ticks={yTicks} x={M.left} format={formatValue} label={yLabel} />
 
           {groups.map((g, gi) => {
-            const groupW = measures.length * barW + (measures.length - 1) * GAP
+            // centre the bars this group actually has under its label: an hour with only one of the
+            // two measures sat left or right of it (the lab, 22 Oct 2026: "alignment is very poor")
+            const shown = measures.filter((m) => g.values[m.key] != null)
+            const groupW = shown.length * barW + Math.max(0, shown.length - 1) * GAP
             const startX = M.left + gi * bandW + (bandW - groupW) / 2
-            return measures.map((m, mi) => {
+            return measures.map((m) => {
               const v = g.values[m.key]
               if (v == null) return null
-              const x = startX + mi * (barW + GAP)
+              const x = startX + shown.indexOf(m) * (barW + GAP)
               const top = Math.min(sy(v), zeroY)
               const h = Math.abs(sy(v) - zeroY)
               const on = hover && hover.g === gi && hover.m === m.key

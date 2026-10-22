@@ -547,6 +547,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - Devices ticked in the battery chart also filter Drain by hour, with a "Showing only" bar; the Every cycle table
   follows the ticked devices; the per-device table averages each device over all its cycles.
 - Drain by hour tooltip: device count beside WLC active / inactive; its cycle list has a WLC column.
+- Bar charts (`GroupedColumns`): an hour's bars are centred under its label, whichever measures it has (one bar
+  alone sits centred, not in its slot of two).
 - Restaurant Case tiles: "Avg drain · WLC active / inactive" (from the cycle's hours), "Avg peak temp". Stat tiles stay
   one line each (tight padding, no gap between value and note); tooltips stay by the cursor.
 - Every cycle: **Drain with WLC / without WLC** columns. Export CSV → **Overview** or **Per hour**; Per hour first asks

@@ -170,7 +170,8 @@ export function cycleHoursCsv(cycles, { charging = false, slotsOf = () => null }
     const a = s[i - 1], b = s[i]; return a.v + (b.v - a.v) * (t - a.t) / ((b.t - a.t) || 1)
   }
   const head = ['Device', 'Test', 'Date', 'Cycle started', 'Hour', 'From', 'To', 'Battery at start %', 'Battery at end %',
-    charging ? 'Gained %' : 'Drained %', charging ? 'Charge rate %/h' : 'Drain %/h', 'Load on wireless pad (min)', 'Avg battery temp °C', 'Peak battery temp °C']
+    // one row per hour, so what it drained in it IS the %/h; only a cycle's last hour can be shorter (Minutes)
+    'Minutes', charging ? 'Gained %' : 'Drained %', 'Load on wireless pad (min)', 'Avg battery temp °C', 'Peak battery temp °C']
   const r1 = (v) => (v == null ? '' : +v.toFixed(1)) // 88 and 87.5, not 88.0
   const rows = []
   for (const c of [...cycles].sort((a, b) => String(a.serial).localeCompare(String(b.serial)) || a.start - b.start)) {
@@ -185,8 +186,7 @@ export function cycleHoursCsv(cycles, { charging = false, slotsOf = () => null }
       if (slots?.length) for (const x of slots) { const mid = x[0] + 450e3; if (mid >= from && mid < until) pad = (pad || 0) + x[3] }
       const moved = b0 == null || b1 == null ? null : charging ? b1 - b0 : b0 - b1
       rows.push([c.serial, c.testType ?? '', c.date ?? '', local(c.start).slice(11, 16), h + 1, local(from).slice(11, 16),
-        c.inProgress && to === dur ? 'running' : local(until).slice(11, 16), r1(b0), r1(b1), r1(moved),
-        num(moved == null ? null : moved / (to - h), 2), num(pad, 0),
+        c.inProgress && to === dur ? 'running' : local(until).slice(11, 16), r1(b0), r1(b1), Math.round((to - h) * 60), r1(moved), num(pad, 0),
         r1(temps.length ? temps.reduce((a, x) => a + x, 0) / temps.length : null), r1(temps.length ? Math.max(...temps) : null)])
     }
   }

@@ -492,8 +492,9 @@ const mdmCases = []
     const lines = cycleHoursCsv([c('B'), c('A')], { slotsOf: (sn) => (sn === 'A' ? slots : null) }).trim().split('\r\n')
     want(lines.length === 7 && lines[1].startsWith('A,') && lines[4].startsWith('B,'), `rows / order: ${lines.length}`)
     const f = lines[1].split(','), last = lines[3].split(',')
-    want(f[4] === '1' && f[7] === '100' && f[8] === '88' && f[9] === '12' && f[10] === '12.00' && f[11] === '60' && f[12] === '45', `hour 1: ${lines[1]}`)
-    want(last[4] === '3' && last[9] === '2' && last[10] === '4.00' && last[11] === '0', `last half hour: ${lines[3]}`)
+    want(f[4] === '1' && f[7] === '100' && f[8] === '88' && f[9] === '60' && f[10] === '12' && f[11] === '60' && f[12] === '45', `hour 1: ${lines[1]}`)
+    want(!lines[0].includes('%/h') && lines[0].includes('Minutes'), `no %/h column beside Drained %: ${lines[0]}`)
+    want(last[4] === '3' && last[9] === '30' && last[10] === '2' && last[11] === '0', `last half hour: ${lines[3]}`)
     want(lines[4].split(',')[11] === '', 'no slots: load minutes blank')
   })
   check('csv: escaping, gap rows dropped, extra fields, cycles', () => {

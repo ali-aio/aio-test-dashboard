@@ -251,7 +251,7 @@ The guide is the MDM repo's `docs/TESTDATA_HOST_APP_GUIDE.md` (the user pasted i
   for tests that place a load (Restaurant Case, WLC on Load, WLC + Discharge, WLC on Phone, Load only) and Old cycles.
   That table's **Export CSV** opens a menu: **Overview** (one row per cycle, as shown, search applied) or **Per hour**
   (`cycleHoursCsv` in `csv.js`, tested: one row per device × cycle × hour — battery at the hour's start / end from the
-  cycle's curve, drained or gained, %/h, minutes with a load on the pad from the slots, average / peak battery temp).
+  cycle's curve, minutes in the hour (60, less for the last), drained or gained (no separate %/h: a row is an hour — the user, 26 Oct), minutes with a load on the pad from the slots, average / peak battery temp).
 - **Battery health** (the **last card of the Summary screen**; until 21 Oct 2026 its own Health screen, whose address
   `#/nx/health` now opens Summary; `src/components/BatteryHealth.jsx` + `src/lib/health.js`, tested): one row per
   device for ONE discharge test picked at the top (the busiest by default). A run is comparable when it is a counted cycle of

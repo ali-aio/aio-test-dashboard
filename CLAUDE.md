@@ -598,6 +598,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   `getProgress` in `window.js` — its own store, so a tick doesn't re-run `adaptAll` — plus the data files), with a label
   "Fetching the latest readings · 7 / 24 devices" on the page's first fetch; the 5-minute top-ups only move the bar. Until
   that first fetch ends, cards with `PartStatus window` add "Showing the readings stored in this browser · fetching the latest".
+  Today with no readings yet in the browser says **"Finding today's cycle…"** (no tiles), never "No test set · Not started".
 - **Charts must stay smooth on hover** (21 Oct: "too much lag"): a pointer move re-renders only the crosshair and
   tooltip — lines, dots, axes and legend are `useMemo`'d (`staticLayer` / `legendBlock` in `t7charts.jsx`, `lanes` and
   `smoothed` in `charts.jsx`), pointer updates are coalesced to one per frame (`usePlotPointer`), the nearest reading is a

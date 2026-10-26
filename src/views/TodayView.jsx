@@ -297,6 +297,9 @@ export default function TodayView({ fleet }) {
     onSet={set => setPicked(set.size === sorted.length ? null : set)} />
   const noneTicked = picked != null && picked.size === 0
   const silent = T.serials.length - reporting.length
+  // no readings in this browser yet: which cycle is running can't be told, so say "loading"
+  // rather than "No test set · Not started" for the seconds until they come (the user, 26 Oct 2026)
+  const waiting = !win.at && !Object.keys(win.rows || {}).length && !win.err
 
   return (
     <div className="view-stack">
@@ -304,13 +307,14 @@ export default function TodayView({ fleet }) {
         <div className="card-body today-head">
         <div className="today-head-main">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11.5, letterSpacing: '.04em', color: 'var(--text-3)', fontWeight: 600 }}>
-            {dayLong(key)} {T.charging ? <span className="pill pill-ok">On charge</span> : T.running ? <span className="pill pill-run">Running</span> : statusBadge(T.status)}
+            {dayLong(key)} {waiting ? <span className="pill">Loading</span> : T.charging ? <span className="pill pill-ok">On charge</span> : T.running ? <span className="pill pill-run">Running</span> : statusBadge(T.status)}
             {ended ? <span className="pill">Ended {when(T.endMs)}</span> : null}
             <span className={`pill ${reporting.length ? 'pill-run pill-live' : ''}`}>Live · {reporting.length} device{reporting.length === 1 ? '' : 's'} reporting</span>
           </div>
-          <h1 style={{ margin: '6px 0 4px', fontSize: 26, lineHeight: 1.15 }}>{T.tt ? T.tt.name : T.running ? <>Cycle running <span className="secondary" style={{ fontSize: 16, fontWeight: 500 }}>· test not known yet</span></> : 'No test set'}{T.cycleCount > 1 ? <span className="secondary" style={{ fontSize: 14, fontWeight: 500 }}> · cycle {T.cycleNo} of {T.cycleCount}</span> : null}</h1>
+          <h1 style={{ margin: '6px 0 4px', fontSize: 26, lineHeight: 1.15 }}>{waiting ? <><span className="spin" style={{ width: 18, height: 18, verticalAlign: 0 }} /> Finding today's cycle…</> : T.tt ? T.tt.name : T.running ? <>Cycle running <span className="secondary" style={{ fontSize: 16, fontWeight: 500 }}>· test not known yet</span></> : 'No test set'}{T.cycleCount > 1 ? <span className="secondary" style={{ fontSize: 14, fontWeight: 500 }}> · cycle {T.cycleNo} of {T.cycleCount}</span> : null}</h1>
           <div className="secondary" style={{ fontSize: 12.5 }}>
-            {T.charging ? <>Every device back on charge counts as a Charging Cycle, no plan entry needed · {charges.by.size} of {charges.reporting} reporting devices charging</>
+            {waiting ? <>Reading the devices' last 7 days from the MDM; the cycle, its tiles and charts show once they are in.</>
+              : T.charging ? <>Every device back on charge counts as a Charging Cycle, no plan entry needed · {charges.by.size} of {charges.reporting} reporting devices charging</>
               : T.tt ? <>{T.source === 'rota' ? 'From the standing weekly rota' : T.src?.auto ? <>Added automatically from the readings<PlanSource decl={T.src} /></> : <>Planned{T.src?.by ? <> by <b>{T.src.by}</b></> : null}{T.src?.at ? ` at ${hm(T.src.at)}` : ''}</>}
               {' '}· {T.serials.length} devices · window {hm(T.startMs)}–{hm(T.endMs)}{T.overnight ? ' next day' : ''}</>
               : T.running ? <>{bench.n} devices came off the charger around {hm(T.startMs)}. The Auto plan names the test from the readings once it can tell (a load on the pad for ~1.5 h, or none) — or <a className="link" href="#/nx/plan">set it on the Cycle plan</a>.</>
@@ -322,7 +326,7 @@ export default function TodayView({ fleet }) {
 
       {/* readings that did not come for some devices: said here, retried by itself */}
       <PartStatus window DEV={DEV} />
-      <div className="stat-row">
+      {!waiting && <div className="stat-row">
         {/* how long the devices have been running since they came off the charger, and how
             much of the planned cycle is left (to its end time on the Cycle plan) */}
         {T.charging ? <>
@@ -395,14 +399,14 @@ export default function TodayView({ fleet }) {
               display: r.x ? SPAN_LABEL[r.code] : 'Not reported (old client)',
               hint: r.x?.since ? `· since ${hm(Date.parse(r.x.since))}` : undefined, onClick: () => focusDevice(r.sn) }))} />
         })()}
-      </div>
+      </div>}
 
 
 
 
 
 
-      {!win.at ? <Stale win={win} n={DEV.length} /> : <>
+      {!win.at ? (waiting ? null : <Stale win={win} n={DEV.length} />) : <>
         {/* after picking devices (a click in the list, or the Devices picker), one click back to all */}
         {picked != null && (
           <div className="pick-bar">

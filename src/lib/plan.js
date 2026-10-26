@@ -29,20 +29,21 @@ const RKEY = g => `cyclePlan:rota:v1:${g}`;
 // `about` is how the lab runs it (from the lab, Oct 2026) — shown in the Cycle plan form.
 // "Load" = something placed on the T7's wireless pad, which the T7 charges.
 // Plans store the id, never the name, so a rename (Discharging on Ads -> Ads only) keeps old plans.
+// ads: true = the test runs ads the whole time, so the host app must be on screen (src/lib/hostApp.js).
 export const TEST_TYPES = [
   { id: 'charging',   code: 'CC', name: 'Charging Cycle',         expect: 'charge',
     about: 'The T7 charges on its charger; measured: time to 50 / 80 / 95 / 100 %.' },
   { id: 'wlc_phone',  code: 'WP', name: 'WLC on Phone',           expect: 'discharge',
     about: 'A phone on the wireless pad; the result is how long the phone takes to charge fully, so it depends on the phone.' },
-  { id: 'wlc_load',   code: 'WL', name: 'WLC on Load',            expect: 'discharge', frequent: true,
+  { id: 'wlc_load',   code: 'WL', name: 'WLC on Load',            expect: 'discharge', frequent: true, ads: true,
     about: 'A load on the wireless pad with ads running, until the T7 powers off (10 % to 0 %).' },
-  { id: 'disch_ads',  code: 'DA', name: 'Ads only',               expect: 'discharge', frequent: true,
+  { id: 'disch_ads',  code: 'DA', name: 'Ads only',               expect: 'discharge', frequent: true, ads: true,
     about: 'Only ads, no load on the pad, until the T7 powers off (0 %).' },
-  { id: 'wlc_disch',  code: 'WD', name: 'WLC + Discharge on Ads', expect: 'discharge', loadHours: 3,
+  { id: 'wlc_disch',  code: 'WD', name: 'WLC + Discharge on Ads', expect: 'discharge', loadHours: 3, ads: true,
     about: 'Ads running, a load on the pad for the first 3 h, then ads only until the T7 powers off (0 %).' },
   { id: 'burnin',     code: 'BI', name: 'Burn-in Test',           expect: 'discharge',
     about: 'Production only: 4K video played continuously (no ads).' },
-  { id: 'restaurant', code: 'RC', name: 'Restaurant Case',        expect: 'discharge', frequent: true, hours: 14, loadHours: 3,
+  { id: 'restaurant', code: 'RC', name: 'Restaurant Case',        expect: 'discharge', frequent: true, hours: 14, loadHours: 3, ads: true,
     about: 'A load on the pad for 3 h; the cycle runs 14 h in all.' },
   { id: 'load_only',  code: 'LO', name: 'Discharge on Load only', expect: 'discharge',
     about: 'Only a load on the wireless pad, no ads, until the T7 powers off (0 %).' },

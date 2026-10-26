@@ -19,6 +19,7 @@ import { mdmCyclesFor } from './mdmTrack.js';
 import { curveKey, curveSeries, resampleRun } from './curves.js';
 import { runningCycle } from './window.js';
 import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
+import { screenTime, adsGap } from './hostApp.js';
 
 const H = 3600e3;
 // Planned tests count only runs from the day the Cycle plan began (the lab's choice, Oct 2026);
@@ -265,6 +266,7 @@ export function adaptCycle(d, c0, rows, ctx) {
   const finished = !charging && !c.inProgress && tt?.hours;
   const fullTime = finished && duration >= tt.hours - FULL_CYCLE_MARGIN_H && duration < tt.hours;
   const shortRun = finished && duration < tt.hours - FULL_CYCLE_MARGIN_H;
+  const screen = charging ? null : screenTime(ctx.hostApp?.[d.serial]?.spans, c.start, c.inProgress ? Date.now() : c.end);
   const hourVals = wholeHours(series);
   const linear = (c.startPct - c.endPct) / duration;
   const hourly = perHourRate(hourVals, charging ? 'gain' : 'drop');
@@ -296,6 +298,12 @@ export function adaptCycle(d, c0, rows, ctx) {
     // (cycle time, end battery, drain, peak temp) leave it out (the lab, 21 Oct 2026: "if 20 of 24
     // reach 14 h, average those, not the ones taken out")
     incomplete: !!shortRun || plan.cutAt != null,
+    // the host app (the ads) on screen during the run, from data/hostapp.json (src/lib/hostApp.js):
+    // { onPct, onS, screenOffS, otherAppS, unknownS, knownS, longestOff } or null when not reported
+    // (client older than 1.11.0, or before 17 Oct 2026); adsGap: a test that runs ads, and they
+    // were off screen for a while (ADS_GAP_MIN) or most of the run (ADS_MIN_PCT)
+    screen,
+    adsGap: !charging && !!tt?.ads && adsGap(screen),
     startBattery: c.startPct,
     endBattery: c.endPct,
     batteryDelta: c.endPct - c.startPct,
@@ -336,9 +344,9 @@ export function adaptCycle(d, c0, rows, ctx) {
 }
 
 /** Every device's cycles, reshaped. `rowsFor(serial)` supplies history when we have it. */
-export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = null, hours = null) {
+export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = null, hours = null, hostApp = null) {
   const decls = loadDecls(CTX.group), rota = loadRota(CTX.group);
-  const ctx = { decls, rota, DEV, readings, curves, hours };
+  const ctx = { decls, rota, DEV, readings, curves, hours, hostApp };
   const out = [];
   for (const d of DEV) {
     const rows = rowsFor(d.serial);

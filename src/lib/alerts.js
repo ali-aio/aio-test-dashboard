@@ -9,6 +9,7 @@
 // The log (what was raised, when, whether it was read) is per browser, in localStorage:
 // "read" is one person's state, not the lab's.
 import { cycleAt, benchDecls, activeSerials, testType, loadDecls } from './plan.js';
+import { SPAN, SPAN_LABEL, stateCode } from './hostApp.js';
 
 const KEY = 'alertsLog';
 const KEEP_MS = 3 * 86400e3, MAX = 80;
@@ -20,6 +21,10 @@ const TEMP_GAP = 8, TEMP_FLOOR = 40; // °C above the median, and hot in its own
 // lab, 21 Oct 2026). Same margin as adapt.js FULL_CYCLE_MARGIN_H; from 1 h in, so a device
 // still being unplugged at the start is not one.
 const SHORT_MARGIN_H = 0.5, SHORT_FROM_H = 1;
+// A test that runs ads (TEST_TYPES ads: true): a device whose host app has not been on screen for
+// this long is raised, one device or the whole bench (the lab, 26 Oct 2026). From the MDM's
+// host-app list, so only devices on client 1.11.0+.
+const ADS_OFF_MIN = 5;
 
 /** How many may differ and still be "the odd ones": 1 or 2, or a fifth of a big cycle. */
 export const oddLimit = n => Math.max(2, Math.floor(n * 0.2));
@@ -47,7 +52,7 @@ const onlineAt = (d, now) => !!d.snap && now - Date.parse(d.snap.last_seen_at) <
 const median = xs => { const a = [...xs].sort((x, y) => x - y), m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
 
 /** Every device of the cycle running now that differs from the rest. */
-export function findOddOnes(decls, DEV, now = Date.now()) {
+export function findOddOnes(decls, DEV, now = Date.now(), hostApp = null) {
   const cyc = cycleAt(benchDecls(decls), now);
   if (!cyc || now < cyc.startMs) return null; // not started yet (cycleAt also returns one about to start)
   const serials = new Set(activeSerials(cyc.decl, DEV, now));
@@ -64,6 +69,16 @@ export function findOddOnes(decls, DEV, now = Date.now()) {
     const h = Math.floor(inH), m = Math.round((inH - h) * 60);
     out.push({ serial: d.serial, kind: 'short', title: `short cycle: on charge ${h}h ${m}m into the ${tt.hours} h cycle`,
       others: `a complete cycle runs at least ${tt.hours - SHORT_MARGIN_H} h` });
+  }
+  // ads stopped: the host app off screen for ADS_OFF_MIN in a test that runs ads (not once on charge)
+  if (tt?.ads && hostApp && inH >= 0.25) for (const d of live) {
+    const x = hostApp.get(d.serial);
+    if (!x || d.snap.charging || short.has(d.serial)) continue;
+    const code = stateCode(x), since = Date.parse(x.since);
+    if (code === SPAN.on || code === SPAN.noReport || code === SPAN.offline || !(now - since >= ADS_OFF_MIN * 60e3)) continue;
+    const t = new Date(since), hh = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+    out.push({ serial: d.serial, kind: `ads:${code}`, title: `ads stopped: ${SPAN_LABEL[code].toLowerCase()} since ${hh}`,
+      others: `${tt.name} runs ads the whole time` });
   }
   if (n < MIN_DEVICES) return { cyc, live: n, odd: out };
 
@@ -133,8 +148,8 @@ export const loadAlerts = () => { try { return (JSON.parse(localStorage.getItem(
 export const saveAlerts = log => { try { localStorage.setItem(KEY, JSON.stringify(log)); } catch (e) { /* private window */ } };
 
 /** One pass: read the plan, check the fleet, update and return the stored log. */
-export function checkAlerts(group, DEV, now = Date.now()) {
-  const log = mergeAlerts(loadAlerts(), findOddOnes(loadDecls(group), DEV, now), now);
+export function checkAlerts(group, DEV, now = Date.now(), hostApp = null) {
+  const log = mergeAlerts(loadAlerts(), findOddOnes(loadDecls(group), DEV, now, hostApp), now);
   saveAlerts(log);
   return log;
 }

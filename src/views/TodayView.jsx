@@ -1,5 +1,6 @@
 import PlanSource from '../components/PlanSource.jsx'
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
 import PartStatus from '../components/PartStatus.jsx'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
@@ -377,6 +378,21 @@ export default function TodayView({ fleet }) {
             breakdownLabel="WLC pad, every device (latest check-in)" breakdownRight breakdownWide
             breakdown={rows.map(r => ({ id: r.d.serial, label: r.d.serial, value: r.on ? 1 : 0, highlight: r.on,
               display: r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'Off', hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial) }))} />
+        })()}
+        {/* the host app (the ads) on screen now, per device (MDM host-app list, every minute); devices on a
+            client older than 1.11.0 do not report it */}
+        {fleet.hostAppNow && (() => {
+          const rows = T.serials.map(sn => ({ sn, x: fleet.hostAppNow.get(sn) })).map(r => ({ ...r, code: stateCode(r.x) }))
+            .sort((a, b) => (a.code === SPAN.on) - (b.code === SPAN.on) || (a.sn < b.sn ? -1 : 1))
+          const known = rows.filter(r => r.x), on = known.filter(r => r.code === SPAN.on).length, off = known.length - on
+          if (!known.length) return null
+          const wantAds = !!T.tt?.ads && !T.charging && !ended
+          return <Stat label="Ads on screen" value={<><span style={wantAds && off ? { color: 'var(--status-critical)' } : undefined}>{on}</span><span className="secondary" style={{ fontSize: 13 }}> / {known.length}</span></>}
+            foot={off ? `${off} not showing the app${wantAds ? ' · ads stopped' : ''}` : 'the app in front on every device'}
+            breakdownLabel="Host app (ads) on screen now, every device" breakdownRight breakdownWide
+            breakdown={rows.map(r => ({ id: r.sn, label: r.sn, value: r.code === SPAN.on ? 1 : 0, highlight: wantAds && r.x && r.code !== SPAN.on,
+              display: r.x ? SPAN_LABEL[r.code] : 'Not reported (old client)',
+              hint: r.x?.since ? `· since ${hm(Date.parse(r.x.since))}` : undefined, onClick: () => focusDevice(r.sn) }))} />
         })()}
       </div>
 

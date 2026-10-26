@@ -15,6 +15,7 @@ import { resampleRun, curveKey } from '../src/lib/curves.js';
 import { extendLedger } from '../src/lib/drainAge.js';
 import { extendSlots, SLOT } from '../src/lib/drainHours.js';
 import { buildAutoPlan } from './autoplan.mjs';
+import { compactSpans, mergeSpans } from '../src/lib/hostApp.js';
 import { chargeSegments, thermalStats } from '../shared/profile.js';
 
 const H = 3600e3, DAY = 24 * H, CHUNK = 7 * DAY;
@@ -86,11 +87,34 @@ export async function sweep({ base, group, root, get, plan, log = () => {} }) {
   await buildCurves({ root, devices: devices.map(d => d.serial_number), topup: out, get, log });
   await buildDrops({ root, group, devices, get, now, log });
   await buildHours({ root, group, devices, get, now, log });
+  // whether the host app (the ads) was on screen; a failure here never fails the sweep
+  try { await buildHostApp({ root, group, devices, get, now, log }); } catch (e) { log(`host app timelines failed: ${e.message}`); }
   // which test each bench ran, into the shared plan (marked Auto); a failure here never fails the sweep
   try { await buildAutoPlan({ root, group, devices, get, plan, now, log }); } catch (e) { log(`auto plan failed: ${e.message}`); }
   return { at: now, devices: Object.keys(out).length, cycles, failed };
 }
 const serialMsg = results => results.find(r => !r.ok)?.e.message;
+
+// Each device's host-app timeline (src/lib/hostApp.js): the MDM keeps it from 17 Oct 2026 and serves
+// up to 30 days at once, so the first sweep reads 30 days and later ones the last 7, merged into
+// data/hostapp.json (our own gitignored file; kept 120 days). Reads from the MDM only.
+const HOSTAPP_KEEP = 120 * DAY;
+export async function buildHostApp({ root, group, devices, get, now = Date.now(), log = () => {} }) {
+  const target = path.join(root, 'data', 'hostapp.json'), tmp = target + '.tmp';
+  const old = readJson(target), file = old && old.group === group && old.v === 1 ? old : { v: 1, group, devices: {} };
+  let n = 0, failed = 0;
+  await mapLimit(devices, 3, async d => {
+    const sn = d.serial_number, had = file.devices[sn];
+    try {
+      const t = await get(`/api/v1/testdata/devices/${encodeURIComponent(sn)}/host-app?range=${had ? '7d' : '30d'}`);
+      file.devices[sn] = { pkg: t.package || had?.pkg || null, spans: mergeSpans(had?.spans, compactSpans(t.spans), now - HOSTAPP_KEEP) };
+      n++;
+    } catch (e) { failed++; }
+  });
+  file.at = now;
+  fs.writeFileSync(tmp, JSON.stringify(file)); fs.renameSync(tmp, target);
+  log(`host app timelines: ${n} devices${failed ? `, ${failed} failed (kept previous)` : ''}`);
+}
 
 // Record every device's MDM lifetime counter (discharge_total_pct) on each sweep, so the
 // dashboard can turn it into cycles per run, test and day — the API only ever reports the

@@ -7,6 +7,7 @@
 //     shared in-flight fetch, so N open browsers cost the MDM one request per TTL, not N:
 //       GET /api/devices                              (20 s cache)
 //       GET /api/history/:serial?start&end&interval_sec (60 s cache, 7-day max window)
+//       GET /api/host-app?range=6h|24h|7d             (30 s cache) the host app on screen now
 //   · GET  /api/status   → sweep state + client stats
 //   · POST /api/sweep    → run a sweep now (the Settings "Check for new cycles" button)
 //   · GET/PUT /api/plan  → the shared Cycle plan, data/plan.json (server/plan.mjs) — our own
@@ -38,7 +39,7 @@ const CFG = {
   sweepMin: +(process.env.SWEEP_MIN || fileCfg.sweepMin || 30),
   ratePerMin: +(process.env.RATE_PER_MIN || fileCfg.ratePerMin || 120),
 };
-const DEVICES_TTL = 20e3, HISTORY_TTL = 60e3, MAX_RANGE = 7 * 86400e3 + 60e3;
+const DEVICES_TTL = 20e3, HISTORY_TTL = 60e3, HOSTAPP_TTL = 30e3, MAX_RANGE = 7 * 86400e3 + 60e3;
 const mdm = createClient({ base: CFG.base, key: CFG.key, log: m => console.log(`[mdm] ${m}`) });
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.md': 'text/plain; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
@@ -127,6 +128,11 @@ http.createServer(async (req, res) => {
       if (p === '/api/devices') {
         const g = url.searchParams.get('group') || CFG.group;
         return json(req, res, 200, await mdm.get(`/api/v1/testdata/devices?group=${encodeURIComponent(g)}`, { ttlMs: DEVICES_TTL }), { 'cache-control': `private, max-age=${DEVICES_TTL / 1000}` });
+      }
+      // which tablets have the host app (the ads) on screen now — Today and the bell
+      if (p === '/api/host-app') {
+        const g = url.searchParams.get('group') || CFG.group, r = ['6h', '24h', '7d'].includes(url.searchParams.get('range')) ? url.searchParams.get('range') : '6h';
+        return json(req, res, 200, await mdm.get(`/api/v1/testdata/host-app?group=${encodeURIComponent(g)}&range=${r}`, { ttlMs: HOSTAPP_TTL }), { 'cache-control': `private, max-age=${HOSTAPP_TTL / 1000}` });
       }
       const m = p.match(/^\/api\/history\/([A-Za-z0-9_-]{1,64})$/);
       if (m) {

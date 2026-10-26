@@ -146,6 +146,10 @@ export function cycleTableCsv(cycles, { charging = false, pad = false, wlc = nul
     // wlc(c) -> { on, off } (drainHours.js padSplit): drain with / without a load on the pad
     ...(wlc ? [['Drain with WLC %/h', (c) => num(wlc(c)?.on?.rate, 2)], ['Drain without WLC %/h', (c) => num(wlc(c)?.off?.rate, 2)]] : []),
     ['Peak temp °C', (c) => num(c.maxTemp, 1)],
+    // the host app (the ads) on screen, from the MDM's host-app timeline (src/lib/hostApp.js); blank = not reported
+    ['Ads on screen %', (c) => num(c.screen?.onPct, 1)],
+    ['Longest ads off (min)', (c) => num(c.screen?.longestOff?.min)],
+    ['Ads stopped', (c) => (c.adsGap ? 'yes' : '')],
     ...CYCLE_COLUMNS.filter((c) => c.key === 'batteryCycles' || c.key === 'cyclesSource')
       .map((col) => [col.label, (c) => (CYCLE_COLUMNS.find((x) => x.key === 'batteryCycles').get(c) === '' ? '' : col.get(c))]),
     ['Firmware', (c) => c.firmware ?? ''],

@@ -5,7 +5,7 @@
 // History = data/cycles.json (the one-off static import) + everything since, which comes
 // from the backend's sweep (data/topup.json) or, served without the backend, from a
 // per-browser top-up cached for 6 h. Live state = /testdata/devices, polled every 30 s.
-import { fetchDevices, fetchHistoryRange, mapLimit, detectBackend, hasConfig, scopeGroup } from './data.js';
+import { fetchDevices, fetchHostApp, fetchHistoryRange, mapLimit, detectBackend, hasConfig, scopeGroup } from './data.js';
 import { detectCycles, aggregate, reclassify, loadOpts, dedupeOverlapping } from './cycles.js';
 import { batteryHealth, chargeSegments, thermalStats } from './profile.js';
 import { loadRuns, normalize } from './runs.js';
@@ -18,6 +18,7 @@ const TOPKEY = `histTopup:v3:${GROUP}`;
 const state = {
   DEV: [], DMAP: new Map(), allCycles: [], runs: [], cycleRun: new Map(),
   meta: null, server: null, ready: false, error: null, opts: loadOpts(), backend: false, seed: null, sweep: null, readings: null, curves: null, drops: null, hours: null, sheetRuns: null,
+  hostAppNow: null, hostAppAt: 0, // serial -> the host-app list row (state now), refreshed every minute
   parts: {}, // each data file's load: { state: 'loading' | 'ok' | 'missing' | 'error', tries, err } (see loadPart)
 };
 let snapshot = { ...state }, HIST = {}, TOP = {}, local = loadRuns(GROUP);
@@ -103,6 +104,7 @@ export const PARTS = {
   drops: { url: '/data/drops.json', pick: j => j.devices || null, label: 'battery-age ledger' },
   hours: { url: '/data/hours.json', pick: j => j.devices || null, label: '15-minute history' },
   sheetRuns: { url: '/data/sheet-runs.json', pick: j => j.runs || null, label: 'lab sheet runs' },
+  hostApp: { url: '/data/hostapp.json', pick: j => j.devices || null, label: 'app-on-screen history' },
 };
 const RETRIES = 3, sleep = ms => new Promise(r => setTimeout(r, ms));
 const setPart = (name, p) => { state.parts = { ...state.parts, [name]: p }; bump(); };
@@ -178,6 +180,7 @@ export async function boot() {
     }
     try { TOP = JSON.parse(localStorage.getItem(TOPKEY))?.devices || {}; } catch (e) {}
     derive(); state.ready = true; bump();
+    pollHostApp(true);
     topUp().catch(e => console.warn('history top-up failed:', e));
   } catch (e) {
     state.error = e.message === 'Failed to fetch' ? 'Network error — the MDM is unreachable from this machine.' : `The MDM answered ${e.message}.`;
@@ -185,8 +188,18 @@ export async function boot() {
   }
 }
 
+// Whether each tablet's host app (the ads) is on screen now, at most once a minute (Today, the bell).
+// Devices on a client older than 1.11.0 are not in the list.
+export async function pollHostApp(force = false) {
+  if (!force && Date.now() - state.hostAppAt < 60e3) return;
+  state.hostAppAt = Date.now();
+  try { const r = await fetchHostApp('6h'); state.hostAppNow = new Map((r.devices || []).map(x => [x.serial_number, x])); bump(); }
+  catch (e) { /* keep the last answer; asked again next minute */ }
+}
+
 export async function poll() {
   if (!state.ready || document.hidden) return;
+  pollHostApp();
   try { setDevices(await fetchDevices({ fresh: true })); derive(); state.error = null; bump(); } catch (e) { /* keep the last snapshot on screen */ }
 }
 // Every 5 min, ask the backend when it last swept the MDM. When a newer sweep has run, pull

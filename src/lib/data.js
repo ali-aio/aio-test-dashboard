@@ -92,6 +92,12 @@ export async function fetchDevices(opts = {}) {
   return data;
 }
 
+/** Every device's host app (the ads) on screen now: GET /testdata/host-app (src/lib/hostApp.js). */
+export async function fetchHostApp(range = '6h') {
+  const group = scopeGroup(), qs = `?range=${range}${group ? `&group=${encodeURIComponent(group)}` : ''}`;
+  return BACKEND ? call(`/api/host-app${qs}`) : call(`${apiBase()}/api/v1/testdata/host-app${qs}`, { 'X-API-Key': apiKey() });
+}
+
 export async function fetchHistory(serial, hours, opts = {}) {
   const key = `cache:history:${serial}:${hours}`;
   if (!opts.fresh) {

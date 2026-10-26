@@ -75,12 +75,12 @@ export default function App() {
   const { DEV, ready, error } = fleet
   // the bell: re-checked on every live snapshot (30 s) and whenever the shared plan changes
   const [alerts, setAlerts] = useState(loadAlerts)
-  useEffect(() => { if (ready && DEV.length) setAlerts(checkAlerts(GROUP, DEV)) }, [DEV, ready, planSync.v])
+  useEffect(() => { if (ready && DEV.length) setAlerts(checkAlerts(GROUP, DEV, Date.now(), fleet.hostAppNow)) }, [DEV, ready, planSync.v, fleet.hostAppNow])
   const markRead = ids => setAlerts(log => { const next = log.map(a => (ids === true || ids.includes(a.id) ? { ...a, read: true } : a)); saveAlerts(next); return next })
   // Cycles in T7's shape. The curve on each one comes from the history window, so cycles
   // older than it carry their summary but no per-hour series — the charts say so.
-  const cycles = useMemo(() => (DEV.length ? adaptAll(DEV, rowsFor, fleet.readings, fleet.curves, fleet.hours) : []),
-    [DEV, fleet.allCycles, win.at2, fleet.readings, fleet.curves, fleet.hours, planSync.v])
+  const cycles = useMemo(() => (DEV.length ? adaptAll(DEV, rowsFor, fleet.readings, fleet.curves, fleet.hours, fleet.hostApp) : []),
+    [DEV, fleet.allCycles, win.at2, fleet.readings, fleet.curves, fleet.hours, fleet.hostApp, planSync.v])
   const allSerials = useMemo(() => distinct(cycles, 'serial'), [cycles])
   // The Test Date range applies first (a run is in if any part of it falls inside); the
   // rest of the bar then cascades within it. A preset like "Last 24h" is re-evaluated

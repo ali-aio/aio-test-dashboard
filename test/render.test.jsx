@@ -17,6 +17,7 @@ import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
 import { findOddOnes, mergeAlerts } from '../src/lib/alerts.js'
+import { compactSpans, mergeSpans, screenTime, adsGap } from '../src/lib/hostApp.js'
 import { loadPart, getSnapshot } from '../src/lib/fleet.js'
 import { runStartOf, drainSplit } from '../src/lib/window.js'
 import { takeOutReasons } from '../src/lib/plan.js'
@@ -568,6 +569,12 @@ const mdmCases = []
     want(one.join() === 'A:short', `one device, once (not also "on charge"): ${one}`)
     // the cycle time: 13.9 h counts as 14, 12 h is short and stays out of the average
     want(kpis([{ duration: 14, short: false }, { duration: 14.5, short: false }, { duration: 12, short: true }]).avgDuration === 14.25, 'short runs out of the average')
+    // ads stopped: the host app off screen 5+ min in a test that runs ads, on battery
+    const ha = new Map([['A', { state: 'off_screen', why: 'screen_off', since: new Date(now - 20 * 60e3).toISOString() }],
+      ['B', { state: 'on_screen', why: 'app_in_foreground', since: new Date(now - 3 * 3600e3).toISOString() }],
+      ['C', { state: 'off_screen', why: 'app_not_in_foreground', since: new Date(now - 2 * 60e3).toISOString() }]])
+    const ads = findOddOnes([decl], ['A', 'B', 'C', 'D'].map((sn) => dev(sn, false)), now, ha).odd.map((o) => `${o.serial}:${o.kind}`)
+    want(ads.join() === 'A:ads:off', `screen off 20 min = ads stopped; 2 min, on screen or not reported = nothing: ${ads}`)
     // 20 of 24 ran the cycle, 4 were taken out at 4 h: the averages are the 20's (the lab, 21 Oct 2026)
     const bench = [...Array.from({ length: 20 }, () => ({ duration: 14, endBattery: 20, dropPerHr: 5.7, maxTemp: 52 })),
       ...Array.from({ length: 4 }, () => ({ duration: 4, endBattery: 65, dropPerHr: 8.8, maxTemp: 45, incomplete: true }))]
@@ -585,6 +592,24 @@ const mdmCases = []
       answer([404]); await loadPart('hours', 1)
       want(getSnapshot().parts.hours.state === 'missing', 'not written yet')
     } finally { globalThis.fetch = real }
+  })
+  check('host app: spans merged, a run\'s time on screen, ads stopped (and the test screen draws it)', () => {
+    const t = (h, m = 0) => Date.UTC(2026, 9, 24, h, m), iso = (x) => new Date(x).toISOString()
+    const api = (list) => list.map(([a, b, state, why]) => ({ from: iso(a), to: iso(b), state, why }))
+    // stored: 00–05 screen off, 05–12 on; fresh window from 10:00: on until 13:00, then another app 13:00–13:40, on again
+    const old = compactSpans(api([[t(0), t(5), 'off_screen', 'screen_off'], [t(5), t(12), 'on_screen', 'app_in_foreground']]))
+    const fresh = compactSpans(api([[t(10), t(13), 'on_screen', 'app_in_foreground'], [t(13), t(13, 40), 'off_screen', 'app_not_in_foreground'], [t(13, 40), t(20), 'on_screen', 'app_in_foreground']]))
+    const m = mergeSpans(old, fresh)
+    want(m.length === 4 && m[1][0] === t(5) && m[1][1] === t(13) && m[2][2] === 'app', `merged: ${JSON.stringify(m.map((x) => [new Date(x[0]).getUTCHours(), new Date(x[1]).getUTCHours(), x[2]]))}`)
+    const st = screenTime(m, t(5), t(19))
+    want(st && Math.abs(st.onPct - 95.2) < 0.1 && st.longestOff.min === 40 && st.longestOff.why === 'app', JSON.stringify(st))
+    want(adsGap(st) && !adsGap(screenTime(m, t(5), t(12))), '40 min off = ads stopped; none off = fine')
+    want(screenTime(m, t(21), t(22)) === null, 'nothing known: null')
+    // the Restaurant Case screen with host-app data: the tile and the column draw
+    const rc = cycles.filter((c) => c.testType === 'Restaurant Case').slice(0, 6)
+      .map((c, i) => ({ ...c, screen: { ...st, onPct: i ? 99 : 70 }, adsGap: i === 0 }))
+    const h = renderToString(<TestDetail cycles={rc} testType="Restaurant Case" allSerials={all} />).replace(/<!-- -->/g, '')
+    want(h.includes('Ads on screen') && h.includes('1 with ads stopped') && h.includes('70%'), 'tile and column on the test screen')
   })
   check('Today: drain split into WLC active / inactive / ads only', () => {
     const t0 = Date.UTC(2026, 9, 21, 5), row = (min, pct, wlc) => ({ timestamp: new Date(t0 + min * 60e3).toISOString(), battery_pct: pct, extra: { charging: false, wlc_status: wlc } })

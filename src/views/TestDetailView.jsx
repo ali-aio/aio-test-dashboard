@@ -9,6 +9,9 @@ import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
 import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING } from '../lib/testtypes.js'
 import { FULL_CYCLE_MARGIN_H } from '../lib/adapt.js'
+import { SPAN_LABEL, ADS_GAP_MIN, ADS_MIN_PCT } from '../lib/hostApp.js'
+const clock = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+const fmtMin = (m) => { m = Math.round(m); return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` }
 import { TEST_TYPES } from '../lib/plan.js'
 import { padSplit } from '../lib/drainHours.js'
 import PickDevicesDialog from '../components/PickDevicesDialog.jsx'
@@ -59,6 +62,11 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   // fixed-time run that stopped over 30 min early), newest first
   const shortRuns = useMemo(() => cycles.filter((c) => c.incomplete || c.short).sort((a, b) => b.start - a.start), [cycles])
   const nShort = shortRuns.filter((c) => c.short).length
+  // the host app (the ads) on screen, for a test that runs ads (TEST_TYPES ads: true)
+  const expectsAds = !!TEST_TYPES.find((t) => t.name === testType)?.ads
+  const adsSeen = useMemo(() => cycles.filter((c) => c.screen && !c.inProgress), [cycles])
+  const adsStopped = useMemo(() => adsSeen.filter((c) => c.adsGap).sort((a, b) => b.start - a.start), [adsSeen])
+  const adsAvg = adsSeen.length ? adsSeen.reduce((a, c) => a + c.screen.onPct, 0) / adsSeen.length : null
   // Picking a device also switches the battery chart to Per device with only it ticked, so
   // its picker reads "1/22" and the other devices of the cycle stay a tick away.
   const pickDevice = (sn) => {
@@ -362,6 +370,15 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           foot="at cycle end" />
         {/* The average of the peaks hides the worst one, which is the figure a
             thermal problem actually shows up in. */}
+        {/* an ads test: was the host app (the ads) really on screen? (MDM host-app timeline, from 23 Oct 2026) */}
+        {expectsAds && <Stat label="Ads on screen" value={adsAvg == null ? '—' : <>{fmtNum(adsAvg, 0)}<span className="secondary" style={{ fontSize: 13 }}>%</span></>}
+          foot={adsSeen.length === 0 ? 'not reported for these cycles'
+            : adsStopped.length ? <span className="short-cycle">{fmtInt(adsStopped.length)} with ads stopped</span>
+            : `of ${fmtInt(adsSeen.length)} device runs · none stopped`}
+          {...(adsStopped.length ? { breakdownLabel: `Ads stopped: app off screen ${ADS_GAP_MIN}+ min at a stretch, or under ${ADS_MIN_PCT}% of the run · newest first`,
+            breakdownWide: true, breakdownRight: true, breakdownNoun: 'run',
+            breakdown: adsStopped.map((c) => ({ id: c.id, label: `${fmtSerial(c.serial)} · ${fmtDate(c.date)}`, value: c.screen.onPct, display: `${fmtNum(c.screen.onPct, 0)}% on screen`,
+              hint: c.screen.longestOff ? `· longest off ${fmtMin(c.screen.longestOff.min)} (${SPAN_LABEL[c.screen.longestOff.why].toLowerCase()}) from ${clock(c.screen.longestOff.from)}` : '', highlight: true, onClick: () => pickDevice(c.serial) })) } : {})} />}
         <Stat label="Avg peak temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
           foot={hottestRun == null
             ? 'no temperature recorded'
@@ -687,7 +704,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               </div>)}
           </div>
         </div>}>
-        {showPad && <PartStatus parts={['hours']} />}
+        {(showPad || expectsAds) && <PartStatus parts={[...(showPad ? ['hours'] : []), ...(expectsAds ? ['hostApp'] : [])]} />}
         {hoursPick && (
           <PickDevicesDialog title="Export CSV · per hour" sub={`${testType} · the devices of the cycles in this table`}
             counts={tableRows.reduce((m, c) => m.set(c.serial, (m.get(c.serial) || 0) + 1), new Map())}
@@ -698,7 +715,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             { label: 'Cycle time' }, { label: 'Start' }, { label: isCharging ? 'Charged to' : 'End' },
             { label: isCharging ? 'Charge rate' : 'Drain' },
             ...(showPad ? [{ label: 'Drain with WLC' }, { label: 'Drain without WLC' }] : []),
-            { label: 'Peak temp' }, { label: 'Battery cycles' },
+            { label: 'Peak temp' }, ...(expectsAds ? [{ label: 'Ads on screen' }] : []), { label: 'Battery cycles' },
             { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'WLC', style: { textAlign: 'left' } }] : []),
           ]}>
             {/* the search matches the serial, the firmware or the date as shown */}
@@ -718,6 +735,10 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                 {showPad && (() => { const p = padOf(c), cell = (x, what) => <td title={x ? `${fmtHours(x.hours)} ${what}` : `under 30 min ${what}`}>{x ? fmtRate(x.rate) : '—'}</td>
                   return <>{cell(p?.on, 'with a load on the pad')}{cell(p?.off, 'with the pad empty')}</> })()}
                 <td>{fmtTemp(c.maxTemp)}</td>
+                {expectsAds && <td className={c.adsGap ? 'short-cycle' : undefined}
+                  title={!c.screen ? 'Not reported (client older than 1.11.0, or before 23 Oct 2026)'
+                    : `App on screen ${fmtMin(c.screen.onS / 60)}, screen off ${fmtMin(c.screen.screenOffS / 60)}, another app ${fmtMin(c.screen.otherAppS / 60)}${c.screen.unknownS > 60 ? `, not known ${fmtMin(c.screen.unknownS / 60)}` : ''}${c.screen.longestOff ? ` · longest off ${fmtMin(c.screen.longestOff.min)} from ${clock(c.screen.longestOff.from)}` : ''}`}>
+                  {c.screen ? `${fmtNum(c.screen.onPct, 0)}%` : '—'}{c.adsGap && c.screen?.longestOff ? <span> · off {fmtMin(c.screen.longestOff.min)}</span> : null}</td>}
                 {/* the MDM counter where it was recorded; before that, the cycle's own battery drop ÷ 100 (≈) */}
                 <td title={c.mdmCycles != null ? 'From the MDM cycle counter' : 'From this cycle’s readings: battery drop ÷ 100 (the MDM counter was not recorded yet)'}>
                   {c.mdmCycles != null ? c.mdmCycles.toFixed(2)

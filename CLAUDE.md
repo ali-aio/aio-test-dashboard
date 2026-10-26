@@ -123,6 +123,19 @@ legacy — only `index.prev.html` still calls it. Restaurant names come back too
 repo doesn't use them — group-only scoping was a deliberate choice, not an
 oversight; don't add restaurant filtering back in without being asked.
 
+### Host app on screen (added by the MDM team 21 Oct 2026, read-only, same key)
+
+Whether each tablet's **host app** (Nugget, which plays the ads) was on screen. Data from firmware client
+**1.11.0+**, kept from **17 Oct 2026** (our lab devices report from ~23 Oct; 4 of 21 on older clients don't).
+The guide is the MDM repo's `docs/TESTDATA_HOST_APP_GUIDE.md` (the user pasted it; don't open the MDM repo).
+
+- `GET /api/v1/testdata/host-app?group=&range=6h|24h|7d` — one row per reporting device: `state`
+  (`on_screen` / `off_screen` / `unknown`), `why` (`app_in_foreground`, `screen_off`, `app_not_in_foreground`,
+  `no_report`, `device_offline`), `since`, `on_screen_s` / `off_screen_s` / `unknown_s`, `on_screen_pct`.
+- `GET /api/v1/testdata/devices/{serial}/host-app?range=6h|24h|7d|30d` — `now`, `totals`, and `spans`
+  (`from`, `to`, `state`, `why`, `seconds`) covering the window with no gaps, oldest first; `events` behind them.
+- 400 bad range / window (over 31 d, 7 on the list), 401 key, 404 unknown serial / group.
+
 ## Structure
 
 - `app.html` + `src/` — **the React app (v2)**, hash-routed: `src/main.jsx` ->
@@ -199,6 +212,17 @@ oversight; don't add restaurant filtering back in without being asked.
   edits (the form drops `auto`) or deletes is never touched again (`data/autoplan.json`: `made`, `applied`, plus every
   device's runs since 25 Sep so a sweep re-reads only 2 days at 5-min spacing). Every save stamps `mod`; a 409 merge in
   `planSync.js` keeps the newer copy of each entry, so a browser can't undo the server's update.
+- **Ads on screen** (`src/lib/hostApp.js`, tested): the sweep keeps every device's host-app timeline in
+  `data/hostapp.json` (`buildHostApp`: 30 days the first time, then the last 7, merged; kept 120 days); the server proxies
+  the live list as `/api/host-app` (30 s cache), which the browser polls once a minute (`pollHostApp` in `fleet.js`).
+  Every discharge run gets `screen` (`screenTime`: on screen / screen off / another app / not known, on-screen % of the
+  known time, longest stretch off) and, for a test that runs ads (`ads: true` in `TEST_TYPES`: Restaurant Case, WLC on
+  Load, Ads only, WLC + Discharge), `adsGap` when the app was off ≥ `ADS_GAP_MIN` (15 min) at a stretch or on screen under
+  `ADS_MIN_PCT` (90 %). Shown as the **Ads on screen** tile (average %, drop-down of runs where ads stopped) and an
+  **Ads on screen** column in Every cycle (red "· off 2h 10m"), three CSV columns; on **Today** an **Ads on screen n / N**
+  tile (each device's state and since); and on the **bell**: in a running ads test, a device on battery whose app has been
+  off screen ≥ 5 min ("ads stopped: screen off since 10:42"). "On screen" = Nugget in front with the screen on; whether an
+  ad was actually playing is not reported.
 - **HW build** comes from the serial (`buildFromSerial`, `src/lib/device.js`): "BU" in it = Production
   Build, otherwise "OTG / Validation Build" (the serial can't tell those two apart).
 - **Drain rate by battery age** (Summary screen, `src/components/DrainByAge.jsx` + `src/lib/drainHours.js` + `src/lib/drainAge.js`,

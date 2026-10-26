@@ -10,6 +10,7 @@
 // "read" is one person's state, not the lab's.
 import { cycleAt, benchDecls, activeSerials, testType, loadDecls } from './plan.js';
 import { SPAN, SPAN_LABEL, stateCode } from './hostApp.js';
+import { padLoad } from './pad.js';
 
 const KEY = 'alertsLog';
 const KEEP_MS = 3 * 86400e3, MAX = 80;
@@ -40,7 +41,7 @@ const extraOf = s => {
 export const FEATURES = [
   { kind: 'charging', get: s => (s.charging == null ? null : !!s.charging),
     say: v => (v ? 'on charge' : 'on battery') },
-  { kind: 'wlc-load', get: s => { const v = extraOf(s).wlc_status; return v == null || v === '' ? null : +v !== 0; },
+  { kind: 'wlc-load', get: s => padLoad(extraOf(s).wlc_status),
     say: v => (v ? 'load on the wireless pad' : 'no load on the wireless pad') },
   { kind: 'wlc-pad', get: s => { const v = extraOf(s).wlc_charging; return typeof v === 'boolean' ? v : null; },
     say: v => (v ? 'wireless pad on' : 'wireless pad off') },

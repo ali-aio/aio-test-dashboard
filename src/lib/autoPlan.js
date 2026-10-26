@@ -13,6 +13,7 @@
 // WLC on Phone (pad time depends on the phone) and Burn-in (production only) are never guessed.
 // Plain JS, no DOM: the server runs it, test/render.test.jsx checks it.
 import { cycleAt, dayKey, daysBetween } from './plan.js';
+import { padLoad } from './pad.js';
 
 const H = 3600e3;
 const GAP = 45 * 60e3;          // no check-in for this long: the run stopped (powered off / taken away)
@@ -37,7 +38,7 @@ const hm = t => { const d = new Date(t); return `${String(d.getHours()).padStart
  *  only when the battery has risen, or stops falling (rises or holds) within CHARGE_CHECK. */
 export function runsFrom(rows, now = Date.now()) {
   const pts = rows.filter(r => !r.empty && typeof r.battery_pct === 'number')
-    .map(r => ({ t: Date.parse(r.sample_at || r.timestamp), b: r.battery_pct, ch: r.extra?.charging, pad: !!r.extra?.wlc_status }))
+    .map(r => ({ t: Date.parse(r.sample_at || r.timestamp), b: r.battery_pct, ch: r.extra?.charging, pad: padLoad(r.extra?.wlc_status) === true }))
     .filter(p => Number.isFinite(p.t)).sort((a, b) => a.t - b.t);
   // a real charge: the battery rises, or holds — the flag on and no later reading (within
   // CHARGE_CHECK, on charge) lower. On the pad's flicker the battery keeps falling. At 20 % a

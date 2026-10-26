@@ -10,6 +10,7 @@
 // A run whose readings do not reach its start (or its end) gets no curve rather than a
 // partial one: a line that begins mid-run, plotted from 0 h, says something false.
 // Plain JS, no DOM: written by server/curves.mjs, read by src/lib/adapt.js.
+import { padLoad } from './pad.js';
 export const STEP = 10;             // minutes between curve points
 const EDGE = 20 * 60e3;             // readings must come within 20 min of the run's ends
 const TEMP_GAP = 45 * 60e3;         // no temperature across a reporting gap longer than this
@@ -28,7 +29,7 @@ export function resampleRun(rows, start, end) {
   for (const x of seg) {
     if (x.t < start || x.t > end) continue;
     if (x.r.build_id) fw.set(x.r.build_id, (fw.get(x.r.build_id) || 0) + 1);
-    if (x.r.extra?.wlc_status || /wireless|wlc|qi/i.test(x.r.extra?.charger_type || '')) w++;
+    if (padLoad(x.r.extra?.wlc_status) || /wireless|wlc|qi/i.test(x.r.extra?.charger_type || '')) w++;
   }
   let i = 0;
   for (let t = start; t <= end; t += STEP * 60e3) {

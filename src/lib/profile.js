@@ -1,6 +1,7 @@
 // Battery health, charge profile and thermal profile — pure functions over history rows
 // (normalized: { timestamp, battery_pct, extra: { charging, battery_temp_c, charger_type,
 // wlc_status } }) and over the cycle objects from cycles.js. No DOM, no fetch.
+import { padLoad } from './pad.js';
 const MIN = 60e3, H = 3600e3;
 const ts = r => Date.parse(r.timestamp);
 const temp = r => { const t = r.extra?.battery_temp_c; return typeof t === 'number' && t > 0 ? t : null; };
@@ -47,10 +48,10 @@ export function chargeSegments(rows, { startMax = 30, endMin = 90 } = {}) {
           for (let k = 1; k < seg.length; k++) if (seg[k].battery_pct >= p) { const q = seg[k - 1], f = (p - q.battery_pct) / (seg[k].battery_pct - q.battery_pct || 1); return ts(q) + f * (ts(seg[k]) - ts(q)) - t0; }
           return null;
         };
-        const temps = seg.map(temp).filter(x => x != null), types = {}; seg.forEach(r => { const t = r.extra?.charger_type || (r.extra?.wlc_status ? 'wireless' : null); if (t) types[t] = (types[t] || 0) + 1; });
+        const temps = seg.map(temp).filter(x => x != null), types = {}; seg.forEach(r => { const t = r.extra?.charger_type || (padLoad(r.extra?.wlc_status) ? 'wireless' : null); if (t) types[t] = (types[t] || 0) + 1; });
         const type = Object.entries(types).sort((x, y) => y[1] - x[1])[0]?.[0] || null;
         segs.push({ start: t0, end: ts(bb), durationMs: ts(bb) - t0, startPct: a.battery_pct, endPct: bb.battery_pct, t50: at(50), t80: at(80), t95: at(95),
-          wireless: /wireless|wlc|qi/i.test(type || '') || seg.some(r => r.extra?.wlc_status), type, maxTemp: temps.length ? Math.max(...temps) : null,
+          wireless: /wireless|wlc|qi/i.test(type || '') || seg.some(r => padLoad(r.extra?.wlc_status)), type, maxTemp: temps.length ? Math.max(...temps) : null,
           curve: seg.filter((_, k) => k % Math.max(1, Math.floor(seg.length / 40)) === 0 || k === seg.length - 1).map(r => [Math.round((ts(r) - t0) / MIN), r.battery_pct]) });
       }
       s = -1;

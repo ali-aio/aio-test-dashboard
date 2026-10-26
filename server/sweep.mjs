@@ -212,7 +212,9 @@ export async function buildDrops({ root, group, devices, get, now = Date.now(), 
 const SLOT_IV = 300;
 export async function buildHours({ root, group, devices, get, now = Date.now(), log = () => {} }) {
   const target = path.join(root, 'data', 'hours.json'), tmp = target + '.tmp';
-  const old = readJson(target), file = old && old.group === group && old.v === 2 ? old : { v: 2, slotMin: SLOT / 60e3, group, devices: {} };
+  // v 3: a load only for wlc_status > 0 and not on a lone reading (src/lib/pad.js, 26 Oct 2026); an older
+  // file is rebuilt from the whole history on the next sweep
+  const old = readJson(target), file = old && old.group === group && old.v === 3 ? old : { v: 3, slotMin: SLOT / 60e3, group, devices: {} };
   const drops = readJson(path.join(root, 'data', 'drops.json'))?.devices || {};
   const save = () => { file.at = Date.now(); fs.writeFileSync(tmp, JSON.stringify(file)); fs.renameSync(tmp, target); };
   let built = 0, extended = 0;

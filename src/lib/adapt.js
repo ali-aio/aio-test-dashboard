@@ -20,6 +20,7 @@ import { curveKey, curveSeries, resampleRun } from './curves.js';
 import { runningCycle } from './window.js';
 import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
 import { screenTime, adsGap } from './hostApp.js';
+import { padLoad } from './pad.js';
 
 const H = 3600e3;
 // Planned tests count only runs from the day the Cycle plan began (the lab's choice, Oct 2026);
@@ -176,7 +177,7 @@ function seriesFor(rows, c) {
     const tc = r.extra?.battery_temp_c;
     if (typeof tc === 'number' && tc > 0) tempSeries.push({ t: h, v: tc });
     if (r.build_id) fw.set(r.build_id, (fw.get(r.build_id) || 0) + 1);
-    if (r.extra?.wlc_status || /wireless|wlc|qi/i.test(r.extra?.charger_type || '')) wireless++;
+    if (padLoad(r.extra?.wlc_status) || /wireless|wlc|qi/i.test(r.extra?.charger_type || '')) wireless++;
     n++;
   }
   // the build the device was actually on during this run, not whatever it is on now

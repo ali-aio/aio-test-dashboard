@@ -12,6 +12,7 @@ import { STORES, withStore, isAvailable } from './db.js';
 import { normalize, detectCycles } from './cycles.js';
 import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
 import { H, MIN, median } from './format.js';
+import { padLoad } from './pad.js';
 
 export const WINDOW_HOURS = 24 * 7;
 const state = { rows: {}, at: 0, loading: false, err: null, failed: 0, failedSerials: [], retryIn: 0 };
@@ -280,7 +281,7 @@ export function drainSplit(rows, start) {
   for (let i = 1; i < rs.length; i++) {
     const a = rs[i - 1], b = rs[i], dt = Date.parse(b.timestamp) - Date.parse(a.timestamp);
     if (dt <= 0 || dt > 30 * 60e3 || a.extra?.charging || b.extra?.charging) continue;
-    const k = a.extra?.wlc_status != null && +a.extra.wlc_status !== 0 ? 'active' : a.extra?.wlc_charging === true ? 'inactive' : 'ads';
+    const k = padLoad(a.extra?.wlc_status) ? 'active' : a.extra?.wlc_charging === true ? 'inactive' : 'ads';
     acc[k][0] += a.battery_pct - b.battery_pct; acc[k][1] += dt;
   }
   const rate = ([d, ms]) => (ms >= 20 * 60e3 ? d / (ms / H) : null);

@@ -1,7 +1,7 @@
 // Drain rate by battery age, split by what was going on: load on the pad or not, ads running or
 // not, how hot the battery was. One cycle mixes these (Restaurant Case: 3 h with a load, 11 h
 // without), and a phone may sit on the pad for only 20 minutes, so the rate is worked out per
-// 15-MINUTE SLOT, not per cycle. The server keeps each device's slots (data/hours.json, v 2,
+// 15-MINUTE SLOT, not per cycle. The server keeps each device's slots (data/hours.json, v 3,
 // buildHours in server/sweep.mjs, readings every 5 min):
 //   [slotStartMs, drop (tenths of a point), minutes on battery, minutes with a load on the pad,
 //    mean battery temp (tenths of °C, -1 none)]
@@ -20,6 +20,7 @@
 // Plain JS, no DOM.
 import { lifetimeAt } from './drainAge.js';
 import { FIELD_DISCHARGE } from './testtypes.js';
+import { padLoad, dropLoneLoads } from './pad.js';
 
 const H = 3600e3, MAX_STEP = 30 * 60e3;
 export const SLOT = 15 * 60e3;
@@ -42,8 +43,9 @@ export const TEMP_BANDS = [
  *  crossing a slot's edge is shared between the slots by time. */
 export function slotBuckets(rows) {
   const pts = rows.filter(r => !r.empty && typeof r.battery_pct === 'number')
-    .map(r => ({ t: Date.parse(r.sample_at || r.timestamp), b: r.battery_pct, ch: r.extra?.charging, pad: !!r.extra?.wlc_status, c: r.extra?.battery_temp_c }))
+    .map(r => ({ t: Date.parse(r.sample_at || r.timestamp), b: r.battery_pct, ch: r.extra?.charging, pad: padLoad(r.extra?.wlc_status), c: r.extra?.battery_temp_c }))
     .filter(p => Number.isFinite(p.t)).sort((a, b) => a.t - b.t);
+  dropLoneLoads(pts); // a lone reading with a load is a blip, -1 is not a load (pad.js)
   const by = new Map();
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i], z = pts[i + 1], dt = z.t - a.t;

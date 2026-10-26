@@ -18,6 +18,7 @@ import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
 import { findOddOnes, mergeAlerts } from '../src/lib/alerts.js'
 import { compactSpans, mergeSpans, screenTime, adsGap } from '../src/lib/hostApp.js'
+import { padLoad } from '../src/lib/pad.js'
 import { loadPart, getSnapshot } from '../src/lib/fleet.js'
 import { runStartOf, drainSplit } from '../src/lib/window.js'
 import { takeOutReasons } from '../src/lib/plan.js'
@@ -610,6 +611,14 @@ const mdmCases = []
       .map((c, i) => ({ ...c, screen: { ...st, onPct: i ? 99 : 70 }, adsGap: i === 0 }))
     const h = renderToString(<TestDetail cycles={rc} testType="Restaurant Case" allSerials={all} />).replace(/<!-- -->/g, '')
     want(h.includes('Ads on screen') && h.includes('1 with ads stopped') && h.includes('70%'), 'tile and column on the test screen')
+  })
+  check('wireless pad: -1 is not a load, a lone reading with a load is a blip (idle 00485 / 00606, 19 Oct)', () => {
+    want(padLoad(2) === true && padLoad('1') === true && padLoad(0) === false && padLoad(-1) === false && padLoad(null) === null, 'padLoad')
+    const t0 = Date.UTC(2026, 9, 19, 5), row = (min, wlc) => ({ timestamp: new Date(t0 + min * 60e3).toISOString(), battery_pct: 40, extra: { charging: false, wlc_status: wlc } })
+    const minutes = (rows) => slotBuckets(rows).reduce((a, x) => a + x[3], 0)
+    want(minutes([0, 3, 6, 9, 12].map((m, i) => row(m, [0, 0, 2, 0, 0][i]))) === 0, 'a lone 2 between 0s: no load')
+    want(minutes([0, 3, 6, 9, 12].map((m, i) => row(m, [0, -1, -1, 0, 0][i]))) === 0, '-1: no load')
+    want(minutes([0, 3, 6, 9, 12].map((m, i) => row(m, [0, 2, 2, 2, 0][i]))) === 9, 'a real load still counts')
   })
   check('Today: drain split into WLC active / inactive / ads only', () => {
     const t0 = Date.UTC(2026, 9, 21, 5), row = (min, pct, wlc) => ({ timestamp: new Date(t0 + min * 60e3).toISOString(), battery_pct: pct, extra: { charging: false, wlc_status: wlc } })

@@ -15,6 +15,7 @@ import { GROUP } from '../lib/fleet.js'
 import { MultiLineChart, Sparkline, tooltipHtml } from '../components/charts.jsx'
 import { Segmented, Stat } from '../components/Primitives.jsx'
 import { buildStyleMap, keyBackground } from '../lib/palette.js'
+import { padLoad } from '../lib/pad.js'
 
 // A battery end label that would sit on the 0% / 100% axis mark only repeats the axis.
 const pctLabel = v => { const r = Math.round(v); return r >= 100 || r <= 0 ? null : `${r}%` }
@@ -369,7 +370,7 @@ export default function TodayView({ fleet }) {
             const e = typeof d.snap?.extra === 'string' ? (() => { try { return JSON.parse(d.snap.extra) } catch (x) { return {} } })() : (d.snap?.extra || {})
             // wlc_status 1/2 = a load placed and being charged (seen during WLC on Load);
             // wlc_charging alone = the pad switched on, nothing on it
-            const on = e.wlc_status != null && +e.wlc_status !== 0, padOn = e.wlc_charging === true
+            const on = padLoad(e.wlc_status) === true, padOn = e.wlc_charging === true
             return { d, on, padOn, live: online(d) }
           }).sort((a, b) => (b.on - a.on) || (b.padOn - a.padOn) || (a.d.serial < b.d.serial ? -1 : 1))
           const n = rows.filter(r => r.on).length

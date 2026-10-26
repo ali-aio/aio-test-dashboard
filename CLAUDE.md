@@ -230,7 +230,7 @@ The guide is the MDM repo's `docs/TESTDATA_HOST_APP_GUIDE.md` (the user pasted i
   with pickers for **load** (pad), **ads** and **battery temperature** (and test), plus a fleet **Average by condition** table
   (each condition on its own). Worked out **per 15 minutes**, because one cycle mixes conditions (Restaurant Case: 3 h with a
   load, then none; a phone may sit on the pad for 20 min): the sweep keeps every device's 15-min slots off the charger
-  (`data/hours.json` v 2, gitignored, `buildHours` in `server/sweep.mjs`: drop, minutes on battery, minutes with a load, mean
+  (`data/hours.json` v 3, gitignored, `buildHours` in `server/sweep.mjs`: drop, minutes on battery, minutes with a load, mean
   battery temp; whole history once at 5-min readings, then extended). Only slots inside a counted cycle count (a device idle
   on a shelf does not), which also gives the slot its
   test; ads come from the test (`ADS_BY_TEST`, from the lab's descriptions; Old cycles / WLC on Phone = not known). The
@@ -527,6 +527,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   a load still on at hour 5+, past 14 h + 2 h slack, idling under 2 %/h). It **keeps its data up to the moment it left**
   (`planFor` → `cutAt`), shown as "· left cycle" with the reason on hover. A device starting up to 3 h late is still in.
 - An hour without readings is neither WLC active nor inactive (null), never filled from the run's flag.
+- **A load on the pad = `wlc_status` > 0** (`padLoad` in `src/lib/pad.js`, used wherever wlc_status is read): **-1 is not a
+  load** (the pad's error / not-known code), and in the 15-min slots **a lone reading with a load between two without is a
+  blip** (`dropLoneLoads`). 26 Oct 2026: the Idle Cycle's per-hour CSV showed 12 and 6 min of load on 00485 / 00606 on
+  19 Oct — 00485 from two -1 readings, 00606 from two lone 2s. `hours.json` went to v 3 so the server rebuilt it.
 - **Whole-run averages count only the devices that ran the cycle with their bench** (the user, 21 Oct 2026: "if 20 of 24
   reach 14 h, include those, not the ones taken out"): `incomplete` (left the cycle part-way, any test, or a short
   fixed-time run) and running runs are left out of Avg cycle time, end battery, drain and peak temp (`finishedRuns` in

@@ -172,7 +172,9 @@ export function cycleHoursCsv(cycles, { charging = false, slotsOf = () => null }
   // Date and Time are each hour's own (the date turns over at midnight, the times step by an hour), so no
   // cycle-start / From / To columns (the user, 26 Oct 2026). One row per hour, so what it drained in it IS
   // the %/h; only a cycle's last hour can be shorter (Minutes).
-  const head = ['Device', 'Test', 'Date', 'Time', 'Hour', 'Minutes', 'Battery at start %', 'Battery at end %',
+  // Battery % = at that row's Time (one column, not start and end: the user, 26 Oct 2026); what the hour
+  // drained or gained is beside it
+  const head = ['Device', 'Test', 'Date', 'Time', 'Hour', 'Minutes', 'Battery %',
     charging ? 'Gained %' : 'Drained %', 'Load on wireless pad (min)', 'Avg battery temp °C', 'Peak battery temp °C']
   const r1 = (v) => (v == null ? '' : +v.toFixed(1)) // 88 and 87.5, not 88.0
   const rows = []
@@ -188,7 +190,7 @@ export function cycleHoursCsv(cycles, { charging = false, slotsOf = () => null }
       if (slots?.length) for (const x of slots) { const mid = x[0] + 450e3; if (mid >= from && mid < until) pad = (pad || 0) + x[3] }
       const moved = b0 == null || b1 == null ? null : charging ? b1 - b0 : b0 - b1
       rows.push([c.serial, c.testType ?? '', local(from).slice(0, 10), local(from).slice(11, 16), h + 1,
-        c.inProgress && to === dur ? `${Math.round((to - h) * 60)} (running)` : Math.round((to - h) * 60), r1(b0), r1(b1), r1(moved), num(pad, 0),
+        c.inProgress && to === dur ? `${Math.round((to - h) * 60)} (running)` : Math.round((to - h) * 60), r1(b0), r1(moved), num(pad, 0),
         r1(temps.length ? temps.reduce((a, x) => a + x, 0) / temps.length : null), r1(temps.length ? Math.max(...temps) : null)])
     }
   }

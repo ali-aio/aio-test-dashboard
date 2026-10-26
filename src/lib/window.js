@@ -24,6 +24,15 @@ let snapshot = { ...state };
 const bump = () => { snapshot = { ...state, at2: Date.now() }; subs.forEach(f => f()); };
 export const subscribeWindow = f => { subs.add(f); return () => subs.delete(f); };
 export const getWindow = () => snapshot;
+// How far the load running now has got (devices fetched / devices), for the progress bar under
+// the header. Its own store: a tick here must not look like new readings (win.at2 re-runs adaptAll).
+// first: this page has not fetched from the MDM yet (what is on screen is the stored copy, or nothing);
+// the 5-minute top-ups after it only move the bar.
+let progress = { loading: false, done: 0, total: 0, first: true };
+const progSubs = new Set();
+const setProgress = p => { progress = { ...progress, ...p }; progSubs.forEach(f => f()); };
+export const subscribeProgress = f => { progSubs.add(f); return () => progSubs.delete(f); };
+export const getProgress = () => progress;
 // The window refreshes at most every 5 minutes (24 devices against a slow MDM), but the fleet
 // snapshot arrives every 30 s. Each device's latest check-in is added as its newest reading,
 // so Today sees a device come off the charger within 30 s rather than 5–10 minutes later.
@@ -78,7 +87,7 @@ export async function loadWindow(DEV, force = false, retry = false) {
   if (!force && !retry && state.at && Date.now() - state.at < 5 * MIN) return;
   if (!retry) retryRound = 0;
   clearTimeout(retryTimer); state.retryIn = 0;
-  state.loading = true; state.err = null;
+  state.loading = true; state.err = null; setProgress({ loading: true, done: 0, total: DEV.length });
   try {
     // Read the stored copy before announcing the load, so a return visit never shows the
     // "reading history" banner for the moment the copy takes to come out of IndexedDB.
@@ -91,13 +100,13 @@ export async function loadWindow(DEV, force = false, retry = false) {
       state.at = Math.min(...Object.values(cache).map(v => v.at)); bump();
     }
     const now = Date.now(), from = now - WINDOW_HOURS * H, out = {};
-    await mapLimit(DEV, 3, async d => {
+    await mapLimit(DEV, 3, async d => { try {
       const old = (cache[d.serial]?.rows || []).filter(r => Date.parse(r.timestamp) >= from);
       const last = old.length ? Date.parse(old[old.length - 1].timestamp) : 0;
       const since = last ? Math.max(from, last - OVERLAP) : from;
       const fresh = normalize(await fetchHistoryRange(d.serial, since, now, IV));
       out[d.serial] = [...old.filter(r => Date.parse(r.timestamp) < since), ...fresh];
-    });
+    } finally { setProgress({ done: progress.done + 1 }); } });
     state.failedSerials = DEV.filter(d => !out[d.serial]).map(d => d.serial); // mapLimit swallows per-device errors
     state.failed = state.failedSerials.length;
     // try the missing devices again shortly (the rest only fetch what came in since)
@@ -109,9 +118,10 @@ export async function loadWindow(DEV, force = false, retry = false) {
     // a device whose request failed keeps the copy it had rather than going blank
     for (const d of DEV) if (!out[d.serial] && state.rows[d.serial]) out[d.serial] = state.rows[d.serial];
     state.rows = out; state.at = now;
+    setProgress({ first: false });
     writeCache(out, now);
   } catch (e) { state.err = e.message; }
-  finally { state.loading = false; bump(); }
+  finally { state.loading = false; setProgress({ loading: false }); bump(); }
 }
 
 export const temp = r => { const t = r.extra?.battery_temp_c; return typeof t === 'number' && t > 0 ? t : null; };

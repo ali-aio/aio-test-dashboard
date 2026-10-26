@@ -593,6 +593,11 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   spinner "Loading the battery curves (try 2 of 3)…", or "Couldn't load … · Retry": the battery / drain-by-hour charts and
   Every cycle on a test screen, the Overview above its cards, Today above its tiles, Thermal, Comparison, the device page,
   Drain by battery age, Battery health. Nothing shows once all is in.
+- **While the latest data is still coming, say so** (the user, 26 Oct 2026: Today drew the stored copy, then changed a few
+  seconds later): a thin progress bar along the header's bottom (`SyncBar.jsx`; readings devices done / devices from
+  `getProgress` in `window.js` — its own store, so a tick doesn't re-run `adaptAll` — plus the data files), with a label
+  "Fetching the latest readings · 7 / 24 devices" on the page's first fetch; the 5-minute top-ups only move the bar. Until
+  that first fetch ends, cards with `PartStatus window` add "Showing the readings stored in this browser · fetching the latest".
 - **Charts must stay smooth on hover** (21 Oct: "too much lag"): a pointer move re-renders only the crosshair and
   tooltip — lines, dots, axes and legend are `useMemo`'d (`staticLayer` / `legendBlock` in `t7charts.jsx`, `lanes` and
   `smoothed` in `charts.jsx`), pointer updates are coalesced to one per frame (`usePlotPointer`), the nearest reading is a

@@ -1,6 +1,6 @@
 import React, { useSyncExternalStore } from 'react'
 import { subscribe, getSnapshot, PARTS, retryPart } from '../lib/fleet.js'
-import { subscribeWindow, getWindow, loadWindow } from '../lib/window.js'
+import { subscribeWindow, getWindow, loadWindow, subscribeProgress, getProgress } from '../lib/window.js'
 
 // Where a part of the page draws on data that has not (fully) arrived, it says so in that
 // part: a spinner while it loads (and while it is retried), "Couldn't load … · Retry" once the
@@ -19,8 +19,11 @@ export default function PartStatus({ parts = [], window: win = false, DEV: devic
   const absent = st.filter((p) => p.state === 'missing')
   const winFailed = win ? w.failed || 0 : 0
   const winLoading = win && w.loading && !Object.keys(w.rows || {}).length
+  // a stored copy on screen while the latest readings come in (it may change once they have)
+  const prog = useSyncExternalStore(subscribeProgress, getProgress, getProgress)
+  const winRefresh = win && w.loading && !winLoading && prog.first
 
-  if (!loading.length && !failed.length && !absent.length && !winFailed && !winLoading) return null
+  if (!loading.length && !failed.length && !absent.length && !winFailed && !winLoading && !winRefresh) return null
   const row = (key, icon, text, action) => (
     <div key={key} className={`part-status${icon === 'bad' ? ' is-bad' : ''}`} style={style}>
       {icon === 'spin' ? <span className="spin" aria-hidden="true" /> : <span aria-hidden="true">{icon === 'bad' ? '●' : '○'}</span>}
@@ -33,7 +36,8 @@ export default function PartStatus({ parts = [], window: win = false, DEV: devic
       {failed.map((p) => row(p.name, 'bad', `Couldn't load the ${p.label} (${p.err}). What's shown may be incomplete.`,
         <button type="button" className="btn btn-sm" onClick={() => retryPart(p.name)}>Retry</button>))}
       {absent.map((p) => row(p.name, 'off', missing || `The server has not built the ${p.label} yet; it fills in after its next check of the MDM.`))}
-      {winLoading && row('win', 'spin', 'Loading the last 7 days of readings…')}
+      {winLoading && row('win', 'spin', `Loading the last 7 days of readings · ${prog.done} / ${prog.total} devices…`)}
+      {winRefresh && row('winr', 'spin', `Showing the readings stored in this browser · fetching the latest, ${prog.done} / ${prog.total} devices…`)}
       {winFailed > 0 && row('winf', w.retryIn ? 'spin' : 'bad',
         `Readings did not load for ${winFailed} device${winFailed === 1 ? '' : 's'}${w.retryIn ? ' · trying again' : ''}: ${w.failedSerials.map((s) => '…' + s.slice(-5)).join(', ')}`,
         !w.retryIn && DEV?.length ? <button type="button" className="btn btn-sm" onClick={() => loadWindow(DEV, false, true)}>Retry</button> : null)}

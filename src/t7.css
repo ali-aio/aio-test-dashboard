@@ -2170,3 +2170,15 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 .part-status.is-bad { color: var(--text-primary); border-color: color-mix(in srgb, var(--status-critical) 55%, transparent); }
 .part-status.is-bad > span:first-child { color: var(--status-critical); }
 .part-status .btn { margin-left: auto; }
+
+/* SyncBar: latest data still on its way (the header's bottom edge) */
+.sync-bar { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; pointer-events: none;
+  background: color-mix(in srgb, var(--series-1) 18%, transparent); }
+.sync-bar-fill { height: 100%; transition: width .4s ease;
+  background-image: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+  background-size: 200px 100%; animation: sync-sheen 1.2s linear infinite; background-color: var(--series-1); }
+@keyframes sync-sheen { from { background-position: -200px 0; } to { background-position: 200px 0; } }
+.sync-bar-label { position: absolute; right: 24px; top: 6px; display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--text-secondary); padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+  background: var(--surface-1); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+@media (prefers-reduced-motion: reduce) { .sync-bar-fill { animation: none; } }

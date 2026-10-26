@@ -8,6 +8,7 @@ import { EMPTY_FILTERS, filtersFor, filterCycles, distinct, reconcileSerials, ba
 import { initThemeToggle } from './lib/theme.js'
 import { checkAlerts, loadAlerts, saveAlerts } from './lib/alerts.js'
 import { NotificationBell, LiveBadge } from './components/HeaderTools.jsx'
+import SyncBar from './components/SyncBar.jsx'
 import { fmtInt, fmtDateLong, fmtBC, fmtLifetime } from './lib/fmt.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { HistoryStatus } from './components/historyStatus.js'
@@ -194,6 +195,7 @@ export default function App() {
         <ThemeButton />
         {/* rightmost (the user, Oct 2026) */}
         <LiveBadge error={error} ready={ready} server={fleet.server} />
+        <SyncBar />
       </header>
       <main className="app-main">
         <HistoryStatus.Provider value={{ loading: win.loading, at: win.at, err: win.err,

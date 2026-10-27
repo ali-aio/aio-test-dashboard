@@ -620,3 +620,10 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   click switches both charts to Every device with only that device ticked. The legend's **Highest device / Lowest device** do the
   same, with no serial shown (it is on hover; the user didn't like serials in the legend).
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).
+- **iPhone on the pad** (the lab, 27 Oct 2026: on some T7s an iPhone goes on the pad instead of the load, and its battery
+  gain is noted each hour): a Today card under the charts (`PhoneOnPad.jsx`, any discharge cycle). Pick the T7s that carry
+  one; per hour of the cycle (hour 0 = the bench off the charger) the lab **types the iPhone's battery %** — the MDM reports
+  only the T7's — and each cell shows the gain since the last entry and, in grey, the T7's own battery then; per row Gained,
+  Per hour, Full at. Shared through our own backend: `GET/POST /api/phone` (`server/phone.mjs`, `data/phone.json`,
+  gitignored), each cell merged on its own by `mod` (`mergePhone` in `src/lib/phoneLog.js`, tested), keyed by cycle day ·
+  serial · hour; saved on leaving the box / Enter; pulled every minute and on tab focus.

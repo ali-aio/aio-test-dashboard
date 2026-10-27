@@ -2,6 +2,7 @@ import PlanSource from '../components/PlanSource.jsx'
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
 import PartStatus from '../components/PartStatus.jsx'
+import PhoneOnPad from '../components/PhoneOnPad.jsx'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, refineStarts, refinedStart, drainSince, drainSplit, WINDOW_HOURS } from '../lib/window.js'
@@ -459,6 +460,8 @@ export default function TodayView({ fleet }) {
           </div>
         </div>
         </div>
+        {/* an iPhone on the pad in place of the load: its battery, typed in each hour (the lab, 27 Oct 2026) */}
+        {!T.charging && (T.running || T.decl) && <PhoneOnPad day={T.key} start={Math.round(chartFrom / 60e3) * 60e3} end={T.endMs} serials={T.serials} now={now} />}
         <div className="card">
           {/* closed by default; a search opens it, since the search is about these rows */}
           <div className="card-head" role="button" tabIndex={0} aria-expanded={listShown} style={{ cursor: 'pointer' }}

@@ -2182,3 +2182,10 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
   font-size: 11.5px; color: var(--text-secondary); padding: 3px 9px; border-radius: 999px; white-space: nowrap;
   background: var(--surface-1); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
 @media (prefers-reduced-motion: reduce) { .sync-bar-fill { animation: none; } }
+
+/* Today · iPhone on the pad: one small number box per hour */
+.phone-table td, .phone-table th { vertical-align: top; }
+.phone-cell { width: 58px; min-height: 28px; padding: 3px 6px; text-align: right; }
+.phone-sub { display: flex; flex-direction: column; align-items: flex-end; font-size: 11px; line-height: 1.3; margin-top: 2px; min-height: 14px; }
+.phone-sub .up { color: var(--status-good); }
+.phone-sub .down { color: var(--status-critical); }

@@ -23,6 +23,7 @@ import { loadPart, getSnapshot } from '../src/lib/fleet.js'
 import { runStartOf, drainSplit } from '../src/lib/window.js'
 import { takeOutReasons } from '../src/lib/plan.js'
 import RangePicker from '../src/components/RangePicker.jsx'
+import { mergePhone, cleanPhone, phoneDevices, phoneHours } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
 import { testTypeFor, planFor, temperaturePhases } from '../src/lib/adapt.js'
@@ -482,6 +483,20 @@ const mdmCases = []
     want(!applyAuto([], [done], { now, from: 0, state: r.state }).decls.length, 'deleted Auto entry is not re-added')
     // a person's entry for a test the readings can't tell (WLC on Phone) is never replaced
     want(!applyAuto([{ ...mine, testType: 'wlc_phone' }], [done], { now, from: 0 }).changes.length, 'wlc on phone kept')
+  })
+  check('iPhone on the pad: typed readings merge per cell, gains per hour', () => {
+    const d = '2026-10-27'
+    let db = mergePhone({}, cleanPhone({ devices: { [`${d}|AT070AABU00231`]: { on: true, mod: 1 } },
+      cells: { [`${d}|AT070AABU00231|0`]: { pct: 20, mod: 1 }, [`${d}|AT070AABU00231|1`]: { pct: 45, mod: 1 }, [`${d}|AT070AABU00231|3`]: { pct: 100, mod: 1 },
+        [`${d}|AT070AABU00231|2`]: { pct: 140, mod: 1 }, 'bad key': { pct: 5, mod: 1 } } }))
+    want(Object.keys(db.cells).length === 3, 'out-of-range and bad keys dropped')
+    // an older edit never overwrites a newer one; a newer one does
+    db = mergePhone(db, { cells: { [`${d}|AT070AABU00231|1`]: { pct: 10, mod: 0 } } })
+    want(db.cells[`${d}|AT070AABU00231|1`].pct === 45, 'older edit ignored')
+    want(phoneDevices(db, d).join() === 'AT070AABU00231' && !phoneDevices(db, '2026-10-26').length, 'devices per cycle day')
+    const p = phoneHours(db, d, 'AT070AABU00231', 3)
+    want(p.rows[1].gain === 25 && p.rows[2].gain == null && p.rows[3].gain === 55 && p.rows[3].per === 27.5, 'gain from the last entry')
+    want(p.total === 80 && Math.abs(p.perH - 80 / 3) < 1e-9 && p.fullAt === 3, 'total, per hour, full at')
   })
   check('csv per hour: each device\'s cycle hour by hour, with the pad\'s load minutes', () => {
     const t0 = Date.UTC(2026, 9, 17, 9), H = 3600e3

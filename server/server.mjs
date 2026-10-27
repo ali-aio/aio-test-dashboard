@@ -11,6 +11,7 @@
 //   · GET  /api/status   → sweep state + client stats
 //   · POST /api/sweep    → run a sweep now (the Settings "Check for new cycles" button)
 //   · GET/PUT /api/plan  → the shared Cycle plan, data/plan.json (server/plan.mjs) — our own
+//   · GET/POST /api/phone → iPhone battery typed in on Today, data/phone.json (server/phone.mjs) — our own
 //     file, the one thing a browser can write; never anything on the MDM
 //
 // Every upstream call goes through server/mdm.mjs (3 in flight, 120 ms apart, coalesced).
@@ -25,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { sweep, loadTopup } from './sweep.mjs';
 import { createClient } from './mdm.mjs';
 import { createPlanStore, readPlanBody } from './plan.mjs';
+import { createPhoneStore, readPhoneBody } from './phone.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cfgFile = path.join(ROOT, 'server', 'config.json');
@@ -47,6 +49,8 @@ const TEXT = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.md', '.
 
 // the shared Cycle plan (server/plan.mjs); the sweep's auto plan writes into it too
 const plan = createPlanStore(ROOT);
+// the iPhone readings typed in on Today (server/phone.mjs)
+const phone = createPhoneStore(ROOT);
 
 // ── sweep state ───────────────────────────────────────────────────────────────
 const state = { group: CFG.group, lastSweepAt: null, lastError: null, sweeping: false, devices: 0, cycles: 0, configured: !!CFG.key };
@@ -122,6 +126,12 @@ http.createServer(async (req, res) => {
         let body; try { body = await readPlanBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
         const r = plan.put(g, body);
         return r.conflict ? json(req, res, 409, { error: 'the plan changed since you loaded it', current: r.current }) : json(req, res, 200, r);
+      }
+      if (p === '/api/phone') {
+        if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, phone.get());
+        if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });
+        let body; try { body = await readPhoneBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
+        return json(req, res, 200, phone.post(body));
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') return json(req, res, 405, { error: 'GET' });
       if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });

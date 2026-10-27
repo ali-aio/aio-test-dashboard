@@ -606,6 +606,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   `smoothed` in `charts.jsx`), pointer updates are coalesced to one per frame (`usePlotPointer`), the nearest reading is a
   binary search. Keep it that way in any new chart.
 - Take out: the reason list is fixed; a note never becomes a new reason.
+- **Take out works before the test is known** (the user, 27 Oct 2026: "why is it not showing take out"): on a bench running
+  with no plan entry yet ("Cycle running · test not known yet"), Take out / Put back keep the record in `data/phone.json`
+  (`outs`, `pendingOuts` / `setPendingOut` in `phoneLog.js`); the device leaves Today's charts and list at once, and as soon
+  as a plan entry names that cycle (Auto or a person) Today moves each held take-out onto it (`takeOut`, keeping its time).
 
 ### Today
 In order: the planned cycle running now → a bench off the charger whose test isn't named yet, **"Cycle running · test

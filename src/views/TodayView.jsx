@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } fro
 import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
 import PartStatus from '../components/PartStatus.jsx'
 import PhoneOnPad from '../components/PhoneOnPad.jsx'
+import { subscribePhone, getPhone, startPhoneSync, pendingOuts, setPendingOut } from '../lib/phoneLog.js'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, refineStarts, refinedStart, drainSince, drainSplit, WINDOW_HOURS } from '../lib/window.js'
@@ -105,12 +106,17 @@ export default function TodayView({ fleet }) {
     const mid = median(starts), near = starts.filter(t => Math.abs(t - mid) <= 3 * H)
     return near.length >= 3 && now - mid < 20 * H ? { start: mid, n: near.length } : null
   }, [DEV, win.at2])
+  // shared Today notes (data/phone.json): the iPhone readings, and take-outs made before the test is known
+  const phoneDb = useSyncExternalStore(subscribePhone, getPhone, getPhone)
+  useEffect(() => startPhoneSync(), [])
   const T = useMemo(() => {
     const decls0 = benchDecls(DECLS())
     if (!cycleAt(decls0, now) && !chargingMost && bench) {
-      // running, but no test on the plan for it yet: timed from when the bench came off the charger
-      return { key: dayKey(bench.start), running: true, status: 'unclassified', testType: null, tt: null, src: null, decl: null,
-        serials: DEV.map(d => d.serial), removed: [], startMs: bench.start, endMs: now + H, overnight: false, cycleNo: 1, cycleCount: 1 }
+      // running, but no test on the plan for it yet: timed from when the bench came off the charger.
+      // Devices taken out already (held in data/phone.json until there is a plan entry) leave it.
+      const k = dayKey(bench.start), out = pendingOuts(phoneDb, k), gone = new Set(out.map(r => r.serial))
+      return { key: k, running: true, status: 'unclassified', testType: null, tt: null, src: null, decl: null, pendingOut: true,
+        serials: DEV.map(d => d.serial).filter(s => !gone.has(s)), removed: out, startMs: bench.start, endMs: now + H, overnight: false, cycleNo: 1, cycleCount: 1 }
     }
     if (!cycleAt(decls0, now) && chargingMost) {
       const starts = [...charges.by.values()].map(c => c.t)
@@ -132,7 +138,17 @@ export default function TodayView({ fleet }) {
       // devices taken out of this cycle leave its charts and table from the moment they left
       serials: activeSerials(src, DEV, now), removed: removedFrom(src), startMs: pick.startMs, endMs: pick.endMs, overnight: pick.overnight,
       cycleNo: cyclesOn(decls, pick.key).findIndex(c => c.decl.id === src.id) + 1, cycleCount: cyclesOn(decls, pick.key).length }
-  }, [DEV, allCycles, win.at2, todayKey(), planRev, planSync.v, chargingMost, bench?.start])
+  }, [DEV, allCycles, win.at2, todayKey(), planRev, planSync.v, chargingMost, bench?.start, phoneDb])
+  // Take out works before the test is known too (the user, 27 Oct 2026): held for the bench, then
+  // moved onto the plan entry as soon as one names the cycle (Auto, or a person on the Cycle plan)
+  const canOut = !!T.decl || !!T.pendingOut
+  useEffect(() => {
+    if (!T.decl) return
+    const held = pendingOuts(phoneDb, T.key); if (!held.length) return
+    const have = new Set((T.decl.removed || []).map(r => r.serial))
+    for (const r of held) { if (!have.has(r.serial)) takeOut(GROUP, T.decl.id, r); setPendingOut(T.key, r.serial, null) }
+    setPlanRev(v => v + 1)
+  }, [T.decl?.id, T.key, phoneDb])
   const key = T.key
   const ended = T.tt && T.endMs < now // the cycle shown has finished (the last one, until the next starts)
   // charging or discharging right now: what most of the cycle's devices report on their latest
@@ -482,7 +498,7 @@ export default function TodayView({ fleet }) {
           {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: T.charging ? 'On charger' : 'Off charger', className: 'r' },
               { label: T.charging ? 'Charge rate' : 'Drain', className: 'r' }, { label: 'Cycles', className: 'r' }, { label: 'Temp now', className: 'r' },
               { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Today', className: 'r', sortable: false },
-              ...(T.decl ? [{ label: '', sortable: false }] : [])]}>
+              ...(canOut ? [{ label: '', sortable: false }] : [])]}>
               {conf.filter(c => matches(c.serial) && c.serial.toLowerCase().includes(listQ.trim().toLowerCase())).sort((a, b) => byBenchOrder(a.serial, b.serial)).map(c => { // the lab's bench order (BENCH_ORDER); a heading click still sorts
                 const r = runs.get(c.serial)
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
@@ -505,21 +521,21 @@ export default function TodayView({ fleet }) {
                   <td className="r mono" style={{ color: s?.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : s?.maxTemp >= TEMP_WARN ? 'var(--warn)' : 'inherit' }}>{s?.maxTemp != null ? s.maxTemp.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td>
                   <td className="r mono" style={{ color: s?.minAbove45 ? 'var(--bad)' : 'inherit' }}>{s?.minAbove45 ? fmtDur(s.minAbove45 * MIN) : <span className="secondary">—</span>}</td>
                   <td className="r">{s ? <Sparkline vals={s.battPts.map(p => p.y)} /> : <span className="secondary">—</span>}</td>
-                  {T.decl && <td className="r"><button type="button" className="btn btn-sm" title={`Take ${c.serial} out of this cycle, with a reason`}
+                  {canOut && <td className="r"><button type="button" className="btn btn-sm" title={`Take ${c.serial} out of this cycle, with a reason`}
                     onClick={e => { e.stopPropagation(); setTakingOut(t => t === c.serial ? null : c.serial) }}>{takingOut === c.serial ? 'Cancel' : 'Take out'}</button></td>}
                 </tr>
                 // the take-out form opens right under its device, as part of the table
-                return takingOut === c.serial && T.decl ? [row,
+                return takingOut === c.serial && canOut ? [row,
                   <tr key={c.serial + ':out'} data-attached="1" className="takeout-row"><td colSpan={11}>
                     <TakeOutForm serial={c.serial} cycle={T} onCancel={() => setTakingOut(null)}
-                      onSave={rec => { takeOut(GROUP, T.decl.id, { serial: c.serial, ...rec }); setTakingOut(null); setPlanRev(v => v + 1) }} />
+                      onSave={rec => { if (T.decl) takeOut(GROUP, T.decl.id, { serial: c.serial, ...rec }); else setPendingOut(T.key, c.serial, rec); setTakingOut(null); setPlanRev(v => v + 1) }} />
                   </td></tr>] : row
               })}
           </SortTable></div>}
         </div>
-        {T.decl && T.removed?.length > 0 && (
+        {canOut && T.removed?.length > 0 && (
           <div className="card">
-            <div className="card-head"><h2>Taken out of this cycle ({T.removed.length})</h2><span className="secondary">kept on record · their cycles from then on don't count toward {T.tt?.name}</span></div>
+            <div className="card-head"><h2>Taken out of this cycle ({T.removed.length})</h2><span className="secondary">kept on record · {T.decl ? `their cycles from then on don't count toward ${T.tt?.name}` : 'held until the test is named, then put on the cycle'}</span></div>
             <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Taken out' }, { label: 'Reason' }, { label: 'Note' }, { label: 'By' }, { label: '', sortable: false }]}>
               {T.removed.map(r => (
                 <tr key={r.serial}>
@@ -528,7 +544,7 @@ export default function TodayView({ fleet }) {
                   <td>{r.reason}</td>
                   <td>{r.note || <span className="secondary">—</span>}</td>
                   <td>{r.by || <span className="secondary">—</span>}</td>
-                  <td className="r"><button type="button" className="btn btn-sm" onClick={() => { if (confirm(`Put ${r.serial} back into this cycle? The record of it being taken out is removed.`)) { putBack(GROUP, T.decl.id, r.serial); setPlanRev(v => v + 1) } }}>Put back</button></td>
+                  <td className="r"><button type="button" className="btn btn-sm" onClick={() => { if (confirm(`Put ${r.serial} back into this cycle? The record of it being taken out is removed.`)) { if (T.decl) putBack(GROUP, T.decl.id, r.serial); else setPendingOut(T.key, r.serial, null); setPlanRev(v => v + 1) } }}>Put back</button></td>
                 </tr>
               ))}
             </SortTable></div>
@@ -644,8 +660,8 @@ function TakeOutForm({ serial, cycle, onSave, onCancel }) {
   const needNote = reason === 'Other' && !note.trim()
   return (
     <div className="card-body takeout">
-      <div style={{ marginBottom: 8 }}><b>Take <span className="mono">{serial}</span> out of {cycle.tt?.name}</b>
-        <div className="secondary" style={{ fontSize: 12 }}>It leaves the charts and the cycle from now ({hm(Date.now())}). The run it is on stops counting toward this test.</div></div>
+      <div style={{ marginBottom: 8 }}><b>Take <span className="mono">{serial}</span> out of {cycle.tt?.name || 'this cycle'}</b>
+        <div className="secondary" style={{ fontSize: 12 }}>It leaves the charts and the cycle from now ({hm(Date.now())}). The run it is on stops counting toward this test.{!cycle.decl ? ' The test isn\'t named yet: this is kept and goes onto the cycle once it is.' : ''}</div></div>
       <div className="takeout-grid">
         <label className="field"><span>Reason</span>
           <span className="ver" style={{ display: 'block' }}><select value={reason} onChange={e => setReason(e.target.value)} style={{ width: '100%' }}>

@@ -23,7 +23,7 @@ import { loadPart, getSnapshot } from '../src/lib/fleet.js'
 import { runStartOf, drainSplit } from '../src/lib/window.js'
 import { takeOutReasons } from '../src/lib/plan.js'
 import RangePicker from '../src/components/RangePicker.jsx'
-import { mergePhone, cleanPhone, phoneDevices, phoneHours } from '../src/lib/phoneLog.js'
+import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
 import { testTypeFor, planFor, temperaturePhases } from '../src/lib/adapt.js'
@@ -497,6 +497,11 @@ const mdmCases = []
     const p = phoneHours(db, d, 'AT070AABU00231', 3)
     want(p.rows[1].gain === 25 && p.rows[2].gain == null && p.rows[3].gain === 55 && p.rows[3].per === 27.5, 'gain from the last entry')
     want(p.total === 80 && Math.abs(p.perH - 80 / 3) < 1e-9 && p.fullAt === 3, 'total, per hour, full at')
+    // a take-out before the test is known is held per cycle day, and cleared once moved
+    db = mergePhone(db, cleanPhone({ outs: { [`${d}|AT070AABU00064`]: { on: true, reason: 'Hardware fault', at: 5, mod: 5 } } }))
+    want(pendingOuts(db, d).length === 1 && pendingOuts(db, d)[0].serial === 'AT070AABU00064' && pendingOuts(db, d)[0].at === 5, 'held take-out')
+    db = mergePhone(db, cleanPhone({ outs: { [`${d}|AT070AABU00064`]: { on: false, mod: 6 } } }))
+    want(!pendingOuts(db, d).length, 'cleared take-out')
   })
   check('csv per hour: each device\'s cycle hour by hour, with the pad\'s load minutes', () => {
     const t0 = Date.UTC(2026, 9, 17, 9), H = 3600e3

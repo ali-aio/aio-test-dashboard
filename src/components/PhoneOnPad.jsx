@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { subscribePhone, getPhone, startPhoneSync, phoneDevices, phoneHours, setPhoneDevice, setPhonePct, cellKey } from '../lib/phoneLog.js'
+import { subscribePhone, getPhone, phoneDevices, phoneHours, setPhoneDevice, setPhonePct, cellKey } from '../lib/phoneLog.js'
 import { rowsFor } from '../lib/window.js'
 import { padLoad } from '../lib/pad.js'
 import { hm, H } from '../lib/format.js'
@@ -49,7 +49,6 @@ function Cell({ day, serial, h, value, title }) {
 
 export default function PhoneOnPad({ day, start, end, serials, now }) {
   const db = useSyncExternalStore(subscribePhone, getPhone, getPhone)
-  useEffect(() => startPhoneSync(), [])
   const devices = phoneDevices(db, day)
   // hour 0 = the cycle's start, then one column per hour (the user, 27 Oct 2026: started at 10 → 11, 12, …).
   // The next hour is there before it comes, to type into on the hour; after hour 1 a device gets an

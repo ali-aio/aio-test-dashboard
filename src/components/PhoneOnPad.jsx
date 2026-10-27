@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useSyncExternalStore } from 'react'
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { subscribePhone, getPhone, startPhoneSync, phoneDevices, phoneHours, setPhoneDevice, setPhonePct, cellKey } from '../lib/phoneLog.js'
 import { rowsFor } from '../lib/window.js'
 import { padLoad } from '../lib/pad.js'
@@ -25,12 +25,26 @@ const loadIn = (serial, a, b) => {
   return false
 }
 
+// A plain box for the iPhone's battery %: digits only (no up / down arrows), saved as soon as a
+// value is typed — half a second after the last key, or at once on Enter / leaving the box (the user, 27 Oct 2026)
 function Cell({ day, serial, h, value, title }) {
   const [v, setV] = useState(value ?? '')
-  useEffect(() => { setV(value ?? '') }, [value])
-  const save = () => { const n = v === '' ? null : Math.max(0, Math.min(100, Math.round(+v))); if (n !== (value ?? null) && (n == null || Number.isFinite(n))) setPhonePct(day, serial, h, n, by()) }
-  return <input className="input phone-cell" type="number" min="0" max="100" inputMode="numeric" value={v} placeholder="%" title={title}
-    aria-label={title} onChange={e => setV(e.target.value)} onBlur={save} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }} />
+  const timer = useRef(null)
+  const typing = useRef(false)
+  useEffect(() => { if (!typing.current) setV(value ?? '') }, [value])
+  useEffect(() => () => clearTimeout(timer.current), [])
+  const save = (raw) => {
+    clearTimeout(timer.current); typing.current = false
+    const n = raw === '' ? null : Math.min(100, +raw)
+    if (n !== (value ?? null)) setPhonePct(day, serial, h, n, by())
+  }
+  const change = e => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 3)
+    setV(raw); typing.current = true
+    clearTimeout(timer.current); timer.current = setTimeout(() => save(raw), 500)
+  }
+  return <input className="input phone-cell" type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={v} placeholder="%" title={title}
+    aria-label={title} onChange={change} onBlur={() => typing.current && save(v)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }} />
 }
 
 export default function PhoneOnPad({ day, start, end, serials, now }) {

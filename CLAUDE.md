@@ -626,7 +626,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).
 - **iPhone on the pad** (the lab, 27 Oct 2026: on some T7s an iPhone goes on the pad instead of the load, and its battery
   gain is noted each hour): a Today card under the charts (`PhoneOnPad.jsx`, any discharge cycle). Pick the T7s that carry
-  one; per hour of the cycle (hour 0 = the bench off the charger) the lab **types the iPhone's battery %** — the MDM reports
+  one (picking one in the drop-down adds it — no Add button, the user, 27 Oct); per hour of the cycle (hour 0 = the bench off the charger) the lab **types the iPhone's battery %** — the MDM reports
   only the T7's — and each cell shows the gain since the last entry and, in grey, the T7's own battery then; per row Gained,
   Per hour, Full at. Shared through our own backend: `GET/POST /api/phone` (`server/phone.mjs`, `data/phone.json`,
   gitignored), each cell merged on its own by `mod` (`mergePhone` in `src/lib/phoneLog.js`, tested), keyed by cycle day ·

@@ -36,7 +36,6 @@ function Cell({ day, serial, h, value, title }) {
 export default function PhoneOnPad({ day, start, end, serials, now }) {
   const db = useSyncExternalStore(subscribePhone, getPhone, getPhone)
   useEffect(() => startPhoneSync(), [])
-  const [adding, setAdding] = useState('')
   const devices = phoneDevices(db, day)
   // hour 0 = the cycle's start, then one column per hour (the user, 27 Oct 2026: started at 10 → 11, 12, …).
   // The next hour is there before it comes, to type into on the hour; after hour 1 a device gets an
@@ -48,7 +47,6 @@ export default function PhoneOnPad({ day, start, end, serials, now }) {
   const shown = new Map(devices.map(sn => [sn, shownFor(sn)]))
   const hours = Array.from({ length: last + 1 }, (_, h) => h).filter(h => devices.some(sn => shown.get(sn).has(h)))
   const free = serials.filter(s => !devices.includes(s))
-  const add = () => { if (adding) { setPhoneDevice(day, adding, true, by()); setAdding('') } }
   const remove = s => {
     const has = hours.some(h => db.cells?.[cellKey(day, s, h)]?.pct != null)
     if (!has || confirm(`Take ${s} off the iPhone list? Its typed readings stay on record and come back if you add it again.`)) setPhoneDevice(day, s, false, by())
@@ -59,11 +57,11 @@ export default function PhoneOnPad({ day, start, end, serials, now }) {
         <div><h2>iPhone on the pad</h2>
           <div className="card-sub">iPhone battery typed in each hour (the MDM reports only the T7's) · gain since the hour before below each entry · T7 battery in grey · a new hour opens while the T7's pad has a load</div></div>
         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <select className="control" value={adding} onChange={e => setAdding(e.target.value)} aria-label="T7 with an iPhone on its pad">
+          {/* picking a T7 adds it straight away (no Add button — the user, 27 Oct 2026) */}
+          <select className="control" value="" onChange={e => { if (e.target.value) setPhoneDevice(day, e.target.value, true, by()) }} aria-label="Add a T7 with an iPhone on its pad">
             <option value="">Add a T7 with an iPhone…</option>
             {free.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <button type="button" className="btn btn-sm" disabled={!adding} onClick={add}>Add</button>
         </span>
       </div>
       {!devices.length ? <div className="empty">No iPhone on a pad in this cycle. Pick the T7 above to start noting the iPhone's battery each hour.</div> :

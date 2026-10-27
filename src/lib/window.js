@@ -134,10 +134,12 @@ export function buckets(serials, from, to, pick, stat) {
     const t = Date.parse(r.timestamp); if (t < from || t > to) continue;
     const v = pick(r); if (v == null || !isFinite(v)) continue;
     const k = Math.floor((t - from) / step);
-    if (!b.has(k)) b.set(k, []);
-    b.get(k).push(v);
+    if (!b.has(k)) b.set(k, { v: [], t: 0 });
+    const e = b.get(k); e.v.push(v); e.t += t;
   }
-  return [...b.keys()].sort((x, y) => x - y).map(k => ({ x: from + k * step, y: stat(b.get(k)), n: b.get(k).length }));
+  // each point sits at the mean time of its readings, not the bucket's start: plotted at the start,
+  // the line stopped up to 10 min short of now and looked stuck (the user, 27 Oct 2026)
+  return [...b.keys()].sort((x, y) => x - y).map(k => { const e = b.get(k); return { x: Math.round(e.t / e.v.length), y: stat(e.v), n: e.v.length }; });
 }
 
 export function dayStats(serial, from) {

@@ -385,9 +385,9 @@ export default function TodayView({ fleet }) {
           rows.sort((a, b) => (b.odd - a.odd) || (b.on - a.on) || (b.padOn - a.padOn) || byBenchOrder(a.d.serial, b.d.serial))
           return <Stat label="WLC · load placed" value={<>{n}<span className="secondary" style={{ fontSize: 13 }}> / {rows.length}</span></>}
             foot={`load placed on the pad · ${rows.filter(r => r.padOn && !r.on).length} more with the pad on, no load`}
-            breakdownLabel={`WLC pad, every device (latest check-in) · ${rows.filter(r => r.odd).length} different from the rest first`} breakdownRight breakdownWide breakdownNoun="device"
+            breakdownLabel="WLC pad, every device (latest check-in)" breakdownRight breakdownWide breakdownNoun="device"
             breakdown={rows.map(r => ({ id: r.d.serial, label: r.d.serial, value: r.on ? 1 : 0, warn: r.odd,
-              display: (r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'No load') + (r.odd ? ' · different' : ''), hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial) }))} />
+              display: r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'No load', hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial) }))} />
         })()}
         {/* the host app (the ads) on screen now, per device (MDM host-app list, every minute); devices on a
             client older than 1.11.0 do not report it */}

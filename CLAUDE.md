@@ -624,7 +624,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
 - **Devices today** lists the devices in the lab's bench order (`BENCH_ORDER` in `src/lib/device.js`, the user, 27 Oct 2026:
   00142, 00077, 00226 … 00606, 00790); any other device after them by serial. A heading click still sorts; the third click returns to it.
 - **WLC · load placed** drop-down: the devices **different from the rest** (no load while most have one, or a load while
-  most don't) are on top, in amber, marked "· different"; then the others in bench order (the user, 27 Oct 2026).
+  most don't) are on top, in amber (no "· different" text: it cut off the serials, the user, 27 Oct); then the others in bench order (the user, 27 Oct 2026).
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).
 - **iPhone on the pad** (the lab, 27 Oct 2026: on some T7s an iPhone goes on the pad instead of the load, and its battery
   gain is noted each hour): a Today card under the charts (`PhoneOnPad.jsx`, any discharge cycle). Pick the T7s that carry

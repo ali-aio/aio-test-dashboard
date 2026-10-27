@@ -637,6 +637,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   point is every device's latest check-in (≤ 15 min old) at the newest one's time, in place of the running 10-min bucket
   (`buckets` in `window.js`). The bucket alone sat minutes behind and crept, and the lab read the lines as stuck (the user,
   27 Oct 2026: "lines are still stuck"); checked with a headless debug build — the data was arriving every 30 s.
+- **On track with plan** shows **—** while no test is named (not "0 / 22", which read as every device off track — the user, 27 Oct 2026).
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).
 - **iPhone on the pad** (the lab, 27 Oct 2026: on some T7s an iPhone goes on the pad instead of the load, and its battery
   gain is noted each hour): a Today card under the charts (`PhoneOnPad.jsx`, any discharge cycle). Pick the T7s that carry

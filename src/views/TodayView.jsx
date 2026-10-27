@@ -383,8 +383,9 @@ export default function TodayView({ fleet }) {
         </>}
         {/* a yellow border on a tile where some devices behave differently from the rest (the user, 27 Oct 2026) */}
         <Metric label="On track with plan" warn={!!T.tt && (drifting.length > 0 || silent > 0)} color={T.tt && conforming.length === T.serials.length ? 'var(--ok)' : drifting.length ? 'var(--warn)' : null}
-          value={<>{conforming.length}<span className="secondary" style={{ fontSize: 13 }}> / {T.serials.length}</span></>}
-          delta={!T.tt ? 'nothing declared to match' : drifting.length || silent
+          // no test named yet: nothing to be on track with, so "—", not a 0 that reads as every device failing (the user, 27 Oct 2026)
+          value={!T.tt ? '—' : <>{conforming.length}<span className="secondary" style={{ fontSize: 13 }}> / {T.serials.length}</span></>}
+          delta={!T.tt ? 'no test named yet · set it on the Cycle plan, or Auto names it from the readings' : drifting.length || silent
             ? [drifting.length && `${drifting.length} drifting`, silent && `${silent} not reporting`].filter(Boolean).join(' · ')
             : 'every device matches the declared test'} />
         {/* wireless charging: devices whose pad is active now (a load placed on it), from the

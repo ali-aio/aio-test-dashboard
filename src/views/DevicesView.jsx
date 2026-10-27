@@ -212,7 +212,7 @@ export default function DevicesView({
                       {r.cycles.length > 0 ? (
                         <>
                           <dl className="device-figures">
-                            <div><dt>Lifetime cycles (MDM)</dt><dd>{fmtLifetime(lifetimeCycles(snapOf(r.serial)))}</dd></div>
+                            <div><dt>Cycles</dt><dd>{fmtLifetime(lifetimeCycles(snapOf(r.serial)))}</dd></div>
                             <div><dt>Cycles</dt><dd>{fmtInt(r.cycles.length)}</dd></div>
                             <div><dt>Test types</dt><dd>{fmtInt(r.tests.length)}</dd></div>
                             <div><dt>Test days</dt><dd>{fmtInt(r.k.dates)}</dd></div>

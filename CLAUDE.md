@@ -583,6 +583,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - Every cycle: **Drain with WLC / without WLC** columns. Export CSV → **Overview** or **Per hour**; Per hour first asks
   which devices (all ticked).
 - Device page: average battery temperature beside the peak.
+- The MDM's lifetime battery-cycle count is labelled **Cycles** (tile, Today's list, Summary, Battery health), never "Lifetime cycles (MDM)" (the user, 27 Oct 2026).
 - **The page must not freeze** (21 Oct: "the whole dashboard sometimes lags" — `adaptAll` re-ran on every new batch of
   readings and froze it 1–6 s): in `adaptCycle` a cycle reads only its own readings and 15-min slots, found by binary
   search (`rowsBetween`, `padMeasured`), never a scan of the device's whole history. Profiled with a headless Chromium

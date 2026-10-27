@@ -476,7 +476,7 @@ export default function TodayView({ fleet }) {
               : <span className="secondary">{reporting.length} reporting · click to show every device — click one to chart it alone</span>}
           </div>
           {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: T.charging ? 'On charger' : 'Off charger', className: 'r' },
-              { label: T.charging ? 'Charge rate' : 'Drain', className: 'r' }, { label: 'Lifetime cycles (MDM)', className: 'r' }, { label: 'Temp now', className: 'r' },
+              { label: T.charging ? 'Charge rate' : 'Drain', className: 'r' }, { label: 'Cycles', className: 'r' }, { label: 'Temp now', className: 'r' },
               { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Today', className: 'r', sortable: false },
               ...(T.decl ? [{ label: '', sortable: false }] : [])]}>
               {conf.filter(c => matches(c.serial) && c.serial.toLowerCase().includes(listQ.trim().toLowerCase())).sort((a, b) => ((b.state === 'drifting') - (a.state === 'drifting')) || ((fleet.DMAP.get(a.serial)?.snap?.battery_pct ?? 999) - (fleet.DMAP.get(b.serial)?.snap?.battery_pct ?? 999))).map(c => {

@@ -152,7 +152,7 @@ function AllTestsOverview({ cycles, onPickTestType, onFilter, onOpenDevice, onOp
               breakdown={(lifetime?.rows || []).slice().sort((a, b) => (b.value ?? -1) - (a.value ?? -1))
                 .map((r) => ({ id: r.serial, label: r.serial, value: r.value ?? 0, display: fmtLifetime(r.value),
                   onClick: onFilter ? () => onFilter({ serials: [r.serial] }) : undefined }))}
-              breakdownLabel={lifetime?.range ? `Battery cycles per device · ${lifetime.range}` : 'Lifetime cycles per device (MDM)'} />
+              breakdownLabel={lifetime?.range ? `Battery cycles per device · ${lifetime.range}` : 'Cycles per device'} />
             <Stat label="Test days" value={fmtInt(k.dates)}
               breakdown={breakdowns.date} breakdownLabel="Battery cycles per test day" />
             <Stat label="HW build" value={fmtInt(inv.build.values.length)}

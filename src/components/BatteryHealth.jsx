@@ -31,7 +31,7 @@ const COLS = [
   ['Capacity', `Each of the last ${CURRENT_RUNS} comparable runs' runtime to empty as a share of the baseline of its load class (WLC active / WLC inactive): the median of the device's first ${BASELINE_RUNS} runs of that class, or the fleet's first-${BASELINE_RUNS} median when it has fewer. The median share, capped at 100`],
   ['Early drain', `Points drained in the first hour, each of the last ${CURRENT_RUNS} runs against its load class's baseline (baseline ÷ now, so faster now = lower), the median capped at 100; blank when fewer than ${MIN_RUNS} runs have a curve`],
   ['Stress', '100 minus the mean load over five wear factors, each as a share of the fleet\'s 90th percentile: lifetime battery cycles, hours ≥ 40 °C, hours ≥ 45 °C, hours on charger at 100 %, discharges ended below 5 %'],
-  ['Lifetime cycles', 'The MDM\'s lifetime battery cycles for the device (discharge counter ÷ 100)'],
+  ['Cycles', 'The MDM\'s lifetime battery cycles for the device (discharge counter ÷ 100)'],
   ['h ≥ 40 °C', 'Hours at or above 40 °C summed over the device\'s counted cycles, every test'],
   ['Penalties', `Events in the last ${PENALTY_DAYS} days: a shutdown above 5 %, a wired charge that never reached 100 %, a gauge jump of more than ${GAUGE_JUMP} points between readings`],
   ['Runs', `Comparable runs: counted cycles of this test on this device that started at 95 % or more (${MIN_RUNS} needed for a score); L = with a load on the wireless pad`],

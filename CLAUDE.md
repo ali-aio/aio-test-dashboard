@@ -621,6 +621,8 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
 - Battery chart (Average): the **end labels** at the right (highest, average = middle device, lowest) are buttons: a
   click switches both charts to Every device with only that device ticked. The legend's **Highest device / Lowest device** do the
   same, with no serial shown (it is on hover; the user didn't like serials in the legend).
+- **Devices today** lists the devices in the lab's bench order (`BENCH_ORDER` in `src/lib/device.js`, the user, 27 Oct 2026:
+  00142, 00077, 00226 … 00606, 00790); any other device after them by serial. A heading click still sorts; the third click returns to it.
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).
 - **iPhone on the pad** (the lab, 27 Oct 2026: on some T7s an iPhone goes on the pad instead of the load, and its battery
   gain is noted each hour): a Today card under the charts (`PhoneOnPad.jsx`, any discharge cycle). Pick the T7s that carry

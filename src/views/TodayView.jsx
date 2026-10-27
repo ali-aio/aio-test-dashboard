@@ -10,7 +10,7 @@ import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, d
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
 import { median, pctl, hm, dt, ago, MIN, H } from '../lib/format.js'
-import { online, status, lifetimeCycles } from '../lib/device.js'
+import { online, status, lifetimeCycles, byBenchOrder } from '../lib/device.js'
 import { fmtLifetime } from '../lib/fmt.js'
 import { GROUP } from '../lib/fleet.js'
 import { MultiLineChart, Sparkline, tooltipHtml } from '../components/charts.jsx'
@@ -479,7 +479,7 @@ export default function TodayView({ fleet }) {
               { label: T.charging ? 'Charge rate' : 'Drain', className: 'r' }, { label: 'Cycles', className: 'r' }, { label: 'Temp now', className: 'r' },
               { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Today', className: 'r', sortable: false },
               ...(T.decl ? [{ label: '', sortable: false }] : [])]}>
-              {conf.filter(c => matches(c.serial) && c.serial.toLowerCase().includes(listQ.trim().toLowerCase())).sort((a, b) => ((b.state === 'drifting') - (a.state === 'drifting')) || ((fleet.DMAP.get(a.serial)?.snap?.battery_pct ?? 999) - (fleet.DMAP.get(b.serial)?.snap?.battery_pct ?? 999))).map(c => {
+              {conf.filter(c => matches(c.serial) && c.serial.toLowerCase().includes(listQ.trim().toLowerCase())).sort((a, b) => byBenchOrder(a.serial, b.serial)).map(c => { // the lab's bench order (BENCH_ORDER); a heading click still sorts
                 const r = runs.get(c.serial)
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
                 const st = status(d), s = dayStats(c.serial, T.startMs), cs = CSTATE[c.state]

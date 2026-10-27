@@ -70,7 +70,7 @@ export default function PhoneOnPad({ day, start, end, serials, now }) {
       <div className="card-head">
         <div><h2>iPhone on the pad</h2>
           <div className="card-sub">iPhone battery % each hour · gain below · T7 battery in grey</div></div>
-        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <span style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
           {/* picking a T7 adds it straight away (no Add button — the user, 27 Oct 2026) */}
           <select className="control" value="" onChange={e => { if (e.target.value) setPhoneDevice(day, e.target.value, true, by()) }} aria-label="Add a T7 with an iPhone on its pad">
             <option value="">Add a T7 with an iPhone…</option>

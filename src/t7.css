@@ -2059,6 +2059,8 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 .series-legend-actions { flex-wrap: wrap; align-items: center; }
 .sb-row.is-highlight { background: color-mix(in srgb, var(--series-3) 14%, transparent); border-radius: var(--radius-xs); }
 .sb-row.is-highlight .sb-value { color: var(--series-3); font-weight: 600; }
+.sb-row.is-warn { background: color-mix(in srgb, var(--status-warning) 16%, transparent); border-radius: var(--radius-xs); }
+.sb-row.is-warn .sb-value { color: var(--status-warning); font-weight: 600; }
 
 /* Device page, Live readings: the MDM-style span picker and chart legend */
 .seg.seg-pill { background: var(--surface-2); border: 0; border-radius: 10px; padding: 3px; gap: 2px; }

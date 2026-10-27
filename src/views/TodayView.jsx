@@ -377,13 +377,17 @@ export default function TodayView({ fleet }) {
             // wlc_charging alone = the pad switched on, nothing on it
             const on = padLoad(e.wlc_status) === true, padOn = e.wlc_charging === true
             return { d, on, padOn, live: online(d) }
-          }).sort((a, b) => (b.on - a.on) || (b.padOn - a.padOn) || (a.d.serial < b.d.serial ? -1 : 1))
-          const n = rows.filter(r => r.on).length
+          })
+          // the devices doing something different from the rest go on top, highlighted (the user, 27 Oct 2026:
+          // "load not placed here"): with a load on most pads, the ones without; with most bare, the ones with
+          const n = rows.filter(r => r.on).length, most = n * 2 >= rows.length
+          rows.forEach(r => { r.odd = r.on !== most })
+          rows.sort((a, b) => (b.odd - a.odd) || (b.on - a.on) || (b.padOn - a.padOn) || byBenchOrder(a.d.serial, b.d.serial))
           return <Stat label="WLC · load placed" value={<>{n}<span className="secondary" style={{ fontSize: 13 }}> / {rows.length}</span></>}
             foot={`load placed on the pad · ${rows.filter(r => r.padOn && !r.on).length} more with the pad on, no load`}
-            breakdownLabel="WLC pad, every device (latest check-in)" breakdownRight breakdownWide
-            breakdown={rows.map(r => ({ id: r.d.serial, label: r.d.serial, value: r.on ? 1 : 0, highlight: r.on,
-              display: r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'Off', hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial) }))} />
+            breakdownLabel={`WLC pad, every device (latest check-in) · ${rows.filter(r => r.odd).length} different from the rest first`} breakdownRight breakdownWide breakdownNoun="device"
+            breakdown={rows.map(r => ({ id: r.d.serial, label: r.d.serial, value: r.on ? 1 : 0, warn: r.odd,
+              display: (r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'No load') + (r.odd ? ' · different' : ''), hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial) }))} />
         })()}
         {/* the host app (the ads) on screen now, per device (MDM host-app list, every minute); devices on a
             client older than 1.11.0 do not report it */}

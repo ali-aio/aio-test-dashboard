@@ -137,9 +137,25 @@ export function buckets(serials, from, to, pick, stat) {
     if (!b.has(k)) b.set(k, { v: [], t: 0 });
     const e = b.get(k); e.v.push(v); e.t += t;
   }
-  // each point sits at the mean time of its readings, not the bucket's start: plotted at the start,
-  // the line stopped up to 10 min short of now and looked stuck (the user, 27 Oct 2026)
-  return [...b.keys()].sort((x, y) => x - y).map(k => { const e = b.get(k); return { x: Math.round(e.t / e.v.length), y: stat(e.v), n: e.v.length }; });
+  // each point sits at the mean time of its readings, not the bucket's start
+  const out = [...b.keys()].sort((x, y) => x - y).map(k => { const e = b.get(k); return { x: Math.round(e.t / e.v.length), y: stat(e.v), n: e.v.length }; });
+  // The line ends on NOW: every device's latest check-in (≤ 15 min old), at the newest one's time. The
+  // running 10-min bucket alone sat minutes behind and crept, and the lab read the chart as stuck
+  // (the user, 27 Oct 2026). The running bucket is replaced by this point.
+  const lv = []; let lt = 0;
+  for (const s of serials) {
+    const rows = rowsFor(s);
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const t = Date.parse(rows[i].timestamp); if (t > to) continue;
+      if (t >= to - 15 * MIN && t >= from) { const v = pick(rows[i]); if (v != null && isFinite(v)) { lv.push(v); lt = Math.max(lt, t); } }
+      break;
+    }
+  }
+  if (lv.length) {
+    while (out.length && out[out.length - 1].x >= from + Math.floor((lt - from) / step) * step) out.pop();
+    out.push({ x: lt, y: stat(lv), n: lv.length, latest: true });
+  }
+  return out;
 }
 
 export function dayStats(serial, from) {

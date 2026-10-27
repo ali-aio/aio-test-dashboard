@@ -633,9 +633,10 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   27 Oct 2026): On track with plan (a test is set and some drift or don't report), WLC · load placed (devices unlike the
   majority), Ads on screen (an ads test with the app off somewhere, or a minority off).
 - **Taken out of this cycle** is a drop-down (closed by default, like Devices today); its rows are clickable like Devices today: the device alone in the charts above (its own readings).
-- Today's charts average the devices per 10 min and put each point at **the mean time of its readings** (`buckets` in
-  `window.js`), so the line reaches the latest check-ins; at the bucket's start it stopped up to 10 min short and looked stuck
-  (the user, 27 Oct 2026).
+- Today's charts average the devices per 10 min (each point at the mean time of its readings) and **end on now**: the last
+  point is every device's latest check-in (≤ 15 min old) at the newest one's time, in place of the running 10-min bucket
+  (`buckets` in `window.js`). The bucket alone sat minutes behind and crept, and the lab read the lines as stuck (the user,
+  27 Oct 2026: "lines are still stuck"); checked with a headless debug build — the data was arriving every 30 s.
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).
 - **iPhone on the pad** (the lab, 27 Oct 2026: on some T7s an iPhone goes on the pad instead of the load, and its battery
   gain is noted each hour): a Today card under the charts (`PhoneOnPad.jsx`, any discharge cycle). Pick the T7s that carry

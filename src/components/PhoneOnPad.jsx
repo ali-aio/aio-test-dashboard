@@ -49,7 +49,7 @@ export default function PhoneOnPad({ day, start, end, serials, now }) {
         </span>
       </div>
       {!devices.length ? <div className="empty">No iPhone on a pad in this cycle. Pick the T7 above to start noting the iPhone's battery each hour.</div> :
-      <div className="scroll-x"><table className="table phone-table">
+      <div className="scroll-x"><table className="data phone-table">
         <thead><tr><th>T7</th>
           {hours.map(h => <th key={h} className="r"><div>{h === 0 ? 'Start' : `${h} h`}</div><div className="secondary" style={{ fontWeight: 400 }}>{hm(start + h * H)}</div></th>)}
           <th className="r">Gained</th><th className="r">Per hour</th><th className="r">Full at</th><th /></tr></thead>

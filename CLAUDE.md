@@ -632,7 +632,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
 - A tile where **some devices behave differently from the rest** gets a **yellow border** (`warn` on `Stat` / `Metric`, the user,
   27 Oct 2026): On track with plan (a test is set and some drift or don't report), WLC · load placed (devices unlike the
   majority), Ads on screen (an ads test with the app off somewhere, or a minority off).
-- **Taken out of this cycle** rows are clickable like Devices today: the device alone in the charts above (its own readings).
+- **Taken out of this cycle** is a drop-down (closed by default, like Devices today); its rows are clickable like Devices today: the device alone in the charts above (its own readings).
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).
 - **iPhone on the pad** (the lab, 27 Oct 2026: on some T7s an iPhone goes on the pad instead of the load, and its battery
   gain is noted each hour): a Today card under the charts (`PhoneOnPad.jsx`, any discharge cycle). Pick the T7s that carry

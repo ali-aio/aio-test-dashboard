@@ -226,6 +226,7 @@ export default function TodayView({ fleet }) {
   const q = query.trim().toLowerCase()
   const matches = sn => !q || sn.toLowerCase().includes(q)
   const [listOpen, setListOpen] = useState(false)
+  const [outOpen, setOutOpen] = useState(false) // Taken out of this cycle, closed by default
   const [listQ, setListQ] = useState('') // search inside the Devices today list
   const listShown = listOpen || !!q
   // A device clicked in the table is ticked alone in the two charts above (Every device),
@@ -539,8 +540,12 @@ export default function TodayView({ fleet }) {
         </div>
         {canOut && T.removed?.length > 0 && (
           <div className="card">
-            <div className="card-head"><h2>Taken out of this cycle ({T.removed.length})</h2><span className="secondary">kept on record · {T.decl ? `their cycles from then on don't count toward ${T.tt?.name}` : 'held until the test is named, then put on the cycle'}</span></div>
-            <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Taken out' }, { label: 'Reason' }, { label: 'Note' }, { label: 'By' }, { label: '', sortable: false }]}>
+            {/* a drop-down like Devices today, closed by default (the user, 27 Oct 2026) */}
+            <div className="card-head" role="button" tabIndex={0} aria-expanded={outOpen} style={{ cursor: 'pointer' }}
+              onClick={() => setOutOpen(o => !o)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOutOpen(o => !o) } }}>
+              <h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{outOpen ? '▾' : '▸'}</span>Taken out of this cycle ({T.removed.length})</h2>
+              <span className="secondary">kept on record · {T.decl ? `their cycles from then on don't count toward ${T.tt?.name}` : 'held until the test is named, then put on the cycle'}</span></div>
+            {outOpen && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Taken out' }, { label: 'Reason' }, { label: 'Note' }, { label: 'By' }, { label: '', sortable: false }]}>
               {/* a click shows the device alone in the charts above, as in Devices today (the user, 27 Oct 2026) */}
               {T.removed.map(r => (
                 <tr key={r.serial} className={`row-link${only === r.serial ? ' is-selected' : ''}`} onClick={() => focusDevice(r.serial)}
@@ -553,7 +558,7 @@ export default function TodayView({ fleet }) {
                   <td className="r"><button type="button" className="btn btn-sm" onClick={e => { e.stopPropagation(); if (confirm(`Put ${r.serial} back into this cycle? The record of it being taken out is removed.`)) { if (T.decl) putBack(GROUP, T.decl.id, r.serial); else setPendingOut(T.key, r.serial, null); setPlanRev(v => v + 1) } }}>Put back</button></td>
                 </tr>
               ))}
-            </SortTable></div>
+            </SortTable></div>}
           </div>
         )}
       </>}

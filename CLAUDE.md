@@ -272,6 +272,7 @@ The guide is the MDM repo's `docs/TESTDATA_HOST_APP_GUIDE.md` (the user pasted i
   With no planned cycle running and **most reporting devices on charge**, Today shows the **Charging Cycle** (every charge
   is one, no plan entry needed): "On charge", Charging for (median start of each device's current charge), Battery,
   Charge rate, Reaches 95 %, charts from the charge's start. This comes before a just-ended cycle.
+  Its **Devices today** list says **On charger** (each device's charge start) and **Charge rate** (+ %/h gained), not Off charger / Drain (the user, 27 Oct 2026).
 - `src/lib/window.js` — the 7-day reading window (every check-in: `interval_sec=60`, the MDM stores one per ~3 min) behind Today and the charts. It is
   kept in the browser's IndexedDB (`readings` store in `src/lib/db.js`), so a page open draws
   from the stored copy and fetches only the readings since (last stamp − 30 min). "Reload

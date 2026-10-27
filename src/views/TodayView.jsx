@@ -475,8 +475,8 @@ export default function TodayView({ fleet }) {
                 </span>
               : <span className="secondary">{reporting.length} reporting · click to show every device — click one to chart it alone</span>}
           </div>
-          {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' },
-              { label: 'Drain', className: 'r' }, { label: 'Lifetime cycles (MDM)', className: 'r' }, { label: 'Temp now', className: 'r' },
+          {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: T.charging ? 'On charger' : 'Off charger', className: 'r' },
+              { label: T.charging ? 'Charge rate' : 'Drain', className: 'r' }, { label: 'Lifetime cycles (MDM)', className: 'r' }, { label: 'Temp now', className: 'r' },
               { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Today', className: 'r', sortable: false },
               ...(T.decl ? [{ label: '', sortable: false }] : [])]}>
               {conf.filter(c => matches(c.serial) && c.serial.toLowerCase().includes(listQ.trim().toLowerCase())).sort((a, b) => ((b.state === 'drifting') - (a.state === 'drifting')) || ((fleet.DMAP.get(a.serial)?.snap?.battery_pct ?? 999) - (fleet.DMAP.get(b.serial)?.snap?.battery_pct ?? 999))).map(c => {
@@ -488,10 +488,14 @@ export default function TodayView({ fleet }) {
                   <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button></td>
                   <td><span className={`pill ${cs[0]}`}>{cs[1]}</span></td>
                   <td className="r">{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span> : <span className="secondary">—</span>}</td>
+                  {/* in a Charging Cycle: when it went on charge and how fast it gains (the user, 27 Oct 2026: it showed a negative drain) */}
+                  {T.charging ? (() => { const ch = charges.by.get(c.serial), h = ch ? (ch.at - ch.t) / H : 0, g = ch && h >= 1 / 3 ? (ch.now - ch.pct) / h : null
+                    return <><td className="r mono" title={ch ? `from ${ch.pct}% at ${hm(ch.t)}` : undefined}>{ch ? hm(ch.t) : <span className="secondary">not on charge</span>}</td>
+                      <td className="r mono">{g != null ? `+${Math.max(0, g).toFixed(2)} %/h` : <span className="secondary">—</span>}</td></> })() : <>
                   <td className="r mono" title={r?.start?.firstOff ? `last check-in on charge ${new Date(r.start.after).toLocaleTimeString()} · first off charge ${new Date(r.start.firstOff).toLocaleTimeString()} — the MDM has no reading in between` : undefined}>
                     {r?.start ? hm(r.start.t) : <span className="secondary">still full</span>}
                     {r?.start?.firstOff && r.start.firstOff - r.start.t > 5 * MIN ? <span className="secondary" style={{ fontSize: 11 }}> – {hm(r.start.firstOff)}</span> : null}</td>
-                  <td className="r mono" style={{ color: c.state === 'drifting' ? 'var(--warn)' : 'inherit' }}>{r?.rate != null ? r.rate.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td>
+                  <td className="r mono" style={{ color: c.state === 'drifting' ? 'var(--warn)' : 'inherit' }}>{r?.rate != null ? r.rate.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td></>}
                   <td className="r mono">{fmtLifetime(lifetimeCycles(d.snap))}</td>
                   <td className="r mono" style={{ color: online(d) && d.snap.battery_temp_c >= TEMP_LIMIT ? 'var(--bad)' : online(d) && d.snap.battery_temp_c >= TEMP_WARN ? 'var(--warn)' : 'inherit' }}>{online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td>
                   <td className="r mono" style={{ color: s?.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : s?.maxTemp >= TEMP_WARN ? 'var(--warn)' : 'inherit' }}>{s?.maxTemp != null ? s.maxTemp.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td>

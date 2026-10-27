@@ -38,11 +38,12 @@ import { STATUS_ICON } from '../lib/palette.js'
  * Stat tile: label · value · optional foot. Proportional figures — tabular
  * numerals make a display-size number look loose at this size.
  *
+ * `warn` gives the tile a yellow border: some devices behave differently from the rest.
  * Pass `breakdown` to make the tile open a popover showing what the number is
  * made of: [{ id, label, value, hint?, onClick? }]. The tile stays readable as
  * a plain figure; the detail is one click away rather than another six cards.
  */
-export function Stat({ label, value, unit, foot, hero = false, breakdown, breakdownLabel, breakdownWide, breakdownRight, breakdownNoun = 'group' }) {
+export function Stat({ label, value, unit, foot, hero = false, warn = false, breakdown, breakdownLabel, breakdownWide, breakdownRight, breakdownNoun = 'group' }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const popRef = useKeepOnScreen(open)
@@ -71,14 +72,14 @@ export function Stat({ label, value, unit, foot, hero = false, breakdown, breakd
   )
 
   if (!hasMenu) {
-    return <div className={`stat${hero ? ' stat-hero' : ''}`}>{body}</div>
+    return <div className={`stat${hero ? ' stat-hero' : ''}${warn ? ' is-warn' : ''}`}>{body}</div>
   }
 
   const max = breakdown.reduce((a, b) => (Number(b.value) > a ? Number(b.value) : a), 0)
 
   return (
     <div className="stat-wrap" ref={ref}>
-      <button type="button" className={`stat is-menu${hero ? ' stat-hero' : ''}${open ? ' is-open' : ''}`}
+      <button type="button" className={`stat is-menu${hero ? ' stat-hero' : ''}${warn ? ' is-warn' : ''}${open ? ' is-open' : ''}`}
         onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="dialog">
         {body}
         {/* A chevron in the corner, present whether or not the pointer is

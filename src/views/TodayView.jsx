@@ -231,7 +231,10 @@ export default function TodayView({ fleet }) {
   // A device clicked in the table is ticked alone in the two charts above (Every device),
   // and the page scrolls up to them; clicking it again ticks every device again.
   const chartsRef = useRef(null)
-  const shown = conf.filter(c => c.rows?.length && isOn(c.serial) && matches(c.serial))
+  // a taken-out device clicked in "Taken out of this cycle" is charted alone too (its readings, not in the cycle's list)
+  const outPicked = picked ? [...picked].filter(sn => !conf.some(c => c.serial === sn) && (T.removed || []).some(r => r.serial === sn))
+    .map(sn => ({ serial: sn, rows: rowsFor(sn), state: 'silent' })) : []
+  const shown = [...conf, ...outPicked].filter(c => c.rows?.length && isOn(c.serial) && matches(c.serial))
   const few = shown.length <= 4 // few enough to label every line by name
 
   const lastOf = c => c.rows[c.rows.length - 1].battery_pct
@@ -377,7 +380,8 @@ export default function TodayView({ fleet }) {
         <Metric label={`Reaches ${END_BAND}%`} value={etaEnd ? <>{hm(etaEnd)}{dayKey(etaEnd) !== key && <span className="secondary" style={{ fontSize: 13, fontWeight: 500 }}> {new Date(etaEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</> : medNow != null && medNow <= END_BAND ? 'Done' : '—'}
           delta={etaEnd ? `${fmtDur(etaEnd - now)} from now${etaEmpty ? ` · empty ≈ ${when(etaEmpty)}` : ''}` : medNow != null && medNow <= END_BAND ? 'median is in the end band' : 'at the current rate'} />
         </>}
-        <Metric label="On track with plan" color={T.tt && conforming.length === T.serials.length ? 'var(--ok)' : drifting.length ? 'var(--warn)' : null}
+        {/* a yellow border on a tile where some devices behave differently from the rest (the user, 27 Oct 2026) */}
+        <Metric label="On track with plan" warn={!!T.tt && (drifting.length > 0 || silent > 0)} color={T.tt && conforming.length === T.serials.length ? 'var(--ok)' : drifting.length ? 'var(--warn)' : null}
           value={<>{conforming.length}<span className="secondary" style={{ fontSize: 13 }}> / {T.serials.length}</span></>}
           delta={!T.tt ? 'nothing declared to match' : drifting.length || silent
             ? [drifting.length && `${drifting.length} drifting`, silent && `${silent} not reporting`].filter(Boolean).join(' · ')
@@ -399,7 +403,7 @@ export default function TodayView({ fleet }) {
           const n = rows.filter(r => r.on).length, most = n * 2 >= rows.length
           rows.forEach(r => { r.odd = r.on !== most })
           rows.sort((a, b) => (b.odd - a.odd) || (b.on - a.on) || (b.padOn - a.padOn) || byBenchOrder(a.d.serial, b.d.serial))
-          return <Stat label="WLC · load placed" value={<>{n}<span className="secondary" style={{ fontSize: 13 }}> / {rows.length}</span></>}
+          return <Stat label="WLC · load placed" warn={rows.some(r => r.odd)} value={<>{n}<span className="secondary" style={{ fontSize: 13 }}> / {rows.length}</span></>}
             foot={`load placed on the pad · ${rows.filter(r => r.padOn && !r.on).length} more with the pad on, no load`}
             breakdownLabel="WLC pad, every device (latest check-in)" breakdownRight breakdownWide breakdownNoun="device"
             breakdown={rows.map(r => ({ id: r.d.serial, label: r.d.serial, value: r.on ? 1 : 0, warn: r.odd,
@@ -413,7 +417,7 @@ export default function TodayView({ fleet }) {
           const known = rows.filter(r => r.x), on = known.filter(r => r.code === SPAN.on).length, off = known.length - on
           if (!known.length) return null
           const wantAds = !!T.tt?.ads && !T.charging && !ended
-          return <Stat label="Ads on screen" value={<><span style={wantAds && off ? { color: 'var(--status-critical)' } : undefined}>{on}</span><span className="secondary" style={{ fontSize: 13 }}> / {known.length}</span></>}
+          return <Stat label="Ads on screen" warn={off > 0 && (wantAds || off * 2 < known.length)} value={<><span style={wantAds && off ? { color: 'var(--status-critical)' } : undefined}>{on}</span><span className="secondary" style={{ fontSize: 13 }}> / {known.length}</span></>}
             foot={off ? `${off} not showing the app${wantAds ? ' · ads stopped' : ''}` : 'the app in front on every device'}
             breakdownLabel="Host app (ads) on screen now, every device" breakdownRight breakdownWide
             breakdown={rows.map(r => ({ id: r.sn, label: r.sn, value: r.code === SPAN.on ? 1 : 0, highlight: wantAds && r.x && r.code !== SPAN.on,
@@ -537,14 +541,16 @@ export default function TodayView({ fleet }) {
           <div className="card">
             <div className="card-head"><h2>Taken out of this cycle ({T.removed.length})</h2><span className="secondary">kept on record · {T.decl ? `their cycles from then on don't count toward ${T.tt?.name}` : 'held until the test is named, then put on the cycle'}</span></div>
             <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Taken out' }, { label: 'Reason' }, { label: 'Note' }, { label: 'By' }, { label: '', sortable: false }]}>
+              {/* a click shows the device alone in the charts above, as in Devices today (the user, 27 Oct 2026) */}
               {T.removed.map(r => (
-                <tr key={r.serial}>
-                  <td className="mono">{r.serial}</td>
+                <tr key={r.serial} className={`row-link${only === r.serial ? ' is-selected' : ''}`} onClick={() => focusDevice(r.serial)}
+                  title={only === r.serial ? 'Click to show every device again' : `Show only ${r.serial} in the charts above`}>
+                  <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(r.serial) }}>{r.serial}</button></td>
                   <td className="mono">{dayKey(r.at) === todayKey() ? hm(r.at) : dt(r.at)}</td>
                   <td>{r.reason}</td>
                   <td>{r.note || <span className="secondary">—</span>}</td>
                   <td>{r.by || <span className="secondary">—</span>}</td>
-                  <td className="r"><button type="button" className="btn btn-sm" onClick={() => { if (confirm(`Put ${r.serial} back into this cycle? The record of it being taken out is removed.`)) { if (T.decl) putBack(GROUP, T.decl.id, r.serial); else setPendingOut(T.key, r.serial, null); setPlanRev(v => v + 1) } }}>Put back</button></td>
+                  <td className="r"><button type="button" className="btn btn-sm" onClick={e => { e.stopPropagation(); if (confirm(`Put ${r.serial} back into this cycle? The record of it being taken out is removed.`)) { if (T.decl) putBack(GROUP, T.decl.id, r.serial); else setPendingOut(T.key, r.serial, null); setPlanRev(v => v + 1) } }}>Put back</button></td>
                 </tr>
               ))}
             </SortTable></div>
@@ -559,8 +565,8 @@ export default function TodayView({ fleet }) {
 const DECLS = () => loadDecls(GROUP)
 const ROTA = () => loadRota(GROUP)
 
-const Metric = ({ label, value, delta, color }) => (
-  <div className="stat">
+const Metric = ({ label, value, delta, color, warn }) => (
+  <div className={`stat${warn ? ' is-warn' : ''}`}>
     <div className="stat-label">{label}</div>
     <div className="stat-value" style={color ? { color } : undefined}>{value}</div>
     <div className="stat-foot">{delta}</div>

@@ -2191,3 +2191,6 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 .phone-sub { display: flex; flex-direction: column; align-items: flex-end; font-size: 11px; line-height: 1.3; margin-top: 2px; min-height: 14px; }
 .phone-sub .up { color: var(--status-good); }
 .phone-sub .down { color: var(--status-critical); }
+
+/* a tile where some devices behave differently from the rest (Today) */
+.stat.is-warn, button.stat.is-warn:hover { border-color: var(--status-warning); box-shadow: 0 0 0 1px var(--status-warning) inset; }

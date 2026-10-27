@@ -631,3 +631,6 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   Per hour, Full at. Shared through our own backend: `GET/POST /api/phone` (`server/phone.mjs`, `data/phone.json`,
   gitignored), each cell merged on its own by `mod` (`mergePhone` in `src/lib/phoneLog.js`, tested), keyed by cycle day ·
   serial · hour; saved on leaving the box / Enter; pulled every minute and on tab focus.
+  Columns (the user, 27 Oct 2026): Start, then **the next hour is there before it comes** ("· next", started 10:00 → 11:00
+  to type into on the hour); after hour 1 a T7 gets a new hour only if **its pad had a load during the hour before**
+  (`loadIn`: two readings with `padLoad`, or the latest) or something was typed there — otherwise "no load".

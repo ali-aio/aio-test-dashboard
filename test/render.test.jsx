@@ -670,7 +670,7 @@ const mdmCases = []
   })
   check('take-out reasons: the fixed list only, notes are never added to it', () => {
     const r = takeOutReasons()
-    want(r[0] === 'Testing FW' && r[r.length - 1] === 'Other' && r.length === 8 && !r.includes('-'), r.join(' | '))
+    want(r[0] === 'Testing FW' && r[r.length - 1] === 'Other' && r.length === 9 && r.includes('WLC testing') && !r.includes('-'), r.join(' | '))
   })
   check('the Cycles drop-down lists each bench cycle with its devices', () => {
     const at = (d, hh) => Date.UTC(2026, 9, d, hh)

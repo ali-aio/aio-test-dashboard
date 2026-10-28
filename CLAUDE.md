@@ -558,6 +558,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   can say `charging` while falling, so a charge ends a run only once the level stops falling; a bench is running only
   while most of its devices are; an entry covering under half a bench isn't that bench's.
 
+- **28 Oct 2026**: Auto called the bench a Restaurant Case, but 12 devices ran the lab's WLC / load toggle experiment (load or WLC
+  switched every 15 min, which passes the Restaurant Case rule "≥ 1.5 h load in the first 5 h"). At the user's word the entry
+  (`A-mvrqivk0`) was set by hand to **00790, 00606, 00485 only** (`auto` dropped, by Tariq), so Auto leaves it alone.
+
 ### Average, not P95
 - Every figure over many cycles is the **average**. P95 (on the bad side, Excel's `PERCENTILE.INC`, with an Average / P95
   switch in the filter bar) was built on 21 Oct 2026 and **reverted the same day at the user's request** (commit 4a70045,

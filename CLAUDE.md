@@ -561,6 +561,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - **28 Oct 2026**: Auto called the bench a Restaurant Case, but 12 devices ran the lab's WLC / load toggle experiment (load or WLC
   switched every 15 min, which passes the Restaurant Case rule "≥ 1.5 h load in the first 5 h"). At the user's word the entry
   (`A-mvrqivk0`) was set by hand to **00790, 00606, 00485 only** (`auto` dropped, by Tariq), so Auto leaves it alone.
+  **27 Oct 2026** (back on charge after 8.4 h, toggle experiment from 15:00) stays an **incomplete Restaurant Case** (the
+  user's choice): one cycle, its hours count, every run short and out of the averages.
 
 ### Average, not P95
 - Every figure over many cycles is the **average**. P95 (on the bad side, Excel's `PERCENTILE.INC`, with an Average / P95

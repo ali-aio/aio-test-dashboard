@@ -560,7 +560,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 
 - **28 Oct 2026**: Auto called the bench a Restaurant Case, but 12 devices ran the lab's WLC / load toggle experiment (load or WLC
   switched every 15 min, which passes the Restaurant Case rule "≥ 1.5 h load in the first 5 h"). At the user's word the entry
-  (`A-mvrqivk0`) was set by hand to **00790, 00606, 00485 only** (`auto` dropped, by Tariq), so Auto leaves it alone.
+  (`A-mvrqivk0`) was set by hand to **00790, 00606, 00485 only** (`auto` dropped, by Tariq), so Auto leaves it alone;
+  the other 14 of that bench are on it as taken out at 11:30, reason **WLC testing** (the user: show them in Taken out).
   **27 Oct 2026** (back on charge after 8.4 h, toggle experiment from 15:00) stays an **incomplete Restaurant Case** (the
   user's choice): one cycle, its hours count, every run short and out of the averages.
 
@@ -611,7 +612,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   tooltip — lines, dots, axes and legend are `useMemo`'d (`staticLayer` / `legendBlock` in `t7charts.jsx`, `lanes` and
   `smoothed` in `charts.jsx`), pointer updates are coalesced to one per frame (`usePlotPointer`), the nearest reading is a
   binary search. Keep it that way in any new chart.
-- Take out: the reason list is fixed; a note never becomes a new reason.
+- Take out: the reason list is fixed (`TAKE_OUT_REASONS`; **WLC testing** added 28 Oct 2026 at the user's request); a note never becomes a new reason.
 - **Take out works before the test is known** (the user, 27 Oct 2026: "why is it not showing take out"): on a bench running
   with no plan entry yet ("Cycle running · test not known yet"), Take out / Put back keep the record in `data/phone.json`
   (`outs`, `pendingOuts` / `setPendingOut` in `phoneLog.js`); the device leaves Today's charts and list at once, and as soon

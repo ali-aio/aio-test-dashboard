@@ -253,7 +253,7 @@ export function overlapsOn(decls, key, DEV, extra = null) {
 // remembers who left, when and why; "put back" removes the record.
 export const TAKE_OUT_REASONS = [
   'Testing FW', 'Testing MDM', 'Taken for automation', 'Taken for debugging', 'Hardware fault',
-  'Firmware update / reflash', 'Battery or charger swap', 'Other',
+  'Firmware update / reflash', 'Battery or charger swap', 'WLC testing', 'Other',
 ];
 /** The reasons offered when taking a device out: the fixed list only. What is typed in the note
  *  (also under "Other") stays on that take-out record and is never added to the list (the lab,

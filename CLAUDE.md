@@ -548,6 +548,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - A run only takes a test of its own kind: a discharge is never a Charging Cycle, a charge never a discharge test.
 - **Every charge since 25 Sep is a Charging Cycle** (the daily recharge), shown as battery **gained**; on the Overview,
   not in the Cycle plan's All cycles.
+  A charge **running now** counts too, from any level (`runningCharge` in `adapt.js`, from the live readings; the sweep
+  keeps only ≤ 30 % → ≥ 90 %): on charge now, ≥ 3 points gained, no stored charge covering it — an in-progress Charging
+  Cycle, left out of averages like any running run (the user, 28 Oct 2026: devices back on charge while the rest of the
+  bench still ran its Restaurant Case should show under Charging Cycle). It drops off once unplugged unless the sweep keeps it.
 - **Idle Cycle** (606, 485 from 16 Oct): set by hand by the lab from now on; Auto never guesses it.
 - A plan entry for some devices covers only those devices.
 - OS is **Android 15** for every cycle since 25 Sep (the MDM reports none); the OS tile counts devices, "Since 25 Sep".

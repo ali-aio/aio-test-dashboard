@@ -18,7 +18,7 @@ import { perHourRate, HOUR_SNAP } from './t7cycles.js';
 import { mdmCyclesFor } from './mdmTrack.js';
 import { curveKey, curveSeries, resampleRun } from './curves.js';
 import { runningCycle } from './window.js';
-import { TEMP_WARN, TEMP_LIMIT } from './profile.js';
+import { TEMP_WARN, TEMP_LIMIT, chargeSegments } from './profile.js';
 import { screenTime, adsGap } from './hostApp.js';
 import { padLoad } from './pad.js';
 
@@ -361,7 +361,8 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
     // charges (the sweep's charge segments, ≤ 30 % up to ≥ 90 %): every charge from 25 Sep on is
     // a Charging Cycle — the lab recharges after every cycle, daily, with no plan entry needed
     // (the lab's choice, Oct 2026); it shows on the Overview, not in the Cycle plan's list
-    for (const s of d.charges || []) {
+    const live = runningCharge(rows, d.charges);
+    for (const s of live ? [...(d.charges || []), live] : d.charges || []) {
       if (s.start < PLAN_FROM) continue;
       const a = adaptCycle(d, { ...s, reason: 'charge', fullMs: null }, rows, ctx);
       if (a) out.push({ ...a, testType: 'Charging Cycle' });
@@ -370,3 +371,18 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
   return out.sort((a, b) => a.start - b.start);
 }
 export const CTX = { group: 'Test Cycles' };
+
+/** The charge running now on a device, from the live readings, as a Charging Cycle in progress — from any
+ *  level (the sweep keeps only charges from ≤ 30 % up to ≥ 90 %). 28 Oct 2026: devices back on charge while
+ *  the rest of the bench still ran its Restaurant Case did not show under Charging Cycle (the user: "if I
+ *  click on Charging Cycle from the Overview, show that for those devices"). Needs the device on charge now
+ *  (latest reading ≤ 1 h old), ≥ 3 points gained, and no stored charge covering it. */
+export function runningCharge(rows, stored = [], now = Date.now()) {
+  if (!rows || rows.length < 3) return null;
+  const last = rows[rows.length - 1], lastT = Date.parse(last.timestamp);
+  if (!last.extra?.charging || now - lastT > H) return null;
+  const segs = chargeSegments(rows, { startMax: 100, endMin: 0 }), seg = segs[segs.length - 1];
+  if (!seg || (lastT - seg.end > 30 * 60e3 && seg.endPct < 95) || seg.endPct - seg.startPct < 3) return null;
+  if ((stored || []).some(c => c.end >= seg.start)) return null;
+  return { ...seg, inProgress: true };
+}

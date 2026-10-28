@@ -26,7 +26,7 @@ import RangePicker from '../src/components/RangePicker.jsx'
 import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
-import { testTypeFor, planFor, temperaturePhases } from '../src/lib/adapt.js'
+import { testTypeFor, planFor, temperaturePhases, runningCharge } from '../src/lib/adapt.js'
 import { thermalTimingByDevice } from '../src/lib/thermal.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
@@ -667,6 +667,16 @@ const mdmCases = []
     const f = runStartOf(fresh)
     want(f && f.t === Date.parse(at(10, 0)) && f.firstOff === Date.parse(at(10, 1)), 'switch-off without a drop')
     want(runStartOf(fresh.slice(0, 3)) === null, 'still on charge: no run')
+  })
+  check('a charge running now is a Charging Cycle in progress, from any level', () => {
+    const now = Date.UTC(2026, 9, 28, 10), M = 60e3
+    // on battery 60 -> 52, then on charge 52 -> 70 over the last hour
+    const rows = [...Array.from({ length: 9 }, (_, i) => ({ timestamp: new Date(now - (120 - i * 7) * M).toISOString(), battery_pct: 60 - i, extra: { charging: false } })),
+      ...Array.from({ length: 10 }, (_, i) => ({ timestamp: new Date(now - (54 - i * 6) * M).toISOString(), battery_pct: 52 + i * 2, extra: { charging: true } }))]
+    const c = runningCharge(rows, [], now)
+    want(c && c.inProgress && c.startPct <= 52 && c.endPct === 70, JSON.stringify(c && { s: c.startPct, e: c.endPct }))
+    want(!runningCharge(rows, [{ start: now - 60 * M, end: now }], now), 'a stored charge covers it')
+    want(!runningCharge(rows.map((r, i) => i === rows.length - 1 ? { ...r, extra: { charging: false } } : r), [], now), 'off the charger now')
   })
   check('take-out reasons: the fixed list only, notes are never added to it', () => {
     const r = takeOutReasons()

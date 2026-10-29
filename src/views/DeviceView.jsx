@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import PartStatus from '../components/PartStatus.jsx'
+import PhoneHistory from '../components/PhoneHistory.jsx'
 import { subscribeWindow, getWindow, rowsFor, currentCycleStart } from '../lib/window.js'
 import { fetchHistoryRange } from '../lib/data.js'
 import { normalize } from '../lib/cycles.js'
@@ -133,6 +134,8 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
             </SortTable>
           </div>
         </Card>
+        {/* the iPhone this T7 charged on its pad, as typed in on Today (only where there are readings) */}
+        <PhoneHistory cycles={mine} />
       </>}
     </div>
   )

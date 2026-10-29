@@ -665,3 +665,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   iPhone T7s' **own** off-charger times, not the bench's; the lab can **edit** it (✎ beside "start", a time box) — shared,
   per cycle day (`starts` in `data/phone.json`, `setPhoneStart` / `phoneStart`), with "use HH:MM (off charger)" to go back.
   Typed readings stay on their hour number, so moving the start moves their clock times.
+  **After the cycle** (the user, 29 Oct 2026: "when the cycle ends does it show the phone data"): a read-only **iPhone on the
+  pad** card (`PhoneHistory.jsx`) at the end of each test screen (the cycles in view, bench pick and device focus apply) and
+  of the device page: one row per cycle day × T7 with an iPhone — each hour's iPhone %, the gain below, Gained / Per hour /
+  Full at; shown only where readings were typed. The cycle day is the run's start day.

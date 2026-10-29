@@ -1,4 +1,5 @@
 import { splitText, splitBy, cyclesText, deviceCyclesText, countCycles, benchCycles } from '../lib/splitCycles.js'
+import PhoneHistory from '../components/PhoneHistory.jsx'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import PartStatus from '../components/PartStatus.jsx'
 import { SortTable } from '../components/SortTable.jsx'
@@ -750,6 +751,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           </SortTable>
         </div>
       </Card>
+      {/* the iPhone readings typed in on Today, for these cycles (shows only where there are some) */}
+      <PhoneHistory cycles={cycles} />
     </div>
   )
 }

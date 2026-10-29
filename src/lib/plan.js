@@ -284,6 +284,15 @@ export function takeOut(group, declId, rec) {
     : { ...d, removed: [...(d.removed || []).filter(r => r.serial !== rec.serial), { at: Date.now(), ...rec }] });
   saveDecls(group, decls); return decls;
 }
+/** A note on a cycle, for the record (the user, 29 Oct 2026: which devices had the load how long) —
+ *  kept on the declaration (`note`), shared with the plan, shown on Today and its test screen. */
+export function setCycleNote(group, declId, note) {
+  const decls = loadDecls(group).map(d => d.id !== declId ? d : { ...d, note: String(note || '').trim().slice(0, 2000) || undefined });
+  saveDecls(group, decls); return decls;
+}
+/** The note of the planned cycle a run that started at `start` belongs to, or null. */
+export const cycleNote = (decls, start, name = null) =>
+  cycleAt(name ? decls.filter(d => testType(d.testType)?.name === name) : decls, start)?.decl?.note || null;
 export function putBack(group, declId, serial) {
   const decls = loadDecls(group).map(d => d.id !== declId ? d : { ...d, removed: (d.removed || []).filter(r => r.serial !== serial) });
   saveDecls(group, decls); return decls;

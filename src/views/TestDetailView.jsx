@@ -3,7 +3,7 @@ import PhoneHistory from '../components/PhoneHistory.jsx'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import PartStatus from '../components/PartStatus.jsx'
 import { SortTable } from '../components/SortTable.jsx'
-import { loadDecls, takenOutOf, takenOutText } from '../lib/plan.js'
+import { loadDecls, takenOutOf, takenOutText, cycleNote } from '../lib/plan.js'
 import { CTX } from '../lib/adapt.js'
 import { cycleTableCsv, cycleHoursCsv, downloadCsv } from '../lib/csv.js'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
@@ -414,6 +414,12 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
         </div>
       )}
 
+      {/* notes kept on this test's cycles (Today → ✎ note), newest first; a click picks that cycle */}
+      {!benchSel && (() => { const decls = loadDecls(CTX.group)
+        const notes = benches.filter((b) => b.testType === testType).map((b) => ({ b, note: cycleNote(decls, b.start, testType) })).filter((x) => x.note).reverse()
+        return notes.length ? <div className="cycle-notes">{notes.map(({ b, note }) => (
+          <button key={b.key} type="button" className="cycle-note" onClick={() => setBench(b.key)} title="Show only this cycle">
+            <b>{new Date(b.start).toLocaleDateString([], { day: 'numeric', month: 'short' })} · note</b> <span>{note}</span></button>))}</div> : null })()}
       {(focus || benchSel || ticked) && (
         <div className="pick-bar">
           <span>Showing only {benchSel ? <>the cycle of <b>{new Date(benchSel.start).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</b> ({new Set(benchSel.list.map((c) => c.serial)).size} devices)</> : null}
@@ -421,6 +427,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             {!focus && ticked ? <>{benchSel ? ', ' : ''}{ticked.size <= 3 ? [...ticked].sort(compareSerial).map((sn, i) => <React.Fragment key={sn}>{i ? ', ' : ''}<b className="mono">{sn}</b></React.Fragment>) : <b>{ticked.size} devices</b>}
               {' '}— {ticked.size === 1 ? 'its' : 'their'} {cyclesText(hourSrc)} of {testType}, in the battery chart and Drain by hour</> : null}
             {/* devices taken out of this cycle on the Today screen: they left it, so they are not in its charts */}
+            {benchSel && cycleNote(loadDecls(CTX.group), benchSel.start, testType) && <span className="pick-out"><b>Note:</b> <span style={{ whiteSpace: 'pre-wrap' }}>{cycleNote(loadDecls(CTX.group), benchSel.start, testType)}</span></span>}
             {benchSel && (() => { const out = takenOutOf(loadDecls(CTX.group), benchSel.start); return out.length ? <span className="pick-out">
               <b>{out.length} taken out of this cycle:</b>{out.map((r) => <span key={r.serial + r.at}>{takenOutText(r)}</span>)}</span> : null })()}</span>
           <button type="button" className="btn btn-sm" onClick={clearPick}>× Clear selection</button>

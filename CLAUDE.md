@@ -616,6 +616,11 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   tooltip — lines, dots, axes and legend are `useMemo`'d (`staticLayer` / `legendBlock` in `t7charts.jsx`, `lanes` and
   `smoothed` in `charts.jsx`), pointer updates are coalesced to one per frame (`usePlotPointer`), the nearest reading is a
   binary search. Keep it that way in any new chart.
+- **Cycle notes** (the user, 29 Oct 2026, "just for the record"): a note on a planned cycle (`note` on the declaration,
+  `setCycleNote` / `cycleNote` in `plan.js`; Auto keeps it when it refreshes its entry). Today: "+ Add a note to this cycle"
+  under the heading, shown with ✎ edit; the test screen lists its cycles' notes above the charts (a click picks that cycle)
+  and shows the picked cycle's note in the "Showing only" bar. 29 Oct's: 00064, 00280, 00790, 00606, 00485 had the load the
+  first 3 h; the rest had it with 30-min gaps.
 - Take out: the reason list is fixed (`TAKE_OUT_REASONS`; **WLC testing** added 28 Oct 2026 at the user's request); a note never becomes a new reason.
 - **Take out works before the test is known** (the user, 27 Oct 2026: "why is it not showing take out"): on a bench running
   with no plan entry yet ("Cycle running · test not known yet"), Take out / Put back keep the record in `data/phone.json`

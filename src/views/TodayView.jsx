@@ -7,7 +7,7 @@ import { subscribePhone, getPhone, startPhoneSync, pendingOuts, setPendingOut } 
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, refineStarts, refinedStart, drainSince, drainSplit, WINDOW_HOURS } from '../lib/window.js'
-import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, benchDecls, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, takeOutReasons, loadDecls, loadRota } from '../lib/plan.js'
+import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, benchDecls, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, takeOutReasons, loadDecls, loadRota, setCycleNote } from '../lib/plan.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
 import { median, pctl, hm, dt, ago, MIN, H } from '../lib/format.js'
@@ -341,6 +341,8 @@ export default function TodayView({ fleet }) {
               : T.running ? <>{bench.n} devices came off the charger around {hm(T.startMs)}. The Auto plan names the test from the readings once it can tell (a load on the pad for ~1.5 h, or none) — or <a className="link" href="#/nx/plan">set it on the Cycle plan</a>.</>
               : <>The MDM can't tell which test is running. <a className="link" href="#/nx/plan">Set one on the Cycle plan</a>.</>}
           </div>
+          {/* a note on this cycle, for the record (shared with the plan; shown on its test screen too) */}
+          {T.decl && !waiting && <CycleNote key={T.decl.id} decl={T.decl} onSaved={() => setPlanRev(v => v + 1)} />}
         </div>
         </div>
       </div>
@@ -690,4 +692,22 @@ function TakeOutForm({ serial, cycle, onSave, onCancel }) {
       </div>
     </div>
   )
+}
+
+// A note kept on the cycle (the user, 29 Oct 2026: "just for the record" — which devices had the load
+// for the first 3 h and which with a 30-min gap). Saved on the plan entry, so every browser and the
+// test screen see it.
+function CycleNote({ decl, onSaved }) {
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState(decl.note || '')
+  const save = () => { setCycleNote(GROUP, decl.id, text); setEditing(false); onSaved() }
+  if (editing) return (
+    <div className="cycle-note-edit">
+      <textarea className="input" rows={2} autoFocus value={text} onChange={e => setText(e.target.value)} placeholder="e.g. 064, 280: load the first 3 h; the rest: load with a 30-min gap" />
+      <span style={{ display: 'flex', gap: 6 }}><button type="button" className="btn btn-sm btn-primary" onClick={save}>Save note</button>
+        <button type="button" className="btn btn-sm" onClick={() => { setText(decl.note || ''); setEditing(false) }}>Cancel</button></span>
+    </div>)
+  return decl.note
+    ? <div className="cycle-note" style={{ marginTop: 8, cursor: 'default' }}><b>Note</b> {decl.note} <button type="button" className="link-btn" onClick={() => setEditing(true)}>✎ edit</button></div>
+    : <button type="button" className="link-btn" style={{ marginTop: 6, fontSize: 12.5 }} onClick={() => setEditing(true)}>+ Add a note to this cycle</button>
 }

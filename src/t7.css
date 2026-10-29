@@ -2195,3 +2195,11 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 /* a tile where some devices behave differently from the rest (Today) */
 .stat.is-warn, button.stat.is-warn:hover { border-color: var(--status-warning); box-shadow: 0 0 0 1px var(--status-warning) inset; }
 .phone-start { width: 110px; min-height: 26px; padding: 2px 6px; display: inline-block; vertical-align: middle; }
+
+/* notes kept on a test's cycles (test screen) */
+.cycle-notes { display: flex; flex-direction: column; gap: 6px; }
+.cycle-note { display: block; width: 100%; text-align: left; font: inherit; font-size: 12.5px; color: var(--text-primary); cursor: pointer;
+  padding: 8px 12px; border: 1px solid var(--border); border-left: 3px solid var(--series-1); border-radius: 8px; background: var(--surface-1); white-space: pre-wrap; }
+.cycle-note:hover { background: var(--wash); }
+.cycle-note b { margin-right: 6px; }
+.cycle-note-edit { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-width: 720px; }

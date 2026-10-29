@@ -22,8 +22,10 @@ const local = (t) => {
 const num = (v, d) => (v == null || !Number.isFinite(+v) ? '' : d == null ? +v : (+v).toFixed(d))
 
 export const READING_COLUMNS = [
-  { key: 'serial', label: 'Serial', get: (r) => r.serial_number },
-  { key: 'time_local', label: 'Time (local)', get: (r) => local(Date.parse(r.sample_at || r.timestamp)) },
+  // always in the file, whatever is ticked: without them the rows can't be told apart (the user, 29 Oct 2026:
+  // "where is the device serial id" in an export of only Battery % and Wireless pad)
+  { key: 'serial', label: 'Serial', always: true, get: (r) => r.serial_number },
+  { key: 'time_local', label: 'Time (local)', always: true, get: (r) => local(Date.parse(r.sample_at || r.timestamp)) },
   { key: 'time_utc', label: 'Time (UTC, ISO)', get: (r) => r.sample_at || r.timestamp || '' },
   { key: 'battery_pct', label: 'Battery %', get: (r) => num(r.battery_pct) },
   { key: 'battery_temp_c', label: 'Battery temp °C', get: (r) => num(extraOf(r).battery_temp_c, 1) },
@@ -50,7 +52,7 @@ export const READING_COLUMNS = [
 const COVERED = new Set(['battery_temp_c', 'charging', 'wlc_status', 'wifi_rssi', 'wifi', 'ram_usage_mb', 'storage_free_gb', 'ip_address'])
 
 export const CYCLE_COLUMNS = [
-  { key: 'serial', label: 'Serial', get: (c) => c.serial },
+  { key: 'serial', label: 'Serial', always: true, get: (c) => c.serial },
   { key: 'testType', label: 'Test', get: (c) => c.testType ?? '' },
   { key: 'date', label: 'Date', get: (c) => c.date ?? '' },
   { key: 'start', label: 'Start (local)', get: (c) => local(c.start) },
@@ -100,7 +102,7 @@ const cycleAtTime = (index, serial, t) => {
 /** CSV text for reading rows: chosen columns, then the chosen other MDM fields (extra.*).
  *  `cycles` (all of them, any devices) lets the Cycle # / test / start / hours columns fill. */
 export function readingsCsv(rows, chosen, extraWanted = [], cycles = []) {
-  const cols = READING_COLUMNS.filter((c) => chosen.includes(c.key))
+  const cols = READING_COLUMNS.filter((c) => c.always || chosen.includes(c.key))
   const index = cols.some((c) => c.cycle) ? cycleIndex(cycles) : null
   // extraWanted: the other MDM fields to add, by name (true = every one found in the rows)
   const extra = extraWanted === true ? extraKeys(rows) : Array.isArray(extraWanted) ? extraWanted : []
@@ -116,7 +118,7 @@ export function readingsCsv(rows, chosen, extraWanted = [], cycles = []) {
 
 /** CSV text for cycles: chosen columns, oldest first. */
 export function cyclesCsv(cycles, chosen) {
-  const cols = CYCLE_COLUMNS.filter((c) => chosen.includes(c.key))
+  const cols = CYCLE_COLUMNS.filter((c) => c.always || chosen.includes(c.key))
   const lines = [csvLine(cols.map((c) => c.label))]
   for (const c of [...cycles].sort((a, b) => a.serial.localeCompare(b.serial) || a.start - b.start)) lines.push(csvLine(cols.map((col) => col.get(c))))
   return lines.join('\r\n') + '\r\n'

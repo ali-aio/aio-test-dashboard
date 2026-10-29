@@ -164,12 +164,13 @@ export default function ExportDialog({ devices, cycles, group, onClose }) {
           </section>
 
           <section>
-            <div className="export-h">Columns <span className="secondary">· {cols.size + (kind === 'readings' ? extraCols.size : 0)} of {colDefs.length + (kind === 'readings' ? extraOpts?.length || 0 : 0)}</span>
+            <div className="export-h">Columns <span className="secondary">· {new Set([...cols, ...colDefs.filter((c) => c.always).map((c) => c.key)]).size + (kind === 'readings' ? extraCols.size : 0)} of {colDefs.length + (kind === 'readings' ? extraOpts?.length || 0 : 0)}</span>
               <button type="button" className="link-btn" style={{ marginLeft: 10 }} onClick={() => { setCols(new Set(colDefs.map((c) => c.key))); if (kind === 'readings') setExtraCols(new Set(extraOpts || [])) }}>Select all</button>
               <button type="button" className="link-btn" style={{ marginLeft: 8 }} onClick={() => { setCols(new Set()); if (kind === 'readings') setExtraCols(new Set()) }}>Clear</button></div>
             <div className="export-cols">
               {colDefs.map((c) => (
-                <label key={c.key} className="dev-pick-item"><input type="checkbox" checked={cols.has(c.key)} onChange={() => toggle(cols, setCols, c.key)} />{c.label}</label>
+                <label key={c.key} className="dev-pick-item" title={c.always ? 'Always in the file, so each row says which device and when' : undefined}>
+                  <input type="checkbox" checked={c.always || cols.has(c.key)} disabled={c.always} onChange={() => toggle(cols, setCols, c.key)} />{c.label}{c.always ? <span className="secondary"> · always</span> : null}</label>
               ))}
               {kind === 'readings' && (extraOpts == null
                 ? <span className="secondary dev-pick-item">finding the other MDM fields…</span>

@@ -151,7 +151,8 @@ The guide is the MDM repo's `docs/TESTDATA_HOST_APP_GUIDE.md` (the user pasted i
 - **Export CSV** — header button on every screen → `src/components/ExportDialog.jsx` (rendered on
   `<body>` via a portal; inside the sticky header a fixed overlay is trapped). Readings (the MDM
   history rows per device, at a chosen interval, `empty` rows dropped) or cycles (one row each);
-  devices, time span and columns are picked by checkbox. Column definitions and CSV text live in
+  devices, time span and columns are picked by checkbox — **Serial and Time (local) are always in a readings file, Serial in a
+  cycles file** (`always` in `csv.js`, the tick locked; the user, 29 Oct 2026: an export of Battery % + Wireless pad had no serial). Column definitions and CSV text live in
   `src/lib/csv.js` (tested). Readings fetches retry on the proxy's 429.
 - **Old data** (a button in the Live pill's panel, `OldDataLink` in `src/components/HeaderTools.jsx`; not in the header row,
   which the user found too full, Oct 2026): opens the previous

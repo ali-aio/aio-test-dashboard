@@ -533,8 +533,13 @@ const mdmCases = []
     ]
     const csv = readingsCsv(rows, ['serial', 'time_utc', 'battery_pct', 'battery_temp_c', 'charging', 'wlc_status'], true).trim().split('\r\n')
     want(csv.length === 3, `lines ${csv.length}`)
-    want(csv[0] === 'Serial,"Time (UTC, ISO)",Battery %,Battery temp °C,Charging,Wireless pad,extra.foo', csv[0])
-    want(csv[1] === 'A,2026-10-09T10:00:00Z,80,31.5,no,on,x' && csv[2] === 'A,2026-10-09T10:10:00Z,79,31.7,yes,,', csv.slice(1).join(' | '))
+    // Serial and Time (local) are always there; the local time depends on the machine's zone, so it is cut out to compare
+    const noLocal = (line) => { const f = line.split(','); f.splice(1, 1); return f.join(',') }
+    want(csv[0] === 'Serial,Time (local),"Time (UTC, ISO)",Battery %,Battery temp °C,Charging,Wireless pad,extra.foo', csv[0])
+    want(noLocal(csv[1]) === 'A,2026-10-09T10:00:00Z,80,31.5,no,on,x' && noLocal(csv[2]) === 'A,2026-10-09T10:10:00Z,79,31.7,yes,,', csv.slice(1).join(' | '))
+    // the user, 29 Oct 2026: only Battery % and Wireless pad ticked still says which device and when
+    const only = readingsCsv(rows, ['battery_pct', 'wlc_status'], []).trim().split('\r\n')
+    want(only[0] === 'Serial,Time (local),Battery %,Wireless pad' && only[1].startsWith('A,2026-10-09 ') && only[1].endsWith(',80,on'), only.slice(0, 2).join(' | '))
     want(extraKeys(rows).join() === 'foo', 'extra keys')
     const cc = cyclesCsv([{ serial: 'B', testType: 'WLC on Load', start: 1, end: 2, startBattery: 100, endBattery: 20, mdmCycles: null }], ['serial', 'testType', 'batteryCycles', 'cyclesSource']).trim().split('\r\n')
     want(cc[1] === 'B,WLC on Load,0.80,battery drop ÷ 100', cc[1])
@@ -546,8 +551,9 @@ const mdmCases = []
     const rows = [{ serial_number: 'A', sample_at: new Date(t(12)).toISOString(), battery_pct: 70, extra: {} },
       { serial_number: 'A', sample_at: new Date(t(22)).toISOString(), battery_pct: 40, extra: {} }]
     const l = readingsCsv(rows, ['serial', 'cycle_no', 'cycle_test', 'cycle_hours'], false, cyc).trim().split('\r\n')
-    want(l[0] === 'Serial,Cycle #,Cycle test,Hours into cycle', l[0])
-    want(l[1] === 'A,2,WLC on Load,2.00' && l[2] === 'A,,,', l.slice(1).join(' | '))
+    const cut = (line) => { const f = line.split(','); f.splice(1, 1); return f.join(',') }
+    want(l[0] === 'Serial,Time (local),Cycle #,Cycle test,Hours into cycle', l[0])
+    want(cut(l[1]) === 'A,2,WLC on Load,2.00' && cut(l[2]) === 'A,,,', l.slice(1).join(' | '))
   })
   check('devices running a test together are one cycle', () => {
     const h = 3600e3, at = (d, hh) => Date.UTC(2026, 9, d, hh)

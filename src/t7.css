@@ -2194,3 +2194,4 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 
 /* a tile where some devices behave differently from the rest (Today) */
 .stat.is-warn, button.stat.is-warn:hover { border-color: var(--status-warning); box-shadow: 0 0 0 1px var(--status-warning) inset; }
+.phone-start { width: 110px; min-height: 26px; padding: 2px 6px; display: inline-block; vertical-align: middle; }

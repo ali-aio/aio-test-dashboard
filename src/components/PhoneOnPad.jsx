@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { subscribePhone, getPhone, phoneDevices, phoneHours, setPhoneDevice, setPhonePct, cellKey } from '../lib/phoneLog.js'
+import { subscribePhone, getPhone, setPhoneStart, phoneStart, phoneDevices, phoneHours, setPhoneDevice, setPhonePct, cellKey } from '../lib/phoneLog.js'
 import { rowsFor } from '../lib/window.js'
 import { padLoad } from '../lib/pad.js'
 import { hm, H } from '../lib/format.js'
@@ -47,9 +47,24 @@ function Cell({ day, serial, h, value, title }) {
     aria-label={title} onChange={change} onBlur={() => typing.current && save(v)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }} />
 }
 
-export default function PhoneOnPad({ day, start, end, serials, now }) {
+const hhmm = t => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
+
+export default function PhoneOnPad({ day, start: benchStart, end, serials, now, ownStart = () => null }) {
   const db = useSyncExternalStore(subscribePhone, getPhone, getPhone)
   const devices = phoneDevices(db, day)
+  // the start: set by hand (shared), else when these T7s came off the charger (median of their own
+  // starts), else the bench's — 29 Oct 2026 the bench came off at 10:00 but the iPhone T7s at 11:30 (the user)
+  const own = devices.map(ownStart).filter(Number.isFinite).sort((a, b) => a - b)
+  const auto = own.length ? Math.round(own[Math.floor((own.length - 1) / 2)] / 60e3) * 60e3 : benchStart
+  const manual = phoneStart(db, day)
+  const start = manual ?? auto
+  const [editing, setEditing] = useState(false)
+  const setStart = v => { // "HH:MM" on the cycle's day (the day after if before the auto start's day … kept simple: nearest to auto)
+    if (!v) return
+    const [hh, mm] = v.split(':').map(Number), d = new Date(auto); d.setHours(hh, mm, 0, 0)
+    let t = d.getTime(); if (t - auto > 12 * H) t -= 24 * H; else if (auto - t > 12 * H) t += 24 * H
+    setPhoneStart(day, t, by()); setEditing(false)
+  }
   // hour 0 = the cycle's start, then one column per hour (the user, 27 Oct 2026: started at 10 → 11, 12, …).
   // The next hour is there before it comes, to type into on the hour; after hour 1 a device gets an
   // hour only if its pad had a load (the iPhone) during the hour before it, or something was typed there.
@@ -68,7 +83,14 @@ export default function PhoneOnPad({ day, start, end, serials, now }) {
     <div className="card">
       <div className="card-head">
         <div><h2>iPhone on the pad</h2>
-          <div className="card-sub">iPhone battery % each hour · gain below · T7 battery in grey</div></div>
+          <div className="card-sub">iPhone battery % each hour · gain below · T7 battery in grey · start{' '}
+            {editing
+              ? <input type="time" className="input phone-start" autoFocus defaultValue={hhmm(start)} aria-label="Start time of the iPhone hours"
+                  onBlur={e => { setStart(e.target.value); setEditing(false) }} onKeyDown={e => { if (e.key === 'Enter') setStart(e.currentTarget.value); if (e.key === 'Escape') setEditing(false) }} />
+              : <button type="button" className="link-btn" title={manual != null ? 'set by hand · click to change' : own.length ? 'when these T7s came off the charger · click to change' : 'the cycle start · click to change'}
+                  onClick={() => setEditing(true)}>{hm(start)} ✎</button>}
+            {manual != null && !editing && <> · <button type="button" className="link-btn" onClick={() => setPhoneStart(day, null, by())}>use {hm(auto)} (off charger)</button></>}
+          </div></div>
         <span style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
           {/* picking a T7 adds it straight away (no Add button — the user, 27 Oct 2026) */}
           <select className="control" value="" onChange={e => { if (e.target.value) setPhoneDevice(day, e.target.value, true, by()) }} aria-label="Add a T7 with an iPhone on its pad">

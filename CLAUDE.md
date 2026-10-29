@@ -661,3 +661,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   Columns (the user, 27 Oct 2026): Start, then **the next hour is there before it comes** ("· next", started 10:00 → 11:00
   to type into on the hour); after hour 1 a T7 gets a new hour only if **its pad had a load during the hour before**
   (`loadIn`: two readings with `padLoad`, or the latest) or something was typed there — otherwise "no load".
+  **Start** (the user, 29 Oct 2026: the bench came off the charger at 10:00, the iPhone T7s at 11:30): the median of the
+  iPhone T7s' **own** off-charger times, not the bench's; the lab can **edit** it (✎ beside "start", a time box) — shared,
+  per cycle day (`starts` in `data/phone.json`, `setPhoneStart` / `phoneStart`), with "use HH:MM (off charger)" to go back.
+  Typed readings stay on their hour number, so moving the start moves their clock times.

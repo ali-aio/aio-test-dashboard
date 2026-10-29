@@ -487,7 +487,7 @@ export default function TodayView({ fleet }) {
         </div>
         </div>
         {/* an iPhone on the pad in place of the load: its battery, typed in each hour (the lab, 27 Oct 2026) */}
-        {!T.charging && (T.running || T.decl) && <PhoneOnPad day={T.key} start={Math.round(chartFrom / 60e3) * 60e3} end={T.endMs} serials={T.serials} now={now} />}
+        {!T.charging && (T.running || T.decl) && <PhoneOnPad day={T.key} start={Math.round(chartFrom / 60e3) * 60e3} end={T.endMs} serials={T.serials} now={now} ownStart={sn => runs.get(sn)?.start?.t ?? null} />}
         <div className="card">
           {/* closed by default; a search opens it, since the search is about these rows */}
           <div className="card-head" role="button" tabIndex={0} aria-expanded={listShown} style={{ cursor: 'pointer' }}

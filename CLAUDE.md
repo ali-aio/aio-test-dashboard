@@ -545,6 +545,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   cycles for "no load in hour 1". `adaptCycle` now starts a discharge at its first slot with ≥ 5 min of load when hour 1 had
   none, that load came 45 min – 3 h after it left the charger, and it fell ≤ 2 points before it (`lateStart` on the cycle);
   its curve is shifted to match. Runs that drain from the start never move (a 14 h Restaurant Case can't turn short).
+  Guarded by the test "a Restaurant Case whose load went on late …" (the 29 Oct case, rebuilt from 15-min slots; also checks
+  that a run draining from the start keeps its start, and a run with no curve yet isn't read as "no drain").
 - **A load on the pad = `wlc_status` > 0** (`padLoad` in `src/lib/pad.js`, used wherever wlc_status is read): **-1 is not a
   load** (the pad's error / not-known code), and in the 15-min slots **a lone reading with a load between two without is a
   blip** (`dropLoneLoads`). 26 Oct 2026: the Idle Cycle's per-hour CSV showed 12 and 6 min of load on 00485 / 00606 on

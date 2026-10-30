@@ -26,7 +26,7 @@ import RangePicker from '../src/components/RangePicker.jsx'
 import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
-import { testTypeFor, planFor, temperaturePhases, runningCharge } from '../src/lib/adapt.js'
+import { testTypeFor, planFor, temperaturePhases, runningCharge, adaptCycle } from '../src/lib/adapt.js'
 import { thermalTimingByDevice } from '../src/lib/thermal.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
@@ -678,6 +678,27 @@ const mdmCases = []
     const f = runStartOf(fresh)
     want(f && f.t === Date.parse(at(10, 0)) && f.firstOff === Date.parse(at(10, 1)), 'switch-off without a drop')
     want(runStartOf(fresh.slice(0, 3)) === null, 'still on charge: no run')
+  })
+  check('a Restaurant Case whose load went on late (idle off the charger first) starts when the load goes on', () => {
+    // 29 Oct 2026: 00064 off the charger at 10:00 with the bench, idle (no load, no drain) until the load at 11:30,
+    // 3 h of load, then none, back on charge at 01:30 — it was filed under Old cycles for "no load in hour 1"
+    const H = 3600e3, Q = 15 * 60e3, t0 = Date.UTC(2026, 9, 29, 5, 0), load = t0 + 1.5 * H
+    const slots = []
+    for (let t = t0; t < t0 + 15.5 * H; t += Q) {
+      const idle = t < load, on = t >= load && t < load + 3 * H
+      slots.push([t, idle ? 0 : on ? 27 : 10, 15, on ? 15 : 0, 300])
+    }
+    const decls = [{ id: 'X', testType: 'restaurant', from: '2026-10-29', to: '2026-10-29', startTime: '10:00', endTime: '01:30', spanDays: 1,
+      repeat: 'none', group: { kind: 'serials', serials: ['S1'] } }]
+    const ctx = { decls, rota: {}, DEV: [{ serial: 'S1' }], hours: { S1: { h: slots } } }
+    const c = { start: t0, end: t0 + 15.5 * H, durationMs: 15.5 * H, startPct: 100, endPct: 17, reason: 'timed' }
+    const a = adaptCycle({ serial: 'S1', cycles: [c] }, c, null, ctx)
+    want(a && a.testType === 'Restaurant Case', `test ${a?.testType}`)
+    want(a.start === load && a.duration === 14 && !a.short && !a.leftCycle, `start ${new Date(a.start).toISOString()} · ${a.duration} h · short ${a.short} · left ${a.leftCycle?.why}`)
+    // a run that drains from the start keeps its start (a 14 h run never turns short)
+    const busy = slots.map(x => [x[0], x[0] < load ? 10 : x[1], 15, x[3], 300])
+    const b = adaptCycle({ serial: 'S1', cycles: [c] }, c, null, { ...ctx, hours: { S1: { h: busy } } })
+    want(b.start === t0, 'draining run keeps its start')
   })
   check('a charge running now is a Charging Cycle in progress, from any level', () => {
     const now = Date.UTC(2026, 9, 28, 10), M = 60e3

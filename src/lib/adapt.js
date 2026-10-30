@@ -240,7 +240,8 @@ export function adaptCycle(d, c0, rows, ctx) {
       if (idle.every(x => !(x[3] > 0)) && dropped <= 2) {
         const at = slots[firstLoad][0], sh = (at - c.start) / H
         const v0 = series.length ? (series.filter(p => p.t <= sh).pop()?.v ?? series[0].v) : c.startPct
-        series = [{ t: 0, v: v0 }, ...series.filter(p => p.t > sh).map(p => ({ t: round(p.t - sh, 3), v: p.v }))]
+        // (no curve yet, e.g. a run still going: leave it empty — one point would read as no drain)
+        if (series.length) series = [{ t: 0, v: v0 }, ...series.filter(p => p.t > sh).map(p => ({ t: round(p.t - sh, 3), v: p.v }))]
         tempSeries = tempSeries.filter(p => p.t >= sh).map(p => ({ ...p, t: round(p.t - sh, 3) }))
         c = { ...c, start: at, durationMs: c.end - at, startPct: v0, lateStart: { from: c.start, idleH: round(sh, 2) } }
         duration = c.durationMs / H

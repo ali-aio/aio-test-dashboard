@@ -12,7 +12,7 @@ import Devices from '../src/views/DevicesView.jsx'
 import Today from '../src/views/TodayView.jsx'
 import CyclePlan from '../src/views/CyclePlanView.jsx'
 import DeviceView from '../src/views/DeviceView.jsx'
-import { lifetimeOf, cyclesInRange } from '../src/lib/device.js'
+import { lifetimeOf, cyclesInRange, keepDevice } from '../src/lib/device.js'
 import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
@@ -706,6 +706,14 @@ const mdmCases = []
     const c2 = { start: t2, end: t2 + 14 * H, durationMs: 14 * H, startPct: 100, endPct: 18, reason: 'timed' }
     const l = adaptCycle({ serial: 'S1', cycles: [c2] }, c2, null, { ...ctx, hours: { S1: { h: late } } })
     want(l.testType === 'Restaurant Case' && l.start === t2 && l.duration === 14 && !l.short && !l.leftCycle, `late unplug: ${l.testType} · ${l.duration} h · ${l.leftCycle?.why || ''}`)
+  })
+  check('the lab\'s devices come from its own list, whatever MDM group they are in', () => {
+    // 30 Oct 2026: the MDM's groups changed twice in a day and the dashboard went to a 404 each time
+    const rows = [{ serial_number: 'AT070AABU00790', groups: [] }, { serial_number: 'AT070AABU00606', groups: ['San Jose Office'] },
+      { serial_number: 'AT070AABU00142', groups: ['Test Cycles'] }, { serial_number: 'AT070AABU00848', groups: ['Test Cycles'] },
+      { serial_number: 'AT070AABU09999', groups: ['Test Cycles'] }]
+    const kept = rows.filter(keepDevice).map(r => r.serial_number.slice(-5)).join()
+    want(kept === '00790,00606,00142', kept)
   })
   check('a charge running now is a Charging Cycle in progress, from any level', () => {
     const now = Date.UTC(2026, 9, 28, 10), M = 60e3

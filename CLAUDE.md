@@ -513,6 +513,12 @@ What the user (Tariq, for the lab) asked for and decided, so a new session doesn
 when a request changes a rule here, edit the line (don't add a contradicting one), and add new decisions under their area.
 
 ### MDM group
+- **The lab's devices are the dashboard's own list, not an MDM group** (30 Oct 2026, evening: the groups changed again —
+  "HW Testing" gone, the T7s spread over Test Cycles, San Jose Office and none — and the page went to a 404 a second time).
+  `LAB_SERIALS` (= `BENCH_ORDER`, the user's bench list) in `src/lib/device.js`; `keepDevice` picks them out of the MDM's
+  **full** device list (`/api/v1/testdata/devices` with no group) in the browser, `/api/devices` and the sweep, and drops
+  `EXCLUDED_SERIALS`. The host-app list is asked for without a group too. The group name ("HW Testing") is now only the label
+  the data files and the shared plan are stored under. **A new T7 on the bench goes into `BENCH_ORDER`.**
 - **30 Oct 2026: the MDM's "Test Lab units" group became "HW Testing"** (the old name answered 404 and the dashboard showed
   only the error, right after the lab laptop restarted). HW Testing holds the same lab T7s (+ 00848, 00854; 00875 is in no
   group). `GROUP_RENAMED` maps the old name to the new in the browser (`scopeGroup` in `data.js`, rewriting the saved Settings

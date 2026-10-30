@@ -55,7 +55,8 @@ export async function sweep({ base, group, root, get, plan, log = () => {} }) {
   const prev = loadTopup(root, group), PREV = prev ? prev.devices : {};
   const anchor = prev ? prev.at : seed && seed.group === group ? Date.parse(seed.generatedAt) : now;
   const from = Math.min(anchor - 3 * DAY, now - 14 * DAY);
-  const devices = (await get(`/api/v1/testdata/devices?group=${encodeURIComponent(group)}`)).filter(keepDevice); // EXCLUDED_SERIALS
+  // the lab's own device list (LAB_SERIALS), whatever MDM group each is in; `group` stays only as the data files' label
+  const devices = (await get('/api/v1/testdata/devices')).filter(keepDevice);
   log(`${devices.length} devices in "${group}", history since ${new Date(from).toISOString()}`);
   recordLifetime(root, group, devices, now, log);
 

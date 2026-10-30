@@ -94,7 +94,7 @@ export async function fetchDevices(opts = {}) {
     const cached = cacheGet(key, DEVICES_TTL_MS);
     if (cached) return cached;
   }
-  const qs = group ? `?group=${encodeURIComponent(group)}` : '';
+  const qs = ''; // every device; the lab's are picked by keepDevice (LAB_SERIALS), not by an MDM group
   const data = BACKEND ? await call(`/api/devices${qs}`) : await call(`${apiBase()}/api/v1/testdata/devices${qs}`, { 'X-API-Key': apiKey() });
   const kept = Array.isArray(data) ? data.filter(keepDevice) : data; // EXCLUDED_SERIALS (device.js)
   cacheSet(key, kept);
@@ -103,7 +103,7 @@ export async function fetchDevices(opts = {}) {
 
 /** Every device's host app (the ads) on screen now: GET /testdata/host-app (src/lib/hostApp.js). */
 export async function fetchHostApp(range = '6h') {
-  const group = scopeGroup(), qs = `?range=${range}${group ? `&group=${encodeURIComponent(group)}` : ''}`;
+  const qs = `?range=${range}`; // every device (the lab's are read by serial)
   return BACKEND ? call(`/api/host-app${qs}`) : call(`${apiBase()}/api/v1/testdata/host-app${qs}`, { 'X-API-Key': apiKey() });
 }
 

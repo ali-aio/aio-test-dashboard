@@ -140,13 +140,13 @@ http.createServer(async (req, res) => {
       if (req.method !== 'GET' && req.method !== 'HEAD') return json(req, res, 405, { error: 'GET' });
       if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
       if (p === '/api/devices') {
-        const g = renamed(url.searchParams.get('group') || CFG.group);
-        return json(req, res, 200, (await mdm.get(`/api/v1/testdata/devices?group=${encodeURIComponent(g)}`, { ttlMs: DEVICES_TTL })).filter(keepDevice), { 'cache-control': `private, max-age=${DEVICES_TTL / 1000}` });
+        // the lab's own device list (LAB_SERIALS in src/lib/device.js), not an MDM group: the groups keep changing
+        return json(req, res, 200, (await mdm.get('/api/v1/testdata/devices', { ttlMs: DEVICES_TTL })).filter(keepDevice), { 'cache-control': `private, max-age=${DEVICES_TTL / 1000}` });
       }
       // which tablets have the host app (the ads) on screen now — Today and the bell
       if (p === '/api/host-app') {
-        const g = renamed(url.searchParams.get('group') || CFG.group), r = ['6h', '24h', '7d'].includes(url.searchParams.get('range')) ? url.searchParams.get('range') : '6h';
-        return json(req, res, 200, await mdm.get(`/api/v1/testdata/host-app?group=${encodeURIComponent(g)}&range=${r}`, { ttlMs: HOSTAPP_TTL }), { 'cache-control': `private, max-age=${HOSTAPP_TTL / 1000}` });
+        const r = ['6h', '24h', '7d'].includes(url.searchParams.get('range')) ? url.searchParams.get('range') : '6h';
+        return json(req, res, 200, await mdm.get(`/api/v1/testdata/host-app?range=${r}`, { ttlMs: HOSTAPP_TTL }), { 'cache-control': `private, max-age=${HOSTAPP_TTL / 1000}` });
       }
       const m = p.match(/^\/api\/history\/([A-Za-z0-9_-]{1,64})$/);
       if (m) {

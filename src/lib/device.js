@@ -87,4 +87,9 @@ export const byBenchOrder = (a, b) => (benchRank.get(a) ?? 1e9) - (benchRank.get
 // Auto plan, alert, export), browser and server alike. 30 Oct 2026: 00848 and 00854 came in with the MDM's
 // HW Testing group — the user: "don't include these in any cycle".
 export const EXCLUDED_SERIALS = new Set(['AT070AABU00848', 'AT070AABU00854']);
-export const keepDevice = (row) => !EXCLUDED_SERIALS.has(row?.serial_number ?? row?.serial);
+// The lab's devices: the bench list itself (BENCH_ORDER), taken from the MDM's full device list whatever group
+// they are in. 30 Oct 2026: the MDM's groups changed twice in a day ("Test Lab units" → "HW Testing" → gone, the T7s
+// spread over Test Cycles, San Jose Office and none), each time leaving the dashboard on a 404. A new T7 on the bench
+// goes into BENCH_ORDER (in its bench place).
+export const LAB_SERIALS = new Set(BENCH_ORDER);
+export const keepDevice = (row) => { const sn = row?.serial_number ?? row?.serial; return LAB_SERIALS.has(sn) && !EXCLUDED_SERIALS.has(sn); };

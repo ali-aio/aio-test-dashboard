@@ -512,6 +512,14 @@ scripts/deploy-lab.sh --dry-run   # connection + "what would go out", changes no
 What the user (Tariq, for the lab) asked for and decided, so a new session doesn't undo it. Keep this list up to date:
 when a request changes a rule here, edit the line (don't add a contradicting one), and add new decisions under their area.
 
+### MDM group
+- **30 Oct 2026: the MDM's "Test Lab units" group became "HW Testing"** (the old name answered 404 and the dashboard showed
+  only the error, right after the lab laptop restarted). HW Testing holds the same lab T7s (+ 00848, 00854; 00875 is in no
+  group). `GROUP_RENAMED` maps the old name to the new in the browser (`scopeGroup` in `data.js`, rewriting the saved Settings
+  value) and on the server (`server.mjs`); the laptop's `server/config.json` and every `data/*.json` were re-labelled
+  "HW Testing" (plan.json's group key too) with the app stopped, backups in `data/backup-2026-10-30/`. "Test Cycles" still
+  exists in the MDM but holds only 20 of them.
+
 ### How to work
 - **After every change:** `npm test`, `npm run build`, commit (with `dist/`), push to `main`, deploy
   (`scripts/deploy-lab.sh`, the lab laptop). Don't ask first; deploying is part of the change.

@@ -32,10 +32,13 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cfgFile = path.join(ROOT, 'server', 'config.json');
 let fileCfg = {};
 try { fileCfg = JSON.parse(fs.readFileSync(cfgFile, 'utf8')); } catch (e) { if (e.code !== 'ENOENT') console.error(`config.json: ${e.message}`); }
+// MDM groups renamed since (30 Oct 2026: "Test Lab units" → "HW Testing"); browsers map it the same way (src/lib/data.js)
+const GROUP_RENAMED = { 'Test Lab units': 'HW Testing' };
+const renamed = g => GROUP_RENAMED[g] || g;
 const CFG = {
   base: (process.env.MDM_BASE || fileCfg.base || 'https://mdm.dev.aioapp.com').replace(/\/$/, ''),
   key: process.env.MDM_API_KEY || fileCfg.apiKey || '',
-  group: process.env.CYCLES_GROUP || fileCfg.group || 'Test Cycles',
+  group: renamed(process.env.CYCLES_GROUP || fileCfg.group || 'Test Cycles'),
   port: +(process.env.PORT || fileCfg.port || 8090),
   t7Port: +(process.env.T7_PORT || fileCfg.t7Port || 8091),
   sweepMin: +(process.env.SWEEP_MIN || fileCfg.sweepMin || 30),
@@ -120,7 +123,7 @@ http.createServer(async (req, res) => {
       if (p === '/api/status') return json(req, res, 200, { ...state, t7Port: CFG.t7Port, client: mdm.stats() });
       if (p === '/api/sweep') { if (req.method !== 'POST') return json(req, res, 405, { error: 'POST' }); await runSweep('manual'); return json(req, res, state.lastError ? 502 : 200, state); }
       if (p === '/api/plan') {
-        const g = (url.searchParams.get('group') || CFG.group).slice(0, 120);
+        const g = renamed(url.searchParams.get('group') || CFG.group).slice(0, 120);
         if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, plan.get(g));
         if (req.method !== 'PUT') return json(req, res, 405, { error: 'GET or PUT' });
         let body; try { body = await readPlanBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
@@ -136,12 +139,12 @@ http.createServer(async (req, res) => {
       if (req.method !== 'GET' && req.method !== 'HEAD') return json(req, res, 405, { error: 'GET' });
       if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
       if (p === '/api/devices') {
-        const g = url.searchParams.get('group') || CFG.group;
+        const g = renamed(url.searchParams.get('group') || CFG.group);
         return json(req, res, 200, await mdm.get(`/api/v1/testdata/devices?group=${encodeURIComponent(g)}`, { ttlMs: DEVICES_TTL }), { 'cache-control': `private, max-age=${DEVICES_TTL / 1000}` });
       }
       // which tablets have the host app (the ads) on screen now — Today and the bell
       if (p === '/api/host-app') {
-        const g = url.searchParams.get('group') || CFG.group, r = ['6h', '24h', '7d'].includes(url.searchParams.get('range')) ? url.searchParams.get('range') : '6h';
+        const g = renamed(url.searchParams.get('group') || CFG.group), r = ['6h', '24h', '7d'].includes(url.searchParams.get('range')) ? url.searchParams.get('range') : '6h';
         return json(req, res, 200, await mdm.get(`/api/v1/testdata/host-app?group=${encodeURIComponent(g)}&range=${r}`, { ttlMs: HOSTAPP_TTL }), { 'cache-control': `private, max-age=${HOSTAPP_TTL / 1000}` });
       }
       const m = p.match(/^\/api\/history\/([A-Za-z0-9_-]{1,64})$/);

@@ -30,7 +30,14 @@ async function call(url, headers) {
 // one lab group, so it's set once (via the scope badge's dropdown) and every page
 // respects it automatically rather than each page pulling the whole fleet and
 // filtering client-side. Restaurant scoping was tried and dropped — group only, for now.
-export function scopeGroup() { return localStorage.getItem('scopeGroup') || ''; }
+// MDM groups that were renamed: a browser that saved the old name moves to the new one (30 Oct 2026: the MDM's
+// "Test Lab units" became "HW Testing" and the old name answered 404, so the dashboard showed nothing)
+export const GROUP_RENAMED = { 'Test Lab units': 'HW Testing' };
+export function scopeGroup() {
+  let g = ''; try { g = localStorage.getItem('scopeGroup') || ''; } catch (e) { return ''; }
+  if (GROUP_RENAMED[g]) { g = GROUP_RENAMED[g]; try { localStorage.setItem('scopeGroup', g); } catch (e) {} }
+  return g;
+}
 
 function clearDeviceCache() {
   try {

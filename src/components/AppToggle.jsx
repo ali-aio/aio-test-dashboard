@@ -6,6 +6,9 @@ import { pollHostApp } from '../lib/fleet.js'
 // 30 Oct 2026). ▶ opens it when it isn't on screen, ■ closes it when it is. Asks first; the server allows lab devices
 // only and logs every command (data/commands.jsonl); the MDM answers within ~20 s ("opened …", "closed …").
 const by = () => { try { return localStorage.getItem('declaredBy') || '' } catch (e) { return '' } }
+// the devices report the change within ~a minute: ask the host-app list again a few times rather than once at 3 s
+// (30 Oct 2026: after Open on all the card still read 0 / 22 while the MDM already had 14 on screen)
+const refreshSoon = () => [3e3, 30e3, 75e3].forEach(ms => setTimeout(() => pollHostApp(true), ms))
 
 export default function AppToggle({ serial, onScreen: live }) {
   const [state, setState] = useState(null) // null | 'busy' | { ok:false, text } (a failure stays shown for a while)
@@ -23,7 +26,7 @@ export default function AppToggle({ serial, onScreen: live }) {
       const ok = r.ok && r.status !== 'failed' && r.status !== 'expired'
       if (ok) { setFlip({ on: action === 'open', at: Date.now() }); setState(null) }
       else { setState({ ok: false, text: r.output || r.error || r.status || `HTTP ${r.http}` }); setTimeout(() => setState(null), 15000) }
-      setTimeout(() => pollHostApp(true), 3000) // the host-app list catches up within a minute; ask sooner
+      refreshSoon()
     } catch (err) { setState({ ok: false, text: err.message }); setTimeout(() => setState(null), 15000) }
   }
   const busy = state === 'busy', res = state && state !== 'busy' ? state : null
@@ -63,7 +66,7 @@ export function AppToggleAll({ serials, onScreenCount }) {
         p.done++; setProg({ ...p })
       }
     }))
-    setLast({ action, at: Date.now() }); setTimeout(() => pollHostApp(true), 3000)
+    setLast({ action, at: Date.now() }); refreshSoon()
   }
   const label = busy ? `${action === 'open' ? 'Opening' : 'Closing'} ${prog.done} / ${prog.total}…` : `${action === 'open' ? 'Open' : 'Close'} on all`
   const result = prog && !busy ? `${prog.total - prog.failed.length} of ${prog.total} done${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null

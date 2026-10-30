@@ -430,7 +430,7 @@ export default function TodayView({ fleet }) {
           const wantAds = !!T.tt?.ads && !T.charging && !ended
           return <Stat label="Ads on screen" warn={off > 0 && (wantAds || off * 2 < known.length)} value={<><span style={wantAds && off ? { color: 'var(--status-critical)' } : undefined}>{on}</span><span className="secondary" style={{ fontSize: 13 }}> / {known.length}</span></>}
             foot={off ? `${off} not showing the app${wantAds ? ' · ads stopped' : ''}` : 'the app in front on every device'}
-            breakdownLabel="Host app (ads) on screen now, every device" breakdownRight breakdownWide
+            breakdownLabel="Host app (ads) on screen now, every device" breakdownRight breakdownWide breakdownNoun="device"
             breakdown={rows.map(r => ({ id: r.sn, label: r.sn, value: r.code === SPAN.on ? 1 : 0, highlight: wantAds && r.x && r.code !== SPAN.on,
               display: r.x ? SPAN_LABEL[r.code] : 'Not reported (old client)',
               hint: r.x?.since ? `· since ${hm(Date.parse(r.x.since))}` : undefined, onClick: () => focusDevice(r.sn),

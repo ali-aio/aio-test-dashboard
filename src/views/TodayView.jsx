@@ -364,7 +364,7 @@ export default function TodayView({ fleet }) {
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />
         <Metric label="Charge rate" value={chRate ? <>{chRate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
           delta={chRate ? `${(chRate / 6).toFixed(2)}% per 10 min · median of ${chRates.length}` : 'needs 20 min on charge'} />
-        <Metric label={`Reaches ${FULL}%`} value={etaFull ? when(etaFull) : medNow != null && medNow >= FULL ? 'Done' : '—'}
+        <Metric label={`Reaches ${FULL}%`} value={etaFull ? <>{hm(etaFull)}{dayKey(etaFull) !== todayKey() && <span className="secondary" style={{ fontSize: 13, fontWeight: 500 }}> {new Date(etaFull).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</> : medNow != null && medNow >= FULL ? 'Done' : '—'}
           delta={etaFull ? `${fmtDur(etaFull - now)} from now` : `${full} of ${charges.by.size} devices at ${FULL}% or more`} />
         </> : <>
         <Metric label={ended ? 'Ran for' : 'Running for'}

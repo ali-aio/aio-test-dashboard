@@ -540,6 +540,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   a load still on at hour 5+, past 14 h + 2 h slack, idling under 2 %/h). It **keeps its data up to the moment it left**
   (`planFor` → `cutAt`), shown as "· left cycle" with the reason on hover. A device starting up to 3 h late is still in.
 - An hour without readings is neither WLC active nor inactive (null), never filled from the run's flag.
+- **Devices in one cycle can leave the charger at different times** (the user, said more than once; 30 Oct 2026: "be careful
+  with it"): every per-device rule — load hours, cycle length, short cycle, drain, the iPhone card's hours — uses **that
+  device's own start**, never the bench's. Any change to such a rule gets a test with a device starting 1–3 h after the
+  bench (see the late-load test, which also has a device unplugged 2 h late).
 - **A run whose load went on late starts then** (the user, 30 Oct 2026: on 29 Oct 00064 / 00280 were "not there"): off the
   charger at 10:00 with the bench but idle (no load, no drain) until the load went on at 11:30, they were filed under Old
   cycles for "no load in hour 1". `adaptCycle` now starts a discharge at its first slot with ≥ 5 min of load when hour 1 had

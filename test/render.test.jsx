@@ -699,6 +699,13 @@ const mdmCases = []
     const busy = slots.map(x => [x[0], x[0] < load ? 10 : x[1], 15, x[3], 300])
     const b = adaptCycle({ serial: 'S1', cycles: [c] }, c, null, { ...ctx, hours: { S1: { h: busy } } })
     want(b.start === t0, 'draining run keeps its start')
+    // devices leave the charger at different times (the user, 30 Oct 2026): one unplugged 2 h after the bench, draining
+    // with its load at once, is the same cycle, held to its own start and 14 h
+    const t2 = t0 + 2 * H, late = []
+    for (let t = t2; t < t2 + 14 * H; t += Q) late.push([t, t < t2 + 3 * H ? 27 : 10, 15, t < t2 + 3 * H ? 15 : 0, 300])
+    const c2 = { start: t2, end: t2 + 14 * H, durationMs: 14 * H, startPct: 100, endPct: 18, reason: 'timed' }
+    const l = adaptCycle({ serial: 'S1', cycles: [c2] }, c2, null, { ...ctx, hours: { S1: { h: late } } })
+    want(l.testType === 'Restaurant Case' && l.start === t2 && l.duration === 14 && !l.short && !l.leftCycle, `late unplug: ${l.testType} · ${l.duration} h · ${l.leftCycle?.why || ''}`)
   })
   check('a charge running now is a Charging Cycle in progress, from any level', () => {
     const now = Date.UTC(2026, 9, 28, 10), M = 60e3

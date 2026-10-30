@@ -541,7 +541,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   drop-down, ▶ / ■ in front of each device (`AppToggle.jsx`), asks first; its rows show just serial and state (no "· since …", no bar; "Other app" for "Another app in front" — the serial never cut off).
   The drop-down is titled **Ads on screen** and its header has **Open on all** → (once sent) **Close on all** (`AppToggleAll`):
   asks first, three commands at a time over the devices listed (the cycle's, taken-out ones excluded), shows "Opening 7 / 22…"
-  then "21 of 22 done · 1 failed" (failures on hover). Before any is sent it offers whichever fits most devices now. Browser → our `POST /api/app/:serial/open|close`
+  then "21 of 22 done · 1 failed" (failures on hover). It follows the **majority** (most with the app on screen → Close on all,
+  else Open on all; the user, 30 Oct 2026), and shows the opposite of a bulk command for 2 min after it while the list catches up. Browser → our `POST /api/app/:serial/open|close`
   (server.mjs: lab devices only via `keepDevice`, the package from the host-app list, else `aio.app.nugget.uatv2`) →
   MDM `POST /api/v1/testdata/devices/{serial}/app/{open|close}?wait=true` (`mdm.command`) — **open wakes the screen first**
   (`…/screen?wait=true` `{"state":"on"}`; the user, 30 Oct 2026: a locked tablet stayed dark), every command appended to

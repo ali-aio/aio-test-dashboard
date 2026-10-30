@@ -36,12 +36,15 @@ export default function AppToggle({ serial, onScreen }) {
 }
 
 // Open / close Nugget on every device in the list at once (the user, 30 Oct 2026): "Open on all", then — once sent —
-// "Close on all". Before any is sent it offers whichever fits most devices now. Three commands at a time; shows
+// "Close on all", by whichever fits most devices (majority). Three commands at a time; shows
 // progress, then how many worked (the failures on hover).
 export function AppToggleAll({ serials, onScreenCount }) {
-  const [last, setLast] = useState(null)       // the last bulk action sent: 'open' | 'close'
+  const [last, setLast] = useState(null)       // the last bulk action sent: { action, at }
   const [prog, setProg] = useState(null)       // { done, total, failed: [] } while running and after
-  const action = last ? (last === 'open' ? 'close' : 'open') : onScreenCount * 2 > serials.length ? 'close' : 'open'
+  // by the majority now (the user, 30 Oct 2026): most devices with the app open → Close on all, else Open on all;
+  // for 2 min after a bulk command, its opposite (the MDM's list takes up to a minute to catch up)
+  const fresh = last && Date.now() - last.at < 120e3
+  const action = fresh ? (last.action === 'open' ? 'close' : 'open') : onScreenCount * 2 > serials.length ? 'close' : 'open'
   const busy = prog && prog.done < prog.total
   const run = async e => {
     e.stopPropagation()
@@ -56,7 +59,7 @@ export function AppToggleAll({ serials, onScreenCount }) {
         p.done++; setProg({ ...p })
       }
     }))
-    setLast(action); setTimeout(() => pollHostApp(true), 3000)
+    setLast({ action, at: Date.now() }); setTimeout(() => pollHostApp(true), 3000)
   }
   const label = busy ? `${action === 'open' ? 'Opening' : 'Closing'} ${prog.done} / ${prog.total}…` : `${action === 'open' ? 'Open' : 'Close'} on all`
   const result = prog && !busy ? `${prog.total - prog.failed.length} of ${prog.total} done${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null

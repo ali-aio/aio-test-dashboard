@@ -433,7 +433,7 @@ export default function TodayView({ fleet }) {
             breakdownLabel="Host app (ads) on screen now, every device" breakdownRight breakdownWide breakdownNoun="device"
             breakdown={rows.map(r => ({ id: r.sn, label: r.sn, value: r.code === SPAN.on ? 1 : 0, highlight: wantAds && r.x && r.code !== SPAN.on,
               display: r.x ? SPAN_LABEL[r.code] : 'Not reported (old client)',
-              hint: r.x?.since ? `· since ${hm(Date.parse(r.x.since))}` : undefined, onClick: () => focusDevice(r.sn),
+              onClick: () => focusDevice(r.sn), // no "· since …" after the serial (the user, 30 Oct 2026: it only got cut off)
               // ▶ open / ■ close Nugget on that tablet (the user, 30 Oct 2026)
               action: <AppToggle serial={r.sn} onScreen={r.code === SPAN.on} /> }))} />
         })()}

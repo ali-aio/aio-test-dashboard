@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } fro
 import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
 import PartStatus from '../components/PartStatus.jsx'
 import PhoneOnPad from '../components/PhoneOnPad.jsx'
-import AppToggle from '../components/AppToggle.jsx'
+import AppToggle, { AppToggleAll } from '../components/AppToggle.jsx'
 import { subscribePhone, getPhone, startPhoneSync, pendingOuts, setPendingOut } from '../lib/phoneLog.js'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
@@ -431,6 +431,7 @@ export default function TodayView({ fleet }) {
           return <Stat label="Ads on screen" warn={off > 0 && (wantAds || off * 2 < known.length)} value={<><span style={wantAds && off ? { color: 'var(--status-critical)' } : undefined}>{on}</span><span className="secondary" style={{ fontSize: 13 }}> / {known.length}</span></>}
             foot={off ? `${off} not showing the app${wantAds ? ' · ads stopped' : ''}` : 'the app in front on every device'}
             breakdownLabel="Ads on screen" breakdownRight breakdownWide breakdownNoun="device"
+            breakdownAction={<AppToggleAll serials={rows.map(r => r.sn)} onScreenCount={on} />}
             breakdown={rows.map(r => ({ id: r.sn, label: r.sn, value: r.code === SPAN.on ? 1 : 0, highlight: wantAds && r.x && r.code !== SPAN.on,
               // short states, so the serial is never cut off (the user, 30 Oct 2026: "Another app in front" hid it)
               display: r.x ? (r.code === SPAN.otherApp ? 'Other app' : SPAN_LABEL[r.code]) : 'Not reported',

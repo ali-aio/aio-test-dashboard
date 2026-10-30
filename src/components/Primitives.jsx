@@ -38,12 +38,13 @@ import { STATUS_ICON } from '../lib/palette.js'
  * Stat tile: label · value · optional foot. Proportional figures — tabular
  * numerals make a display-size number look loose at this size.
  *
+ * `breakdownAction`: a control in the drop-down's header (Today · Ads on screen: Open / Close on all).
  * `warn` gives the tile a yellow border: some devices behave differently from the rest.
  * Pass `breakdown` to make the tile open a popover showing what the number is
  * made of: [{ id, label, value, hint?, onClick? }]. The tile stays readable as
  * a plain figure; the detail is one click away rather than another six cards.
  */
-export function Stat({ label, value, unit, foot, hero = false, warn = false, breakdown, breakdownLabel, breakdownWide, breakdownRight, breakdownNoun = 'group' }) {
+export function Stat({ label, value, unit, foot, hero = false, warn = false, breakdown, breakdownLabel, breakdownWide, breakdownRight, breakdownNoun = 'group', breakdownAction = null }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const popRef = useKeepOnScreen(open)
@@ -97,6 +98,7 @@ export function Stat({ label, value, unit, foot, hero = false, warn = false, bre
           <div className="files-head">
             <strong>{breakdownLabel ?? label}</strong>
             <span className="hint">{breakdown.length} {breakdownNoun}{breakdown.length === 1 ? '' : 's'}</span>
+            {breakdownAction /* e.g. "Open on all" on Today's Ads on screen */}
           </div>
           <div className="stat-breakdown">
             {breakdown.map((row) => {

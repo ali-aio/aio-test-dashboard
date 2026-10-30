@@ -34,3 +34,38 @@ export default function AppToggle({ serial, onScreen }) {
     </button>
   )
 }
+
+// Open / close Nugget on every device in the list at once (the user, 30 Oct 2026): "Open on all", then — once sent —
+// "Close on all". Before any is sent it offers whichever fits most devices now. Three commands at a time; shows
+// progress, then how many worked (the failures on hover).
+export function AppToggleAll({ serials, onScreenCount }) {
+  const [last, setLast] = useState(null)       // the last bulk action sent: 'open' | 'close'
+  const [prog, setProg] = useState(null)       // { done, total, failed: [] } while running and after
+  const action = last ? (last === 'open' ? 'close' : 'open') : onScreenCount * 2 > serials.length ? 'close' : 'open'
+  const busy = prog && prog.done < prog.total
+  const run = async e => {
+    e.stopPropagation()
+    if (!serials.length || !confirm(`${action === 'open' ? 'Open' : 'Close'} Nugget on all ${serials.length} devices?`)) return
+    const p = { done: 0, total: serials.length, failed: [] }; setProg({ ...p })
+    const queue = [...serials], who = by()
+    await Promise.all([0, 1, 2].map(async () => {
+      while (queue.length) {
+        const sn = queue.shift()
+        try { const r = await appCommand(sn, action, who); if (!r.ok || r.status === 'failed' || r.status === 'expired') p.failed.push(`${sn}: ${r.output || r.error || r.status || r.http}`) }
+        catch (err) { p.failed.push(`${sn}: ${err.message}`) }
+        p.done++; setProg({ ...p })
+      }
+    }))
+    setLast(action); setTimeout(() => pollHostApp(true), 3000)
+  }
+  const label = busy ? `${action === 'open' ? 'Opening' : 'Closing'} ${prog.done} / ${prog.total}…` : `${action === 'open' ? 'Open' : 'Close'} on all`
+  const result = prog && !busy ? `${prog.total - prog.failed.length} of ${prog.total} done${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null
+  return (
+    <span className="app-all">
+      {result && <span className={`hint${prog.failed.length ? ' app-all-bad' : ''}`} title={prog.failed.join('\n') || undefined}>{result}</span>}
+      <button type="button" className="btn btn-sm" disabled={busy || !serials.length} onClick={run}
+        title={`${action === 'open' ? 'Open' : 'Close'} Nugget on every device in this list`}>
+        {busy && <span className="spin" style={{ width: 11, height: 11 }} />} {label}</button>
+    </span>
+  )
+}

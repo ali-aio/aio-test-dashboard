@@ -2218,3 +2218,7 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 .sb-row-wrap .sb-label { flex: 1 0 auto; }
 .sb-row-wrap .sb-bar { display: none; }
 .sb-row-wrap .sb-value { margin-left: auto; white-space: nowrap; }
+/* Open / Close on all (Today · Ads on screen drop-down header) */
+.app-all { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+.app-all .btn { display: inline-flex; align-items: center; gap: 6px; }
+.app-all-bad { color: var(--status-critical); }

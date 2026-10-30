@@ -118,8 +118,14 @@ export default function TodayView({ fleet }) {
       return { key: k, running: true, status: 'unclassified', testType: null, tt: null, src: null, decl: null, pendingOut: true,
         serials: DEV.map(d => d.serial).filter(s => !gone.has(s)), removed: out, startMs: bench.start, endMs: now + H, overnight: false, cycleNo: 1, cycleCount: 1 }
     }
-    if (!cycleAt(decls0, now) && chargingMost) {
-      const starts = [...charges.by.values()].map(c => c.t)
+    // Back on charge = the cycle is over, whatever window the plan gives it (the user, 30 Oct 2026: a Restaurant Case
+    // planned to 02:29 still showed at 21:21, its devices on charge since ~20:30). A planned cycle running now gives way
+    // to the Charging Cycle once most devices went on charge at least an hour after it started.
+    const runningNow = cycleAt(decls0, now)
+    const chargeStarts = [...charges.by.values()].map(c => c.t)
+    const backOnCharge = chargingMost && (!runningNow || median(chargeStarts) > runningNow.startMs + H)
+    if (backOnCharge) {
+      const starts = chargeStarts
       return { key: todayKey(), charging: true, status: 'inferred', testType: 'charging', tt: testType('charging'), src: null, decl: null,
         serials: [...charges.by.keys()], removed: [], startMs: median(starts), endMs: now + H, overnight: false, cycleNo: 1, cycleCount: 1 }
     }

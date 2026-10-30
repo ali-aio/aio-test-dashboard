@@ -660,6 +660,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 In order: the planned cycle running now → a bench off the charger whose test isn't named yet, **"Cycle running · test
 not known yet"** → most devices on charge, **Charging Cycle** → a cycle that **Ended** ≤ 6 h ago → next planned →
 "No test set" (which times no run).
+- **Back on charge = the cycle is over**, whatever end time the plan gives it (the user, 30 Oct 2026: "once the device is
+  put on charge the cycle ends there" — a Restaurant Case planned to 02:29 still showed at 21:21, its devices on charge since
+  ~20:30). A planned cycle running now gives way to the **Charging Cycle** once most reporting devices are on charge and
+  went on it at least 1 h after the cycle started (`backOnCharge` in `TodayView.jsx`).
 - A bench's start is when the **charger flag switches off** (≥ 90 %, within 20 h), even while every device still reads
   100 % (21 Oct: right after off-charge it showed "No test set · Running for 11h 57m" from the night before). The charts
   start at that day's cycle start (the bench off the charger, ~10:00), not before.

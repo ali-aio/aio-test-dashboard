@@ -543,9 +543,9 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   asks first, three commands at a time over the devices listed (the cycle's, taken-out ones excluded), shows "Opening 7 / 22…"
   then "21 of 22 done · 1 failed" (failures on hover). Before any is sent it offers whichever fits most devices now. Browser → our `POST /api/app/:serial/open|close`
   (server.mjs: lab devices only via `keepDevice`, the package from the host-app list, else `aio.app.nugget.uatv2`) →
-  MDM `POST /api/v1/testdata/devices/{serial}/app/{open|close}?wait=true` (`mdm.command`), every command appended to
-  `data/commands.jsonl` (gitignored) with who / when / answer. The MDM also has screen on/off (`…/screen`, `{"state"}`) —
-  not wired in. Nothing else sends commands.
+  MDM `POST /api/v1/testdata/devices/{serial}/app/{open|close}?wait=true` (`mdm.command`) — **open wakes the screen first**
+  (`…/screen?wait=true` `{"state":"on"}`; the user, 30 Oct 2026: a locked tablet stayed dark), every command appended to
+  `data/commands.jsonl` (gitignored) with who / when / answer. Screen off is not wired in. Nothing else sends commands.
 
 ### What counts in a test
 - **Nothing before 25 Sep 2026** counts in any test (`PLAN_FROM`); earlier runs are Old cycles.

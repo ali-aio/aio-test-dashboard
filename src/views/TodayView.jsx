@@ -430,7 +430,7 @@ export default function TodayView({ fleet }) {
           const wantAds = !!T.tt?.ads && !T.charging && !ended
           return <Stat label="Ads on screen" warn={off > 0 && (wantAds || off * 2 < known.length)} value={<><span style={wantAds && off ? { color: 'var(--status-critical)' } : undefined}>{on}</span><span className="secondary" style={{ fontSize: 13 }}> / {known.length}</span></>}
             foot={off ? `${off} not showing the app${wantAds ? ' · ads stopped' : ''}` : 'the app in front on every device'}
-            breakdownLabel="Host app (ads) on screen now, every device" breakdownRight breakdownWide breakdownNoun="device"
+            breakdownLabel="Ads on screen" breakdownRight breakdownWide breakdownNoun="device"
             breakdown={rows.map(r => ({ id: r.sn, label: r.sn, value: r.code === SPAN.on ? 1 : 0, highlight: wantAds && r.x && r.code !== SPAN.on,
               // short states, so the serial is never cut off (the user, 30 Oct 2026: "Another app in front" hid it)
               display: r.x ? (r.code === SPAN.otherApp ? 'Other app' : SPAN_LABEL[r.code]) : 'Not reported',

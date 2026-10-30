@@ -550,6 +550,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   with it"): every per-device rule — load hours, cycle length, short cycle, drain, the iPhone card's hours — uses **that
   device's own start**, never the bench's. Any change to such a rule gets a test with a device starting 1–3 h after the
   bench (see the late-load test, which also has a device unplugged 2 h late).
+- **A plan entry can list devices whose load the lab ran its own way** (`noLoadCheck: [serials]`; the user, 30 Oct 2026: "add
+  the 30-minute gap devices also in today's cycle"): their load hours aren't checked (`skipLoad` in `plannedTest` /
+  `leftTest`), so they stay in the cycle instead of going to Old cycles or "left cycle". Set on 30 Oct for every bench
+  device except 00064 / 00280 / 00790 / 00606 / 00485 (the load-3-h ones). Hours, drains and curves still come from their readings.
 - **A run whose load went on late starts then** (the user, 30 Oct 2026: on 29 Oct 00064 / 00280 were "not there"): off the
   charger at 10:00 with the bench but idle (no load, no drain) until the load went on at 11:30, they were filed under Old
   cycles for "no load in hour 1". `adaptCycle` now starts a discharge at its first slot with ≥ 5 min of load when hour 1 had

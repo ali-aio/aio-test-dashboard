@@ -699,6 +699,14 @@ const mdmCases = []
     const busy = slots.map(x => [x[0], x[0] < load ? 10 : x[1], 15, x[3], 300])
     const b = adaptCycle({ serial: 'S1', cycles: [c] }, c, null, { ...ctx, hours: { S1: { h: busy } } })
     want(b.start === t0, 'draining run keeps its start')
+    // a device whose load the lab ran its own way that cycle (noLoadCheck on the entry, 30 Oct 2026: 30-min load gaps)
+    // stays in the cycle though hour 1 had little load
+    const gaps = slots.map(x => [x[0], 20, 15, Math.floor((x[0] - t0) / (30 * 60e3)) % 2 ? 15 : 0, 300])
+    const gctx = { ...ctx, hours: { S1: { h: gaps } } }
+    const g0 = adaptCycle({ serial: 'S1', cycles: [c] }, c, null, gctx)
+    const g1 = adaptCycle({ serial: 'S1', cycles: [c] }, c, null, { ...gctx, decls: [{ ...decls[0], noLoadCheck: ['S1'] }] })
+    want(g0.testType !== 'Restaurant Case' || g0.leftCycle, 'gaps without the list: not a plain Restaurant Case run')
+    want(g1.testType === 'Restaurant Case' && !g1.leftCycle, `gaps with noLoadCheck: ${g1.testType} ${g1.leftCycle?.why || ''}`)
     // devices leave the charger at different times (the user, 30 Oct 2026): one unplugged 2 h after the bench, draining
     // with its load at once, is the same cycle, held to its own start and 14 h
     const t2 = t0 + 2 * H, late = []

@@ -46,7 +46,7 @@ const SHORT_RUN_MIN_H = 3; // an interrupted run shorter than this inside a plan
 /** Where a run stops being its test: { cutAt, why } (it left the cycle then — its data up to
  *  that moment still counts, the lab's choice, Oct 2026: devices are often taken out after a
  *  few hours), { out: true } (it never ran the test), or {} (all of it counts). */
-function leftTest(cycle, name) {
+function leftTest(cycle, name, { skipLoad = false } = {}) {
   if (cycle.charging) return {};
   const h = (cycle.durationMs ?? ((cycle.end ?? cycle.start) - cycle.start)) / H;
   const tt = TEST_TYPES.find(t => t.name === name);
@@ -56,7 +56,8 @@ function leftTest(cycle, name) {
   // a test with a set load time (`loadHours`: Restaurant Case, WLC + Discharge — 3 h), hour by
   // hour: the WLC active in each of the first `loadHours` hours, inactive from the hour after the
   // next (hour 4 of a 3 h load is when it comes off). Hours with no pad readings are not judged.
-  if (tt?.loadHours && cycle.padHours) {
+  // (skipLoad: the lab ran this device's load its own way that cycle — `noLoadCheck` on the plan entry)
+  if (tt?.loadHours && cycle.padHours && !skipLoad) {
     // readings for the run, but none in its load hours: the load can't be confirmed
     if (cycle.padHours.some(v => v != null) && cycle.padHours.slice(0, tt.loadHours).every(v => v == null)) return { out: true };
     for (let k = 0; k < cycle.padHours.length; k++) {
@@ -81,9 +82,9 @@ export const testTypeFor = (cycle, ctx, pctAt) => planFor(cycle, ctx, pctAt).nam
  *  at a moment (default: a straight line from start to end), for the drain check. */
 export function planFor(cycle, ctx, pctAt) {
   const field = cycle.charging ? FIELD_CHARGING : FIELD_DISCHARGE;
-  const { name, removedAt } = plannedTest(cycle, ctx);
+  const { name, removedAt, skipLoad } = plannedTest(cycle, ctx);
   if (name === FIELD_DISCHARGE || name === FIELD_CHARGING || cycle.start < PLAN_FROM) return { name: field };
-  const left = leftTest(cycle, name);
+  const left = leftTest(cycle, name, { skipLoad });
   if (left.out) return { name: field };
   let cutAt = left.cutAt ?? null, why = left.why ?? null;
   if (removedAt != null && (cutAt == null || removedAt < cutAt)) { cutAt = removedAt; why = 'taken out of the cycle'; }
@@ -116,7 +117,10 @@ function plannedTest(cycle, { decls, rota, DEV }) {
     const out = (hit.decl.removed || []).filter(r => r.serial === cycle.serial && r.at < (cycle.end ?? cycle.start)).map(r => r.at);
     const removedAt = out.length ? Math.min(...out) : null;
     if (removedAt != null && removedAt <= cycle.start) return { name: FIELD_DISCHARGE };
-    return { name: ttById(hit.decl.testType)?.name || FIELD_DISCHARGE, removedAt };
+    // devices whose load the lab ran differently that cycle (30 Oct 2026: load with 30-min gaps, WLC switched from the MDM)
+    // are still in it — the user: "add the 30-minute gap devices in today's cycle"; their load hours are not checked
+    const skipLoad = (hit.decl.noLoadCheck || []).includes(cycle.serial);
+    return { name: ttById(hit.decl.testType)?.name || FIELD_DISCHARGE, removedAt, skipLoad };
   }
   const key = dayKey(cycle.start);
   const r = resolveDay(key, { decls: [], rota, ran: 1, devices: 0 });

@@ -540,6 +540,11 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   a load still on at hour 5+, past 14 h + 2 h slack, idling under 2 %/h). It **keeps its data up to the moment it left**
   (`planFor` → `cutAt`), shown as "· left cycle" with the reason on hover. A device starting up to 3 h late is still in.
 - An hour without readings is neither WLC active nor inactive (null), never filled from the run's flag.
+- **A run whose load went on late starts then** (the user, 30 Oct 2026: on 29 Oct 00064 / 00280 were "not there"): off the
+  charger at 10:00 with the bench but idle (no load, no drain) until the load went on at 11:30, they were filed under Old
+  cycles for "no load in hour 1". `adaptCycle` now starts a discharge at its first slot with ≥ 5 min of load when hour 1 had
+  none, that load came 45 min – 3 h after it left the charger, and it fell ≤ 2 points before it (`lateStart` on the cycle);
+  its curve is shifted to match. Runs that drain from the start never move (a 14 h Restaurant Case can't turn short).
 - **A load on the pad = `wlc_status` > 0** (`padLoad` in `src/lib/pad.js`, used wherever wlc_status is read): **-1 is not a
   load** (the pad's error / not-known code), and in the 15-min slots **a lone reading with a load between two without is a
   blip** (`dropLoneLoads`). 26 Oct 2026: the Idle Cycle's per-hour CSV showed 12 and 6 min of load on 00485 / 00606 on

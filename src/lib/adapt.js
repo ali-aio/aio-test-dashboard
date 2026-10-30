@@ -228,6 +228,25 @@ export function adaptCycle(d, c0, rows, ctx) {
   // run's own pad state (on if the pad was on at any point) stands in. Restaurant Case's
   // "pad on / pad off" per hour reads this: its first 3 h on, the rest off.
   const slots = ctx.hours?.[d.serial]?.h;
+  // Off the charger but idle at first (no load, no drain), the load placed later: the run starts
+  // when the load goes on, up to 3 h late. 29 Oct 2026: 00064 / 00280 came off the charger at 10:00
+  // with the bench but got their load at 11:30, so "no load in hour 1" filed their Restaurant Case
+  // under Old cycles (the user: "280 and 064 are not there"). Only when hour 1 had no load, the load
+  // then came within 3 h, and the battery fell ≤ 2 points before it — so no ordinary run moves.
+  if (!charging && slots?.length) {
+    const i0 = firstAtOrAfter(slots.length, k => slots[k][0], c.start), firstLoad = slots.findIndex((x, k) => k >= i0 && x[3] >= 5)
+    if (firstLoad > i0 && slots[firstLoad][0] - c.start <= 3 * H && slots[firstLoad][0] - c.start >= 45 * 60e3 && slots[firstLoad][0] < c.end) {
+      const idle = slots.slice(i0, firstLoad), dropped = idle.reduce((a, x) => a + (x[1] || 0), 0) / 10
+      if (idle.every(x => !(x[3] > 0)) && dropped <= 2) {
+        const at = slots[firstLoad][0], sh = (at - c.start) / H
+        const v0 = series.length ? (series.filter(p => p.t <= sh).pop()?.v ?? series[0].v) : c.startPct
+        series = [{ t: 0, v: v0 }, ...series.filter(p => p.t > sh).map(p => ({ t: round(p.t - sh, 3), v: p.v }))]
+        tempSeries = tempSeries.filter(p => p.t >= sh).map(p => ({ ...p, t: round(p.t - sh, 3) }))
+        c = { ...c, start: at, durationMs: c.end - at, startPct: v0, lateStart: { from: c.start, idleH: round(sh, 2) } }
+        duration = c.durationMs / H
+      }
+    }
+  }
   // measured: true / false from the slots, null with under 15 min of them in the hour
   // (slots are in time order: start at the hour's first by binary search, stop past its end)
   const padMeasured = h => {

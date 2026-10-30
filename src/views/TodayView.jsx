@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } fro
 import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
 import PartStatus from '../components/PartStatus.jsx'
 import PhoneOnPad from '../components/PhoneOnPad.jsx'
+import AppToggle from '../components/AppToggle.jsx'
 import { subscribePhone, getPhone, startPhoneSync, pendingOuts, setPendingOut } from '../lib/phoneLog.js'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
@@ -432,7 +433,9 @@ export default function TodayView({ fleet }) {
             breakdownLabel="Host app (ads) on screen now, every device" breakdownRight breakdownWide
             breakdown={rows.map(r => ({ id: r.sn, label: r.sn, value: r.code === SPAN.on ? 1 : 0, highlight: wantAds && r.x && r.code !== SPAN.on,
               display: r.x ? SPAN_LABEL[r.code] : 'Not reported (old client)',
-              hint: r.x?.since ? `· since ${hm(Date.parse(r.x.since))}` : undefined, onClick: () => focusDevice(r.sn) }))} />
+              hint: r.x?.since ? `· since ${hm(Date.parse(r.x.since))}` : undefined, onClick: () => focusDevice(r.sn),
+              // ▶ open / ■ close Nugget on that tablet (the user, 30 Oct 2026)
+              action: <AppToggle serial={r.sn} onScreen={r.code === SPAN.on} /> }))} />
         })()}
       </div>}
 

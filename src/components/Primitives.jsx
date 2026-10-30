@@ -101,7 +101,7 @@ export function Stat({ label, value, unit, foot, hero = false, warn = false, bre
           <div className="stat-breakdown">
             {breakdown.map((row) => {
               const Tag = row.onClick ? 'button' : 'div'
-              return (
+              const el = (
                 <Tag key={row.id ?? row.label} type={row.onClick ? 'button' : undefined}
                   className={`sb-row${row.onClick ? ' is-clickable' : ''}${row.highlight ? ' is-highlight' : ''}${row.warn ? ' is-warn' : ''}`}
                   onClick={row.onClick ? () => { row.onClick(); setOpen(false) } : undefined}>
@@ -118,6 +118,8 @@ export function Stat({ label, value, unit, foot, hero = false, warn = false, bre
                   <span className="sb-value">{row.display ?? row.value}</span>
                 </Tag>
               )
+              // `action`: a control in front of the row (e.g. open / close Nugget on Today), outside the row's button
+              return row.action ? <div key={row.id ?? row.label} className="sb-row-wrap"><span className="sb-action">{row.action}</span>{el}</div> : el
             })}
           </div>
         </div>

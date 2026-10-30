@@ -101,6 +101,14 @@ export async function fetchDevices(opts = {}) {
   return kept;
 }
 
+/** Open or close Nugget (the device's role app) on a lab tablet, through our server only (it holds the key and
+ *  allows lab devices only). Resolves to the MDM's answer: { status, done, output } or { error }. */
+export async function appCommand(serial, action, by = '') {
+  const r = await fetch(`/api/app/${encodeURIComponent(serial)}/${action}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ by }) });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  return { ok: r.ok, http: r.status, ...(j || {}) };
+}
+
 /** Every device's host app (the ads) on screen now: GET /testdata/host-app (src/lib/hostApp.js). */
 export async function fetchHostApp(range = '6h') {
   const qs = `?range=${range}`; // every device (the lab's are read by serial)

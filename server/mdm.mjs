@@ -1,7 +1,7 @@
 // The one MDM client. Every upstream call — sweep or browser proxy — goes through here, so the
 // MDM sees at most `concurrency` requests in flight from this host, with `minGapMs` between
 // launches, and identical requests inside `ttlMs` are answered from cache (one in-flight
-// fetch is shared by everyone waiting on it). Read-only: GET with the QA key, nothing else.
+// fetch is shared by everyone waiting on it). Read-only GET with the QA key — except `command`, below.
 export function createClient({ base, key, concurrency = 3, minGapMs = 120, log = () => {} }) {
   const cache = new Map(); // url → { at, p: Promise<json>, size }
   let inFlight = 0, lastStart = 0; const queue = [];
@@ -27,5 +27,13 @@ export function createClient({ base, key, concurrency = 3, minGapMs = 120, log =
   }
   // forget entries older than 10 min so the map doesn't grow with every history range ever asked
   setInterval(() => { const cut = Date.now() - 600e3; for (const [k, v] of cache) if (v.at < cut) cache.delete(k); }, 60e3).unref();
-  return { get, stats: () => ({ ...stats, inFlight, queue: queue.length, cacheEntries: cache.size }) };
+  // The one exception to read-only (the user, 30 Oct 2026): open / close the device's role app (Nugget) through
+  // the MDM's testdata app routes. Not queued or cached; the server only calls it for lab devices (server.mjs).
+  async function command(url, body) {
+    const res = await fetch(base + url, { method: 'POST', headers: { 'X-API-Key': key, 'content-type': 'application/json' },
+      body: JSON.stringify(body), signal: AbortSignal.timeout(30e3) });
+    let json = null; try { json = await res.json(); } catch (e) {}
+    return { status: res.status, json };
+  }
+  return { get, command, stats: () => ({ ...stats, inFlight, queue: queue.length, cacheEntries: cache.size }) };
 }

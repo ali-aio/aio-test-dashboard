@@ -2203,3 +2203,14 @@ tr.takeout-row .takeout { border-bottom: 0; border-left: 3px solid var(--status-
 .cycle-note:hover { background: var(--wash); }
 .cycle-note b { margin-right: 6px; }
 .cycle-note-edit { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-width: 720px; }
+
+/* a control in front of a breakdown row (Today · Ads on screen: open / close Nugget) */
+.sb-row-wrap { display: flex; align-items: center; gap: 4px; }
+.sb-row-wrap > .sb-row { flex: 1; min-width: 0; }
+.sb-action { flex: none; display: inline-flex; }
+.app-btn { width: 26px; height: 26px; display: inline-grid; place-items: center; border-radius: 6px; border: 1px solid var(--border-strong);
+  background: var(--surface-1); color: var(--text-primary); cursor: pointer; padding: 0; }
+.app-btn:hover { background: var(--wash); }
+.app-btn:disabled { opacity: .6; cursor: progress; }
+.app-btn.is-ok { color: var(--status-good); border-color: var(--status-good); }
+.app-btn.is-bad { color: var(--status-critical); border-color: var(--status-critical); }

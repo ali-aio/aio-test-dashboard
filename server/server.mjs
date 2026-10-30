@@ -12,6 +12,7 @@
 //   · POST /api/sweep    → run a sweep now (the Settings "Check for new cycles" button)
 //   · GET/PUT /api/plan  → the shared Cycle plan, data/plan.json (server/plan.mjs) — our own
 //   · GET/POST /api/phone → iPhone battery typed in on Today, data/phone.json (server/phone.mjs) — our own
+//   · POST /api/app/:serial/open|close → open / close Nugget on a lab tablet (MDM testdata app routes), logged in data/commands.jsonl
 //     file, the one thing a browser can write; never anything on the MDM
 //
 // Every upstream call goes through server/mdm.mjs (3 in flight, 120 ms apart, coalesced).
@@ -136,6 +137,22 @@ http.createServer(async (req, res) => {
         if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });
         let body; try { body = await readPhoneBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
         return json(req, res, 200, phone.post(body));
+      }
+      // Open / close Nugget on a lab tablet (the user, 30 Oct 2026, Today's "Ads on screen" card). Lab devices only
+      // (LAB_SERIALS), only open / close, the device's own role app from the host-app list; every command is logged.
+      const am = p.match(/^\/api\/app\/([A-Za-z0-9]{6,32})\/(open|close)$/);
+      if (am) {
+        if (req.method !== 'POST') return json(req, res, 405, { error: 'POST' });
+        if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
+        const [, serial, action] = am;
+        if (!keepDevice({ serial_number: serial })) return json(req, res, 403, { error: `${serial} is not a lab device` });
+        let body = {}; try { body = await readPhoneBody(req); } catch (e) {}
+        let pkg = 'aio.app.nugget.uatv2';
+        try { const ha = await mdm.get('/api/v1/testdata/host-app?range=6h', { ttlMs: HOSTAPP_TTL }); pkg = (ha.devices || []).find(x => x.serial_number === serial)?.package || pkg; } catch (e) {}
+        const r = await mdm.command(`/api/v1/testdata/devices/${serial}/app/${action}?wait=true`, { package: pkg });
+        const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+        try { fs.appendFileSync(path.join(ROOT, 'data', 'commands.jsonl'), JSON.stringify({ at: Date.now(), serial, action, package: pkg, by: String(body.by || '').slice(0, 60), ip, status: r.status, result: r.json }) + '\n'); } catch (e) {}
+        return json(req, res, r.status, r.json || { error: `MDM answered ${r.status}` });
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') return json(req, res, 405, { error: 'GET' });
       if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });

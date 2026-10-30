@@ -536,7 +536,13 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - **Never drive the user's own browser.** To check a page, use a separate headless browser profile.
 - **The lab's cycle sheets** (`/home/tariq/Documents/cycles-record`, CSVs) are inconsistent: use them **only** for
   Drain rate by battery age (`scripts/sheet-runs.mjs` → `data/sheet-runs.json`), never for the plan, Auto or Health.
-- Read-only toward the MDM and devices; our own `data/*.json` (incl. `/api/plan`) may be written.
+- Read-only toward the MDM and devices; our own `data/*.json` (incl. `/api/plan`) may be written. **One exception, the
+  user's decision (30 Oct 2026): open / close Nugget** (the device's role app) on a lab tablet — Today → Ads on screen
+  drop-down, ▶ / ■ in front of each device (`AppToggle.jsx`), asks first. Browser → our `POST /api/app/:serial/open|close`
+  (server.mjs: lab devices only via `keepDevice`, the package from the host-app list, else `aio.app.nugget.uatv2`) →
+  MDM `POST /api/v1/testdata/devices/{serial}/app/{open|close}?wait=true` (`mdm.command`), every command appended to
+  `data/commands.jsonl` (gitignored) with who / when / answer. The MDM also has screen on/off (`…/screen`, `{"state"}`) —
+  not wired in. Nothing else sends commands.
 
 ### What counts in a test
 - **Nothing before 25 Sep 2026** counts in any test (`PLAN_FROM`); earlier runs are Old cycles.

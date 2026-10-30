@@ -26,7 +26,7 @@ import RangePicker from '../src/components/RangePicker.jsx'
 import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
-import { testTypeFor, planFor, temperaturePhases, runningCharge, adaptCycle } from '../src/lib/adapt.js'
+import { testTypeFor, planFor, temperaturePhases, runningCharge, adaptCycle, CTX } from '../src/lib/adapt.js'
 import { thermalTimingByDevice } from '../src/lib/thermal.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
@@ -714,6 +714,22 @@ const mdmCases = []
       { serial_number: 'AT070AABU09999', groups: ['Test Cycles'] }]
     const kept = rows.filter(keepDevice).map(r => r.serial_number.slice(-5)).join()
     want(kept === '00790,00606,00142', kept)
+  })
+  check('a planned Restaurant Case ended early (recharged at 7.6 h) is a short cycle, not dropped', () => {
+    // 30 Oct 2026: the bench went back on charge after 7.6 h at ~35 %; the detector called it "interrupted" (< 8 h, > 20 %)
+    const H = 3600e3, t0 = Date.UTC(2026, 9, 30, 7, 30), end = t0 + 7.6 * H
+    const decls = [{ id: 'Y', testType: 'restaurant', from: '2026-10-30', to: '2026-10-30', startTime: '12:25', endTime: '02:29', spanDays: 1,
+      repeat: 'none', group: { kind: 'serials', serials: ['S2', 'S3'] } }]
+    const key = 'cyclePlan:decls:v1:SHORTTEST', prev = CTX.group
+    localStorage.setItem(key, JSON.stringify(decls)); CTX.group = 'SHORTTEST'
+    try {
+      const run = { start: t0, end, startPct: 100, endPct: 35, reason: 'recharged' }
+      const low = { ...run, startPct: 89 } // not full at the start: not a cycle (the 95 % rule stands)
+      const out = adaptAll([{ serial: 'S2', cycles: [], interrupted: [run], charges: [] }, { serial: 'S3', cycles: [], interrupted: [low], charges: [] }])
+      const s2 = out.find(c => c.serial === 'S2')
+      want(s2 && s2.testType === 'Restaurant Case' && s2.short, JSON.stringify(s2 && { t: s2.testType, short: s2.short }))
+      want(!out.some(c => c.serial === 'S3'), 'a run that started at 89 % is not counted')
+    } finally { CTX.group = prev; localStorage.removeItem(key) }
   })
   check('a charge running now is a Charging Cycle in progress, from any level', () => {
     const now = Date.UTC(2026, 9, 28, 10), M = 60e3

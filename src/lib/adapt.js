@@ -42,6 +42,7 @@ export const CYCLE_SLACK_H = 2;
 export const FULL_CYCLE_MARGIN_H = 0.5;
 const MIN_DRAIN = 2; // %/h, as the Auto plan's "not a test"
 const MIN_KEPT_H = 1; // a device that left the cycle within its first hour gave the test nothing
+const SHORT_RUN_MIN_H = 3; // an interrupted run shorter than this inside a planned cycle is not counted as its short cycle
 /** Where a run stops being its test: { cutAt, why } (it left the cycle then — its data up to
  *  that moment still counts, the lab's choice, Oct 2026: devices are often taken out after a
  *  few hours), { out: true } (it never ran the test), or {} (all of it counts). */
@@ -374,7 +375,14 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
     // finished cycles, plus the one running now (from the live readings) so a test in
     // progress shows on the Overview before it ends
     const run = runningCycle(rows, d.cycles[d.cycles.length - 1]);
-    for (const c of run ? [...d.cycles, run] : d.cycles) {
+    // A planned fixed-time cycle (Restaurant Case, 14 h) the bench ended early is a SHORT cycle of that test, not
+    // nothing: the detector files a run recharged before 8 h above 20 % as "interrupted" (30 Oct 2026: the bench went
+    // back on charge after 7.6 h at ~35 %, and the user said "today's cycle was short"). Only a run that started full
+    // (≥ 95 %), ran ≥ 3 h and was recharged, inside a planned cycle of a test with a fixed cycle time.
+    const cutShort = (d.interrupted || []).filter(c => c.reason === 'recharged' && c.start >= PLAN_FROM && c.startPct >= 95
+      && (c.end - c.start) >= SHORT_RUN_MIN_H * H && TEST_TYPES.find(t => t.name === planFor({ ...c, serial: d.serial }, ctx).name)?.hours)
+      .map(c => ({ ...c, durationMs: c.durationMs ?? c.end - c.start, fullMs: c.startPct > c.endPct ? (c.end - c.start) / (c.startPct - c.endPct) * 100 : null }))
+    for (const c of [...d.cycles, ...cutShort, ...(run ? [run] : [])].sort((a, b) => a.start - b.start)) {
       const a = adaptCycle(d, c, rows, ctx);
       if (a) out.push(a);
     }

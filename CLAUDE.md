@@ -574,6 +574,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   (`kpis`, `compareBy`, per-device rows), and on the **bell** while it happens (`alerts.js`: back on charge from 1 h in
   until 13 h 30 m, any number of devices; it replaces the "on charge" odd-one alert for that device). A device that left
   the cycle part-way is a short run too.
+  **A planned fixed-time cycle the bench ended early still counts, as short** (30 Oct 2026: back on charge after 7.6 h at
+  ~35 %; the user: "today's cycle was short"): the detector files a run recharged before 8 h above 20 % as *interrupted*,
+  so `adaptAll` adds those (`cutShort`) when they started ≥ 95 %, ran ≥ 3 h (`SHORT_RUN_MIN_H`) and a planned cycle of a test
+  with a set cycle time covers them. A run that started below 95 % still isn't a cycle (00280 that day, off the charger at 89 %).
 - A run only takes a test of its own kind: a discharge is never a Charging Cycle, a charge never a discharge test.
 - **Every charge since 25 Sep is a Charging Cycle** (the daily recharge), shown as battery **gained**; on the Overview,
   not in the Cycle plan's All cycles.

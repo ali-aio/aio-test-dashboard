@@ -538,7 +538,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   Drain rate by battery age (`scripts/sheet-runs.mjs` → `data/sheet-runs.json`), never for the plan, Auto or Health.
 - Read-only toward the MDM and devices; our own `data/*.json` (incl. `/api/plan`) may be written. **One exception, the
   user's decision (30 Oct 2026): open / close Nugget** (the device's role app) on a lab tablet — Today → Ads on screen
-  drop-down, ▶ / ■ in front of each device (`AppToggle.jsx`), asks first; its rows show just serial and state (no "· since …", no bar; "Other app" for "Another app in front" — the serial never cut off).
+  drop-down, ▶ / ■ in front of each device (`AppToggle.jsx`), asks first, and after a command that worked just flips the icon
+  (no ✓; a failure shows "!" with the reason on hover); its rows show just serial and state (no "· since …", no bar; "Other app" for "Another app in front" — the serial never cut off).
   The drop-down is titled **Ads on screen** and its header has **Open on all** → (once sent) **Close on all** (`AppToggleAll`):
   asks first, three commands at a time over the devices listed (the cycle's, taken-out ones excluded), shows "Opening 7 / 22…"
   then "21 of 22 done · 1 failed" (failures on hover). It follows the **majority** (most with the app on screen → Close on all,

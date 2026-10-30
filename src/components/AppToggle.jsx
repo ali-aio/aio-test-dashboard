@@ -7,8 +7,12 @@ import { pollHostApp } from '../lib/fleet.js'
 // only and logs every command (data/commands.jsonl); the MDM answers within ~20 s ("opened …", "closed …").
 const by = () => { try { return localStorage.getItem('declaredBy') || '' } catch (e) { return '' } }
 
-export default function AppToggle({ serial, onScreen }) {
-  const [state, setState] = useState(null) // null | 'busy' | { ok, text }
+export default function AppToggle({ serial, onScreen: live }) {
+  const [state, setState] = useState(null) // null | 'busy' | { ok:false, text } (a failure stays shown for a while)
+  // after a command that worked, the icon flips at once (no ✓ — the user, 30 Oct 2026), until the host-app list
+  // (polled each minute) says the same or 2 min pass
+  const [flip, setFlip] = useState(null)   // { on, at }
+  const onScreen = flip && Date.now() - flip.at < 120e3 && flip.on !== live ? flip.on : live
   const action = onScreen ? 'close' : 'open'
   const run = async e => {
     e.stopPropagation()
@@ -17,17 +21,17 @@ export default function AppToggle({ serial, onScreen }) {
     try {
       const r = await appCommand(serial, action, by())
       const ok = r.ok && r.status !== 'failed' && r.status !== 'expired'
-      setState({ ok, text: r.output || r.error || r.status || `HTTP ${r.http}` })
+      if (ok) { setFlip({ on: action === 'open', at: Date.now() }); setState(null) }
+      else { setState({ ok: false, text: r.output || r.error || r.status || `HTTP ${r.http}` }); setTimeout(() => setState(null), 15000) }
       setTimeout(() => pollHostApp(true), 3000) // the host-app list catches up within a minute; ask sooner
-    } catch (err) { setState({ ok: false, text: err.message }) }
-    setTimeout(() => setState(null), 15000)
+    } catch (err) { setState({ ok: false, text: err.message }); setTimeout(() => setState(null), 15000) }
   }
   const busy = state === 'busy', res = state && state !== 'busy' ? state : null
-  const title = busy ? `Sending "${action}" to ${serial}…` : res ? `${res.ok ? 'Done' : 'Failed'}: ${res.text}` : `${action === 'open' ? 'Open' : 'Close'} Nugget on ${serial}`
+  const title = busy ? `Sending "${action}" to ${serial}…` : res ? `Failed: ${res.text}` : `${action === 'open' ? 'Open' : 'Close'} Nugget on ${serial}`
   return (
-    <button type="button" className={`app-btn${res ? (res.ok ? ' is-ok' : ' is-bad') : ''}`} disabled={busy} title={title} aria-label={title} onClick={run}>
+    <button type="button" className={`app-btn${res ? ' is-bad' : ''}`} disabled={busy} title={title} aria-label={title} onClick={run}>
       {busy ? <span className="spin" style={{ width: 11, height: 11 }} />
-        : res ? (res.ok ? '✓' : '!')
+        : res ? '!'
         : onScreen
           ? <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><rect x="2" y="2" width="8" height="8" rx="1.2" fill="currentColor" /></svg>
           : <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M3 1.8v8.4L10.2 6z" fill="currentColor" /></svg>}

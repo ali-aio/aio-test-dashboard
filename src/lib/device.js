@@ -82,3 +82,9 @@ export const BENCH_ORDER = ['00142', '00077', '00226', '00089', '00429', '00387'
   '00232', '00318', '00080', '00188', '00280', '00064', '00231', '00833', '00875', '00485', '00606', '00790'].map(n => `AT070AABU${n}`);
 const benchRank = new Map(BENCH_ORDER.map((s, i) => [s, i]));
 export const byBenchOrder = (a, b) => (benchRank.get(a) ?? 1e9) - (benchRank.get(b) ?? 1e9) || (a < b ? -1 : a > b ? 1 : 0);
+
+// Devices the lab does not test on: left out of the device list everywhere (every cycle, chart, plan,
+// Auto plan, alert, export), browser and server alike. 30 Oct 2026: 00848 and 00854 came in with the MDM's
+// HW Testing group — the user: "don't include these in any cycle".
+export const EXCLUDED_SERIALS = new Set(['AT070AABU00848', 'AT070AABU00854']);
+export const keepDevice = (row) => !EXCLUDED_SERIALS.has(row?.serial_number ?? row?.serial);

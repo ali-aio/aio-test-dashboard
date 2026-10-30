@@ -16,6 +16,7 @@ import { extendLedger } from '../src/lib/drainAge.js';
 import { extendSlots, SLOT } from '../src/lib/drainHours.js';
 import { buildAutoPlan } from './autoplan.mjs';
 import { compactSpans, mergeSpans } from '../src/lib/hostApp.js';
+import { keepDevice } from '../src/lib/device.js';
 import { chargeSegments, thermalStats } from '../shared/profile.js';
 
 const H = 3600e3, DAY = 24 * H, CHUNK = 7 * DAY;
@@ -54,7 +55,7 @@ export async function sweep({ base, group, root, get, plan, log = () => {} }) {
   const prev = loadTopup(root, group), PREV = prev ? prev.devices : {};
   const anchor = prev ? prev.at : seed && seed.group === group ? Date.parse(seed.generatedAt) : now;
   const from = Math.min(anchor - 3 * DAY, now - 14 * DAY);
-  const devices = await get(`/api/v1/testdata/devices?group=${encodeURIComponent(group)}`);
+  const devices = (await get(`/api/v1/testdata/devices?group=${encodeURIComponent(group)}`)).filter(keepDevice); // EXCLUDED_SERIALS
   log(`${devices.length} devices in "${group}", history since ${new Date(from).toISOString()}`);
   recordLifetime(root, group, devices, now, log);
 

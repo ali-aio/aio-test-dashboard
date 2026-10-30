@@ -519,6 +519,9 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   value) and on the server (`server.mjs`); the laptop's `server/config.json` and every `data/*.json` were re-labelled
   "HW Testing" (plan.json's group key too) with the app stopped, backups in `data/backup-2026-10-30/`. "Test Cycles" still
   exists in the MDM but holds only 20 of them.
+- **00848 and 00854 are left out everywhere** (the user, 30 Oct 2026: "don't include these in any cycle"): `EXCLUDED_SERIALS`
+  in `src/lib/device.js`, filtered out of the device list in the browser (`fetchDevices`), the server's `/api/devices` and
+  the sweep — so no cycle, chart, plan, Auto plan, alert or export has them. Add a serial there to drop another.
 
 ### How to work
 - **After every change:** `npm test`, `npm run build`, commit (with `dist/`), push to `main`, deploy

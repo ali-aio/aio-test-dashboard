@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { sweep, loadTopup } from './sweep.mjs';
 import { createClient } from './mdm.mjs';
 import { createPlanStore, readPlanBody } from './plan.mjs';
+import { keepDevice } from '../src/lib/device.js';
 import { createPhoneStore, readPhoneBody } from './phone.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -140,7 +141,7 @@ http.createServer(async (req, res) => {
       if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
       if (p === '/api/devices') {
         const g = renamed(url.searchParams.get('group') || CFG.group);
-        return json(req, res, 200, await mdm.get(`/api/v1/testdata/devices?group=${encodeURIComponent(g)}`, { ttlMs: DEVICES_TTL }), { 'cache-control': `private, max-age=${DEVICES_TTL / 1000}` });
+        return json(req, res, 200, (await mdm.get(`/api/v1/testdata/devices?group=${encodeURIComponent(g)}`, { ttlMs: DEVICES_TTL })).filter(keepDevice), { 'cache-control': `private, max-age=${DEVICES_TTL / 1000}` });
       }
       // which tablets have the host app (the ads) on screen now — Today and the bell
       if (p === '/api/host-app') {

@@ -6,6 +6,7 @@
 //     every open tab on every machine, rate-limited per client.
 //   · opened as plain files / another static host: direct calls to the MDM with the QA key
 //     from Settings, as before.
+import { keepDevice } from './device.js';
 export function apiBase() { return (localStorage.getItem('apiBase') || '').replace(/\/$/, ''); }
 export function apiKey() { return localStorage.getItem('apiKey') || ''; }
 export function hasConfig() { return BACKEND || !!(apiBase() && apiKey()); }
@@ -95,8 +96,9 @@ export async function fetchDevices(opts = {}) {
   }
   const qs = group ? `?group=${encodeURIComponent(group)}` : '';
   const data = BACKEND ? await call(`/api/devices${qs}`) : await call(`${apiBase()}/api/v1/testdata/devices${qs}`, { 'X-API-Key': apiKey() });
-  cacheSet(key, data);
-  return data;
+  const kept = Array.isArray(data) ? data.filter(keepDevice) : data; // EXCLUDED_SERIALS (device.js)
+  cacheSet(key, kept);
+  return kept;
 }
 
 /** Every device's host app (the ads) on screen now: GET /testdata/host-app (src/lib/hostApp.js). */

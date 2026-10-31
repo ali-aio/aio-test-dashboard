@@ -748,6 +748,7 @@ export function compareBy(cycles, key) {
   }).sort(key === 'firmware'
     ? (a, b) => compareFirmwareNewest(a.label, b.label)
     : key === 'serial' ? (a, b) => compareSerial(a.label, b.label)
+      : key === 'cycle' ? (a, b) => (a.label < b.label ? 1 : a.label > b.label ? -1 : 0) // newest cycle first
       : (a, b) => b.cycles - a.cycles)
 }
 

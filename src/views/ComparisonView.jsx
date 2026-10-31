@@ -1,4 +1,4 @@
-import { splitText, splitBy } from '../lib/splitCycles.js'
+import { splitText, splitBy, benchCycles } from '../lib/splitCycles.js'
 import React, { useMemo, useState, useEffect, useRef } from 'react'
 import PartStatus from '../components/PartStatus.jsx'
 import { Card, EmptyNote, Segmented, useKeepOnScreen } from '../components/Primitives.jsx'
@@ -13,6 +13,9 @@ const DIMENSIONS = [
   { id: 'firmware', label: 'Firmware' },
   { id: 'build', label: 'Build' },
   { id: 'serial', label: 'Device' },
+  // one bench run of the test (devices starting together = one cycle), so two Ads only cycles can be put side by
+  // side (the user, 31 Oct 2026: "if I have to compare two cycles of Ads only, how will I do it in this screen")
+  { id: 'cycle', label: 'Cycle' },
 ]
 
 /** What a group of this dimension is called when there are several of them. */
@@ -20,6 +23,7 @@ const GROUP_PLURAL = {
   firmware: 'firmware versions',
   build: 'builds',
   serial: 'devices',
+  cycle: 'cycles',
 }
 
 /** How many groups to put side by side before the reader picks for themselves. */
@@ -82,7 +86,15 @@ export function visibleGroups(groups, picked, max = DEFAULT_GROUPS) {
   return out.length ? out : groups.slice(0, 1)
 }
 
-export default function ComparisonView({ cycles, testType, allSerials = [] }) {
+export default function ComparisonView({ cycles: runs, testType, allSerials = [] }) {
+  // every run tagged with its bench cycle ("2026-10-29 10:00": the cycle's start, local) for Compare by → Cycle
+  const cycles = useMemo(() => {
+    const at = new Map()
+    for (const b of benchCycles(runs)) { const d = new Date(b.start), p = n => String(n).padStart(2, '0')
+      const label = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+      for (const c of b.list) at.set(c, label) }
+    return runs.map(c => ({ ...c, cycle: at.get(c) }))
+  }, [runs])
   /* MDM field telemetry carries no firmware or build column, so defaulting to
      firmware would show a single "Unknown" group and nothing to compare. Start
      on whichever dimension the data in scope actually splits into the most

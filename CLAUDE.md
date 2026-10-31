@@ -645,7 +645,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - **Comparison → Compare by: Firmware · Build · Device · Cycle** (the user, 31 Oct 2026: "compare two cycles of Ads only"): Cycle =
   one bench cycle (`benchCycles`), labelled by its start "2026-10-29 10:00", newest first; pick 2+ in "Cycle to compare".
   Under the battery curve, **Show table view**: one row per device × run of the chosen groups (device, group, firmware, started,
-  cycle time, start, end, drain, peak temp, note: running / short / left cycle / ads stopped), sortable (the user, 31 Oct 2026).
+  cycle time, start, end, drain, peak temp, note: running / short / left cycle / ads stopped), sortable (the user, 31 Oct 2026);
+  in Every device it lists only the devices ticked in the chart's Devices picker.
 - The MDM's lifetime battery-cycle count is labelled **Cycles** (tile, Today's list, Summary, Battery health), never "Lifetime cycles (MDM)" (the user, 27 Oct 2026).
 - **The page must not freeze** (21 Oct: "the whole dashboard sometimes lags" — `adaptAll` re-ran on every new batch of
   readings and froze it 1–6 s): in `adaptCycle` a cycle reads only its own readings and 15-min slots, found by binary

@@ -268,7 +268,8 @@ export default function ComparisonView({ cycles: runs, testType, allSerials = []
             { key: 'peak', label: 'Peak temp' },
             { key: 'note', label: 'Note' },
           ]}
-          rows={[...chosenCycles].sort((a, b) => String(b[dimension] ?? '').localeCompare(String(a[dimension] ?? '')) || byBenchOrder(a.serial, b.serial)).map((c) => ({
+          // only the devices ticked in the chart's Devices picker (Every device), as the chart shows (the user, 31 Oct 2026)
+          rows={chosenCycles.filter((c) => !(curveMode === 'all' && dimension !== 'serial' && picker.selectedSeries) || picker.selectedSeries.has(c.serial)).sort((a, b) => String(b[dimension] ?? '').localeCompare(String(a[dimension] ?? '')) || byBenchOrder(a.serial, b.serial)).map((c) => ({
             serial: c.serial,
             group: c[dimension] ?? '—',
             fw: c.firmware ?? '—',

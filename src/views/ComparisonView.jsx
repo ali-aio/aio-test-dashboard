@@ -4,6 +4,8 @@ import PartStatus from '../components/PartStatus.jsx'
 import { Card, EmptyNote, Segmented, useKeepOnScreen } from '../components/Primitives.jsx'
 import { ModeSwitch, deviceSeries, useDevicePicker } from '../components/CurveModes.jsx'
 import { LineChart, GroupedColumns } from '../components/t7charts.jsx'
+import { TableView } from '../components/chartkit.jsx'
+import { byBenchOrder } from '../lib/device.js'
 import { batteryCyclesBy, compareBy, avgCurveBy, maxOf, explainEmpty, plottedMaxHour } from '../lib/t7cycles.js'
 import { buildColorMap, MAX_SERIES, SERIES_VARS, BUILD_COLOR } from '../lib/palette.js'
 import {
@@ -251,6 +253,34 @@ export default function ComparisonView({ cycles: runs, testType, allSerials = []
               : null,
           ].filter(Boolean).join(' · ') || null}
         />
+        {/* every device of the chosen groups, one row per run (the user, 31 Oct 2026: "show the table view with
+            all the details of each device") */}
+        <TableView label="table view"
+          columns={[
+            { key: 'serial', label: 'Device' },
+            ...(dimension !== 'serial' ? [{ key: 'group', label: DIMENSIONS.find((d) => d.id === dimension)?.label ?? 'Group' }] : []),
+            ...(dimension !== 'firmware' ? [{ key: 'fw', label: 'Firmware' }] : []),
+            { key: 'started', label: 'Started' },
+            { key: 'ran', label: chargingOnly ? 'Charged for' : 'Cycle time' },
+            { key: 'start', label: 'Start' },
+            { key: 'end', label: 'End' },
+            { key: 'rate', label: chargingOnly ? 'Charge rate' : 'Drain' },
+            { key: 'peak', label: 'Peak temp' },
+            { key: 'note', label: 'Note' },
+          ]}
+          rows={[...chosenCycles].sort((a, b) => String(b[dimension] ?? '').localeCompare(String(a[dimension] ?? '')) || byBenchOrder(a.serial, b.serial)).map((c) => ({
+            serial: c.serial,
+            group: c[dimension] ?? '—',
+            fw: c.firmware ?? '—',
+            started: c.start != null ? new Date(c.start).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—',
+            ran: fmtHours(c.ranH ?? c.duration),
+            start: fmtPct(c.startBattery),
+            end: fmtPct(c.endBattery),
+            rate: chargingOnly ? fmtRate(c.loadGainPerHr) : fmtRate(c.dropPerHr),
+            peak: fmtTemp(c.maxTemp),
+            note: [c.inProgress && 'running', c.short && 'short', c.leftCycle && `left cycle (${c.leftCycle.why})`, c.adsGap && 'ads stopped'].filter(Boolean).join(' · ') || '—',
+            sort: { started: c.start, ran: c.ranH ?? c.duration, start: c.startBattery, end: c.endBattery, rate: chargingOnly ? c.loadGainPerHr : c.dropPerHr, peak: c.maxTemp },
+          }))} />
       </Card>
 
       <Card expandable title="Measures side by side"

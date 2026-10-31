@@ -147,7 +147,9 @@ export default function ComparisonView({ cycles: runs, testType, allSerials = []
   // battery cycles per comparison group — what "cycles" means everywhere on the dashboard
   // bench cycles per group (devices running together count once), for the picker and sorting
   const cyclesByGroup = useMemo(() => new Map(splitBy(cycles, dimension).map((r) => [r.label, r.value])), [cycles, dimension])
-  const amountByGroup = useMemo(() => new Map(splitBy(cycles, dimension).map((r) => [r.label, r.display])), [cycles, dimension])
+  // a Cycle group is one bench cycle: say how many devices ran it, not the MDM's battery-cycle counter
+  const amountByGroup = useMemo(() => new Map(splitBy(cycles, dimension).map((r) => [r.label,
+    dimension === 'cycle' ? `${new Set(r.cycles.map((c) => c.serial)).size} devices` : r.display])), [cycles, dimension])
   const drawable = useMemo(() => avgCurveBy(cycles, dimension)
     .filter((g) => visibleLabels.has(g.label)), [cycles, dimension, visibleLabels])
 

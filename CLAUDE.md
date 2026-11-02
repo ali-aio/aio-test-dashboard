@@ -769,6 +769,8 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   10-min averages, `fetchRoomRange`), the average of the cycles' averages, low–high and % RH, and per cycle in its drop-down
   (a click picks that cycle) — so a cycle opened days later still shows its room. Shown once any cycle in view has ≥ 3 room
   readings (`ROOM_FROM` = 2 Nov 2026).
+  The **Per hour** CSV has **Room temp °C** and **Room humidity %** (each hour's average from those 10-min rows, fetched for the
+  exported cycles before the file is made; blank before the sensor) — the user, 2 Nov 2026. Today's chart line covers 24 h only.
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).
 - **iPhone on the pad** (the lab, 27 Oct 2026: on some T7s an iPhone goes on the pad instead of the load, and its battery
   gain is noted each hour): the **last card on Today** (`PhoneOnPad.jsx`, any discharge cycle; under the charts until the user moved it, 31 Oct 2026). Pick the T7s that carry

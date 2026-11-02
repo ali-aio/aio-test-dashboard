@@ -570,6 +570,12 @@ const mdmCases = []
     want(f[3] !== lines[2].split(',')[3], `Time steps by the hour: ${f[3]} then ${lines[2].split(',')[3]}`)
     want(last[5] === '2' && last[6] === '0', `last half hour: ${lines[3]}`)
     want(lines[4].split(',')[6] === '', 'no slots: load minutes blank')
+    // the room's temperature / humidity each hour (10-min averages), blank where the sensor had nothing
+    want(lines[0].endsWith(',Room temp °C,Room humidity %'), `room columns: ${lines[0]}`)
+    want(f[9] === '' && f[10] === '', 'no room rows: blank')
+    const room = [0, 1, 2, 3, 4, 5].map((k) => [t0 + k * 600e3 + 300e3, 22 + k * 0.2, 50])
+    const rl = cycleHoursCsv([c('A')], { room }).trim().split('\r\n')
+    want(rl[1].split(',')[9] === '22.5' && rl[1].split(',')[10] === '50' && rl[2].split(',')[9] === '', `room each hour: ${rl[1]} / ${rl[2]}`)
   })
   check('csv: escaping, gap rows dropped, extra fields, cycles', () => {
     want(csvField('a,b') === '"a,b"' && csvField('say "hi"') === '"say ""hi"""' && csvField('=SUM(A1)') === "'=SUM(A1)" && csvField(-3) === '-3', 'escaping')

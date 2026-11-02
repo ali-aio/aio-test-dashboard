@@ -1,3 +1,4 @@
+import { roomStats } from './room.js'
 // CSV export: column definitions for the two kinds of export and the CSV text itself.
 // Plain JS, no DOM (the dialog in components/ExportDialog.jsx does the fetching and the
 // download), so it is testable in Node.
@@ -165,7 +166,9 @@ export function cycleTableCsv(cycles, { charging = false, pad = false, wlc = nul
  *  linear between points); temperature from `tempSeries`; minutes with a load on the wireless pad
  *  from `slotsOf(serial)` (hours.json 15-min slots: [start, drop×10, min on battery, min with a
  *  load, temp×10]), blank where there are none (a charge, or before the sweep kept them). */
-export function cycleHoursCsv(cycles, { charging = false, slotsOf = () => null } = {}) {
+// room = the lab's room sensor rows [[t, °C, rh]] (10-min averages from /api/room), from 2 Nov 2026: each hour's
+// average room temperature and humidity (the user, 2 Nov 2026); blank for hours with no room reading
+export function cycleHoursCsv(cycles, { charging = false, slotsOf = () => null, room = null } = {}) {
   const at = (s, t) => {
     if (!s.length || t < s[0].t - 0.1 || t > s[s.length - 1].t + 0.1) return null
     let i = s.findIndex((p) => p.t >= t); if (i < 0) return s[s.length - 1].v; if (i === 0) return s[0].v
@@ -178,7 +181,7 @@ export function cycleHoursCsv(cycles, { charging = false, slotsOf = () => null }
   // drained or gained is beside it
   // no Hour / Minutes columns: the Time says it (the user, 26 Oct 2026)
   const head = ['Device', 'Test', 'Date', 'Time', 'Battery %',
-    charging ? 'Gained %' : 'Drained %', 'Load on wireless pad (min)', 'Avg battery temp °C', 'Peak battery temp °C']
+    charging ? 'Gained %' : 'Drained %', 'Load on wireless pad (min)', 'Avg battery temp °C', 'Peak battery temp °C', 'Room temp °C', 'Room humidity %']
   const r1 = (v) => (v == null ? '' : +v.toFixed(1)) // 88 and 87.5, not 88.0
   const rows = []
   for (const c of [...cycles].sort((a, b) => String(a.serial).localeCompare(String(b.serial)) || a.start - b.start)) {
@@ -193,7 +196,8 @@ export function cycleHoursCsv(cycles, { charging = false, slotsOf = () => null }
       if (slots?.length) for (const x of slots) { const mid = x[0] + 450e3; if (mid >= from && mid < until) pad = (pad || 0) + x[3] }
       const moved = b0 == null || b1 == null ? null : charging ? b1 - b0 : b0 - b1
       rows.push([c.serial, c.testType ?? '', local(from).slice(0, 10), local(from).slice(11, 16), r1(b0), r1(moved), num(pad, 0),
-        r1(temps.length ? temps.reduce((a, x) => a + x, 0) / temps.length : null), r1(temps.length ? Math.max(...temps) : null)])
+        r1(temps.length ? temps.reduce((a, x) => a + x, 0) / temps.length : null), r1(temps.length ? Math.max(...temps) : null),
+        ...(() => { const r = room?.length ? roomStats(room, from, until - 1, 1) : null; return [r1(r?.avg), num(r?.rh, 0)] })()])
     }
   }
   return [csvLine(head), ...rows.map(csvLine)].join('\r\n') + '\r\n'

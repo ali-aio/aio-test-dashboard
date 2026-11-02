@@ -326,7 +326,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   }, [exportOpen])
   // Per hour first asks which devices (all ticked by default)
   const [hoursPick, setHoursPick] = useState(false)
-  const exportTable = (kind, serials = null) => {
+  const exportTable = async (kind, serials = null) => {
     setExportOpen(false)
     if (kind === 'hours' && !serials) { setHoursPick(true); return }
     setHoursPick(false)
@@ -334,9 +334,12 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
     const when = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}${benchSel ? `_${p(d.getHours())}${p(d.getMinutes())}` : ''}`
     const one = serials && serials.size === 1 ? [...serials][0] : focus
     const name = `aio-${String(testType).replace(/[^\w-]+/g, '-')}_${benchSel ? 'cycle' : 'all-cycles'}${kind === 'hours' ? '_per-hour' : ''}_${when}${one ? `_${one}` : ''}.csv`
-    downloadCsv(kind === 'hours'
-      ? cycleHoursCsv(tableRows.filter((c) => serials.has(c.serial)), { charging: isCharging, slotsOf: (sn) => hours?.[sn]?.h })
-      : cycleTableCsv(tableRows, { charging: isCharging, pad: isField, wlc: showPad ? padOf : null }), name)
+    if (kind !== 'hours') return downloadCsv(cycleTableCsv(tableRows, { charging: isCharging, pad: isField, wlc: showPad ? padOf : null }), name)
+    // per hour: the room's temperature each hour too (the lab's room sensor, from 2 Nov 2026), fetched for these cycles first
+    const picked = tableRows.filter((c) => serials.has(c.serial))
+    const a = Math.min(...picked.map((c) => c.start)), z = Math.max(...picked.map((c) => (c.inProgress ? Date.now() : (c.end ?? c.start))))
+    const room = picked.length && z >= ROOM_FROM ? await fetchRoomRange(Math.max(a, ROOM_FROM), z) : null
+    downloadCsv(cycleHoursCsv(picked, { charging: isCharging, slotsOf: (sn) => hours?.[sn]?.h, room }), name)
   }
 
   return (

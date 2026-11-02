@@ -403,7 +403,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           const day = (t) => new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
           const one = roomByBench.length === 1
           return <Stat label="Room temp" value={fmtNum(avg, 1)} unit="°C"
-            foot={`${one ? 'during this cycle' : `avg of ${roomByBench.length} cycles`} · ${lo.toFixed(1)}–${hi.toFixed(1)} °C${rh != null ? ` · ${rh}% RH` : ''}`}
+            foot={`${one ? (benchSel ? 'during this cycle' : `${day(roomByBench[0].a)} cycle`) : `avg of ${roomByBench.length} cycles`} · ${lo.toFixed(1)}–${hi.toFixed(1)} °C${rh != null ? ` · ${rh}% RH` : ''}`}
             breakdownLabel="Room temperature during each cycle · the lab's room sensor, from 2 Nov 2026 · newest first"
             breakdownWide breakdownRight breakdownNoun="cycle"
             breakdown={roomByBench.map((x) => ({ id: x.b.key, label: day(x.a), value: x.s.avg, display: `avg ${x.s.avg.toFixed(1)} °C`,

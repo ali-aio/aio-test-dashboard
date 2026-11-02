@@ -577,7 +577,9 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   and in its header (titled **WLC**) **WLC on** (shown while some are off), **WLC off** (while some are on) and **Toggle ▾** →
   every 15 min / 30 min / 1 h / custom minutes (`WlcToggleAll`, the user, 2 Nov 2026). **The toggling runs on the lab laptop**
   (`server/wlcToggle.mjs`, `GET/POST /api/wlc-toggle`, state in `data/wlc-toggle.json`, gitignored, survives a restart): first
-  switch at once (off if most are on, else on), then the other state every interval, on the devices listed, until **Stop**;
+  switch at once (off if most are on, else on), then the other state every interval, on the devices listed, until **Stop** —
+  or an optional **Until HH:MM** (today, or tomorrow if past) when it leaves every device in the chosen **then WLC on / off**
+  and finishes (`endAt` / `endState`; the user, 2 Nov 2026);
   the header then reads "Toggling every 15 min · next WLC on 11:45 · Stop". Each switch logged with by "toggle timer".
   Per device / on all: browser → our `POST /api/wlc/:serial`
   `{enabled}` → MDM `POST …/devices/{serial}/wlc` (answers at once; a disconnected tablet takes it on reconnect), logged the

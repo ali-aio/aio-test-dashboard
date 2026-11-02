@@ -47,6 +47,10 @@ export function WlcToggleAll({ serials, enabledCount }) {
   const [prog, setProg] = useState(null)   // { to, done, total, failed } of an on / off on all
   const [menu, setMenu] = useState(false)
   const [custom, setCustom] = useState('')
+  const [until, setUntil] = useState('')       // "HH:MM" (optional): stop then — today, or tomorrow if that's past
+  const [endOn, setEndOn] = useState(true)     // the state every device is left in at the end
+  const endAt = () => { if (!until) return null; const [h, m] = until.split(':').map(Number), d = new Date(); d.setHours(h, m, 0, 0)
+    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1); return d.getTime() }
   const [job, setJob] = useState(null)     // the server's toggle job
   const [, tick] = useState(0)
   useEffect(() => {
@@ -76,8 +80,10 @@ export function WlcToggleAll({ serials, enabledCount }) {
     if (!(everyMin >= 1)) return
     // first switch: off when most are on, else on — then it alternates
     const first = !(enabledCount * 2 > serials.length)
-    if (!confirm(`Toggle wireless charging on all ${serials.length} devices every ${fmtEvery(everyMin)}? First: WLC ${first ? 'ON' : 'OFF'} now. It runs on the lab laptop until you press Stop.`)) return
-    const j = await wlcToggleJob({ serials, everyMin, first, by: by() })
+    const end = endAt()
+    const until_ = end ? `until ${clock(end)}, then WLC ${endOn ? 'ON' : 'OFF'} on all` : 'until you press Stop'
+    if (!confirm(`Toggle wireless charging on all ${serials.length} devices every ${fmtEvery(everyMin)}, ${until_}? First: WLC ${first ? 'ON' : 'OFF'} now. It runs on the lab laptop.`)) return
+    const j = await wlcToggleJob({ serials, everyMin, first, by: by(), endAt: end, endState: endOn })
     if (j.ok) { setJob(j); refreshSoon() } else alert(`Couldn't start: ${j.error || j.http}`)
   }
   const stop = async () => { const j = await wlcToggleJob({ stop: true, by: by() }); if (j.ok) setJob(j) }
@@ -87,7 +93,8 @@ export function WlcToggleAll({ serials, enabledCount }) {
     return (
       <span className="app-all" onClick={e => e.stopPropagation()}>
         <span className="hint" title={job.last ? `last: WLC ${job.last.to ? 'on' : 'off'} on ${job.last.ok} at ${new Date(job.last.at).toLocaleTimeString()}${job.last.failed?.length ? ` · failed: ${job.last.failed.join(', ')}` : ''}` : undefined}>
-          <span className="spin" style={{ width: 10, height: 10 }} /> Toggling every {fmtEvery(job.everyMin)} · next WLC {job.next ? 'on' : 'off'} {next}</span>
+          <span className="spin" style={{ width: 10, height: 10 }} /> Toggling every {fmtEvery(job.everyMin)} · next WLC {job.next ? 'on' : 'off'} {next}
+          {job.endAt ? <> · until {clock(job.endAt)}, then WLC {job.endState ? 'on' : 'off'}</> : null}</span>
         <button type="button" className="btn btn-sm" onClick={stop}>Stop</button>
       </span>
     )
@@ -102,6 +109,14 @@ export function WlcToggleAll({ serials, enabledCount }) {
         <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={menu} onClick={() => setMenu(m => !m)}>Toggle ▾</button>
         {menu && (
           <span className="wlc-menu" role="menu">
+            {/* when to stop (optional) and the state every device is left in then (the user, 2 Nov 2026) */}
+            <span className="wlc-end">
+              <label>Until <input type="time" className="input" value={until} onChange={e => setUntil(e.target.value)} aria-label="End time (optional)" /></label>
+              <span className="wlc-end-state" role="group" aria-label="WLC at the end">then WLC
+                <button type="button" className={endOn ? 'is-on' : ''} aria-pressed={endOn} onClick={() => setEndOn(true)}>on</button>
+                <button type="button" className={!endOn ? 'is-on' : ''} aria-pressed={!endOn} onClick={() => setEndOn(false)}>off</button></span>
+              {!until && <span className="hint">no end time: until Stop</span>}
+            </span>
             {[15, 30, 60].map(m => <button key={m} type="button" role="menuitem" onClick={() => startToggle(m)}>Every {fmtEvery(m)}</button>)}
             <span className="wlc-custom">
               <input className="input" inputMode="numeric" placeholder="min" value={custom} onChange={e => setCustom(e.target.value.replace(/\D/g, '').slice(0, 4))}
@@ -115,3 +130,4 @@ export function WlcToggleAll({ serials, enabledCount }) {
   )
 }
 const fmtEvery = m => (m % 60 === 0 ? `${m / 60} h` : `${m} min`)
+const clock = t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + (new Date(t).toDateString() !== new Date().toDateString() ? ' tomorrow' : '')

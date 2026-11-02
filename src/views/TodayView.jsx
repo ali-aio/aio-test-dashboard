@@ -390,7 +390,7 @@ export default function TodayView({ fleet }) {
           value={ended && runStart ? fmtDur(T.endMs - runStart) : runStart ? fmtDur(now - runStart) : 'Not started'}
           delta={ended && runStart ? <>ended {hm(T.endMs)}<br />off charger {hm(runStart)}</>
             : T.running ? <>off charger {hm(runStart || T.startMs)}<br />no test planned yet</>
-            : runStart ? <>{T.endMs > now ? `${fmtDur(T.endMs - now)} left · ends ${hm(T.endMs)}${T.overnight ? ' next day' : ''}` : `planned end ${hm(T.endMs)} passed`}<br />off charger {hm(runStart)}</>
+            : runStart ? <>{T.endMs > now ? `${fmtDur(T.endMs - now)} left · ends ${hm(T.endMs)}` : `planned end ${hm(T.endMs)} passed`}<br />off charger {hm(runStart)}</>
             : <>{started.length} of {all.length} devices off charger<br />planned {hm(T.startMs)} → {hm(T.endMs)}{T.overnight ? ' next day' : ''}</>} />
         <Metric label="Battery" value={medNow != null ? <>{medNow}%<ChargeIcon state={chargeNow} /></> : '—'}
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />

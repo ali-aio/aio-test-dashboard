@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { wlcCommand } from '../lib/data.js'
+import React, { useEffect, useState } from 'react'
+import { wlcCommand, wlcToggleJob } from '../lib/data.js'
 import { poll } from '../lib/fleet.js'
 
 // Wireless charging on a lab T7's pad on / off, from Today's "WLC · load placed" drop-down (the user, 2 Nov 2026).
@@ -41,18 +41,26 @@ export default function WlcToggle({ serial, enabled: live }) {
   )
 }
 
-/** Every device in the list: "WLC off on all" / "WLC on on all", by the majority now (the opposite for 2 min after
- *  one was sent). Three at a time; progress, then how many worked (failures on hover). */
+/** Every device in the list (the user, 2 Nov 2026): "WLC on" when some are off, "WLC off" when some are on, and
+ *  "Toggle" → every 15 min / 30 min / 1 h / custom, run by the server (server/wlcToggle.mjs) until Stop. */
 export function WlcToggleAll({ serials, enabledCount }) {
-  const [last, setLast] = useState(null)
-  const [prog, setProg] = useState(null)
-  const fresh = last && Date.now() - last.at < 120e3
-  const to = fresh ? !last.to : !(enabledCount * 2 > serials.length) // most on → turn off on all
+  const [prog, setProg] = useState(null)   // { to, done, total, failed } of an on / off on all
+  const [menu, setMenu] = useState(false)
+  const [custom, setCustom] = useState('')
+  const [job, setJob] = useState(null)     // the server's toggle job
+  const [, tick] = useState(0)
+  useEffect(() => {
+    let live = true
+    const load = () => wlcToggleJob().then(j => { if (live && j.ok) setJob(j) }).catch(() => {})
+    load(); const t = setInterval(() => { load(); tick(n => n + 1) }, 15e3)
+    return () => { live = false; clearInterval(t) }
+  }, [])
   const busy = prog && prog.done < prog.total
-  const run = async e => {
-    e.stopPropagation()
+  const offCount = serials.length - enabledCount
+  const all = async (to, e) => {
+    e?.stopPropagation()
     if (!serials.length || !confirm(`Turn wireless charging ${to ? 'ON' : 'OFF'} on all ${serials.length} devices?`)) return
-    const p = { done: 0, total: serials.length, failed: [] }; setProg({ ...p })
+    const p = { to, done: 0, total: serials.length, failed: [] }; setProg({ ...p })
     const queue = [...serials], who = by()
     await Promise.all([0, 1, 2].map(async () => {
       while (queue.length) {
@@ -61,15 +69,49 @@ export function WlcToggleAll({ serials, enabledCount }) {
         p.done++; setProg({ ...p })
       }
     }))
-    setLast({ to, at: Date.now() }); refreshSoon()
+    refreshSoon()
   }
-  const label = busy ? `Switching ${prog.done} / ${prog.total}…` : `WLC ${to ? 'on' : 'off'} on all`
-  const result = prog && !busy ? `${prog.total - prog.failed.length} of ${prog.total} done${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null
+  const startToggle = async (everyMin) => {
+    setMenu(false)
+    if (!(everyMin >= 1)) return
+    // first switch: off when most are on, else on — then it alternates
+    const first = !(enabledCount * 2 > serials.length)
+    if (!confirm(`Toggle wireless charging on all ${serials.length} devices every ${fmtEvery(everyMin)}? First: WLC ${first ? 'ON' : 'OFF'} now. It runs on the lab laptop until you press Stop.`)) return
+    const j = await wlcToggleJob({ serials, everyMin, first, by: by() })
+    if (j.ok) { setJob(j); refreshSoon() } else alert(`Couldn't start: ${j.error || j.http}`)
+  }
+  const stop = async () => { const j = await wlcToggleJob({ stop: true, by: by() }); if (j.ok) setJob(j) }
+  const result = prog && !busy ? `WLC ${prog.to ? 'on' : 'off'}: ${prog.total - prog.failed.length} of ${prog.total}${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null
+  if (job?.active) {
+    const next = new Date(job.nextAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    return (
+      <span className="app-all" onClick={e => e.stopPropagation()}>
+        <span className="hint" title={job.last ? `last: WLC ${job.last.to ? 'on' : 'off'} on ${job.last.ok} at ${new Date(job.last.at).toLocaleTimeString()}${job.last.failed?.length ? ` · failed: ${job.last.failed.join(', ')}` : ''}` : undefined}>
+          <span className="spin" style={{ width: 10, height: 10 }} /> Toggling every {fmtEvery(job.everyMin)} · next WLC {job.next ? 'on' : 'off'} {next}</span>
+        <button type="button" className="btn btn-sm" onClick={stop}>Stop</button>
+      </span>
+    )
+  }
   return (
-    <span className="app-all">
+    <span className="app-all" onClick={e => e.stopPropagation()}>
       {result && <span className={`hint${prog.failed.length ? ' app-all-bad' : ''}`} title={prog.failed.join('\n') || undefined}>{result}</span>}
-      <button type="button" className="btn btn-sm" disabled={busy || !serials.length} onClick={run} title={`Turn wireless charging ${to ? 'on' : 'off'} on every device in this list`}>
-        {busy && <span className="spin" style={{ width: 11, height: 11 }} />} {label}</button>
+      {busy && <span className="hint"><span className="spin" style={{ width: 10, height: 10 }} /> {prog.done} / {prog.total}…</span>}
+      {offCount > 0 && <button type="button" className="btn btn-sm" disabled={busy} onClick={e => all(true, e)} title={`${offCount} with WLC off: turn it on on every device in this list`}>WLC on</button>}
+      {enabledCount > 0 && <button type="button" className="btn btn-sm" disabled={busy} onClick={e => all(false, e)} title={`${enabledCount} with WLC on: turn it off on every device in this list`}>WLC off</button>}
+      <span className="wlc-menu-wrap">
+        <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={menu} onClick={() => setMenu(m => !m)}>Toggle ▾</button>
+        {menu && (
+          <span className="wlc-menu" role="menu">
+            {[15, 30, 60].map(m => <button key={m} type="button" role="menuitem" onClick={() => startToggle(m)}>Every {fmtEvery(m)}</button>)}
+            <span className="wlc-custom">
+              <input className="input" inputMode="numeric" placeholder="min" value={custom} onChange={e => setCustom(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                onKeyDown={e => { if (e.key === 'Enter') startToggle(+custom) }} aria-label="Custom interval in minutes" />
+              <button type="button" className="btn btn-sm" disabled={!(+custom >= 1)} onClick={() => startToggle(+custom)}>Custom</button>
+            </span>
+          </span>
+        )}
+      </span>
     </span>
   )
 }
+const fmtEvery = m => (m % 60 === 0 ? `${m / 60} h` : `${m} min`)

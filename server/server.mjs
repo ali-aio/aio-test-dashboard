@@ -32,6 +32,7 @@ import { createClient } from './mdm.mjs';
 import { createPlanStore, readPlanBody } from './plan.mjs';
 import { keepDevice } from '../src/lib/device.js';
 import { createPhoneStore, readPhoneBody } from './phone.mjs';
+import { createWlcToggler } from './wlcToggle.mjs';
 import { createIphones } from './iphones.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,6 +61,16 @@ const TEXT = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.md', '.
 const plan = createPlanStore(ROOT);
 // the iPhone readings typed in on Today (server/phone.mjs)
 const phone = createPhoneStore(ROOT);
+// WLC toggling on a timer (server/wlcToggle.mjs): every switch through the MDM, logged like a button press
+const wlcToggler = createWlcToggler(ROOT, {
+  keep: keepDevice,
+  log: msg => console.log(`[wlc] ${msg}`),
+  send: async (serial, enabled) => {
+    const r = await mdm.command(`/api/v1/testdata/devices/${serial}/wlc`, { enabled });
+    try { fs.appendFileSync(path.join(ROOT, 'data', 'commands.jsonl'), JSON.stringify({ at: Date.now(), serial, action: enabled ? 'wlc on' : 'wlc off', by: 'toggle timer', status: r.status, result: r.json }) + '\n'); } catch (e) {}
+    return r;
+  },
+});
 // the iPhones' own battery, read over Wi-Fi by the lab laptop (server/iphones.mjs)
 const iphones = createIphones(ROOT, { python: process.env.IOS_PYTHON || fileCfg.iosPython || undefined, log: m => console.log(`[iphone] ${m}`) });
 
@@ -173,6 +184,20 @@ http.createServer(async (req, res) => {
         // 409 = the tablet is offline (not queued): say so plainly
         if (r.status === 409 && !out.output) out.error = `${serial} is offline${out.last_seen_at ? ` (last seen ${out.last_seen_at})` : ''} — not sent`;
         return json(req, res, r.status, out);
+      }
+      // WLC toggling on a timer, run by this server (server/wlcToggle.mjs): GET the job, POST { serials, everyMin, first,
+      // by } to start, POST { stop: true } to stop
+      if (p === '/api/wlc-toggle') {
+        if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, wlcToggler.get());
+        if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });
+        let body = {}; try { body = await readPhoneBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
+        if (body.stop) return json(req, res, 200, wlcToggler.stop(String(body.by || '').slice(0, 60)));
+        const serials = (Array.isArray(body.serials) ? body.serials : []).filter(sn => typeof sn === 'string' && keepDevice({ serial_number: sn }));
+        const everyMin = Math.round(+body.everyMin);
+        if (!serials.length) return json(req, res, 400, { error: 'no lab devices given' });
+        if (!(everyMin >= 1 && everyMin <= 24 * 60)) return json(req, res, 400, { error: 'everyMin must be 1 – 1440' });
+        if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
+        return json(req, res, 200, wlcToggler.start({ serials, everyMin, first: !!body.first, by: String(body.by || '').slice(0, 60) }));
       }
       // Wireless charging on a lab T7's pad on / off (the user, 2 Nov 2026, Today's "WLC · load placed" card): MDM
       // POST /devices/{serial}/wlc {enabled} answers at once {serial, enabled, connected}; lab devices only, logged.

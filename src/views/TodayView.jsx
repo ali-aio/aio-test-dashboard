@@ -419,7 +419,7 @@ export default function TodayView({ fleet }) {
           rows.sort((a, b) => (b.odd - a.odd) || (b.on - a.on) || (b.padOn - a.padOn) || byBenchOrder(a.d.serial, b.d.serial))
           return <Stat label="WLC · load placed" warn={rows.some(r => r.odd)} value={<>{n}<span className="secondary" style={{ fontSize: 13 }}> / {rows.length}</span></>}
             foot={`load placed on the pad · ${rows.filter(r => r.padOn && !r.on).length} more with the pad on, no load`}
-            breakdownLabel="WLC pad, every device (latest check-in)" breakdownRight breakdownWide breakdownNoun="device"
+            breakdownLabel="WLC" breakdownRight breakdownWide breakdownNoun="device"
             breakdown={rows.map(r => ({ id: r.d.serial, label: r.d.serial, value: r.on ? 1 : 0, warn: r.odd,
               display: !r.wlcOn ? 'WLC off' : r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'No load', hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial),
               // WLC on / off on that T7 (the user, 2 Nov 2026)

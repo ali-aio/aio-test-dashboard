@@ -117,6 +117,13 @@ export async function wlcCommand(serial, enabled, by = '') {
   return { ok: r.ok, http: r.status, ...(j || {}) };
 }
 
+/** WLC toggling on a timer, run by our server: the job now, start it ({ serials, everyMin, first, by }), stop it. */
+export async function wlcToggleJob(body) {
+  const r = await fetch('/api/wlc-toggle', body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : { cache: 'no-store' });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  return { ok: r.ok, http: r.status, ...(j || {}) };
+}
+
 /** Every device's host app (the ads) on screen now: GET /testdata/host-app (src/lib/hostApp.js). */
 export async function fetchHostApp(range = '6h') {
   const qs = `?range=${range}`; // every device (the lab's are read by serial)

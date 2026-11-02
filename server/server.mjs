@@ -151,14 +151,12 @@ http.createServer(async (req, res) => {
         try { const ha = await mdm.get('/api/v1/testdata/host-app?range=6h', { ttlMs: HOSTAPP_TTL }); pkg = (ha.devices || []).find(x => x.serial_number === serial)?.package || pkg; } catch (e) {}
         const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
         const log = (act, r, extra = {}) => { try { fs.appendFileSync(path.join(ROOT, 'data', 'commands.jsonl'), JSON.stringify({ at: Date.now(), serial, action: act, package: pkg, by: String(body.by || '').slice(0, 60), ip, status: r.status, result: r.json, ...extra }) + '\n'); } catch (e) {} };
-        // open: wake the screen first (MDM "screen on"), so a locked / dark tablet shows the app (the user, 30 Oct 2026:
-        // "if the device is locked it doesn't unlock the screen"); a failed wake doesn't stop the open
-        let wake = null;
-        if (action === 'open') { wake = await mdm.command(`/api/v1/testdata/devices/${serial}/screen?wait=true`, { state: 'on' }); log('screen on', wake) }
+        // open wakes the screen and clears the lock screen itself (MDM guide, 2 Nov 2026), so no separate "screen on" first
         const r = await mdm.command(`/api/v1/testdata/devices/${serial}/app/${action}?wait=true`, { package: pkg });
         log(action, r);
         const out = r.json || { error: `MDM answered ${r.status}` };
-        if (wake) out.output = [wake.json?.output || wake.json?.error || `screen on: HTTP ${wake.status}`, out.output || out.error].filter(Boolean).join(' · ');
+        // 409 = the tablet is offline (not queued): say so plainly
+        if (r.status === 409 && !out.output) out.error = `${serial} is offline${out.last_seen_at ? ` (last seen ${out.last_seen_at})` : ''} — not sent`;
         return json(req, res, r.status, out);
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') return json(req, res, 405, { error: 'GET' });

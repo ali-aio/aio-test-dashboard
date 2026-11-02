@@ -136,6 +136,26 @@ The guide is the MDM repo's `docs/TESTDATA_HOST_APP_GUIDE.md` (the user pasted i
   (`from`, `to`, `state`, `why`, `seconds`) covering the window with no gaps, oldest first; `events` behind them.
 - 400 bad range / window (over 31 d, 7 on the list), 401 key, 404 unknown serial / group.
 
+### Testing team API, 2 Nov 2026 (the MDM team's guide, pasted by the user)
+
+Same base (`https://mdm.dev.aioapp.com/api/v1/testdata`), same QA key, live only. **Lab devices only** (T7 / Kiosk on the
+Firmware client at no venue); anything else answers 404. Every control call is in the MDM's activity log under `qa-api`.
+
+- Reading: `GET /devices?group=`, `/filters`, `/devices/{serial}/history`, `/host-app`, `/devices/{serial}/host-app`, and new
+  battery logs: `GET /battery`, `/devices/{serial}/battery?range=24h`, `…/battery/climbs` (charge climbs) — not used yet.
+- Controlling (POST, JSON body; add `?wait=true` to wait up to 20 s for the result, else poll `GET /commands/{command_id}`):
+  - `/devices/{serial}/app/open` `{"package"}` — **wakes the screen, clears the lock screen, opens the app**;
+  - `/devices/{serial}/app/close` `{"package"}` — force-stops the app and checks it's gone (not said to clear Recents);
+  - `/devices/{serial}/screen` `{"state":"on"|"off"}` — on wakes + clears the lock screen; off sleeps it;
+  - `/devices/{serial}/wlc` `{"enabled":true|false}` — wireless charging on the pad (T7); answers at once
+    `{serial, enabled, connected}`, a disconnected tablet takes it on reconnect — not used yet.
+  - Package: the tablet's own app only — Nugget in any channel (`aio.app.nugget`, `.uatv2`, `.stagev2`, `.qa`, `.internal`).
+- Result `{command_id, status: queued → sent → running → completed | failed | expired (not run in 5 min), done, output}`;
+  output e.g. "opened …", "closed …", "screen on", "not installed: …", "stopped … but it started again (pid …)" (= failed).
+- Errors: 400 bad package / body · 401 key · 403 not the tablet's own app (reply has `role_app`) · 404 unknown / not Lab ·
+  409 tablet offline (not queued; reply has `last_seen_at`) or no charging pad (WLC).
+- Coming (MDM team): group-based access, stage first.
+
 ## Structure
 
 - `app.html` + `src/` — **the React app (v2)**, hash-routed: `src/main.jsx` ->
@@ -549,8 +569,9 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   then "21 of 22 done · 1 failed" (failures on hover). It follows the **majority** (most with the app on screen → Close on all,
   else Open on all; the user, 30 Oct 2026), and shows the opposite of a bulk command for 2 min after it while the list catches up. Browser → our `POST /api/app/:serial/open|close`
   (server.mjs: lab devices only via `keepDevice`, the package from the host-app list, else `aio.app.nugget.uatv2`) →
-  MDM `POST /api/v1/testdata/devices/{serial}/app/{open|close}?wait=true` (`mdm.command`) — **open wakes the screen first**
-  (`…/screen?wait=true` `{"state":"on"}`; the user, 30 Oct 2026: a locked tablet stayed dark), every command appended to
+  MDM `POST /api/v1/testdata/devices/{serial}/app/{open|close}?wait=true` (`mdm.command`) — **open itself wakes the screen and
+  clears the lock screen** (MDM, 2 Nov 2026; until then we sent "screen on" first and the tablet stayed locked); 409 = offline,
+  shown as "… is offline — not sent"; every command appended to
   `data/commands.jsonl` (gitignored) with who / when / answer. Screen off is not wired in. Nothing else sends commands.
 
 ### What counts in a test

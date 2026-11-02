@@ -1,5 +1,6 @@
 import { splitText, splitBy, cyclesText, deviceCyclesText, countCycles, benchCycles } from '../lib/splitCycles.js'
 import PhoneHistory from '../components/PhoneHistory.jsx'
+import LeftCycle from '../components/LeftCycle.jsx'
 import { fetchRoomRange, roomStats, ROOM_FROM } from '../lib/room.js'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import PartStatus from '../components/PartStatus.jsx'
@@ -459,7 +460,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             {benchSel && focus ? ', ' : ''}{focus ? <><b className="mono">{focus}</b>{benchSel ? '' : <> — its {cyclesText(cycles)} of {testType}</>}</> : null}
             {!focus && ticked ? <>{benchSel ? ', ' : ''}{ticked.size <= 3 ? [...ticked].sort(compareSerial).map((sn, i) => <React.Fragment key={sn}>{i ? ', ' : ''}<b className="mono">{sn}</b></React.Fragment>) : <b>{ticked.size} devices</b>}
               {' '}— {ticked.size === 1 ? 'its' : 'their'} {cyclesText(hourSrc)} of {testType}, in the battery chart and Drain by hour</> : null}
-            {/* devices taken out of this cycle on the Today screen: they left it, so they are not in its charts */}
+            {/* devices taken out of this cycle on the Today screen: in its charts up to then; their whole run is under Left the cycle */}
             {benchSel && cycleNote(loadDecls(CTX.group), benchSel.start, testType) && <span className="pick-out"><b>Note:</b> <span style={{ whiteSpace: 'pre-wrap' }}>{cycleNote(loadDecls(CTX.group), benchSel.start, testType)}</span></span>}
             {benchSel && (() => { const out = takenOutOf(loadDecls(CTX.group), benchSel.start); return out.length ? <span className="pick-out">
               <b>{out.length} taken out of this cycle:</b>{out.map((r) => <span key={r.serial + r.at}>{takenOutText(r)}</span>)}</span> : null })()}</span>
@@ -722,6 +723,9 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           )}
         </Card></div>
       </div>
+
+      {/* devices that left the cycle: counted up to then, and each one's whole run on request (the user, 2 Nov 2026) */}
+      {!isCharging && <LeftCycle cycles={inBench} styleMap={styleMap} onPick={pickDevice} />}
 
       {/* Every cycle in scope, one row each — with one device picked (Summary → a test row),
           this is that device's history for the test: which days it ran and how each went. */}

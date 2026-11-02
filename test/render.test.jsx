@@ -232,21 +232,28 @@ const mdmCases = []
       { id: 'o', at: 1, testType: 'restaurant', from: '2026-09-20', to: '2026-09-20', startTime: '10:00', endTime: '23:00', group: { kind: 'all' } }]
     const run = (d, h, hrs, from, to) => testTypeFor({ serial: 'A', start: at(d, h), end: at(d, h) + hrs * 3600e3, durationMs: hrs * 3600e3, startPct: from, endPct: to }, { decls: rcd, rota: {}, DEV: [] })
     want(run(16, 14, 14, 100, 18) === 'Restaurant Case', 'a real Restaurant Case')
-    want(run(16, 14, 69, 100, 30) === 'Old cycles', '69 h is not a Restaurant Case')
     const plan = (d, h, hrs, from, to, more = {}) => planFor({ serial: 'A', start: at(d, h), end: at(d, h) + hrs * 3600e3, durationMs: hrs * 3600e3, startPct: from, endPct: to, ...more }, { decls: rcd, rota: {}, DEV: [] })
+    // off track (2 Nov 2026, the user: "still show that device data when that cycle is opened"): it stays in the cycle,
+    // left at its start, nothing counted
+    const p69 = plan(16, 14, 69, 100, 30)
+    want(p69.name === 'Restaurant Case' && p69.cutAt === at(16, 14) && /idling/.test(p69.why), `69 h: left the cycle idling: ${JSON.stringify(p69)}`)
     // past 14 h + 2 h the device left the cycle: its first 16 h still count
     const long = plan(16, 14, 18, 100, 10)
     want(run(16, 17, 15.5, 100, 15) === 'Restaurant Case' && long.name === 'Restaurant Case' && long.cutAt === at(16, 14) + 16 * 3600e3, `14 h + 2 h, then cut: ${JSON.stringify(long)}`)
-    want(run(16, 14, 10, 100, 90) === 'Old cycles', 'idle at 1 %/h: not on the test')
+    const pIdle = plan(16, 14, 10, 100, 90)
+    want(pIdle.name === 'Restaurant Case' && pIdle.cutAt === at(16, 14) && /idling/.test(pIdle.why), `idle at 1 %/h: left at its start: ${JSON.stringify(pIdle)}`)
+    want(testTypeFor({ serial: 'A', start: at(17, 14), end: at(17, 24), durationMs: 10 * 3600e3, startPct: 100, endPct: 90 }, { decls: rcd, rota: {}, DEV: [] }) === 'Old cycles', 'idle with no planned cycle: Old cycles')
     const byHour = (padHours) => testTypeFor({ serial: 'A', start: at(16, 14), end: at(16, 14) + 14 * 3600e3, durationMs: 14 * 3600e3, startPct: 100, endPct: 18, padH: 3, padHours }, { decls: rcd, rota: {}, DEV: [] })
     const ok = [true, true, true, false, false, false, false, false, false, false, false, false, false, false]
     want(byHour(ok) === 'Restaurant Case' && byHour(ok.map((v, i) => (i === 3 ? true : v))) === 'Restaurant Case', 'load hours 1-3, off by hour 4 or 5')
-    want(byHour(ok.map((v, i) => (i === 0 ? false : v))) === 'Old cycles', 'no load in hour 1: never in the cycle')
+    const noLoad = plan(16, 14, 14, 100, 18, { padHours: ok.map((v, i) => (i === 0 ? false : v)) })
+    want(noLoad.name === 'Restaurant Case' && noLoad.cutAt === at(16, 14) && /hour 1/.test(noLoad.why), `no load in hour 1: left at its start: ${JSON.stringify(noLoad)}`)
     // a load still on in hour 6: the device left the cycle then; hours 1-5 still count
     const late = plan(16, 14, 14, 100, 18, { padHours: ok.map((v, i) => (i === 5 ? true : v)) })
     want(late.name === 'Restaurant Case' && late.cutAt === at(16, 14) + 5 * 3600e3 && /hour 6/.test(late.why), `load in hour 6: ${JSON.stringify(late)}`)
     want(byHour(ok.map((v, i) => (i === 1 ? null : v))) === 'Restaurant Case', 'an hour without readings is not judged')
-    want(byHour(ok.map((v, i) => (i < 3 ? null : v))) === 'Old cycles', 'no readings in the load hours: not confirmed')
+    const unconf = plan(16, 14, 14, 100, 18, { padHours: ok.map((v, i) => (i < 3 ? null : v)) })
+    want(unconf.name === 'Restaurant Case' && unconf.cutAt === at(16, 14) && /not confirmed/.test(unconf.why), `no readings in the load hours: ${JSON.stringify(unconf)}`)
     want(byHour(ok.map(() => null)) === 'Restaurant Case', 'no pad readings at all (not loaded yet): not judged')
     // an Idle Cycle for two devices (added later, so newest) is only theirs; idle drains ~1 %/h and still counts
     const idle = [...rcd, { id: 'i', at: 9, testType: 'idle', from: '2026-10-16', to: '2026-10-16', startTime: '14:00', endTime: '23:59', spanDays: 6, group: { kind: 'serials', serials: ['I1', 'I2'] } }]
@@ -277,9 +284,21 @@ const mdmCases = []
     const pB = planFor({ start: at(11, 10), end: at(11, 20), durationMs: 10 * 3600e3, startPct: 100, endPct: 10, serial: 'B' }, { decls: [decl], rota: {}, DEV })
     const tA = testTypeFor({ start: at(11, 10), end: at(11, 20), durationMs: 10 * 3600e3, startPct: 100, endPct: 10, serial: 'A' }, { decls: [decl], rota: {}, DEV })
     want(pB.name === 'WLC on Load' && pB.cutAt === at(11, 15) && /taken out/.test(pB.why) && tA === 'WLC on Load', `B ${JSON.stringify(pB)} / A ${tA}`)
-    // taken out within the first hour: nothing to keep
+    // taken out within the first hour, or before it started: still that cycle's (the user, 2 Nov 2026)
     const early = planFor({ start: at(11, 14) + 30 * 60e3, end: at(11, 20), durationMs: 5.5 * 3600e3, startPct: 100, endPct: 40, serial: 'B' }, { decls: [decl], rota: {}, DEV })
-    want(early.name === 'Old cycles', `taken out after 30 min: ${early.name}`)
+    want(early.name === 'WLC on Load' && early.cutAt === at(11, 15), `taken out after 30 min: ${JSON.stringify(early)}`)
+    const before = planFor({ start: at(11, 15) + 10 * 60e3, end: at(11, 22), durationMs: 7 * 3600e3, startPct: 100, endPct: 30, serial: 'B' }, { decls: [decl], rota: {}, DEV })
+    want(before.name === 'WLC on Load' && before.cutAt === at(11, 15) + 10 * 60e3, `taken out before it started: ${JSON.stringify(before)}`)
+    // an entry narrowed to a few serials still holds the devices taken out of it (28 Oct 2026: 17 out for WLC testing)
+    const few = { ...decl, group: { kind: 'serials', serials: ['A'] } }
+    const pFew = planFor({ start: at(11, 10), end: at(11, 20), durationMs: 10 * 3600e3, startPct: 100, endPct: 10, serial: 'B' }, { decls: [few], rota: {}, DEV })
+    want(pFew.name === 'WLC on Load' && pFew.cutAt === at(11, 15), `taken out of a serials entry: ${JSON.stringify(pFew)}`)
+    // its whole run is kept beside the cut, for "view full device behaviour"
+    const H = 3600e3, t0 = at(11, 10)
+    const cB = { start: t0, end: t0 + 10 * H, durationMs: 10 * H, startPct: 100, endPct: 10, reason: 'rundown', curve: null }
+    const series = Array.from({ length: 11 }, (_, h) => ({ t: h, v: 100 - 9 * h }))
+    const aB = adaptCycle({ serial: 'B', cycles: [cB] }, cB, null, { decls: [decl], rota: {}, DEV, curves: { [`B@${t0}`]: { s: 60, b: series.map(p => p.v), c: series.map(() => 30) } } })
+    want(aB.leftCycle && aB.fullRun && aB.fullRun.hours === 10 && aB.duration <= 5.01, `fullRun: ${JSON.stringify(aB.fullRun && { h: aB.fullRun.hours, n: aB.fullRun.series.length })} · ${aB.duration}`)
   })
   check('overlapping cycles are found; back-to-back ones are not', () => {
     const DEV = [{ serial: 'A' }, { serial: 'B' }]

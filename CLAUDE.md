@@ -336,8 +336,14 @@ Firmware client at no venue); anything else answers 404. Every control call is i
   Oct 2026: devices are mostly taken out after a few hours): taken out on Today (`removed`), past the cycle time, a
   load still on after the load hours, or none in one of them — `adaptCycle` cuts its curve, battery, duration and
   hours at that moment, marks it `leftCycle: { at, why }` ("· left cycle" in the tables, a CSV column), and its hours
-  count for the test. Only a run that never ran the test is Old cycles: no load in hour 1, no pad readings in the load
-  hours, under 1 h kept, or under 2 %/h over the hours kept.
+  count for the test. **A device in a declared cycle never drops out of it** (the user, 2 Nov 2026: "if device removed from
+  cycle, either out of track or by hand, still show that device data when that cycle is opened"): no load in hour 1, no pad
+  readings in the load hours, under 2 %/h, taken out before its run started or in its first hour — it stays, left at that
+  moment (0 h kept if at its start). A device taken out of an entry that lists only some serials is still that entry's
+  (28 Oct: 15 out for WLC testing), and a run the detector filed as interrupted is kept when it was taken out by hand.
+  Its whole run is kept beside the cut (`fullRun` on the cycle, never counted) and shown on each test screen in the
+  **Left the cycle** card (`src/components/LeftCycle.jsx`: device, started, left at, kept, why, whole run, ▸ Full run → its
+  curve, solid in the cycle, dashed after). Only runs matched by the rota alone (no plan entry) still go to Old cycles.
   A plan entry for some devices only (`group.kind: 'serials'`) is never another device's cycle (`plannedTest` filters by the run's serial; Auto ignores one covering under half a bench). A run only takes a declared cycle **of its own kind** (`testTypeFor` in `adapt.js`): a discharge never becomes a
   Charging Cycle, a charge never a discharge test. The charges themselves are the sweep's charge segments (`d.charges`,
   ≤ 30 % up to ≥ 90 %, with their own curve): **every charge from 25 Sep on is a Charging Cycle** with no plan entry
@@ -595,6 +601,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - **A device that behaves differently from the test is not in the cycle** (no load in hours 1–3 of a Restaurant Case,
   a load still on at hour 5+, past 14 h + 2 h slack, idling under 2 %/h). It **keeps its data up to the moment it left**
   (`planFor` → `cutAt`), shown as "· left cycle" with the reason on hover. A device starting up to 3 h late is still in.
+  **It never disappears from that cycle** (2 Nov 2026), however early it left: the test screen's **Left the cycle** card lists
+  it with ▸ Full run, its whole run as it happened (not counted).
 - An hour without readings is neither WLC active nor inactive (null), never filled from the run's flag.
 - **Devices in one cycle can leave the charger at different times** (the user, said more than once; 30 Oct 2026: "be careful
   with it"): every per-device rule — load hours, cycle length, short cycle, drain, the iPhone card's hours — uses **that

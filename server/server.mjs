@@ -169,7 +169,10 @@ http.createServer(async (req, res) => {
         const r = iphones.report(q);
         return json(req, res, r.ok ? 200 : r.code, r);
       }
-      if (p === '/api/room') return json(req, res, 200, { ...room.get(+url.searchParams.get('hours') || 24), usb: roomSerial?.status() || null });
+      if (p === '/api/room') {
+        const n = k => +url.searchParams.get(k) || 0;
+        return json(req, res, 200, { ...room.get({ hours: n('hours') || 24, from: n('from') || null, to: n('to') || null, step: n('step') }), usb: roomSerial?.status() || null });
+      }
       // the ESP32-S3 + SHT30 in the lab sending the room's reading (firmware/room-sensor/)
       if (p === '/api/room/report') {
         let q = Object.fromEntries(url.searchParams);

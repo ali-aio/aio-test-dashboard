@@ -1,5 +1,6 @@
 import { splitText, splitBy, cyclesText, deviceCyclesText, countCycles, benchCycles } from '../lib/splitCycles.js'
 import PhoneHistory from '../components/PhoneHistory.jsx'
+import { fetchRoomRange, roomStats, ROOM_FROM } from '../lib/room.js'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import PartStatus from '../components/PartStatus.jsx'
 import { SortTable } from '../components/SortTable.jsx'
@@ -68,6 +69,20 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const adsSeen = useMemo(() => cycles.filter((c) => c.screen && !c.inProgress), [cycles])
   const adsStopped = useMemo(() => adsSeen.filter((c) => c.adsGap).sort((a, b) => b.start - a.start), [adsSeen])
   const adsAvg = adsSeen.length ? adsSeen.reduce((a, c) => a + c.screen.onPct, 0) / adsSeen.length : null
+  // the room's own temperature during each bench cycle in view (the lab's SHT30 on the lab laptop, from 2 Nov 2026;
+  // the user: "if I open this cycle after a few days it should show there"), from the server's 10-min averages
+  const roomWins = useMemo(() => benchCycles(cycles).map((b) => ({ b, a: b.start,
+    z: Math.max(...b.list.map((c) => (c.inProgress ? Date.now() : (c.end ?? c.start)))) })).filter((x) => x.z >= ROOM_FROM), [cycles])
+  const roomFrom = roomWins.length ? Math.max(ROOM_FROM, Math.min(...roomWins.map((x) => x.a))) : 0
+  const roomTo = roomWins.length ? Math.max(...roomWins.map((x) => x.z)) : 0
+  const [roomRows, setRoomRows] = useState([])
+  useEffect(() => {
+    if (!roomTo) { setRoomRows([]); return }
+    let live = true
+    fetchRoomRange(roomFrom, roomTo).then((r) => { if (live) setRoomRows(r) })
+    return () => { live = false }
+  }, [roomFrom, roomTo])
+  const roomByBench = useMemo(() => roomWins.map((x) => ({ ...x, s: roomStats(roomRows, x.a, x.z) })).filter((x) => x.s).sort((p, q) => q.a - p.a), [roomWins, roomRows])
   // Picking a device also switches the battery chart to Per device with only it ticked, so
   // its picker reads "1/22" and the other devices of the cycle stay a tick away.
   const pickDevice = (sn) => {
@@ -380,6 +395,21 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             breakdownWide: true, breakdownRight: true, breakdownNoun: 'run',
             breakdown: adsStopped.map((c) => ({ id: c.id, label: `${fmtSerial(c.serial)} · ${fmtDate(c.date)}`, value: c.screen.onPct, display: `${fmtNum(c.screen.onPct, 0)}% on screen`,
               hint: c.screen.longestOff ? `· longest off ${fmtMin(c.screen.longestOff.min)} (${SPAN_LABEL[c.screen.longestOff.why].toLowerCase()}) from ${clock(c.screen.longestOff.from)}` : '', highlight: true, onClick: () => pickDevice(c.serial) })) } : {})} />}
+        {/* the room during these cycles: average of each cycle's average, its low / high; per cycle in the drop-down */}
+        {roomByBench.length > 0 && (() => {
+          const avg = roomByBench.reduce((a, x) => a + x.s.avg, 0) / roomByBench.length
+          const lo = Math.min(...roomByBench.map((x) => x.s.min)), hi = Math.max(...roomByBench.map((x) => x.s.max))
+          const rhs = roomByBench.filter((x) => x.s.rh != null), rh = rhs.length ? Math.round(rhs.reduce((a, x) => a + x.s.rh, 0) / rhs.length) : null
+          const day = (t) => new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+          const one = roomByBench.length === 1
+          return <Stat label="Room temp" value={fmtNum(avg, 1)} unit="°C"
+            foot={`${one ? 'during this cycle' : `avg of ${roomByBench.length} cycles`} · ${lo.toFixed(1)}–${hi.toFixed(1)} °C${rh != null ? ` · ${rh}% RH` : ''}`}
+            breakdownLabel="Room temperature during each cycle · the lab's room sensor, from 2 Nov 2026 · newest first"
+            breakdownWide breakdownRight breakdownNoun="cycle"
+            breakdown={roomByBench.map((x) => ({ id: x.b.key, label: day(x.a), value: x.s.avg, display: `avg ${x.s.avg.toFixed(1)} °C`,
+              hint: `· ${x.s.min.toFixed(1)}–${x.s.max.toFixed(1)} °C${x.s.rh != null ? ` · ${x.s.rh}% RH` : ''}`, highlight: x.b.key === bench,
+              onClick: () => { setBench((k) => (k === x.b.key ? null : x.b.key)); setFocus(null) } }))} />
+        })()}
         <Stat label="Avg peak temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
           foot={hottestRun == null
             ? 'no temperature recorded'

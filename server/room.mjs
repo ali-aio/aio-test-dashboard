@@ -37,9 +37,26 @@ export function createRoom(root, { log = () => {} } = {}) {
       const x = rows[rows.length - 1];
       return { ok: true, sensor: r.sensor, stored: fresh.length, t: x[1], rh: x[2], at: x[0] };
     },
-    get(hours = 24) {
-      const from = Date.now() - Math.max(1, Math.min(hours, 24 * 14)) * 3600e3;
-      return { sensors: [...db].map(([id, rows]) => ({ id, rows: rows.filter(r => r[0] >= from) })), at: Date.now() };
+    // the last `hours` (default 24, every reading), or any window from / to (ms) averaged into `step`-second
+    // buckets (≥ 60; the test screen asks for 10-min ones over its cycles, so 120 days stay ~17k rows)
+    get({ hours = 24, from = null, to = null, step = 0 } = {}) {
+      const now = Date.now();
+      const a = Number.isFinite(from) && from > 0 ? from : now - Math.max(1, Math.min(hours, 24 * 14)) * 3600e3;
+      const b = Number.isFinite(to) && to > 0 ? to : now;
+      const q = step >= 60 ? step * 1000 : b - a > 14 * 86400e3 ? 600e3 : 0; // never every reading over more than 14 days
+      return { sensors: [...db].map(([id, rows]) => {
+        const keep = rows.filter(r => r[0] >= a && r[0] <= b);
+        if (!q) return { id, rows: keep };
+        const out = []; let k = null, n = 0, st = 0, sc = 0, srh = 0, nrh = 0;
+        const flush = () => { if (n) out.push([Math.round(st / n), Math.round(sc / n * 10) / 10, nrh ? Math.round(srh / nrh) : null]); };
+        for (const r of keep) {
+          const kk = Math.floor(r[0] / q);
+          if (kk !== k) { flush(); k = kk; n = st = sc = srh = nrh = 0; }
+          n++; st += r[0]; sc += r[1]; if (r[2] != null) { srh += r[2]; nrh++; }
+        }
+        flush();
+        return { id, rows: out };
+      }), at: now };
     },
   };
 }

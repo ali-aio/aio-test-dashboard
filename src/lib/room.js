@@ -5,6 +5,7 @@
 
 export const STALE_MIN = 10; // no reading for this long = "sensor not heard from"
 export const KEEP_DAYS = 120;
+export const ROOM_FROM = Date.UTC(2026, 10, 2); // the sensor's first reading (2 Nov 2026): nothing to ask for before
 
 const num = (v) => { const x = String(v ?? '').trim().replace(/\s*(°C|C|%)$/i, ''); const n = Number(x); return x !== '' && Number.isFinite(n) ? n : null; };
 
@@ -40,6 +41,33 @@ export function roomSummary(rows, from, now = Date.now()) {
     avg: ts.length ? Math.round(ts.reduce((a, b) => a + b, 0) / ts.length * 10) / 10 : null,
     n: since.length,
   };
+}
+
+/** The room over one window [a, b]: average, low, high and humidity, from rows [[t, tempC, rh]] (oldest first).
+ *  null when fewer than `minN` readings fall in it (the sensor wasn't there yet, or was unplugged). */
+export function roomStats(rows, a, b, minN = 3) {
+  const ts = [], hs = [];
+  for (const r of rows || []) { if (r[0] < a) continue; if (r[0] > b) break; ts.push(r[1]); if (r[2] != null) hs.push(r[2]); }
+  if (ts.length < minN) return null;
+  const avg = x => x.reduce((p, q) => p + q, 0) / x.length;
+  return { avg: Math.round(avg(ts) * 10) / 10, min: Math.min(...ts), max: Math.max(...ts), rh: hs.length ? Math.round(avg(hs)) : null, n: ts.length };
+}
+
+/** The room sensor's rows over [from, to], in 10-min averages, for the test screen (one fetch per window). */
+const ranges = new Map(); // window key → { p: Promise<rows>, at }
+export function fetchRoomRange(from, to) {
+  const k = `${Math.floor(from / 600e3)}-${Math.ceil(to / 600e3)}`;
+  // a window reaching up to now is asked again after a minute (a running cycle keeps getting readings)
+  const old = ranges.get(k);
+  if (old && to > Date.now() - 15 * 60e3 && Date.now() - old.at > 60e3) ranges.delete(k);
+  if (!ranges.has(k)) {
+    const p = fetch(`/api/room?from=${Math.floor(from)}&to=${Math.ceil(to)}&step=600`, { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : { sensors: [] }))
+      .then(j => { const x = (j.sensors || []).find(s => s.id === 'room') || (j.sensors || [])[0]; return x?.rows || []; })
+      .catch(() => { ranges.delete(k); return []; });
+    ranges.set(k, { p, at: Date.now() });
+  }
+  return ranges.get(k).p;
 }
 
 // ---- browser side: GET /api/room every minute ----

@@ -311,13 +311,6 @@ export default function TodayView({ fleet }) {
     const x = sensors.find(x => x.id === 'room') || sensors[0]
     return x ? x.rows.filter(r => r[0] >= chartFrom && r[0] <= winTo + 5 * MIN).map(r => ({ x: r[0], y: r[1] })) : []
   }, [roomDb, chartFrom, winTo])
-  const roomAt = t => {
-    const sensors = (roomDb.sensors || []).filter(x => x.rows?.length), x = sensors.find(x => x.id === 'room') || sensors[0]
-    if (!x || !Number.isFinite(t)) return null
-    let best = null
-    for (const r of x.rows) if (Math.abs(r[0] - t) <= 10 * MIN && (!best || Math.abs(r[0] - t) < Math.abs(best[0] - t))) best = r
-    return best ? { x: best[0], y: best[1] } : null
-  }
   const roomSeries = roomPts.length > 1 ? [{ id: 'room', label: 'Room', pts: roomPts, color: 'var(--text-secondary)', width: 1.8, dash: '6 4',
     endLabel: `room ${roomPts[roomPts.length - 1].y.toFixed(0)}°`, labelColor: 'var(--text-secondary)' }] : []
   const tempSeries = [...roomSeries, ...(tempMode === 'avg'
@@ -558,7 +551,7 @@ export default function TodayView({ fleet }) {
               : <span className="secondary">{reporting.length} reporting · click to show every device — click one to chart it alone</span>}
           </div>
           {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: T.charging ? 'On charger' : 'Off charger', className: 'r' },
-              { label: T.charging ? 'Charge rate' : 'Drain', className: 'r' }, { label: 'Cycles', className: 'r' }, { label: 'Temp now', className: 'r' }, { label: 'Room temp', className: 'r' },
+              { label: T.charging ? 'Charge rate' : 'Drain', className: 'r' }, { label: 'Cycles', className: 'r' }, { label: 'Temp now', className: 'r' },
               { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' },
               ...(canOut ? [{ label: '', sortable: false }] : [])]}>
               {conf.filter(c => matches(c.serial) && c.serial.toLowerCase().includes(listQ.trim().toLowerCase())).sort((a, b) => byBenchOrder(a.serial, b.serial)).map(c => { // the lab's bench order (BENCH_ORDER); a heading click still sorts
@@ -580,10 +573,6 @@ export default function TodayView({ fleet }) {
                   <td className="r mono" style={{ color: c.state === 'drifting' ? 'var(--warn)' : 'inherit' }}>{r?.rate != null ? r.rate.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td></>}
                   <td className="r mono">{fmtLifetime(lifetimeCycles(d.snap))}</td>
                   <td className="r mono" style={{ color: online(d) && d.snap.battery_temp_c >= TEMP_LIMIT ? 'var(--bad)' : online(d) && d.snap.battery_temp_c >= TEMP_WARN ? 'var(--warn)' : 'inherit' }}>{online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td>
-                  {/* the room at this device's last check-in (the lab's SHT30), beside its battery (the user, 2 Nov 2026) */}
-                  {(() => { const rt = roomAt(Date.parse(d.snap?.last_seen_at)), bt = online(d) ? d.snap.battery_temp_c : null
-                    return <td className="r mono" title={rt && bt ? `battery ${(bt - rt.y).toFixed(1)} °C above the room · room read ${hm(rt.x)}` : rt ? `room read ${hm(rt.x)}` : 'no room reading near this check-in'}>
-                      {rt ? rt.y.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td> })()}
                   <td className="r mono" style={{ color: s?.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : s?.maxTemp >= TEMP_WARN ? 'var(--warn)' : 'inherit' }}>{s?.maxTemp != null ? s.maxTemp.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td>
                   <td className="r mono" style={{ color: s?.minAbove45 ? 'var(--bad)' : 'inherit' }}>{s?.minAbove45 ? fmtDur(s.minAbove45 * MIN) : <span className="secondary">—</span>}</td>
                   {canOut && <td className="r"><button type="button" className="btn btn-sm" title={`Take ${c.serial} out of this cycle, with a reason`}
@@ -591,7 +580,7 @@ export default function TodayView({ fleet }) {
                 </tr>
                 // the take-out form opens right under its device, as part of the table
                 return takingOut === c.serial && canOut ? [row,
-                  <tr key={c.serial + ':out'} data-attached="1" className="takeout-row"><td colSpan={11}>
+                  <tr key={c.serial + ':out'} data-attached="1" className="takeout-row"><td colSpan={10}>
                     <TakeOutForm serial={c.serial} cycle={T} onCancel={() => setTakingOut(null)}
                       onSave={rec => { if (T.decl) takeOut(GROUP, T.decl.id, { serial: c.serial, ...rec }); else setPendingOut(T.key, c.serial, rec); setTakingOut(null); setPlanRev(v => v + 1) }} />
                   </td></tr>] : row

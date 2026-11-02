@@ -23,7 +23,7 @@ import { loadPart, getSnapshot } from '../src/lib/fleet.js'
 import { runStartOf, drainSplit } from '../src/lib/window.js'
 import { takeOutReasons } from '../src/lib/plan.js'
 import RangePicker from '../src/components/RangePicker.jsx'
-import { parseReport, roomSummary } from '../src/lib/room.js'
+import { parseReport, roomSummary, roomStats } from '../src/lib/room.js'
 import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart, readingAt, readT7s, padAt, onPadAt } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
@@ -521,6 +521,10 @@ const mdmCases = []
     want(s.t === 23 && s.rh === 41 && !s.stale && s.min === 22 && s.max === 24 && s.avg === 23 && s.n === 3, JSON.stringify(s))
     want(roomSummary(rows, now - 90 * M, now + 7 * M).stale === false && roomSummary(rows, now - 90 * M, now + 9 * M).stale === true, 'stale after 10 min')
     want(roomSummary([], 0, now) === null, 'no rows')
+    // one cycle's room (the test screen's Room temp tile): only readings inside its window, none = null
+    const c = roomStats(rows, now - 90 * M, now)
+    want(c.avg === 23 && c.min === 22 && c.max === 24 && c.rh === 41 && c.n === 3, JSON.stringify(c))
+    want(roomStats(rows, now - 400 * M, now - 350 * M) === null && roomStats([], 0, now) === null, 'a cycle before the sensor = null')
   })
   check('iPhone on the pad: readings from the iPhone itself fill the hours, a typed value wins', () => {
     const d = '2026-11-02', sn = 'AT070AABU00790', H = 3600e3, M = 60e3, t0 = Date.UTC(2026, 10, 2, 10, 30)

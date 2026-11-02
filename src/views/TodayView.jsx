@@ -1,3 +1,11 @@
+        {/* the big number is only the time (the user, 2 Nov 2026: "7h 02m · 7h 00m left" wrapped onto two lines);
+            what is left, the end and the off-charger time go in the note, one per line */}
+        <Metric label={ended ? 'Ran for' : 'Running for'}
+          value={ended && runStart ? fmtDur(T.endMs - runStart) : runStart ? fmtDur(now - runStart) : 'Not started'}
+          delta={ended && runStart ? <>ended {hm(T.endMs)}<br />off charger {hm(runStart)}</>
+            : T.running ? <>off charger {hm(runStart || T.startMs)}<br />no test planned yet</>
+            : runStart ? <>{T.endMs > now ? `${fmtDur(T.endMs - now)} left · ends ${hm(T.endMs)}${T.overnight ? ' next day' : ''}` : `planned end ${hm(T.endMs)} passed`}<br />off charger {hm(runStart)}</>
+            : <>{started.length} of {all.length} devices off charger<br />planned {hm(T.startMs)} → {hm(T.endMs)}{T.overnight ? ' next day' : ''}</>} />
 import PlanSource from '../components/PlanSource.jsx'
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
@@ -433,7 +441,7 @@ export default function TodayView({ fleet }) {
           rows.forEach(r => { r.odd = r.on !== most })
           rows.sort((a, b) => (b.odd - a.odd) || (b.on - a.on) || (b.padOn - a.padOn) || byBenchOrder(a.d.serial, b.d.serial))
           return <Stat label="WLC · load placed" warn={rows.some(r => r.odd)} value={<>{n}<span className="secondary" style={{ fontSize: 13 }}> / {rows.length}</span></>}
-            foot={`load placed on the pad · ${rows.filter(r => r.padOn && !r.on).length} more with the pad on, no load`}
+            foot={(() => { const k = rows.filter(r => r.padOn && !r.on).length; return k ? `load on the pad · ${k} pad on, no load` : 'load on the pad' })()}
             breakdownLabel="WLC" breakdownRight breakdownWide breakdownNoun="device"
             breakdown={rows.map(r => ({ id: r.d.serial, label: r.d.serial, value: r.on ? 1 : 0, warn: r.odd,
               display: !r.wlcOn ? 'WLC off' : r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'No load', hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial),
@@ -451,8 +459,8 @@ export default function TodayView({ fleet }) {
           const main = rows.find(r => !r.s.stale) || rows[0], s = main.s
           const since = T.startMs && T.startMs < now ? `since ${hm(from)}` : 'last 24 h'
           return <Stat label="Room temp" warn={s.stale}
-            value={<><span style={s.stale ? { color: 'var(--status-critical)' } : undefined}>{s.t.toFixed(1)}</span><span className="secondary" style={{ fontSize: 13 }}> °C{s.rh != null ? ` · ${s.rh}% RH` : ''}</span></>}
-            foot={s.stale ? `sensor not heard from since ${when(s.at)}${unplugged}` : s.min != null ? `${s.min.toFixed(1)}–${s.max.toFixed(1)} · avg ${s.avg.toFixed(1)} ${since}` : `at ${hm(s.at)}`}
+            value={<><span style={s.stale ? { color: 'var(--status-critical)' } : undefined}>{s.t.toFixed(1)}</span><span className="secondary" style={{ fontSize: 13 }}> °C</span></>}
+            foot={s.stale ? `sensor not heard from since ${when(s.at)}${unplugged}` : <>{s.rh != null ? `${s.rh}% RH · ` : ''}{s.min != null ? `${s.min.toFixed(1)}–${s.max.toFixed(1)} °C` : `at ${hm(s.at)}`}{s.min != null && <><br />avg {s.avg.toFixed(1)} {since}</>}</>}
             breakdownLabel="Room sensors" breakdownRight breakdownNoun="sensor"
             breakdown={rows.length > 1 ? rows.map(r => ({ id: r.id, label: r.id, value: r.s.t, display: `${r.s.t.toFixed(1)} °C${r.s.rh != null ? ` · ${r.s.rh}%` : ''}`,
               hint: r.s.stale ? `· not heard from since ${when(r.s.at)}` : `· ${hm(r.s.at)}`, highlight: r.s.stale })) : undefined} />

@@ -404,7 +404,11 @@ export default function TodayView({ fleet }) {
               hint: x.rate ? `· ${what} · median of ${x.n}` : `· ${what} · needs 20 min`, highlight: x.rate != null }
           })} />
         <Metric label={`Reaches ${END_BAND}%`} value={etaEnd ? <>{hm(etaEnd)}{dayKey(etaEnd) !== key && <span className="secondary" style={{ fontSize: 13, fontWeight: 500 }}> {new Date(etaEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</> : medNow != null && medNow <= END_BAND ? 'Done' : '—'}
-          delta={etaEnd ? `${fmtDur(etaEnd - now)} from now${etaEmpty ? ` · empty ≈ ${when(etaEmpty)}` : ''}` : medNow != null && medNow <= END_BAND ? 'median is in the end band' : 'at the current rate'} />
+          delta={/* the time to 0 % too, at the bottom, also once 20 % is passed (the user, 2 Nov 2026) */
+            etaEnd ? `${fmtDur(etaEnd - now)} from now${etaEmpty ? ` · 0 % ≈ ${when(etaEmpty)}` : ''}`
+            : etaEmpty ? `Reaches 0 % ≈ ${when(etaEmpty)} · ${fmtDur(etaEmpty - now)} from now`
+            : medNow != null && medNow <= 0 ? 'Reached 0 %'
+            : medNow != null && medNow <= END_BAND ? 'Reaches 0 %: — (no drain rate yet)' : 'at the current rate'} />
         </>}
         {/* a yellow border on a tile where some devices behave differently from the rest (the user, 27 Oct 2026) */}
         <Metric label="On track with plan" warn={!!T.tt && (drifting.length > 0 || silent > 0)} color={T.tt && conforming.length === T.serials.length ? 'var(--ok)' : drifting.length ? 'var(--warn)' : null}

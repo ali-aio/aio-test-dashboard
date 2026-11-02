@@ -759,6 +759,8 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   27 Oct 2026: "lines are still stuck"); checked with a headless debug build — the data was arriving every 30 s.
 - **On track with plan** shows **—** while no test is named (not "0 / 22", which read as every device off track — the user, 27 Oct 2026).
 - **Reaches 95 % / Reaches 20 %**: the time large, the date small beside it only when it isn't today ("05:18 AM Oct 31"; the user, 30 Oct 2026: the full date wrapped onto two lines).
+  Under Reaches 20 % the note always gives **0 %** too: "2h 10m from now · 0 % ≈ 21:40", and once past 20 % (value Done)
+  "Reaches 0 % ≈ 21:40 · 1h 05m from now" (the user, 2 Nov 2026).
 - **Room temp** (the user, 2 Nov 2026: the T7s report only their battery's temperature): an **ESP32-S3 + SHT30**
   (`firmware/room-sensor/`, Arduino, no extra libraries; SDA GPIO 8, SCL GPIO 9; an ESP32-S3-N16R8 DevKit, FQBN in that README)
   reads the room every minute and is **plugged into the lab laptop's USB** (the user, 2 Nov 2026; no Wi-Fi): it prints

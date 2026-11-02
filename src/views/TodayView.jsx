@@ -304,7 +304,16 @@ export default function TodayView({ fleet }) {
             endLabel: few ? `${c.serial.slice(-4)} ${lastOf(c)}%` : (c === lo || c === hi) ? pctLabel(lastOf(c)) : null }
         }),
       ]
-  const tempSeries = tempMode === 'avg'
+  // the room's own temperature (ESP32-S3 + SHT30 on the lab laptop, server/roomSerial.mjs) as one more line, so a
+  // battery running hot can be told from a warm room (the user, 2 Nov 2026)
+  const roomPts = useMemo(() => {
+    const sensors = (roomDb.sensors || []).filter(x => x.rows?.length)
+    const x = sensors.find(x => x.id === 'room') || sensors[0]
+    return x ? x.rows.filter(r => r[0] >= chartFrom && r[0] <= winTo + 5 * MIN).map(r => ({ x: r[0], y: r[1] })) : []
+  }, [roomDb, chartFrom, winTo])
+  const roomSeries = roomPts.length > 1 ? [{ id: 'room', label: 'Room', pts: roomPts, color: 'var(--text-2)', width: 1.8, dash: '6 4',
+    endLabel: `room ${roomPts[roomPts.length - 1].y.toFixed(0)}°`, labelColor: 'var(--text-2)' }] : []
+  const tempSeries = [...roomSeries, ...(tempMode === 'avg'
     ? [
         { id: 'avg', label: 'Average', pts: tAvg, color: 'var(--series-1)', width: 2, endLabel: tAvg.length ? `avg ${tAvg[tAvg.length - 1].y.toFixed(0)}°` : null },
       ]
@@ -312,7 +321,7 @@ export default function TodayView({ fleet }) {
         const pts = ptsOf(c, temp), last = pts[pts.length - 1]
         return { id: c.serial, label: tail(c.serial), pts, color: colorOf.get(c.serial), dash: styleOf.get(c.serial)?.dash, width: 1.6,
           endLabel: last && (few || last.y >= TEMP_WARN) ? `${c.serial.slice(-4)} ${last.y.toFixed(0)}°` : null }
-      })
+      }))]
   // Tooltip rows in T7's style; the busiest charts list the six most relevant lines.
   const battTip = (t, hits) => {
     const rows = hits.filter(h => h.p).sort((a, b) => a.p.y - b.p.y)
@@ -321,8 +330,10 @@ export default function TodayView({ fleet }) {
       + (rows.length > 6 ? `<div class="tt-time" style="margin:4px 0 0">+${rows.length - 6} more between</div>` : '')
   }
   const tempTip = (t, hits) => {
-    const rows = hits.filter(h => h.p).sort((a, b) => b.p.y - a.p.y)
-    return tooltipHtml(hm(t), rows.slice(0, 6).map(({ s, p }) => ({ color: s.color, name: s.label || s.id, value: `${p.y.toFixed(1)} °C` })))
+    // the room always shows, first; the devices after it, hottest first
+    const room = hits.filter(h => h.p && h.s.id === 'room')
+    const rows = hits.filter(h => h.p && h.s.id !== 'room').sort((a, b) => b.p.y - a.p.y)
+    return tooltipHtml(hm(t), [...room, ...rows.slice(0, 6)].map(({ s, p }) => ({ color: s.color, name: s.label || s.id, value: `${p.y.toFixed(1)} °C` })))
       + (rows.length > 6 ? `<div class="tt-time" style="margin:4px 0 0">+${rows.length - 6} more, all cooler</div>` : '')
   }
   const picker = <DevicePicker serials={sorted} picked={picked} colorOf={colorOf} styleOf={styleOf} drifting={new Set(drifting.map(d => d.serial))}
@@ -517,6 +528,7 @@ export default function TodayView({ fleet }) {
               {tempMode === 'avg' ? <>
                 <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average temperature of {shown.length} device{shown.length === 1 ? '' : 's'}</span>
               </> : <span className="legend-item secondary">One line per device — each colour matches that device in the Devices list above. {few ? 'Each line ends with its device and temperature now.' : `The numbers at the right end mark devices at ${TEMP_WARN} °C or hotter now.`}</span>}
+              {roomSeries.length ? <span className="legend-item" title="The lab's room sensor (SHT30), not a device"><i className="legend-key-line" style={{ background: keyBackground('var(--text-2)', '6 4') }} />Room temperature</span> : null}
             </div>
             {noneTicked ? <div className="empty">No devices ticked — pick some above, or choose Select all.</div> :
             <MultiLineChart h={230} yMax={60} yFmt={v => v.toFixed(0) + '°'} xFmt={hm} x0={chartFrom} x1={winTo}

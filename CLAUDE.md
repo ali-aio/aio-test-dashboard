@@ -572,7 +572,12 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   MDM `POST /api/v1/testdata/devices/{serial}/app/{open|close}?wait=true` (`mdm.command`) — **open itself wakes the screen and
   clears the lock screen** (MDM, 2 Nov 2026; until then we sent "screen on" first and the tablet stayed locked); 409 = offline,
   shown as "… is offline — not sent"; every command appended to
-  `data/commands.jsonl` (gitignored) with who / when / answer. Screen off is not wired in. Nothing else sends commands.
+  `data/commands.jsonl` (gitignored) with who / when / answer. **Second exception (the user, 2 Nov 2026): WLC on / off** —
+  Today → **WLC · load placed** drop-down, a ⚡ switch in front of each device (`WlcToggle.jsx`, asks first, flips at once)
+  and **WLC off on all / WLC on on all** in its header by the majority (`WlcToggleAll`); browser → our `POST /api/wlc/:serial`
+  `{enabled}` → MDM `POST …/devices/{serial}/wlc` (answers at once; a disconnected tablet takes it on reconnect), logged the
+  same way. A row reads "WLC off" when `wlc_status` is -1 (WLC off shows there at once; the pad flag lags minutes).
+  Screen off is not wired in. Nothing else sends commands.
 
 ### What counts in a test
 - **Nothing before 25 Sep 2026** counts in any test (`PLAN_FROM`); earlier runs are Old cycles.

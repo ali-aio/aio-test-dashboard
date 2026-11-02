@@ -4,6 +4,7 @@ import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
 import PartStatus from '../components/PartStatus.jsx'
 import PhoneOnPad from '../components/PhoneOnPad.jsx'
 import AppToggle, { AppToggleAll } from '../components/AppToggle.jsx'
+import WlcToggle, { WlcToggleAll } from '../components/WlcToggle.jsx'
 import { subscribePhone, getPhone, startPhoneSync, pendingOuts, setPendingOut } from '../lib/phoneLog.js'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
@@ -407,7 +408,9 @@ export default function TodayView({ fleet }) {
             // wlc_status 1/2 = a load placed and being charged (seen during WLC on Load);
             // wlc_charging alone = the pad switched on, nothing on it
             const on = padLoad(e.wlc_status) === true, padOn = e.wlc_charging === true
-            return { d, on, padOn, live: online(d) }
+            // WLC switched off reads wlc_status -1 at once (the pad flag lags minutes; 27 Oct 2026 experiment)
+            const wlcOn = e.wlc_status != null && e.wlc_status !== '' ? +e.wlc_status !== -1 : padOn
+            return { d, on, padOn, wlcOn, live: online(d) }
           })
           // the devices doing something different from the rest go on top, highlighted (the user, 27 Oct 2026:
           // "load not placed here"): with a load on most pads, the ones without; with most bare, the ones with
@@ -418,7 +421,10 @@ export default function TodayView({ fleet }) {
             foot={`load placed on the pad · ${rows.filter(r => r.padOn && !r.on).length} more with the pad on, no load`}
             breakdownLabel="WLC pad, every device (latest check-in)" breakdownRight breakdownWide breakdownNoun="device"
             breakdown={rows.map(r => ({ id: r.d.serial, label: r.d.serial, value: r.on ? 1 : 0, warn: r.odd,
-              display: r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'No load', hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial) }))} />
+              display: !r.wlcOn ? 'WLC off' : r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'No load', hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial),
+              // WLC on / off on that T7 (the user, 2 Nov 2026)
+              action: <WlcToggle serial={r.d.serial} enabled={r.wlcOn} /> }))}
+            breakdownAction={<WlcToggleAll serials={rows.map(r => r.d.serial)} enabledCount={rows.filter(r => r.wlcOn).length} />} />
         })()}
         {/* the host app (the ads) on screen now, per device (MDM host-app list, every minute); devices on a
             client older than 1.11.0 do not report it */}

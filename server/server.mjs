@@ -13,6 +13,7 @@
 //   · GET/PUT /api/plan  → the shared Cycle plan, data/plan.json (server/plan.mjs) — our own
 //   · GET/POST /api/phone → iPhone battery typed in on Today, data/phone.json (server/phone.mjs) — our own
 //   · POST /api/app/:serial/open|close → open / close Nugget on a lab tablet (MDM testdata app routes), logged in data/commands.jsonl
+//   · POST /api/wlc/:serial {enabled} → wireless charging on the pad on / off (MDM testdata wlc route), logged the same way
 //     file, the one thing a browser can write; never anything on the MDM
 //
 // Every upstream call goes through server/mdm.mjs (3 in flight, 120 ms apart, coalesced).
@@ -157,6 +158,23 @@ http.createServer(async (req, res) => {
         const out = r.json || { error: `MDM answered ${r.status}` };
         // 409 = the tablet is offline (not queued): say so plainly
         if (r.status === 409 && !out.output) out.error = `${serial} is offline${out.last_seen_at ? ` (last seen ${out.last_seen_at})` : ''} — not sent`;
+        return json(req, res, r.status, out);
+      }
+      // Wireless charging on a lab T7's pad on / off (the user, 2 Nov 2026, Today's "WLC · load placed" card): MDM
+      // POST /devices/{serial}/wlc {enabled} answers at once {serial, enabled, connected}; lab devices only, logged.
+      const wm = p.match(/^\/api\/wlc\/([A-Za-z0-9]{6,32})$/);
+      if (wm) {
+        if (req.method !== 'POST') return json(req, res, 405, { error: 'POST' });
+        if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
+        const serial = wm[1];
+        if (!keepDevice({ serial_number: serial })) return json(req, res, 403, { error: `${serial} is not a lab device` });
+        let body = {}; try { body = await readPhoneBody(req); } catch (e) {}
+        if (typeof body.enabled !== 'boolean') return json(req, res, 400, { error: 'enabled must be true or false' });
+        const r = await mdm.command(`/api/v1/testdata/devices/${serial}/wlc`, { enabled: body.enabled });
+        const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+        try { fs.appendFileSync(path.join(ROOT, 'data', 'commands.jsonl'), JSON.stringify({ at: Date.now(), serial, action: body.enabled ? 'wlc on' : 'wlc off', by: String(body.by || '').slice(0, 60), ip, status: r.status, result: r.json }) + '\n'); } catch (e) {}
+        const out = r.json || { error: `MDM answered ${r.status}` };
+        if (r.status === 409 && !out.output) out.error = out.error || `${serial} has no charging pad, or is offline`;
         return json(req, res, r.status, out);
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') return json(req, res, 405, { error: 'GET' });

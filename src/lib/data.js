@@ -109,6 +109,14 @@ export async function appCommand(serial, action, by = '') {
   return { ok: r.ok, http: r.status, ...(j || {}) };
 }
 
+/** Wireless charging on a lab T7's pad on / off, through our server (lab devices only). Resolves to the MDM's
+ *  answer { serial, enabled, connected } or { error }. */
+export async function wlcCommand(serial, enabled, by = '') {
+  const r = await fetch(`/api/wlc/${encodeURIComponent(serial)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled, by }) });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  return { ok: r.ok, http: r.status, ...(j || {}) };
+}
+
 /** Every device's host app (the ads) on screen now: GET /testdata/host-app (src/lib/hostApp.js). */
 export async function fetchHostApp(range = '6h') {
   const qs = `?range=${range}`; // every device (the lab's are read by serial)

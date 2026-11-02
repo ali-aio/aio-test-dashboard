@@ -399,8 +399,10 @@ export default function TodayView({ fleet }) {
         {/* one tile; its drop-down splits the drain by what the T7 was doing (the user, Oct 2026) */}
         <Stat label="Drain rate" value={rate ? <>{rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
           foot={rate ? `${(rate / 6).toFixed(2)}% per 10 min · median of ${rates.length}` : 'needs 20 min of running'}
-          breakdownLabel="Drain by what the T7 was doing (ads run in all three)" breakdownRight breakdownNoun="state"
-          breakdown={[['active', 'WLC active', 'a load on the pad'], ['inactive', 'WLC inactive', 'pad on, no load'], ['ads', 'Ads only', 'pad off']].map(([k, label, what]) => {
+          breakdownLabel="Drain with / without a load on the pad (ads run in both)" breakdownRight breakdownNoun="state"
+          // two rows, not three: the T7s don't report wlc_charging (pad switched on), so "pad on, no load" and "pad off"
+          // can't be told apart — the user, 2 Nov 2026: "b and c are the same"
+          breakdown={[['active', 'WLC active', 'a load on the pad'], ['none', 'WLC inactive', 'no load']].map(([k, label, what]) => {
             const x = splitOf(k)
             return { id: k, label, value: x.rate ?? 0, display: x.rate ? `${x.rate.toFixed(2)} %/h` : '—',
               hint: x.rate ? `· ${what} · median of ${x.n}` : `· ${what} · needs 20 min`, highlight: x.rate != null }

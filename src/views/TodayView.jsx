@@ -402,10 +402,10 @@ export default function TodayView({ fleet }) {
           breakdownLabel="Drain with / without a load on the pad (ads run in both)" breakdownRight breakdownNoun="state"
           // two rows, not three: the T7s don't report wlc_charging (pad switched on), so "pad on, no load" and "pad off"
           // can't be told apart — the user, 2 Nov 2026: "b and c are the same"
-          breakdown={[['active', 'WLC active', 'a load on the pad'], ['none', 'WLC inactive', 'no load']].map(([k, label, what]) => {
+          breakdown={[['active', 'WLC active'], ['none', 'WLC inactive']].map(([k, label]) => {
             const x = splitOf(k)
             return { id: k, label, value: x.rate ?? 0, display: x.rate ? `${x.rate.toFixed(2)} %/h` : '—',
-              hint: x.rate ? `· ${what} · median of ${x.n}` : `· ${what} · needs 20 min`, highlight: x.rate != null }
+              highlight: x.rate != null } // no description under the label (the user, 2 Nov 2026)
           })} />
         <Metric label={`Reaches ${END_BAND}%`} value={etaEnd ? <>{hm(etaEnd)}{dayKey(etaEnd) !== key && <span className="secondary" style={{ fontSize: 13, fontWeight: 500 }}> {new Date(etaEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</> : medNow != null && medNow <= END_BAND ? 'Done' : '—'}
           delta={/* the time to 0 % too, at the bottom, also once 20 % is passed (the user, 2 Nov 2026) */

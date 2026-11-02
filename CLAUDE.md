@@ -743,7 +743,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   `drainSplit` in `window.js` (`active` / `none`): each gap between readings counts for its first reading's `wlc_status` —
   so a Restaurant Case's 3 h of load and the rest aren't one blended number. It had a third row, "pad on, no load" vs
   "pad off" (Ads only), until 2 Nov 2026: the T7s' readings carry no `wlc_charging`, so every no-load hour fell under Ads only
-  and the other row was always — (the user: "b and c are the same").
+  and the other row was always — (the user: "b and c are the same"). Rows show just the label and rate, no description.
 - Battery chart (Average): the **end labels** at the right (highest, average = middle device, lowest) are buttons: a
   click switches both charts to Every device with only that device ticked. The legend's **Highest device / Lowest device** do the
   same, with no serial shown (it is on hover; the user didn't like serials in the legend).

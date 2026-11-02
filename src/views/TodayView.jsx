@@ -311,8 +311,8 @@ export default function TodayView({ fleet }) {
     const x = sensors.find(x => x.id === 'room') || sensors[0]
     return x ? x.rows.filter(r => r[0] >= chartFrom && r[0] <= winTo + 5 * MIN).map(r => ({ x: r[0], y: r[1] })) : []
   }, [roomDb, chartFrom, winTo])
-  const roomSeries = roomPts.length > 1 ? [{ id: 'room', label: 'Room', pts: roomPts, color: 'var(--text-2)', width: 1.8, dash: '6 4',
-    endLabel: `room ${roomPts[roomPts.length - 1].y.toFixed(0)}°`, labelColor: 'var(--text-2)' }] : []
+  const roomSeries = roomPts.length > 1 ? [{ id: 'room', label: 'Room', pts: roomPts, color: 'var(--text-secondary)', width: 1.8, dash: '6 4',
+    endLabel: `room ${roomPts[roomPts.length - 1].y.toFixed(0)}°`, labelColor: 'var(--text-secondary)' }] : []
   const tempSeries = [...roomSeries, ...(tempMode === 'avg'
     ? [
         { id: 'avg', label: 'Average', pts: tAvg, color: 'var(--series-1)', width: 2, endLabel: tAvg.length ? `avg ${tAvg[tAvg.length - 1].y.toFixed(0)}°` : null },
@@ -528,7 +528,7 @@ export default function TodayView({ fleet }) {
               {tempMode === 'avg' ? <>
                 <span className="legend-item"><i className="legend-key-line" style={{ background: 'var(--series-1)' }} />Average temperature of {shown.length} device{shown.length === 1 ? '' : 's'}</span>
               </> : <span className="legend-item secondary">One line per device — each colour matches that device in the Devices list above. {few ? 'Each line ends with its device and temperature now.' : `The numbers at the right end mark devices at ${TEMP_WARN} °C or hotter now.`}</span>}
-              {roomSeries.length ? <span className="legend-item" title="The lab's room sensor (SHT30), not a device"><i className="legend-key-line" style={{ background: keyBackground('var(--text-2)', '6 4') }} />Room temperature</span> : null}
+              {roomSeries.length ? <span className="legend-item" title="The lab's room sensor (SHT30), not a device"><i className="legend-key-line" style={{ background: keyBackground('var(--text-secondary)', '6 4') }} />Room temperature</span> : null}
             </div>
             {noneTicked ? <div className="empty">No devices ticked — pick some above, or choose Select all.</div> :
             <MultiLineChart h={230} yMax={60} yFmt={v => v.toFixed(0) + '°'} xFmt={hm} x0={chartFrom} x1={winTo}

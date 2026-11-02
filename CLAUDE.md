@@ -761,7 +761,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   (`src/lib/room.js`, tested). Today's **Room temp** tile (shown once a sensor has reported): °C and % RH now, range and average
   since the cycle started; yellow border and red value after 10 min with nothing (`STALE_MIN`). Several sensors = one
   `SENSOR_NAME` each, listed in the tile's drop-down.
-  The room is also a **dashed grey line on Today's Battery temperature chart** (both Average and Every device; legend "Room
+  The room is also a **dashed grey line (`--text-secondary`) on Today's Battery temperature chart** (both Average and Every device; legend "Room
   temperature", always first in the tooltip) — the user, 2 Nov 2026, so a hot battery can be told from a warm room.
 - Tile "Battery" (not "Battery now") with one icon: charging (bolt) or discharging (arrow).
 - **iPhone on the pad** (the lab, 27 Oct 2026: on some T7s an iPhone goes on the pad instead of the load, and its battery

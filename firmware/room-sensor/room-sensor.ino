@@ -5,7 +5,8 @@
 // QUEUE_MAX, and go with the next post, each with how many seconds ago it was taken.
 //
 // Wiring (SHT30 breakout → ESP32-S3 DevKit): VIN → 3V3, GND → GND, SDA → GPIO 8, SCL → GPIO 9.
-// Build: Arduino IDE / arduino-cli, board "ESP32S3 Dev Module" (esp32 core 2.x or 3.x), no extra libraries.
+// Build: arduino-cli / Arduino IDE, esp32 core 3.x, no extra libraries; the lab's ESP32-S3-N16R8 is flashed on its COM
+// port with the FQBN in README.md (serial output on COM, 115200).
 // Copy secrets.example.h to secrets.h first.
 #include <WiFi.h>
 #include <ESPmDNS.h>

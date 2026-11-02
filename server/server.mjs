@@ -13,6 +13,7 @@
 //   · GET/PUT /api/plan  → the shared Cycle plan, data/plan.json (server/plan.mjs) — our own
 //   · GET/POST /api/phone → iPhone battery typed in on Today, data/phone.json (server/phone.mjs) — our own
 //   · GET /api/iphones   → the iPhones on the pads, read over Wi-Fi every 5 min (server/iphones.mjs) — our own
+//   · GET|POST /api/iphones/report?phone=&pct= → an iPhone sending its own battery (a Shortcuts automation)
 //   · POST /api/app/:serial/open|close → open / close Nugget on a lab tablet (MDM testdata app routes), logged in data/commands.jsonl
 //   · POST /api/wlc/:serial {enabled} → wireless charging on the pad on / off (MDM testdata wlc route), logged the same way
 //     file, the one thing a browser can write; never anything on the MDM
@@ -138,6 +139,14 @@ http.createServer(async (req, res) => {
         return r.conflict ? json(req, res, 409, { error: 'the plan changed since you loaded it', current: r.current }) : json(req, res, 200, r);
       }
       if (p === '/api/iphones') return json(req, res, 200, iphones.get());
+      // an iPhone sending its own battery (its Shortcuts automation; server/iphones.mjs)
+      if (p === '/api/iphones/report') {
+        let q = Object.fromEntries(url.searchParams);
+        if (req.method === 'POST') { try { q = { ...q, ...(await readPhoneBody(req)) }; } catch (e) { return json(req, res, 400, { error: 'body must be JSON' }); } }
+        else if (req.method !== 'GET') return json(req, res, 405, { error: 'GET or POST' });
+        const r = iphones.report(q);
+        return json(req, res, r.ok ? 200 : r.code, r);
+      }
       if (p === '/api/phone') {
         if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, phone.get());
         if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });

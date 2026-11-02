@@ -49,7 +49,7 @@ export default function PhoneHistory({ cycles }) {
             <td className="r mono">{hm(r.start)}</td>
             {hours.map(h => { const x = r.p.rows[h]; return (
               <td key={h} className="r mono" title={`${hm(r.start + h * H)}`}>
-                {x?.pct != null ? <><span className={x.auto ? 'phone-auto' : ''} title={x.auto ? `read from the iPhone at ${hm(x.auto.at)}` : 'typed in'}>{x.pct}%</span>{x.gain != null ? <div className="phone-sub"><b className={x.gain > 0 ? 'up' : x.gain < 0 ? 'down' : ''}>{x.gain > 0 ? '+' : ''}{x.gain}%</b></div> : null}</> : <span className="secondary">—</span>}
+                {x?.pct != null ? <><span className={x.auto ? 'phone-auto' : ''} title={x.auto ? (x.auto.est ? `from the iPhone: between ${x.auto.est.a}% at ${hm(x.auto.est.from)} and ${x.auto.est.b}% at ${hm(x.auto.est.to)}` : `read from the iPhone at ${hm(x.auto.at)}`) : 'typed in'}>{x.pct}%</span>{x.gain != null ? <div className="phone-sub"><b className={x.gain > 0 ? 'up' : x.gain < 0 ? 'down' : ''}>{x.gain > 0 ? '+' : ''}{x.gain}%</b></div> : null}</> : <span className="secondary">—</span>}
               </td>) })}
             <td className="r mono">{r.p.total != null ? `${r.p.total > 0 ? '+' : ''}${r.p.total}%` : '—'}</td>
             <td className="r mono">{r.p.perH != null ? `${r.p.perH.toFixed(1)} %/h` : '—'}</td>

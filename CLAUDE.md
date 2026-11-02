@@ -768,7 +768,15 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   "iPhone 77 % ⚡ · 11:42" or red "iPhone not reachable". Setup per phone, once, by cable on the lab laptop: Trust,
   `pymobiledevice3 lockdown pair`, `pymobiledevice3 lockdown wifi-connections on`, then add it to `data/iphones.json`. The
   phone must be on the **AIO-Office** Wi-Fi (the laptop's) and, after a restart, unlocked once with its passcode before it
-  answers. First phone: iPhone 13 Pro Max `00008110-001854382288401E` on **00790**.
+  answers. **A locked iPhone puts its Wi-Fi to sleep and stops answering** (2 Nov 2026; the user: unlocking each phone now and
+  then "isn't the best approach"), so **each phone also sends its own battery**: a Shortcuts *Time of Day* automation per hour
+  (Run Immediately; runs while locked) → `GET /api/iphones/report?phone=<key>&pct=<Battery Level>` at
+  `http://test-team-IdeaPad-3-15ITL6.local:8090` (the laptop's mDNS name — its IP is DHCP). `<key>` is the phone's `key` in
+  `data/iphones.json`, so moving a phone to another T7 changes only that file. Readings sent on the clock hour fill a cycle
+  hour at :32 by a straight line between the readings either side (≤ 75 min apart, `est`, shown on hover); the Wi-Fi read
+  stays as a fallback. Under the serial: red "iPhone not heard from" only after 75 min of nothing.
+  Phones (iPhone 13 Pro Max each): **iphone1** `00008110-001854382288401E` on **00790**, **iphone2**
+  `00008110-000574683A80401E` on **00606**, **iphone3** `00008110-00142D603E20401E` on **00485**.
   **After the cycle** (the user, 29 Oct 2026: "when the cycle ends does it show the phone data"): a read-only **iPhone on the
   pad** card (`PhoneHistory.jsx`) at the end of each test screen (the cycles in view, bench pick and device focus apply) and
   of the device page: one row per cycle day × T7 with an iPhone — each hour's iPhone %, the gain below, Gained / Per hour /

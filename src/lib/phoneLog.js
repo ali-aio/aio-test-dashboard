@@ -70,14 +70,24 @@ export function phoneHours(db, day, serial, hours, auto = null) {
 // ---- the iPhones read over Wi-Fi by the lab laptop (GET /api/iphones, server/iphones.mjs) ----
 export const AUTO_TOL = 10 * 60e3; // a reading counts for an hour mark within 10 min of it (the laptop reads every 5 min)
 
-/** The reading nearest t among rows [[t, pct, charging]] (oldest first), within tol and not after `now`: { at, pct, charging } or null. */
+/** The iPhone's battery at time t from rows [[t, pct, charging]] (oldest first), not after `now`:
+ *  the reading within `tol` of t, else a straight line between the readings either side when they are
+ *  at most SPAN apart — the iPhones send theirs on the clock hour (Shortcuts), while a cycle's hours
+ *  start whenever the bench came off the charger (10:32 → 11:32, 12:32 …). { at, pct, charging, est? } or null. */
+export const SPAN = 75 * 60e3;
 export function readingAt(rows, t, now = Infinity, tol = AUTO_TOL) {
   if (!rows?.length || t > now + 60e3) return null;
   let lo = 0, hi = rows.length;
   while (lo < hi) { const m = (lo + hi) >> 1; if (rows[m][0] < t) lo = m + 1; else hi = m; }
+  const a = rows[lo - 1], b = rows[lo];
   let best = null;
-  for (const i of [lo - 1, lo]) { const r = rows[i]; if (r && Math.abs(r[0] - t) <= tol && (!best || Math.abs(r[0] - t) < Math.abs(best[0] - t))) best = r; }
-  return best ? { at: best[0], pct: best[1], charging: !!best[2] } : null;
+  for (const r of [a, b]) if (r && Math.abs(r[0] - t) <= tol && (!best || Math.abs(r[0] - t) < Math.abs(best[0] - t))) best = r;
+  if (best) return { at: best[0], pct: best[1], charging: !!best[2] };
+  if (a && b && b[0] - a[0] <= SPAN && b[0] > a[0]) {
+    const pct = Math.round(a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]));
+    return { at: t, pct, charging: !!(a[2] && b[2]), est: { from: a[0], to: b[0], a: a[1], b: b[1] } };
+  }
+  return null;
 }
 
 /** The T7s whose iPhone was read at least twice in [a, b). */

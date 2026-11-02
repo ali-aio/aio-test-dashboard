@@ -12,6 +12,13 @@
 // (after the first read the phone's own last address is kept and tried first; Bonjour is the fallback)
 // After a restart the phone answers only once it has been unlocked with its passcode.
 //
+// A locked iPhone puts its Wi-Fi to sleep and stops answering (2 Nov 2026: 00790's went off the network
+// minutes after it locked), so each phone also SENDS its battery itself: a Shortcuts "Time of Day"
+// automation per hour (runs while locked) calls
+//   GET|POST /api/iphones/report?phone=<key>&pct=<Battery Level>[&charging=1]   (or a JSON body)
+// <key> is the phone's "key" in data/iphones.json (iphone1, iphone2, …), so moving a phone to another T7
+// means changing only that file, not its shortcuts.
+//
 //   GET /api/iphones → { phones: [{ udid, t7, name, last, lastOk, error }], readings: { <t7>: [[t, pct, charging]] }, at }
 // Readings live in data/iphone-readings.json (gitignored), kept READ_DAYS days, stamped with the T7
 // the phone was on at the time, so moving a phone to another T7 doesn't rewrite its past.
@@ -58,7 +65,7 @@ export function createIphones(root, { python = path.join(os.homedir(), '.venv-io
         if (r && Number.isFinite(r.pct)) {
           (db.readings[u] ||= []).push([now, r.pct, r.charging ? 1 : 0, list[u].t7 || null]);
           st.lastOk = now; st.error = null; st.ip = r.ip || st.ip;
-        } else st.error = 'not reachable (off AIO-Office Wi-Fi, or not unlocked since it restarted)';
+        } else st.error = 'not reachable over Wi-Fi (locked and asleep, off AIO-Office, or not unlocked since it restarted)';
       }
       const cut = now - KEEP_DAYS * 86400e3;
       for (const u of Object.keys(db.readings)) db.readings[u] = db.readings[u].filter(x => x[0] >= cut);
@@ -68,7 +75,23 @@ export function createIphones(root, { python = path.join(os.homedir(), '.venv-io
   if (enabled) { setTimeout(poll, 5e3).unref(); setInterval(poll, POLL_MIN * 60e3).unref(); }
   else log(`iPhone reading off: no ${python} (see server/iphones.mjs)`);
 
+  // a reading sent by the phone itself (its Shortcuts automation)
+  function report({ phone, pct, charging }) {
+    const list = phones(), key = String(phone || '').trim().toLowerCase();
+    const udid = Object.keys(list).find(u => String(list[u].key || '').toLowerCase() === key);
+    if (!udid) return { ok: false, code: 404, error: `unknown phone "${key}" — add "key" to it in data/iphones.json` };
+    const n = Math.round(+String(pct).replace('%', ''));
+    if (!(n >= 0 && n <= 100) || String(pct).trim() === '') return { ok: false, code: 400, error: 'pct must be 0–100' };
+    const now = Date.now(), ch = /^(1|true|yes|on)$/i.test(String(charging ?? '')) ? 1 : 0;
+    (db.readings[udid] ||= []).push([now, n, ch, list[udid].t7 || null]);
+    const st = db.status[udid] || (db.status[udid] = {});
+    st.lastOk = now; st.lastSent = now; st.error = null;
+    try { save(); } catch (e) { log(`iphone-readings.json: ${e.message}`); }
+    return { ok: true, phone: key, t7: list[udid].t7 || null, pct: n, at: now };
+  }
+
   return {
+    report,
     get() {
       const list = phones(), cut = Date.now() - READ_DAYS * 86400e3, readings = {};
       for (const [u, rows] of Object.entries(db.readings))
@@ -77,7 +100,7 @@ export function createIphones(root, { python = path.join(os.homedir(), '.venv-io
         enabled,
         phones: Object.entries(list).map(([udid, p]) => {
           const rows = db.readings[udid] || [], last = rows[rows.length - 1];
-          return { udid, t7: p.t7 || null, name: p.name || 'iPhone', last: last ? { at: last[0], pct: last[1], charging: !!last[2] } : null, ...(db.status[udid] || {}) };
+          return { udid, key: p.key || null, t7: p.t7 || null, name: p.name || 'iPhone', last: last ? { at: last[0], pct: last[1], charging: !!last[2] } : null, ...(db.status[udid] || {}) };
         }),
         readings, at: Date.now(),
       };

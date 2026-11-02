@@ -51,9 +51,11 @@ function Cell({ day, serial, h, value, auto, title }) {
 
 // Under the T7's serial: the iPhone's battery as last read over Wi-Fi, or that it isn't answering
 function PhoneLive({ ph, now }) {
-  const stale = !ph.lastOk || now - ph.lastOk > 15 * 60e3
-  if (stale) return <div className="phone-live down" title={ph.error || 'not read yet'}>iPhone not reachable{ph.last ? ` · last ${ph.last.pct}% at ${hm(ph.last.at)}` : ''}</div>
-  return <div className="phone-live" title={`${ph.name}, read over Wi-Fi by the lab laptop every 5 min`}>iPhone {ph.last.pct}%{ph.last.charging ? ' ⚡' : ''} · {hm(ph.last.at)}</div>
+  // the phone sends on the hour (its Shortcuts automation) and is read over Wi-Fi while awake, so
+  // its latest reading can be up to an hour old and still be on time
+  const stale = !ph.lastOk || now - ph.lastOk > 75 * 60e3
+  if (stale) return <div className="phone-live down" title={ph.error || 'nothing yet'}>iPhone not heard from{ph.last ? ` · last ${ph.last.pct}% at ${hm(ph.last.at)}` : ''}</div>
+  return <div className="phone-live" title={`${ph.name}${ph.key ? ` (${ph.key})` : ''}: sends its battery on the hour, and is read over Wi-Fi by the lab laptop while awake`}>iPhone {ph.last.pct}%{ph.last.charging ? ' ⚡' : ''} · {hm(ph.last.at)}</div>
 }
 
 const hhmm = t => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
@@ -126,7 +128,7 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
             <td className="mono">{s}{ph ? <PhoneLive ph={ph} now={now} /> : null}</td>
             {p.rows.filter(r => hours.includes(r.h)).map(r => { const t7 = start + r.h * H > now ? null : t7At(s, start + r.h * H); if (!shown.get(s).has(r.h)) return <td key={r.h} className="r secondary" title="no load on this T7's pad in the hour before">no load</td>; return (
               <td key={r.h} className="r">
-                <Cell day={day} serial={s} h={r.h} value={r.auto ? null : r.pct} auto={r.auto?.pct} title={`iPhone battery on ${s} at ${hm(start + r.h * H)} (${r.h === 0 ? 'cycle start' : `hour ${r.h}`})${r.auto ? ` · read from the iPhone at ${hm(r.auto.at)} — type to replace` : ''}`} />
+                <Cell day={day} serial={s} h={r.h} value={r.auto ? null : r.pct} auto={r.auto?.pct} title={`iPhone battery on ${s} at ${hm(start + r.h * H)} (${r.h === 0 ? 'cycle start' : `hour ${r.h}`})${r.auto ? (r.auto.est ? ` · from the iPhone: between ${r.auto.est.a}% at ${hm(r.auto.est.from)} and ${r.auto.est.b}% at ${hm(r.auto.est.to)} — type to replace` : ` · read from the iPhone at ${hm(r.auto.at)} — type to replace`) : ''}`} />
                 <div className="phone-sub">{r.gain != null ? <b className={r.gain > 0 ? 'up' : r.gain < 0 ? 'down' : ''}>{r.gain > 0 ? '+' : ''}{r.gain}%</b> : null}
                   {t7 != null ? <span className="secondary" title="the T7's own battery at that time (MDM)">T7 {t7}%</span> : null}</div>
               </td>) })}

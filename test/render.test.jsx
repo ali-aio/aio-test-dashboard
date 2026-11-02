@@ -514,14 +514,19 @@ const mdmCases = []
     const rows = []
     for (let t = t0 - 20 * M; t <= t0 + 3 * H; t += 5 * M) if (t < t0 + 100 * M || t > t0 + 140 * M) rows.push([t, Math.min(100, 50 + Math.round((t - t0) / H * 15)), 1])
     want(readingAt(rows, t0 + H + 2 * M).at === t0 + H, 'nearest reading')
-    want(readingAt(rows, t0 + 2 * H) === null, 'nothing within 10 min of the hour → empty, not a far reading')
+    want(readingAt(rows, t0 + 2 * H)?.est && readingAt(rows, t0 + 2 * H).pct === 80, 'nothing within 10 min of the hour → the line between the readings either side of the gap')
+    // readings sent on the clock hour, a cycle hour at :32 → a straight line between the two either side
+    const hourly = [[t0 - 32 * M, 40, 1], [t0 + 28 * M, 55, 1], [t0 + 88 * M, 70, 1], [t0 + 268 * M, 100, 1]]
+    const e = readingAt(hourly, t0 + H)
+    want(e.pct === 63 && e.est && e.est.from === t0 + 28 * M && e.est.to === t0 + 88 * M, `between the hourly readings: ${JSON.stringify(e)}`)
+    want(readingAt(hourly, t0 + 3 * H) === null, 'no line across a gap over 75 min')
     want(readingAt(rows, t0 + 3 * H, t0 + 2.5 * H) === null, 'an hour still to come stays empty')
     want(readingAt([], t0) === null && readingAt(undefined, t0) === null, 'no readings')
     const auto = h => readingAt(rows, t0 + h * H)
     let db = mergePhone({}, cleanPhone({ cells: { [`${d}|${sn}|1`]: { pct: 60, mod: 1 } } }))
     const p = phoneHours(db, d, sn, 3, auto)
     want(p.rows[0].pct === 50 && p.rows[0].auto && p.rows[1].pct === 60 && !p.rows[1].auto, 'typed wins over the iPhone\'s reading')
-    want(p.rows[2].pct == null && p.rows[3].pct === 95 && p.rows[3].gain === 35 && p.total === 45, 'gaps skipped, gain from the last value')
+    want(p.rows[2].pct === 80 && p.rows[2].auto.est && p.rows[3].pct === 95 && p.rows[3].gain === 15 && p.total === 45, 'a gap filled from the readings either side')
     want(readT7s({ readings: { [sn]: rows, X: [[t0, 5, 0]] } }, t0, t0 + H).join() === sn, 'a T7 counts as carrying an iPhone after two readings')
   })
   check('csv per hour: each device\'s cycle hour by hour, with the pad\'s load minutes', () => {

@@ -17,7 +17,7 @@ import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
 import { findOddOnes, mergeAlerts } from '../src/lib/alerts.js'
-import { compactSpans, mergeSpans, screenTime, adsGap } from '../src/lib/hostApp.js'
+import { compactSpans, mergeSpans, screenTime, adsGap, mergeHostApp } from '../src/lib/hostApp.js'
 import { padLoad } from '../src/lib/pad.js'
 import { loadPart, getSnapshot } from '../src/lib/fleet.js'
 import { runStartOf, drainSplit } from '../src/lib/window.js'
@@ -738,6 +738,18 @@ const mdmCases = []
       want(s2 && s2.testType === 'Restaurant Case' && s2.short, JSON.stringify(s2 && { t: s2.testType, short: s2.short }))
       want(!out.some(c => c.serial === 'S3'), 'a run that started at 89 % is not counted')
     } finally { CTX.group = prev; localStorage.removeItem(key) }
+  })
+  check('ads on screen: a fresh check-in beats a lagging host-app list', () => {
+    // 2 Nov 2026: the MDM's list said "Offline" for 00172 while it checked in with Nugget in front
+    const now = Date.parse('2026-11-02T05:53:00Z'), pkg = 'aio.app.nugget.uatv2'
+    const list = [{ serial_number: 'A', state: 'unknown', why: 'device_offline', since: '2026-11-02T05:00:00Z', package: pkg },
+      { serial_number: 'B', state: 'on_screen', why: 'app_in_foreground', since: '2026-11-02T05:30:00Z', package: pkg },
+      { serial_number: 'C', state: 'on_screen', why: 'app_in_foreground', since: '2026-11-02T05:30:00Z', package: pkg }]
+    const snap = (sn, at, screen, front) => ({ serial_number: sn, last_seen_at: at, extra: { screen_on: screen, host_app: { package: pkg, variants: [{ package: pkg, foreground: front }] } } })
+    const m = mergeHostApp(list, [snap('A', '2026-11-02T05:52:30Z', true, true), snap('B', '2026-11-02T05:52:00Z', false, false), snap('C', '2026-11-02T05:30:00Z', false, false)], now)
+    want(m.get('A').state === 'on_screen', 'fresh check-in with the app in front: on screen')
+    want(m.get('B').why === 'screen_off', 'fresh check-in with the screen off: screen off')
+    want(m.get('C').state === 'on_screen', 'a check-in 23 min old: the list stands')
   })
   check('a charge running now is a Charging Cycle in progress, from any level', () => {
     const now = Date.UTC(2026, 9, 28, 10), M = 60e3

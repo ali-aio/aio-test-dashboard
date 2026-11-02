@@ -65,3 +65,28 @@ export function screenTime(spans, start, end) {
 // share of the known time, did not run its ads as the test says — flagged on the cycle
 export const ADS_GAP_MIN = 15, ADS_MIN_PCT = 90;
 export const adsGap = (st) => !!st && (st.onPct < ADS_MIN_PCT || (st.longestOff?.min ?? 0) >= ADS_GAP_MIN);
+
+// The state NOW from a device's own latest check-in (`extra.screen_on`, `extra.host_app`), when it is fresh. The MDM's
+// host-app list can lag its devices: 2 Nov 2026 it said "Offline" for 00172 / 00485 while both were checking in with
+// Nugget on screen. A check-in ≤ CHECKIN_FRESH_MS old wins; otherwise (or if it lacks the fields) the list's row stands.
+export const CHECKIN_FRESH_MS = 5 * 60e3;
+export function fromCheckin(snap, listRow = null, now = Date.now()) {
+  if (!snap) return listRow;
+  let e = snap.extra; if (typeof e === 'string') { try { e = JSON.parse(e); } catch (x) { e = null; } }
+  const seen = Date.parse(snap.last_seen_at);
+  if (!e || typeof e.screen_on !== 'boolean' || !(now - seen <= CHECKIN_FRESH_MS)) return listRow;
+  const pkg = e.host_app?.package || listRow?.package, front = (e.host_app?.variants || []).find(v => v.package === pkg)?.foreground;
+  let state, why;
+  if (!e.screen_on) { state = 'off_screen'; why = 'screen_off'; }
+  else if (front === true) { state = 'on_screen'; why = 'app_in_foreground'; }
+  else if (front === false) { state = 'off_screen'; why = 'app_not_in_foreground'; }
+  else return listRow; // the check-in doesn't say which app is in front: keep the list's answer
+  const same = listRow && listRow.state === state && listRow.why === why;
+  return { ...(listRow || {}), serial_number: snap.serial_number, package: pkg, state, why, since: same ? listRow.since : snap.last_seen_at, from: 'checkin' };
+}
+/** Every device's state now: its fresh check-in where there is one, else the MDM's host-app list row. */
+export function mergeHostApp(listRows, snaps, now = Date.now()) {
+  const out = new Map((listRows || []).map(x => [x.serial_number, x]));
+  for (const s of snaps || []) { if (!s?.serial_number) continue; const r = fromCheckin(s, out.get(s.serial_number) || null, now); if (r) out.set(s.serial_number, r); }
+  return out;
+}

@@ -5,6 +5,7 @@
 // History = data/cycles.json (the one-off static import) + everything since, which comes
 // from the backend's sweep (data/topup.json) or, served without the backend, from a
 // per-browser top-up cached for 6 h. Live state = /testdata/devices, polled every 30 s.
+import { mergeHostApp } from './hostApp.js';
 import { fetchDevices, fetchHostApp, fetchHistoryRange, mapLimit, detectBackend, hasConfig, scopeGroup } from './data.js';
 import { detectCycles, aggregate, reclassify, loadOpts, dedupeOverlapping } from './cycles.js';
 import { batteryHealth, chargeSegments, thermalStats } from './profile.js';
@@ -190,17 +191,21 @@ export async function boot() {
 
 // Whether each tablet's host app (the ads) is on screen now, at most once a minute (Today, the bell).
 // Devices on a client older than 1.11.0 are not in the list.
+// The MDM's list, kept as it came; hostAppNow = that list corrected by each device's fresh check-in (mergeHostApp in
+// hostApp.js), rebuilt on every list and every 30 s device snapshot — the list alone lagged (2 Nov 2026).
+let hostAppList = null;
+const refreshHostAppNow = () => { if (hostAppList) state.hostAppNow = mergeHostApp(hostAppList, state.DEV.map(d => d.snap)); };
 export async function pollHostApp(force = false) {
   if (!force && Date.now() - state.hostAppAt < 60e3) return;
   state.hostAppAt = Date.now();
-  try { const r = await fetchHostApp('6h'); state.hostAppNow = new Map((r.devices || []).map(x => [x.serial_number, x])); bump(); }
+  try { const r = await fetchHostApp('6h'); hostAppList = r.devices || []; refreshHostAppNow(); bump(); }
   catch (e) { /* keep the last answer; asked again next minute */ }
 }
 
 export async function poll() {
   if (!state.ready || document.hidden) return;
   pollHostApp();
-  try { setDevices(await fetchDevices({ fresh: true })); derive(); state.error = null; bump(); } catch (e) { /* keep the last snapshot on screen */ }
+  try { setDevices(await fetchDevices({ fresh: true })); derive(); refreshHostAppNow(); state.error = null; bump(); } catch (e) { /* keep the last snapshot on screen */ }
 }
 // Every 5 min, ask the backend when it last swept the MDM. When a newer sweep has run, pull
 // its finished runs (and the recorded counter / curves) in, so an open page picks up new

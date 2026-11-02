@@ -224,6 +224,10 @@ The guide is the MDM repo's `docs/TESTDATA_HOST_APP_GUIDE.md` (the user pasted i
   tile (each device's state and since); and on the **bell**: in a running ads test, a device on battery whose app has been
   off screen ≥ 5 min ("ads stopped: screen off since 10:42"). "On screen" = Nugget in front with the screen on; whether an
   ad was actually playing is not reported.
+  **The state now prefers each device's own check-in** (`mergeHostApp` / `fromCheckin` in `hostApp.js`, tested; rebuilt in
+  `fleet.js` on every 30 s snapshot and every host-app list): when its check-in is ≤ 5 min old, `extra.screen_on` and the
+  role app's `foreground` in `extra.host_app` decide; else the MDM's list row stands. 2 Nov 2026: the list said "Offline"
+  for 00172 / 00485 while both checked in with Nugget in front (the user: "I don't want this issue again").
 - **HW build** comes from the serial (`buildFromSerial`, `src/lib/device.js`): "BU" in it = Production
   Build, otherwise "OTG / Validation Build" (the serial can't tell those two apart).
 - **Drain rate by battery age** (Summary screen, `src/components/DrainByAge.jsx` + `src/lib/drainHours.js` + `src/lib/drainAge.js`,

@@ -775,6 +775,10 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   `data/iphones.json`, so moving a phone to another T7 changes only that file. Readings sent on the clock hour fill a cycle
   hour at :32 by a straight line between the readings either side (≤ 75 min apart, `est`, shown on hover); the Wi-Fi read
   stays as a fallback. Under the serial: red "iPhone not heard from" only after 75 min of nothing.
+  **The iPhone is the load: off the pad, its reading isn't shown** (the user, 2 Nov 2026: "if device removed from load then
+  dont show iphone reading"): an hour is filled from the iPhone only when the T7 had a load on its pad (`padLoad`) within
+  15 min of it (`padAt` / `onPadAt` in `phoneLog.js`, tested; no T7 readings there = not known, kept); a T7 joins the card
+  only from readings taken on the pad; under the serial grey "iPhone off the pad" while its pad has no load. Typed values stay.
   Phones (iPhone 13 Pro Max each): **iphone1** `00008110-001854382288401E` on **00790**, **iphone2**
   `00008110-000574683A80401E` on **00606**, **iphone3** `00008110-00142D603E20401E` on **00485**.
   **After the cycle** (the user, 29 Oct 2026: "when the cycle ends does it show the phone data"): a read-only **iPhone on the

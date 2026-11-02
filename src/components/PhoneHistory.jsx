@@ -1,5 +1,6 @@
 import React, { useEffect, useSyncExternalStore } from 'react'
-import { subscribePhone, getPhone, startPhoneSync, phoneDevices, phoneHours, phoneStart, devKey, subscribeIphones, getIphones, readingAt } from '../lib/phoneLog.js'
+import { subscribePhone, getPhone, startPhoneSync, phoneDevices, phoneHours, phoneStart, devKey, subscribeIphones, getIphones, onPadAt, padAt } from '../lib/phoneLog.js'
+import { rowsFor } from '../lib/window.js'
 import { dayKey } from '../lib/plan.js'
 import { hm, H } from '../lib/format.js'
 import { Card } from './Primitives.jsx'
@@ -13,7 +14,7 @@ export default function PhoneHistory({ cycles }) {
   const db = useSyncExternalStore(subscribePhone, getPhone, getPhone)
   const ip = useSyncExternalStore(subscribeIphones, getIphones, getIphones)
   // an iPhone read over Wi-Fi during the run counts as picked (unless taken off the list on Today)
-  const readDuring = c => (ip.readings?.[c.serial] || []).filter(r => r[0] >= c.start && r[0] <= (c.end ?? c.start + 24 * H)).length >= 2
+  const readDuring = c => (ip.readings?.[c.serial] || []).filter(r => r[0] >= c.start && r[0] <= (c.end ?? c.start + 24 * H) && padAt(rowsFor(c.serial), r[0]) !== false).length >= 2
   useEffect(() => startPhoneSync(), [])
   // the T7s with an iPhone on each cycle day, among these cycles
   const byDay = new Map()
@@ -28,7 +29,7 @@ export default function PhoneHistory({ cycles }) {
   for (const [day, m] of byDay) {
     const start = phoneStart(db, day) ?? Math.min(...m.values())
     for (const sn of m.keys()) {
-      const p = phoneHours(db, day, sn, 24, h => readingAt(ip.readings?.[sn], start + h * H, Date.now())), got = p.rows.filter(r => r.pct != null)
+      const p = phoneHours(db, day, sn, 24, h => onPadAt(ip.readings?.[sn], rowsFor(sn), start + h * H, Date.now())), got = p.rows.filter(r => r.pct != null)
       if (got.length) rows.push({ day, sn, start, p, last: got[got.length - 1].h })
     }
   }

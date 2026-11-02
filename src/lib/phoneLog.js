@@ -1,3 +1,4 @@
+import { padLoad } from './pad.js';
 // Today's shared notes in data/phone.json: the iPhone on the pad, and take-outs made before the
 // cycle's test is known (pendingOuts).
 //
@@ -90,9 +91,34 @@ export function readingAt(rows, t, now = Infinity, tol = AUTO_TOL) {
   return null;
 }
 
-/** The T7s whose iPhone was read at least twice in [a, b). */
-export const readT7s = (ip, a, b) => Object.entries(ip?.readings || {})
-  .filter(([, rows]) => rows.filter(r => r[0] >= a && r[0] < b).length >= 2).map(([t7]) => t7);
+/** Whether the T7 had a load on its pad around time t, from its MDM readings (oldest first, each with
+ *  `timestamp` and `extra.wlc_status`): true when a reading within `win` of t has one (padLoad), false
+ *  when there are readings there and none has, null when there are none (not known — kept, not hidden).
+ *  The iPhone IS the load: once it is off the pad its readings are not this T7's (the user, 2 Nov 2026:
+ *  "if device removed from load then don't show iPhone reading"). */
+export const PAD_WIN = 15 * 60e3;
+export function padAt(rows, t, win = PAD_WIN) {
+  if (!rows?.length) return null;
+  let lo = 0, hi = rows.length;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (Date.parse(rows[m].timestamp) < t - win) lo = m + 1; else hi = m; }
+  let seen = null;
+  for (let i = lo; i < rows.length; i++) {
+    if (Date.parse(rows[i].timestamp) > t + win) break;
+    const v = padLoad(rows[i].extra?.wlc_status);
+    if (v) return true; if (v === false) seen = false;
+  }
+  return seen;
+}
+
+/** The iPhone's reading at t (readingAt), only while the T7's pad had a load then (padAt not false). */
+export const onPadAt = (phoneRows, t7Rows, t, now = Infinity) => {
+  const r = readingAt(phoneRows, t, now);
+  return r && padAt(t7Rows, t) !== false ? r : null;
+};
+
+/** The T7s whose iPhone was read at least twice in [a, b) while on the pad (`rowsOf(t7)` = its MDM readings). */
+export const readT7s = (ip, a, b, rowsOf = () => null) => Object.entries(ip?.readings || {})
+  .filter(([t7, rows]) => rows.filter(r => r[0] >= a && r[0] < b && padAt(rowsOf(t7), r[0]) !== false).length >= 2).map(([t7]) => t7);
 
 const ipSubs = new Set();
 let ip = { phones: [], readings: {} };

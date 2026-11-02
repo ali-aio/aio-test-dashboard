@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { subscribePhone, getPhone, setPhoneStart, phoneStart, phoneDevices, phoneHours, setPhoneDevice, setPhonePct, cellKey, devKey, subscribeIphones, getIphones, readingAt, readT7s } from '../lib/phoneLog.js'
+import { subscribePhone, getPhone, setPhoneStart, phoneStart, phoneDevices, phoneHours, setPhoneDevice, setPhonePct, cellKey, devKey, subscribeIphones, getIphones, onPadAt, padAt, readT7s } from '../lib/phoneLog.js'
 import { rowsFor } from '../lib/window.js'
 import { padLoad } from '../lib/pad.js'
 import { hm, H } from '../lib/format.js'
@@ -50,7 +50,9 @@ function Cell({ day, serial, h, value, auto, title }) {
 }
 
 // Under the T7's serial: the iPhone's battery as last read over Wi-Fi, or that it isn't answering
-function PhoneLive({ ph, now }) {
+function PhoneLive({ ph, now, onPad }) {
+  // no load on the T7's pad now = the iPhone was taken off it: its battery isn't shown (the user, 2 Nov 2026)
+  if (onPad === false) return <div className="phone-live off" title="no load on this T7's pad now — the iPhone's battery is shown only while it is on the pad">iPhone off the pad</div>
   // the phone sends on the hour (its Shortcuts automation) and is read over Wi-Fi while awake, so
   // its latest reading can be up to an hour old and still be on time
   const stale = !ph.lastOk || now - ph.lastOk > 75 * 60e3
@@ -66,10 +68,11 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
   // the T7s carrying an iPhone: the ones picked by hand, and any whose iPhone the lab laptop has been
   // reading over Wi-Fi during this cycle (unless someone took it off the list with ×)
   const picked = phoneDevices(db, day)
-  const devices = [...picked, ...readT7s(ip, benchStart - 2 * H, now + 60e3)
+  const devices = [...picked, ...readT7s(ip, benchStart - 2 * H, now + 60e3, rowsFor)
     .filter(sn => serials.includes(sn) && !picked.includes(sn) && db.devices?.[devKey(day, sn)]?.on !== false)]
   const phoneOn = sn => ip.phones?.find(x => x.t7 === sn)
-  const autoAt = sn => h => readingAt(ip.readings?.[sn], start + h * H, now)
+  // the iPhone's own reading only while it is on this T7's pad (a load there): off the pad it's not this T7's
+  const autoAt = sn => h => onPadAt(ip.readings?.[sn], rowsFor(sn), start + h * H, now)
   // the start: set by hand (shared), else when these T7s came off the charger (median of their own
   // starts), else the bench's — 29 Oct 2026 the bench came off at 10:00 but the iPhone T7s at 11:30 (the user)
   const own = devices.map(ownStart).filter(Number.isFinite).sort((a, b) => a - b)
@@ -125,7 +128,7 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
         <tbody>{devices.map(s => {
           const p = phoneHours(db, day, s, last, autoAt(s)), ph = phoneOn(s)
           return <tr key={s}>
-            <td className="mono">{s}{ph ? <PhoneLive ph={ph} now={now} /> : null}</td>
+            <td className="mono">{s}{ph ? <PhoneLive ph={ph} now={now} onPad={padAt(rowsFor(s), now)} /> : null}</td>
             {p.rows.filter(r => hours.includes(r.h)).map(r => { const t7 = start + r.h * H > now ? null : t7At(s, start + r.h * H); if (!shown.get(s).has(r.h)) return <td key={r.h} className="r secondary" title="no load on this T7's pad in the hour before">no load</td>; return (
               <td key={r.h} className="r">
                 <Cell day={day} serial={s} h={r.h} value={r.auto ? null : r.pct} auto={r.auto?.pct} title={`iPhone battery on ${s} at ${hm(start + r.h * H)} (${r.h === 0 ? 'cycle start' : `hour ${r.h}`})${r.auto ? (r.auto.est ? ` · from the iPhone: between ${r.auto.est.a}% at ${hm(r.auto.est.from)} and ${r.auto.est.b}% at ${hm(r.auto.est.to)} — type to replace` : ` · read from the iPhone at ${hm(r.auto.at)} — type to replace`) : ''}`} />

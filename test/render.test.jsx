@@ -23,7 +23,7 @@ import { loadPart, getSnapshot } from '../src/lib/fleet.js'
 import { runStartOf, drainSplit } from '../src/lib/window.js'
 import { takeOutReasons } from '../src/lib/plan.js'
 import RangePicker from '../src/components/RangePicker.jsx'
-import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart, readingAt, readT7s } from '../src/lib/phoneLog.js'
+import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart, readingAt, readT7s, padAt, onPadAt } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
 import { testTypeFor, planFor, temperaturePhases, runningCharge, adaptCycle, CTX } from '../src/lib/adapt.js'
@@ -528,6 +528,14 @@ const mdmCases = []
     want(p.rows[0].pct === 50 && p.rows[0].auto && p.rows[1].pct === 60 && !p.rows[1].auto, 'typed wins over the iPhone\'s reading')
     want(p.rows[2].pct === 80 && p.rows[2].auto.est && p.rows[3].pct === 95 && p.rows[3].gain === 15 && p.total === 45, 'a gap filled from the readings either side')
     want(readT7s({ readings: { [sn]: rows, X: [[t0, 5, 0]] } }, t0, t0 + H).join() === sn, 'a T7 counts as carrying an iPhone after two readings')
+    // the iPhone taken off the pad (the user, 2 Nov 2026): the T7's pad has no load from hour 2 → no reading shown
+    const t7 = []; for (let t = t0 - 10 * M; t <= t0 + 3 * H; t += 3 * M) t7.push({ timestamp: new Date(t).toISOString(), extra: { wlc_status: t < t0 + 100 * M ? 2 : 0 } })
+    want(padAt(t7, t0 + H) === true && padAt(t7, t0 + 2.5 * H) === false && padAt([], t0) === null && padAt(t7, t0 + 9 * H) === null, 'load on the pad around a time')
+    want(onPadAt(rows, t7, t0 + H)?.pct === 65 && onPadAt(rows, t7, t0 + 3 * H) === null, 'reading shown on the pad, hidden once off it')
+    want(onPadAt(rows, [], t0 + H)?.pct === 65, 'no T7 readings there: not known, the reading stays')
+    const off = phoneHours(db, d, sn, 3, h => onPadAt(rows, t7, t0 + h * H))
+    want(off.rows[1].pct === 60 && off.rows[3].pct == null, 'typed stays; off the pad left empty')
+    want(readT7s({ readings: { [sn]: rows } }, t0 + 2.5 * H, t0 + 4 * H, () => t7).length === 0, 'an iPhone read only off the pad doesn\'t add its T7')
   })
   check('csv per hour: each device\'s cycle hour by hour, with the pad\'s load minutes', () => {
     const t0 = Date.UTC(2026, 9, 17, 9), H = 3600e3

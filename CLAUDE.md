@@ -745,6 +745,9 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
 - Battery chart (Average): the **end labels** at the right (highest, average = middle device, lowest) are buttons: a
   click switches both charts to Every device with only that device ticked. The legend's **Highest device / Lowest device** do the
   same, with no serial shown (it is on hover; the user didn't like serials in the legend).
+- **Devices today** has **Drain with WLC / Drain without WLC** beside Drain (the user, 2 Nov 2026) for a test that places a load
+  (Restaurant Case, WLC + Discharge, WLC on Load, Load only, WLC on Phone) or one not named yet: each device since it left the
+  charger, over its time with a load on the pad / with none (`drainSplit` `active` / `none`; under 20 min = —).
 - **Devices today** lists the devices in the lab's bench order (`BENCH_ORDER` in `src/lib/device.js`, the user, 27 Oct 2026:
   00142, 00077, 00226 … 00606, 00790); any other device after them by serial. A heading click still sorts; the third click returns to it.
 - **WLC · load placed** drop-down: the devices **different from the rest** (no load while most have one, or a load while

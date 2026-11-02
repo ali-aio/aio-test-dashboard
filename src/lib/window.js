@@ -304,7 +304,7 @@ export function runningCycle(rows, lastFinished, now = Date.now()) {
 // Restaurant Case: 3 h with the load, then without — one number for both hides each (the user, Oct 2026).
 export function drainSplit(rows, start) {
   const acc = { active: [0, 0], inactive: [0, 0], ads: [0, 0] };
-  if (!start || !rows) return { active: null, inactive: null, ads: null };
+  if (!start || !rows) return { active: null, inactive: null, ads: null, none: null };
   const rs = rows.filter((r) => !r.empty && Date.parse(r.timestamp) >= start.t);
   for (let i = 1; i < rs.length; i++) {
     const a = rs[i - 1], b = rs[i], dt = Date.parse(b.timestamp) - Date.parse(a.timestamp);
@@ -313,7 +313,9 @@ export function drainSplit(rows, start) {
     acc[k][0] += a.battery_pct - b.battery_pct; acc[k][1] += dt;
   }
   const rate = ([d, ms]) => (ms >= 20 * 60e3 ? d / (ms / H) : null);
-  return { active: rate(acc.active), inactive: rate(acc.inactive), ads: rate(acc.ads) };
+  // none = no load on the pad, pad on or off (Devices today's "Drain without WLC")
+  return { active: rate(acc.active), inactive: rate(acc.inactive), ads: rate(acc.ads),
+    none: rate([acc.inactive[0] + acc.ads[0], acc.inactive[1] + acc.ads[1]]) };
 }
 
 // Drain since the run started, in percentage points per hour, from the device's own

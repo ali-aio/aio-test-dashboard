@@ -8,7 +8,8 @@
 //   ~/.venv-ios/bin/pymobiledevice3 lockdown pair
 //   ~/.venv-ios/bin/pymobiledevice3 lockdown wifi-connections on
 // and add it to data/iphones.json (gitignored, read on every poll, so no restart is needed):
-//   { "phones": { "<udid>": { "t7": "AT070AABU00790", "name": "iPhone 13 Pro Max" } } }
+//   { "phones": { "<udid>": { "t7": "AT070AABU00790", "name": "iPhone 13 Pro Max", "ip": "<optional first address>" } } }
+// (after the first read the phone's own last address is kept and tried first; Bonjour is the fallback)
 // After a restart the phone answers only once it has been unlocked with its passcode.
 //
 //   GET /api/iphones → { phones: [{ udid, t7, name, last, lastOk, error }], readings: { <t7>: [[t, pct, charging]] }, at }
@@ -41,19 +42,22 @@ export function createIphones(root, { python = path.join(os.homedir(), '.venv-io
     const list = phones(), udids = Object.keys(list);
     if (busy || !enabled || !udids.length) return;
     busy = true;
-    execFile(python, ['-I', script, ...udids], { timeout: 90e3 }, (err, stdout, stderr) => {
+    // each phone's last address goes along, tried before a Bonjour search (see iphone-battery.py)
+    const args = udids.map(u => { const ip = db.status[u]?.ip || list[u].ip; return ip ? `${u}=${ip}` : u; });
+    execFile(python, ['-I', script, ...args], { timeout: 150e3 }, (err, stdout, stderr) => {
       busy = false;
       const now = Date.now();
       let got = {};
       try { got = JSON.parse(stdout || '{}'); } catch (e) { log(`iphone read: bad output ${String(stdout).slice(0, 200)}`); }
       if (err && !Object.keys(got).length) log(`iphone read failed: ${err.message.split('\n')[0]}`);
+      if (stderr) log(`iphone read: ${String(stderr).trim().split('\n').slice(-3).join(' | ').slice(0, 400)}`);
       for (const u of udids) {
         const st = db.status[u] || (db.status[u] = {});
         st.lastTry = now;
         const r = got[u];
         if (r && Number.isFinite(r.pct)) {
           (db.readings[u] ||= []).push([now, r.pct, r.charging ? 1 : 0, list[u].t7 || null]);
-          st.lastOk = now; st.error = null;
+          st.lastOk = now; st.error = null; st.ip = r.ip || st.ip;
         } else st.error = 'not reachable (off AIO-Office Wi-Fi, or not unlocked since it restarted)';
       }
       const cut = now - KEEP_DAYS * 86400e3;

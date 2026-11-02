@@ -1,11 +1,3 @@
-        {/* the big number is only the time (the user, 2 Nov 2026: "7h 02m · 7h 00m left" wrapped onto two lines);
-            what is left, the end and the off-charger time go in the note, one per line */}
-        <Metric label={ended ? 'Ran for' : 'Running for'}
-          value={ended && runStart ? fmtDur(T.endMs - runStart) : runStart ? fmtDur(now - runStart) : 'Not started'}
-          delta={ended && runStart ? <>ended {hm(T.endMs)}<br />off charger {hm(runStart)}</>
-            : T.running ? <>off charger {hm(runStart || T.startMs)}<br />no test planned yet</>
-            : runStart ? <>{T.endMs > now ? `${fmtDur(T.endMs - now)} left · ends ${hm(T.endMs)}${T.overnight ? ' next day' : ''}` : `planned end ${hm(T.endMs)} passed`}<br />off charger {hm(runStart)}</>
-            : <>{started.length} of {all.length} devices off charger<br />planned {hm(T.startMs)} → {hm(T.endMs)}{T.overnight ? ' next day' : ''}</>} />
 import PlanSource from '../components/PlanSource.jsx'
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
@@ -392,14 +384,14 @@ export default function TodayView({ fleet }) {
         <Metric label={`Reaches ${FULL}%`} value={etaFull ? <>{hm(etaFull)}{dayKey(etaFull) !== todayKey() && <span className="secondary" style={{ fontSize: 13, fontWeight: 500 }}> {new Date(etaFull).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</> : medNow != null && medNow >= FULL ? 'Done' : '—'}
           delta={etaFull ? `${fmtDur(etaFull - now)} from now` : `${full} of ${charges.by.size} devices at ${FULL}% or more`} />
         </> : <>
+        {/* the big number is only the time (the user, 2 Nov 2026: "7h 02m · 7h 00m left" wrapped onto two lines);
+            what is left, the end and the off-charger time go in the note, one per line */}
         <Metric label={ended ? 'Ran for' : 'Running for'}
-          value={ended && runStart ? <>{fmtDur(T.endMs - runStart)}<span className="secondary" style={{ fontSize: 13 }}> · ended {hm(T.endMs)}</span></>
-            : T.running && runStart ? fmtDur(now - runStart)
-            : runStart ? <>{fmtDur(now - runStart)}{T.endMs > now
-            ? <span className="secondary" style={{ fontSize: 13 }}> · {fmtDur(T.endMs - now)} left</span>
-            : <span className="secondary" style={{ fontSize: 13 }}> · planned end passed</span>}</> : 'Not started'}
-          delta={T.running ? `off charger ${hm(runStart || T.startMs)} · no test planned yet` : runStart ? `off charger ${hm(runStart)} · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`
-            : `${started.length} of ${all.length} devices off charger · planned ${hm(T.startMs)} → ${hm(T.endMs)}${T.overnight ? ' next day' : ''}`} />
+          value={ended && runStart ? fmtDur(T.endMs - runStart) : runStart ? fmtDur(now - runStart) : 'Not started'}
+          delta={ended && runStart ? <>ended {hm(T.endMs)}<br />off charger {hm(runStart)}</>
+            : T.running ? <>off charger {hm(runStart || T.startMs)}<br />no test planned yet</>
+            : runStart ? <>{T.endMs > now ? `${fmtDur(T.endMs - now)} left · ends ${hm(T.endMs)}${T.overnight ? ' next day' : ''}` : `planned end ${hm(T.endMs)} passed`}<br />off charger {hm(runStart)}</>
+            : <>{started.length} of {all.length} devices off charger<br />planned {hm(T.startMs)} → {hm(T.endMs)}{T.overnight ? ' next day' : ''}</>} />
         <Metric label="Battery" value={medNow != null ? <>{medNow}%<ChargeIcon state={chargeNow} /></> : '—'}
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />
         {/* one tile; its drop-down splits the drain by what the T7 was doing (the user, Oct 2026) */}

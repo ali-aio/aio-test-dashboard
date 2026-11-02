@@ -26,3 +26,6 @@ data/iphone-readings.json
 data/iphone-readings.json.tmp
 data/wlc-toggle.json
 data/wlc-toggle.json.tmp
+data/room.jsonl
+data/room.jsonl.tmp
+firmware/room-sensor/secrets.h

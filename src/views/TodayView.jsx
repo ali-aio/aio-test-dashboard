@@ -20,6 +20,7 @@ import { MultiLineChart, Sparkline, tooltipHtml } from '../components/charts.jsx
 import { Segmented, Stat } from '../components/Primitives.jsx'
 import { buildStyleMap, keyBackground } from '../lib/palette.js'
 import { padLoad } from '../lib/pad.js'
+import { subscribeRoom, getRoom, startRoomSync, roomSummary } from '../lib/room.js'
 
 // A battery end label that would sit on the 0% / 100% axis mark only repeats the axis.
 const pctLabel = v => { const r = Math.round(v); return r >= 100 || r <= 0 ? null : `${r}%` }
@@ -111,6 +112,9 @@ export default function TodayView({ fleet }) {
   // shared Today notes (data/phone.json): the iPhone readings, and take-outs made before the test is known
   const phoneDb = useSyncExternalStore(subscribePhone, getPhone, getPhone)
   useEffect(() => startPhoneSync(), [])
+  // the room's temperature from the lab's ESP32-S3 + SHT30 (server/room.mjs), every minute
+  const roomDb = useSyncExternalStore(subscribeRoom, getRoom, getRoom)
+  useEffect(() => startRoomSync(), [])
   const T = useMemo(() => {
     const decls0 = benchDecls(DECLS())
     if (!cycleAt(decls0, now) && !chargingMost && bench) {
@@ -425,6 +429,21 @@ export default function TodayView({ fleet }) {
               // WLC on / off on that T7 (the user, 2 Nov 2026)
               action: <WlcToggle serial={r.d.serial} enabled={r.wlcOn} /> }))}
             breakdownAction={<WlcToggleAll serials={rows.map(r => r.d.serial)} enabledCount={rows.filter(r => r.wlcOn).length} />} />
+        })()}
+        {/* the room's own temperature (the T7s report only their battery's): the lab's ESP32-S3 + SHT30,
+            shown once a sensor has reported; range / average since the cycle started */}
+        {roomDb.sensors?.length > 0 && (() => {
+          const from = T.startMs && T.startMs < now ? T.startMs : now - 24 * H
+          const rows = roomDb.sensors.map(x => ({ id: x.id, s: roomSummary(x.rows, from, now) })).filter(r => r.s).sort((a, b) => a.id < b.id ? -1 : 1)
+          if (!rows.length) return <Metric label="Room temp" value="—" warn delta="no reading in the last 24 h · check the sensor" />
+          const main = rows.find(r => !r.s.stale) || rows[0], s = main.s
+          const since = T.startMs && T.startMs < now ? `since ${hm(from)}` : 'last 24 h'
+          return <Stat label="Room temp" warn={s.stale}
+            value={<><span style={s.stale ? { color: 'var(--status-critical)' } : undefined}>{s.t.toFixed(1)}</span><span className="secondary" style={{ fontSize: 13 }}> °C{s.rh != null ? ` · ${s.rh}% RH` : ''}</span></>}
+            foot={s.stale ? `sensor not heard from since ${when(s.at)}` : s.min != null ? `${s.min.toFixed(1)}–${s.max.toFixed(1)} · avg ${s.avg.toFixed(1)} ${since}` : `at ${hm(s.at)}`}
+            breakdownLabel="Room sensors" breakdownRight breakdownNoun="sensor"
+            breakdown={rows.length > 1 ? rows.map(r => ({ id: r.id, label: r.id, value: r.s.t, display: `${r.s.t.toFixed(1)} °C${r.s.rh != null ? ` · ${r.s.rh}%` : ''}`,
+              hint: r.s.stale ? `· not heard from since ${when(r.s.at)}` : `· ${hm(r.s.at)}`, highlight: r.s.stale })) : undefined} />
         })()}
         {/* the host app (the ads) on screen now, per device (MDM host-app list, every minute); devices on a
             client older than 1.11.0 do not report it */}

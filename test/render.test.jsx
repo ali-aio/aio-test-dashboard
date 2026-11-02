@@ -23,6 +23,7 @@ import { loadPart, getSnapshot } from '../src/lib/fleet.js'
 import { runStartOf, drainSplit } from '../src/lib/window.js'
 import { takeOutReasons } from '../src/lib/plan.js'
 import RangePicker from '../src/components/RangePicker.jsx'
+import { parseReport, roomSummary } from '../src/lib/room.js'
 import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart, readingAt, readT7s, padAt, onPadAt } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
@@ -507,6 +508,19 @@ const mdmCases = []
     want(phoneStart(db, d) === 1793253000000 && !db.starts.bad, 'start by hand')
     db = mergePhone(db, cleanPhone({ starts: { [d]: { at: null, mod: 8 } } }))
     want(phoneStart(db, d) === null, 'start back to auto')
+  })
+  check('room sensor: reports parsed, summary since the cycle start, stale after 10 min', () => {
+    const now = Date.UTC(2026, 10, 2, 12), M = 60e3
+    const one = parseReport({ sensor: 'Room', t: '23.46', rh: '41.4' }, now)
+    want(one.sensor === 'room' && one.rows.length === 1 && one.rows[0][1] === 23.5 && one.rows[0][2] === 41 && one.rows[0][0] === now, JSON.stringify(one))
+    const batch = parseReport({ sensor: 'room', readings: [{ t: 22, rh: 40, ago: 120 }, { t: 22.5, rh: 200, ago: 60 }, { t: 'x' }, { t: 99 }] }, now)
+    want(batch.rows.length === 2 && batch.rows[0][0] === now - 120e3 && batch.rows[1][2] === null, 'batch: ago applied, bad humidity dropped, bad temps skipped')
+    want(parseReport({ t: '' }).error && parseReport({ sensor: '!!', t: 20 }).error, 'no temperature / bad sensor name refused')
+    const rows = [[now - 300 * M, 30, 50], [now - 60 * M, 22, 40], [now - 30 * M, 24, 42], [now - 2 * M, 23, 41]]
+    const s = roomSummary(rows, now - 90 * M, now)
+    want(s.t === 23 && s.rh === 41 && !s.stale && s.min === 22 && s.max === 24 && s.avg === 23 && s.n === 3, JSON.stringify(s))
+    want(roomSummary(rows, now - 90 * M, now + 7 * M).stale === false && roomSummary(rows, now - 90 * M, now + 9 * M).stale === true, 'stale after 10 min')
+    want(roomSummary([], 0, now) === null, 'no rows')
   })
   check('iPhone on the pad: readings from the iPhone itself fill the hours, a typed value wins', () => {
     const d = '2026-11-02', sn = 'AT070AABU00790', H = 3600e3, M = 60e3, t0 = Date.UTC(2026, 10, 2, 10, 30)

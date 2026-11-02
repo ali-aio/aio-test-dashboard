@@ -758,6 +758,17 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   iPhone T7s' **own** off-charger times, not the bench's; the lab can **edit** it (✎ beside "start", a time box) — shared,
   per cycle day (`starts` in `data/phone.json`, `setPhoneStart` / `phoneStart`), with "use HH:MM (off charger)" to go back.
   Typed readings stay on their hour number, so moving the start moves their clock times.
+  **Read from the iPhone itself over Wi-Fi** (the user, 2 Nov 2026: "this device is put on 790 … so its charging value shows
+  there"): the lab laptop reads each paired iPhone's battery every 5 min (`server/iphones.mjs` runs `server/iphone-battery.py`
+  with pymobiledevice3 in `~/.venv-ios` on the laptop — not an npm dependency; `GET /api/iphones`; readings in
+  `data/iphone-readings.json`, stamped with the T7 the phone was on). Which iPhone is on which T7: `data/iphones.json` on the
+  laptop (`{ "phones": { "<udid>": { "t7", "name" } } }`, gitignored, read every poll). An hour with nothing typed shows the
+  reading within 10 min of it in blue italics (`readingAt` / `phoneHours(…, auto)` in `phoneLog.js`, tested); a typed value wins.
+  A T7 whose iPhone was read twice in the cycle joins the card by itself (× still takes it off); under its serial
+  "iPhone 77 % ⚡ · 11:42" or red "iPhone not reachable". Setup per phone, once, by cable on the lab laptop: Trust,
+  `pymobiledevice3 lockdown pair`, `pymobiledevice3 lockdown wifi-connections on`, then add it to `data/iphones.json`. The
+  phone must be on the **AIO-Office** Wi-Fi (the laptop's) and, after a restart, unlocked once with its passcode before it
+  answers. First phone: iPhone 13 Pro Max `00008110-001854382288401E` on **00790**.
   **After the cycle** (the user, 29 Oct 2026: "when the cycle ends does it show the phone data"): a read-only **iPhone on the
   pad** card (`PhoneHistory.jsx`) at the end of each test screen (the cycles in view, bench pick and device focus apply) and
   of the device page: one row per cycle day × T7 with an iPhone — each hour's iPhone %, the gain below, Gained / Per hour /

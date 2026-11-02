@@ -49,10 +49,15 @@ export const pendingOuts = (db, day) => Object.entries(db?.outs || {})
 export const phoneDevices = (db, day) => Object.entries(db?.devices || {})
   .filter(([k, v]) => v.on && k.startsWith(day + '|')).sort((x, y) => x[1].mod - y[1].mod).map(([k]) => k.slice(day.length + 1));
 
-/** One T7's iPhone readings for a cycle: [{ h, pct }] by hour, and each hour's gain from the one before. */
-export function phoneHours(db, day, serial, hours) {
+/** One T7's iPhone readings for a cycle: [{ h, pct }] by hour, and each hour's gain from the one before.
+ *  `auto(h)` (optional) gives the hour's reading taken from the iPhone itself over Wi-Fi (server/iphones.mjs);
+ *  a typed value wins over it, and a row filled from it is marked `auto`. */
+export function phoneHours(db, day, serial, hours, auto = null) {
   const rows = [];
-  for (let h = 0; h <= hours; h++) { const c = db?.cells?.[cellKey(day, serial, h)]; rows.push({ h, pct: c?.pct ?? null }); }
+  for (let h = 0; h <= hours; h++) {
+    const c = db?.cells?.[cellKey(day, serial, h)], typed = c?.pct ?? null, a = typed == null && auto ? auto(h) : null;
+    rows.push({ h, pct: typed ?? a?.pct ?? null, auto: typed == null && a?.pct != null ? a : null });
+  }
   let prev = null;
   for (const r of rows) { r.gain = r.pct != null && prev != null ? r.pct - prev.pct : null; r.per = r.gain != null ? r.gain / (r.h - prev.h) : null; if (r.pct != null) prev = r; }
   const got = rows.filter(r => r.pct != null);
@@ -60,6 +65,31 @@ export function phoneHours(db, day, serial, hours) {
   const perH = got.length > 1 && got[got.length - 1].h > got[0].h ? total / (got[got.length - 1].h - got[0].h) : null;
   const full = got.find(r => r.pct >= 100);
   return { rows, total, perH, fullAt: full ? full.h : null };
+}
+
+// ---- the iPhones read over Wi-Fi by the lab laptop (GET /api/iphones, server/iphones.mjs) ----
+export const AUTO_TOL = 10 * 60e3; // a reading counts for an hour mark within 10 min of it (the laptop reads every 5 min)
+
+/** The reading nearest t among rows [[t, pct, charging]] (oldest first), within tol and not after `now`: { at, pct, charging } or null. */
+export function readingAt(rows, t, now = Infinity, tol = AUTO_TOL) {
+  if (!rows?.length || t > now + 60e3) return null;
+  let lo = 0, hi = rows.length;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (rows[m][0] < t) lo = m + 1; else hi = m; }
+  let best = null;
+  for (const i of [lo - 1, lo]) { const r = rows[i]; if (r && Math.abs(r[0] - t) <= tol && (!best || Math.abs(r[0] - t) < Math.abs(best[0] - t))) best = r; }
+  return best ? { at: best[0], pct: best[1], charging: !!best[2] } : null;
+}
+
+/** The T7s whose iPhone was read at least twice in [a, b). */
+export const readT7s = (ip, a, b) => Object.entries(ip?.readings || {})
+  .filter(([, rows]) => rows.filter(r => r[0] >= a && r[0] < b).length >= 2).map(([t7]) => t7);
+
+const ipSubs = new Set();
+let ip = { phones: [], readings: {} };
+export const subscribeIphones = f => { ipSubs.add(f); return () => ipSubs.delete(f); };
+export const getIphones = () => ip;
+export async function pullIphones() {
+  try { const r = await fetch('/api/iphones', { cache: 'no-store' }); if (r.ok) { ip = await r.json(); ipSubs.forEach(f => f()); } } catch (e) { /* keep the last copy */ }
 }
 
 // ---- browser side: the shared copy, kept in step with the server ----
@@ -94,9 +124,10 @@ export const phoneStart = (db, day) => db?.starts?.[day]?.at ?? null;
 export const setPhonePct = (day, serial, h, pct, by = '') => change({ cells: { [cellKey(day, serial, h)]: { pct: pct === '' || pct == null ? null : Math.round(+pct), by, mod: Date.now() } } });
 /** Pull now, every minute and on returning to the tab, while a screen that shows it is open. */
 export function startPhoneSync() {
-  pullPhone();
-  timer = setInterval(pullPhone, 60e3);
-  const vis = () => { if (document.visibilityState === 'visible') pullPhone(); };
+  const pull = () => { pullPhone(); pullIphones(); };
+  pull();
+  timer = setInterval(pull, 60e3);
+  const vis = () => { if (document.visibilityState === 'visible') pull(); };
   document.addEventListener('visibilitychange', vis);
   return () => { clearInterval(timer); document.removeEventListener('visibilitychange', vis); };
 }

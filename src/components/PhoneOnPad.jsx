@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { subscribePhone, getPhone, setPhoneStart, phoneStart, phoneDevices, phoneHours, setPhoneDevice, setPhonePct, cellKey } from '../lib/phoneLog.js'
+import { subscribePhone, getPhone, setPhoneStart, phoneStart, phoneDevices, phoneHours, setPhoneDevice, setPhonePct, cellKey, devKey, subscribeIphones, getIphones, readingAt, readT7s } from '../lib/phoneLog.js'
 import { rowsFor } from '../lib/window.js'
 import { padLoad } from '../lib/pad.js'
 import { hm, H } from '../lib/format.js'
@@ -27,11 +27,13 @@ const loadIn = (serial, a, b) => {
 
 // A plain box for the iPhone's battery %: digits only (no up / down arrows), saved as soon as a
 // value is typed — half a second after the last key, or at once on Enter / leaving the box (the user, 27 Oct 2026)
-function Cell({ day, serial, h, value, title }) {
-  const [v, setV] = useState(value ?? '')
+// A cell with no typed value shows the iPhone's own reading (read over Wi-Fi, `auto`) in blue; typing over it saves the typed one.
+function Cell({ day, serial, h, value, auto, title }) {
+  const shown = value ?? auto ?? ''
+  const [v, setV] = useState(shown)
   const timer = useRef(null)
   const typing = useRef(false)
-  useEffect(() => { if (!typing.current) setV(value ?? '') }, [value])
+  useEffect(() => { if (!typing.current) setV(shown) }, [shown])
   useEffect(() => () => clearTimeout(timer.current), [])
   const save = (raw) => {
     clearTimeout(timer.current); typing.current = false
@@ -43,15 +45,29 @@ function Cell({ day, serial, h, value, title }) {
     setV(raw); typing.current = true
     clearTimeout(timer.current); timer.current = setTimeout(() => save(raw), 500)
   }
-  return <input className="input phone-cell" type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={v} placeholder="%" title={title}
+  return <input className={`input phone-cell${value == null && auto != null ? ' phone-auto' : ''}`} type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={v} placeholder="%" title={title}
     aria-label={title} onChange={change} onBlur={() => typing.current && save(v)} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }} />
+}
+
+// Under the T7's serial: the iPhone's battery as last read over Wi-Fi, or that it isn't answering
+function PhoneLive({ ph, now }) {
+  const stale = !ph.lastOk || now - ph.lastOk > 15 * 60e3
+  if (stale) return <div className="phone-live down" title={ph.error || 'not read yet'}>iPhone not reachable{ph.last ? ` · last ${ph.last.pct}% at ${hm(ph.last.at)}` : ''}</div>
+  return <div className="phone-live" title={`${ph.name}, read over Wi-Fi by the lab laptop every 5 min`}>iPhone {ph.last.pct}%{ph.last.charging ? ' ⚡' : ''} · {hm(ph.last.at)}</div>
 }
 
 const hhmm = t => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 
 export default function PhoneOnPad({ day, start: benchStart, end, serials, now, ownStart = () => null }) {
   const db = useSyncExternalStore(subscribePhone, getPhone, getPhone)
-  const devices = phoneDevices(db, day)
+  const ip = useSyncExternalStore(subscribeIphones, getIphones, getIphones)
+  // the T7s carrying an iPhone: the ones picked by hand, and any whose iPhone the lab laptop has been
+  // reading over Wi-Fi during this cycle (unless someone took it off the list with ×)
+  const picked = phoneDevices(db, day)
+  const devices = [...picked, ...readT7s(ip, benchStart - 2 * H, now + 60e3)
+    .filter(sn => serials.includes(sn) && !picked.includes(sn) && db.devices?.[devKey(day, sn)]?.on !== false)]
+  const phoneOn = sn => ip.phones?.find(x => x.t7 === sn)
+  const autoAt = sn => h => readingAt(ip.readings?.[sn], start + h * H, now)
   // the start: set by hand (shared), else when these T7s came off the charger (median of their own
   // starts), else the bench's — 29 Oct 2026 the bench came off at 10:00 but the iPhone T7s at 11:30 (the user)
   const own = devices.map(ownStart).filter(Number.isFinite).sort((a, b) => a - b)
@@ -70,7 +86,7 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
   // hour only if its pad had a load (the iPhone) during the hour before it, or something was typed there.
   const upTo = Math.min(Math.min(now, end ?? now), now)
   const last = Math.max(1, Math.min(24, Math.floor((upTo - start) / H) + 1))
-  const typed = (sn, h) => db.cells?.[cellKey(day, sn, h)]?.pct != null
+  const typed = (sn, h) => db.cells?.[cellKey(day, sn, h)]?.pct != null || autoAt(sn)(h) != null
   const shownFor = sn => { const set = new Set([0, 1]); for (let h = 2; h <= last; h++) if (typed(sn, h) || loadIn(sn, start + (h - 1) * H, Math.min(start + h * H, upTo + 1))) set.add(h); return set }
   const shown = new Map(devices.map(sn => [sn, shownFor(sn)]))
   const hours = Array.from({ length: last + 1 }, (_, h) => h).filter(h => devices.some(sn => shown.get(sn).has(h)))
@@ -105,12 +121,12 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
           {hours.map(h => <th key={h} className="r"><div>{h === 0 ? 'Start' : `${h} h`}{start + h * H > now ? <span className="secondary" style={{ fontWeight: 400 }}> · next</span> : null}</div><div className="secondary" style={{ fontWeight: 400 }}>{hm(start + h * H)}</div></th>)}
           <th className="r">Gained</th><th className="r">Per hour</th><th className="r">Full at</th><th /></tr></thead>
         <tbody>{devices.map(s => {
-          const p = phoneHours(db, day, s, last)
+          const p = phoneHours(db, day, s, last, autoAt(s)), ph = phoneOn(s)
           return <tr key={s}>
-            <td className="mono">{s}</td>
+            <td className="mono">{s}{ph ? <PhoneLive ph={ph} now={now} /> : null}</td>
             {p.rows.filter(r => hours.includes(r.h)).map(r => { const t7 = start + r.h * H > now ? null : t7At(s, start + r.h * H); if (!shown.get(s).has(r.h)) return <td key={r.h} className="r secondary" title="no load on this T7's pad in the hour before">no load</td>; return (
               <td key={r.h} className="r">
-                <Cell day={day} serial={s} h={r.h} value={r.pct} title={`iPhone battery on ${s} at ${hm(start + r.h * H)} (${r.h === 0 ? 'cycle start' : `hour ${r.h}`})`} />
+                <Cell day={day} serial={s} h={r.h} value={r.auto ? null : r.pct} auto={r.auto?.pct} title={`iPhone battery on ${s} at ${hm(start + r.h * H)} (${r.h === 0 ? 'cycle start' : `hour ${r.h}`})${r.auto ? ` · read from the iPhone at ${hm(r.auto.at)} — type to replace` : ''}`} />
                 <div className="phone-sub">{r.gain != null ? <b className={r.gain > 0 ? 'up' : r.gain < 0 ? 'down' : ''}>{r.gain > 0 ? '+' : ''}{r.gain}%</b> : null}
                   {t7 != null ? <span className="secondary" title="the T7's own battery at that time (MDM)">T7 {t7}%</span> : null}</div>
               </td>) })}

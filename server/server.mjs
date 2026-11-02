@@ -12,6 +12,7 @@
 //   · POST /api/sweep    → run a sweep now (the Settings "Check for new cycles" button)
 //   · GET/PUT /api/plan  → the shared Cycle plan, data/plan.json (server/plan.mjs) — our own
 //   · GET/POST /api/phone → iPhone battery typed in on Today, data/phone.json (server/phone.mjs) — our own
+//   · GET /api/iphones   → the iPhones on the pads, read over Wi-Fi every 5 min (server/iphones.mjs) — our own
 //   · POST /api/app/:serial/open|close → open / close Nugget on a lab tablet (MDM testdata app routes), logged in data/commands.jsonl
 //   · POST /api/wlc/:serial {enabled} → wireless charging on the pad on / off (MDM testdata wlc route), logged the same way
 //     file, the one thing a browser can write; never anything on the MDM
@@ -30,6 +31,7 @@ import { createClient } from './mdm.mjs';
 import { createPlanStore, readPlanBody } from './plan.mjs';
 import { keepDevice } from '../src/lib/device.js';
 import { createPhoneStore, readPhoneBody } from './phone.mjs';
+import { createIphones } from './iphones.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cfgFile = path.join(ROOT, 'server', 'config.json');
@@ -57,6 +59,8 @@ const TEXT = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.md', '.
 const plan = createPlanStore(ROOT);
 // the iPhone readings typed in on Today (server/phone.mjs)
 const phone = createPhoneStore(ROOT);
+// the iPhones' own battery, read over Wi-Fi by the lab laptop (server/iphones.mjs)
+const iphones = createIphones(ROOT, { python: process.env.IOS_PYTHON || fileCfg.iosPython || undefined, log: m => console.log(`[iphone] ${m}`) });
 
 // ── sweep state ───────────────────────────────────────────────────────────────
 const state = { group: CFG.group, lastSweepAt: null, lastError: null, sweeping: false, devices: 0, cycles: 0, configured: !!CFG.key };
@@ -133,6 +137,7 @@ http.createServer(async (req, res) => {
         const r = plan.put(g, body);
         return r.conflict ? json(req, res, 409, { error: 'the plan changed since you loaded it', current: r.current }) : json(req, res, 200, r);
       }
+      if (p === '/api/iphones') return json(req, res, 200, iphones.get());
       if (p === '/api/phone') {
         if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, phone.get());
         if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });

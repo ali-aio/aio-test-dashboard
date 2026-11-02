@@ -21,3 +21,6 @@ data/phone.json.tmp
 data/hostapp.json
 data/hostapp.json.tmp
 data/commands.jsonl
+data/iphones.json
+data/iphone-readings.json
+data/iphone-readings.json.tmp

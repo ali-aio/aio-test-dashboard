@@ -1,5 +1,5 @@
 import React, { useEffect, useSyncExternalStore } from 'react'
-import { subscribePhone, getPhone, startPhoneSync, phoneDevices, phoneHours, phoneStart } from '../lib/phoneLog.js'
+import { subscribePhone, getPhone, startPhoneSync, phoneDevices, phoneHours, phoneStart, devKey, subscribeIphones, getIphones, readingAt } from '../lib/phoneLog.js'
 import { dayKey } from '../lib/plan.js'
 import { hm, H } from '../lib/format.js'
 import { Card } from './Primitives.jsx'
@@ -11,13 +11,16 @@ import { SortTable } from './SortTable.jsx'
 // iPhone battery with the gain since the entry before. The day is the cycle's start day, as on Today.
 export default function PhoneHistory({ cycles }) {
   const db = useSyncExternalStore(subscribePhone, getPhone, getPhone)
+  const ip = useSyncExternalStore(subscribeIphones, getIphones, getIphones)
+  // an iPhone read over Wi-Fi during the run counts as picked (unless taken off the list on Today)
+  const readDuring = c => (ip.readings?.[c.serial] || []).filter(r => r[0] >= c.start && r[0] <= (c.end ?? c.start + 24 * H)).length >= 2
   useEffect(() => startPhoneSync(), [])
   // the T7s with an iPhone on each cycle day, among these cycles
   const byDay = new Map()
   for (const c of cycles) {
     if (c.start == null || c.endBattery > c.startBattery) continue // discharges only (the iPhone sits on a running cycle)
     const day = dayKey(c.start)
-    if (!phoneDevices(db, day).includes(c.serial)) continue
+    if (!phoneDevices(db, day).includes(c.serial) && !(readDuring(c) && db.devices?.[devKey(day, c.serial)]?.on !== false)) continue
     if (!byDay.has(day)) byDay.set(day, new Map())
     const m = byDay.get(day); if (!m.has(c.serial) || c.start < m.get(c.serial)) m.set(c.serial, c.start)
   }
@@ -25,7 +28,7 @@ export default function PhoneHistory({ cycles }) {
   for (const [day, m] of byDay) {
     const start = phoneStart(db, day) ?? Math.min(...m.values())
     for (const sn of m.keys()) {
-      const p = phoneHours(db, day, sn, 24), got = p.rows.filter(r => r.pct != null)
+      const p = phoneHours(db, day, sn, 24, h => readingAt(ip.readings?.[sn], start + h * H, Date.now())), got = p.rows.filter(r => r.pct != null)
       if (got.length) rows.push({ day, sn, start, p, last: got[got.length - 1].h })
     }
   }
@@ -35,7 +38,7 @@ export default function PhoneHistory({ cycles }) {
   const hours = Array.from({ length: maxH + 1 }, (_, h) => h)
   const dateOf = day => new Date(`${day}T12:00:00`).toLocaleDateString([], { day: 'numeric', month: 'short' })
   return (
-    <Card expandable title="iPhone on the pad" sub="iPhone battery typed in on Today, each hour of the cycle · gain since the entry before below it · hour 0 = the start">
+    <Card expandable title="iPhone on the pad" sub="iPhone battery each hour of the cycle (typed in on Today, or read from the iPhone over Wi-Fi in blue) · gain since the entry before below it · hour 0 = the start">
       <div className="scroll-x"><SortTable head={[{ label: 'Date' }, { label: 'T7' }, { label: 'Start', className: 'r' },
         ...hours.map(h => ({ label: h === 0 ? '0 h' : `${h} h`, className: 'r', sortable: false })),
         { label: 'Gained', className: 'r' }, { label: 'Per hour', className: 'r' }, { label: 'Full at', className: 'r' }]}>
@@ -46,7 +49,7 @@ export default function PhoneHistory({ cycles }) {
             <td className="r mono">{hm(r.start)}</td>
             {hours.map(h => { const x = r.p.rows[h]; return (
               <td key={h} className="r mono" title={`${hm(r.start + h * H)}`}>
-                {x?.pct != null ? <>{x.pct}%{x.gain != null ? <div className="phone-sub"><b className={x.gain > 0 ? 'up' : x.gain < 0 ? 'down' : ''}>{x.gain > 0 ? '+' : ''}{x.gain}%</b></div> : null}</> : <span className="secondary">—</span>}
+                {x?.pct != null ? <><span className={x.auto ? 'phone-auto' : ''} title={x.auto ? `read from the iPhone at ${hm(x.auto.at)}` : 'typed in'}>{x.pct}%</span>{x.gain != null ? <div className="phone-sub"><b className={x.gain > 0 ? 'up' : x.gain < 0 ? 'down' : ''}>{x.gain > 0 ? '+' : ''}{x.gain}%</b></div> : null}</> : <span className="secondary">—</span>}
               </td>) })}
             <td className="r mono">{r.p.total != null ? `${r.p.total > 0 ? '+' : ''}${r.p.total}%` : '—'}</td>
             <td className="r mono">{r.p.perH != null ? `${r.p.perH.toFixed(1)} %/h` : '—'}</td>

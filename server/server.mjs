@@ -208,8 +208,16 @@ http.createServer(async (req, res) => {
         // open wakes the screen and clears the lock screen itself (MDM guide, 2 Nov 2026), so no separate "screen on" first
         const results = [];
         for (const pkg of pkgs) {
-          const r = await mdm.command(`/api/v1/testdata/devices/${serial}/app/${action}?wait=true`, { package: pkg });
-          log(pkg, r); results.push(r);
+          let r;
+          // the MDM sometimes answers 502 / 503 / 504 with no body in a burst (2 Nov 2026: 3 of 22 in one Open on all): try again twice
+          for (let t = 0; t < 3; t++) {
+            if (t) await new Promise(ok => setTimeout(ok, 2000 * t));
+            try { r = await mdm.command(`/api/v1/testdata/devices/${serial}/app/${action}?wait=true`, { package: pkg }); }
+            catch (e) { r = { status: 504, json: { error: `MDM did not answer (${e.message})` } }; }
+            log(pkg, r);
+            if (![502, 503, 504].includes(r.status)) break;
+          }
+          results.push(r);
           if (r.status === 409) break; // offline: the second would answer the same
         }
         const ok = results.find(x => x.status >= 200 && x.status < 300 && x.json?.status !== 'failed');

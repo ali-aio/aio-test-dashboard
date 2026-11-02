@@ -568,7 +568,9 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   asks first, three commands at a time over the devices listed (the cycle's, taken-out ones excluded), shows "Opening 7 / 22…"
   then "21 of 22 done · 1 failed" (failures on hover). It follows the **majority** (most with the app on screen → Close on all,
   else Open on all; the user, 30 Oct 2026), and shows the opposite of a bulk command for 2 min after it while the list catches up. Browser → our `POST /api/app/:serial/open|close`
-  (server.mjs: lab devices only via `keepDevice`, the package from the host-app list, else `aio.app.nugget.uatv2`) →
+  (server.mjs: lab devices only via `keepDevice`; **open always opens `aio.app.nugget.uatv2`** — the user, 2 Nov 2026: the host-app
+  list sometimes named plain `aio.app.nugget`, and Open on all opened that on some tablets, uatv2 on others; **close** stops uatv2
+  and also the Nugget the list names for the device if it is another one) →
   MDM `POST /api/v1/testdata/devices/{serial}/app/{open|close}?wait=true` (`mdm.command`) — **open itself wakes the screen and
   clears the lock screen** (MDM, 2 Nov 2026; until then we sent "screen on" first and the tablet stayed locked); 409 = offline,
   shown as "… is offline — not sent"; every command appended to

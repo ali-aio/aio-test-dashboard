@@ -188,7 +188,7 @@ http.createServer(async (req, res) => {
         return json(req, res, 200, phone.post(body));
       }
       // Open / close Nugget on a lab tablet (the user, 30 Oct 2026, Today's "Ads on screen" card). Lab devices only
-      // (LAB_SERIALS), only open / close, the device's own role app from the host-app list; every command is logged.
+      // (LAB_SERIALS), only open / close, Nugget uatv2 (see below); every command is logged.
       const am = p.match(/^\/api\/app\/([A-Za-z0-9]{6,32})\/(open|close)$/);
       if (am) {
         if (req.method !== 'POST') return json(req, res, 405, { error: 'POST' });
@@ -196,13 +196,24 @@ http.createServer(async (req, res) => {
         const [, serial, action] = am;
         if (!keepDevice({ serial_number: serial })) return json(req, res, 403, { error: `${serial} is not a lab device` });
         let body = {}; try { body = await readPhoneBody(req); } catch (e) {}
-        let pkg = 'aio.app.nugget.uatv2';
-        try { const ha = await mdm.get('/api/v1/testdata/host-app?range=6h', { ttlMs: HOSTAPP_TTL }); pkg = (ha.devices || []).find(x => x.serial_number === serial)?.package || pkg; } catch (e) {}
+        // Open always opens the lab's build, aio.app.nugget.uatv2 (the user, 2 Nov 2026: the host-app list sometimes named
+        // plain aio.app.nugget, and "Open on all" opened that on some tablets, uatv2 on others). Close stops uatv2 and also
+        // the Nugget the host-app list names for the device, if that is another one, so a tablet left on it can be closed.
+        const LAB_PKG = 'aio.app.nugget.uatv2';
+        let listed = null;
+        if (action === 'close') { try { const ha = await mdm.get('/api/v1/testdata/host-app?range=6h', { ttlMs: HOSTAPP_TTL }); listed = (ha.devices || []).find(x => x.serial_number === serial)?.package || null; } catch (e) {} }
+        const pkgs = [LAB_PKG, ...(listed && listed !== LAB_PKG && /^aio\.app\.nugget/.test(listed) ? [listed] : [])];
         const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
-        const log = (act, r, extra = {}) => { try { fs.appendFileSync(path.join(ROOT, 'data', 'commands.jsonl'), JSON.stringify({ at: Date.now(), serial, action: act, package: pkg, by: String(body.by || '').slice(0, 60), ip, status: r.status, result: r.json, ...extra }) + '\n'); } catch (e) {} };
+        const log = (pkg, r) => { try { fs.appendFileSync(path.join(ROOT, 'data', 'commands.jsonl'), JSON.stringify({ at: Date.now(), serial, action, package: pkg, by: String(body.by || '').slice(0, 60), ip, status: r.status, result: r.json }) + '\n'); } catch (e) {} };
         // open wakes the screen and clears the lock screen itself (MDM guide, 2 Nov 2026), so no separate "screen on" first
-        const r = await mdm.command(`/api/v1/testdata/devices/${serial}/app/${action}?wait=true`, { package: pkg });
-        log(action, r);
+        const results = [];
+        for (const pkg of pkgs) {
+          const r = await mdm.command(`/api/v1/testdata/devices/${serial}/app/${action}?wait=true`, { package: pkg });
+          log(pkg, r); results.push(r);
+          if (r.status === 409) break; // offline: the second would answer the same
+        }
+        const ok = results.find(x => x.status >= 200 && x.status < 300 && x.json?.status !== 'failed');
+        const r = ok || results[0];
         const out = r.json || { error: `MDM answered ${r.status}` };
         // 409 = the tablet is offline (not queued): say so plainly
         if (r.status === 409 && !out.output) out.error = `${serial} is offline${out.last_seen_at ? ` (last seen ${out.last_seen_at})` : ''} — not sent`;

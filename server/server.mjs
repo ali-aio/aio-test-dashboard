@@ -14,7 +14,8 @@
 //   · GET/POST /api/phone → iPhone battery typed in on Today, data/phone.json (server/phone.mjs) — our own
 //   · GET /api/iphones   → the iPhones on the pads, read over Wi-Fi every 5 min (server/iphones.mjs) — our own
 //   · GET|POST /api/iphones/report?phone=&pct= → an iPhone sending its own battery (a Shortcuts automation)
-//   · GET /api/room, GET|POST /api/room/report → room temp / humidity from the lab's ESP32-S3 + SHT30 (server/room.mjs) — our own
+//   · GET /api/room, GET|POST /api/room/report → room temp / humidity from the lab's ESP32-S3 + SHT30 on this machine's USB
+//     (server/roomSerial.mjs) or over Wi-Fi (server/room.mjs) — our own
 //   · POST /api/app/:serial/open|close → open / close Nugget on a lab tablet (MDM testdata app routes), logged in data/commands.jsonl
 //   · POST /api/wlc/:serial {enabled} → wireless charging on the pad on / off (MDM testdata wlc route), logged the same way
 //     file, the one thing a browser can write; never anything on the MDM
@@ -36,6 +37,7 @@ import { createPhoneStore, readPhoneBody } from './phone.mjs';
 import { createWlcToggler } from './wlcToggle.mjs';
 import { createIphones } from './iphones.mjs';
 import { createRoom } from './room.mjs';
+import { createRoomSerial } from './roomSerial.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cfgFile = path.join(ROOT, 'server', 'config.json');
@@ -78,6 +80,10 @@ const iphones = createIphones(ROOT, { python: process.env.IOS_PYTHON || fileCfg.
 
 // the room's temperature / humidity, sent by the lab's ESP32-S3 + SHT30 (server/room.mjs)
 const room = createRoom(ROOT, { log: m => console.log(`[room] ${m}`) });
+// …plugged into this machine's USB (server/roomSerial.mjs); "roomSerial": false in config.json turns it off
+const roomCfg = process.env.ROOM_SERIAL ?? fileCfg.roomSerial;
+const roomSerial = roomCfg === false || roomCfg === 'off' ? null
+  : createRoomSerial(ROOT, room, { port: typeof roomCfg === 'string' ? roomCfg : null, log: m => console.log(`[room] ${m}`) });
 
 // ── sweep state ───────────────────────────────────────────────────────────────
 const state = { group: CFG.group, lastSweepAt: null, lastError: null, sweeping: false, devices: 0, cycles: 0, configured: !!CFG.key };
@@ -163,7 +169,7 @@ http.createServer(async (req, res) => {
         const r = iphones.report(q);
         return json(req, res, r.ok ? 200 : r.code, r);
       }
-      if (p === '/api/room') return json(req, res, 200, room.get(+url.searchParams.get('hours') || 24));
+      if (p === '/api/room') return json(req, res, 200, { ...room.get(+url.searchParams.get('hours') || 24), usb: roomSerial?.status() || null });
       // the ESP32-S3 + SHT30 in the lab sending the room's reading (firmware/room-sensor/)
       if (p === '/api/room/report') {
         let q = Object.fromEntries(url.searchParams);

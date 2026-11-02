@@ -435,12 +435,13 @@ export default function TodayView({ fleet }) {
         {roomDb.sensors?.length > 0 && (() => {
           const from = T.startMs && T.startMs < now ? T.startMs : now - 24 * H
           const rows = roomDb.sensors.map(x => ({ id: x.id, s: roomSummary(x.rows, from, now) })).filter(r => r.s).sort((a, b) => a.id < b.id ? -1 : 1)
-          if (!rows.length) return <Metric label="Room temp" value="—" warn delta="no reading in the last 24 h · check the sensor" />
+          const unplugged = roomDb.usb && !roomDb.usb.open ? ' · not plugged into the lab laptop' : ''
+          if (!rows.length) return <Metric label="Room temp" value="—" warn delta={`no reading in the last 24 h${unplugged || ' · check the sensor'}`} />
           const main = rows.find(r => !r.s.stale) || rows[0], s = main.s
           const since = T.startMs && T.startMs < now ? `since ${hm(from)}` : 'last 24 h'
           return <Stat label="Room temp" warn={s.stale}
             value={<><span style={s.stale ? { color: 'var(--status-critical)' } : undefined}>{s.t.toFixed(1)}</span><span className="secondary" style={{ fontSize: 13 }}> °C{s.rh != null ? ` · ${s.rh}% RH` : ''}</span></>}
-            foot={s.stale ? `sensor not heard from since ${when(s.at)}` : s.min != null ? `${s.min.toFixed(1)}–${s.max.toFixed(1)} · avg ${s.avg.toFixed(1)} ${since}` : `at ${hm(s.at)}`}
+            foot={s.stale ? `sensor not heard from since ${when(s.at)}${unplugged}` : s.min != null ? `${s.min.toFixed(1)}–${s.max.toFixed(1)} · avg ${s.avg.toFixed(1)} ${since}` : `at ${hm(s.at)}`}
             breakdownLabel="Room sensors" breakdownRight breakdownNoun="sensor"
             breakdown={rows.length > 1 ? rows.map(r => ({ id: r.id, label: r.id, value: r.s.t, display: `${r.s.t.toFixed(1)} °C${r.s.rh != null ? ` · ${r.s.rh}%` : ''}`,
               hint: r.s.stale ? `· not heard from since ${when(r.s.at)}` : `· ${hm(r.s.at)}`, highlight: r.s.stale })) : undefined} />

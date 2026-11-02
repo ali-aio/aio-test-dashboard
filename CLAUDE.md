@@ -750,10 +750,13 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
 - **On track with plan** shows **—** while no test is named (not "0 / 22", which read as every device off track — the user, 27 Oct 2026).
 - **Reaches 95 % / Reaches 20 %**: the time large, the date small beside it only when it isn't today ("05:18 AM Oct 31"; the user, 30 Oct 2026: the full date wrapped onto two lines).
 - **Room temp** (the user, 2 Nov 2026: the T7s report only their battery's temperature): an **ESP32-S3 + SHT30**
-  (`firmware/room-sensor/`, Arduino, no extra libraries; SDA GPIO 8, SCL GPIO 9; Wi-Fi in its gitignored `secrets.h`; the board is an
-  ESP32-S3-N16R8 DevKit, flashed from Tariq's PC on its **COM** port, FQBN in that README; the lab laptop is on Wi-Fi "UniFi - HW Team" since 2 Nov 2026) reads the
-  room every minute and POSTs to the lab laptop, `POST /api/room/report` `{sensor, readings: [{t, rh, ago}]}` (the laptop's
-  mDNS name, else `LAPTOP_IP`; readings it couldn't send are kept, up to 4 h, and go with the next post). `server/room.mjs`
+  (`firmware/room-sensor/`, Arduino, no extra libraries; SDA GPIO 8, SCL GPIO 9; an ESP32-S3-N16R8 DevKit, FQBN in that README)
+  reads the room every minute and is **plugged into the lab laptop's USB** (the user, 2 Nov 2026; no Wi-Fi): it prints
+  `ROOM {"sensor","t","rh"}` on both USB-C ports, and `server/roomSerial.mjs` runs `server/room-serial.py` (stdlib Python; finds
+  the CH343 / Espressif port, releases DTR / RTS so the board isn't held in reset) and stores each line, restarting the reader
+  20 s after an unplug. `/api/room` carries `usb: {port, open, lastLine, error}`; the tile says "not plugged into the lab laptop".
+  Wi-Fi stays possible: with `WIFI_PASS` in the gitignored `secrets.h` it also POSTs to `POST /api/room/report`
+  `{sensor, readings: [{t, rh, ago}]}` (the laptop is on "UniFi - HW Team" since 2 Nov 2026). `server/room.mjs`
   keeps them in `data/room.jsonl` (gitignored, 120 days); `GET /api/room` → the last 24 h, polled every minute
   (`src/lib/room.js`, tested). Today's **Room temp** tile (shown once a sensor has reported): °C and % RH now, range and average
   since the cycle started; yellow border and red value after 10 min with nothing (`STALE_MIN`). Several sensors = one

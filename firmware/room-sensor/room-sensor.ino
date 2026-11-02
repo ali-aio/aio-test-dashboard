@@ -1,6 +1,9 @@
 // Lab room temperature / humidity → the test dashboard on the lab laptop.
-// ESP32-S3 + SHT30 (I2C, address 0x44; 0x45 with ADDR pulled high). Every READ_S seconds it reads
-// the SHT30 and POSTs {"sensor","readings":[{"t","rh","ago"}]} to http://<laptop>:8090/api/room/report
+// ESP32-S3 + SHT30 (I2C, address 0x44; 0x45 with ADDR pulled high). Every READ_S seconds it reads the SHT30 and
+// prints one line on both USB-C ports (COM at 115200, and the chip's own USB):  ROOM {"sensor":"room","t":23.63,"rh":52.2}
+// The lab's way (2 Nov 2026): the board is plugged into the lab laptop's USB, whose server reads those lines
+// (server/roomSerial.mjs + room-serial.py) — no Wi-Fi. With WIFI_PASS set in secrets.h it also
+// POSTs {"sensor","readings":[{"t","rh","ago"}]} to http://<laptop>:8090/api/room/report
 // (server/room.mjs). Readings that couldn't be sent (laptop restarting, Wi-Fi down) are kept, up to
 // QUEUE_MAX, and go with the next post, each with how many seconds ago it was taken.
 //
@@ -19,6 +22,7 @@
 #define SHT30_ADDR 0x44
 static const uint32_t READ_S = 60;
 static const int QUEUE_MAX = 240; // 4 h at one a minute
+static const bool USE_WIFI = sizeof(WIFI_PASS) > 1; // no password = USB only
 
 struct Reading { uint32_t ms; float t; float rh; };
 static Reading queue_[QUEUE_MAX];
@@ -52,7 +56,7 @@ static void wifiUp() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(250);
-  if (WiFi.status() == WL_CONNECTED) { Serial.printf("wifi %s\n", WiFi.localIP().toString().c_str()); MDNS.begin(SENSOR_NAME); }
+  if (WiFi.status() == WL_CONNECTED) { Serial0.printf("wifi %s\n", WiFi.localIP().toString().c_str()); MDNS.begin(SENSOR_NAME); }
 }
 
 // the laptop's address: mDNS (its IP is DHCP), re-asked every 10 min, else LAPTOP_IP
@@ -83,16 +87,26 @@ static bool sendQueue() {
   http.addHeader("Content-Type", "application/json");
   int code = http.POST(body);
   http.end();
-  Serial.printf("POST %s → %d (%d readings)\n", url.c_str(), code, qn);
+  Serial0.printf("POST %s → %d (%d readings)\n", url.c_str(), code, qn);
   if (code == 200) { qn = 0; return true; }
   if (code < 0) lastResolve = 0; // couldn't connect: ask mDNS again next time
   return false;
 }
 
+// one line on both USB-C ports: COM (UART0 via the CH343) and USB (the chip's own USB serial), so the
+// board works whichever port goes into the laptop
+// (built with USB CDC On Boot: Serial = the chip's own USB, Serial0 = UART0 on the COM port)
+static void say(const char *s) {
+  Serial0.println(s);
+  if (Serial) Serial.println(s);
+}
+
 void setup() {
+  Serial0.begin(115200);
   Serial.begin(115200);
+  Serial.setTxTimeoutMs(0); // nobody listening on USB: drop the line, don't block
   Wire.begin(SDA_PIN, SCL_PIN);
-  wifiUp();
+  if (USE_WIFI) wifiUp(); else WiFi.mode(WIFI_OFF);
 }
 
 void loop() {
@@ -101,10 +115,13 @@ void loop() {
     next = millis() + READ_S * 1000;
     float t, rh;
     if (readSht30(t, rh)) {
-      Serial.printf("%.2f °C  %.1f %%RH\n", t, rh);
+      char line[96];
+      snprintf(line, sizeof line, "ROOM {\"sensor\":\"%s\",\"t\":%.2f,\"rh\":%.1f}", SENSOR_NAME, t, rh);
+      say(line);
+      if (!USE_WIFI) return;
       if (qn == QUEUE_MAX) { memmove(queue_, queue_ + 1, sizeof(Reading) * (QUEUE_MAX - 1)); qn--; }
       queue_[qn++] = { millis(), t, rh };
-    } else Serial.println("SHT30: no answer / bad CRC — check wiring and address");
+    } else { say("SHT30: no answer / bad CRC - check wiring and address"); if (!USE_WIFI) return; }
     wifiUp();
     sendQueue();
   }

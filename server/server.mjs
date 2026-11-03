@@ -235,12 +235,15 @@ http.createServer(async (req, res) => {
         let body = {}; try { body = await readPhoneBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
         if (body.stop) return json(req, res, 200, wlcToggler.stop(String(body.by || '').slice(0, 60)));
         const serials = (Array.isArray(body.serials) ? body.serials : []).filter(sn => typeof sn === 'string' && keepDevice({ serial_number: sn }));
-        const everyMin = Math.round(+body.everyMin);
+        const hold = body.hold === true, everyMin = hold ? null : Math.round(+body.everyMin);
+        const endAt = Number.isFinite(+body.endAt) && +body.endAt > Date.now() ? +body.endAt : null;
         if (!serials.length) return json(req, res, 400, { error: 'no lab devices given' });
-        if (!(everyMin >= 1 && everyMin <= 24 * 60)) return json(req, res, 400, { error: 'everyMin must be 1 – 1440' });
+        if (!hold && !(everyMin >= 1 && everyMin <= 24 * 60)) return json(req, res, 400, { error: 'everyMin must be 1 – 1440' });
+        // hold (WLC on / off for a while, the user, 2 Nov 2026): needs an end time, at most 24 h ahead
+        if (hold && !(endAt && endAt - Date.now() <= 24 * 3600e3 + 60e3)) return json(req, res, 400, { error: 'a hold needs an end time within 24 h' });
         if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
         return json(req, res, 200, wlcToggler.start({ serials, everyMin, first: !!body.first, by: String(body.by || '').slice(0, 60),
-          endAt: Number.isFinite(+body.endAt) && +body.endAt > Date.now() ? +body.endAt : null, endState: body.endState !== false }));
+          endAt, endState: body.endState !== false, hold }));
       }
       // Wireless charging on a lab T7's pad on / off (the user, 2 Nov 2026, Today's "WLC · load placed" card): MDM
       // POST /devices/{serial}/wlc {enabled} answers at once {serial, enabled, connected}; lab devices only, logged.

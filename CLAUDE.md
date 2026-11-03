@@ -582,7 +582,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   shown as "… is offline — not sent"; every command appended to
   `data/commands.jsonl` (gitignored) with who / when / answer. **Second exception (the user, 2 Nov 2026): WLC on / off** —
   Today → **WLC · load placed** drop-down, a ⚡ switch in front of each device (`WlcToggle.jsx`, asks first, flips at once)
-  and in its header (titled **WLC**) **WLC on** (shown while some are off), **WLC off** (while some are on) and **Toggle ▾** →
+  and in its header (titled **WLC**) **WLC on ▾** (shown while some are off), **WLC off ▾** (while some are on) — each a menu
+  **For 15 min / 30 min / 1 h / Custom min** (switched now, back to the other state then: a `hold` job on the lab laptop, header
+  "WLC on · back off at 11:45 · Stop", Stop leaves WLC as it is) or **Until I turn it off / on** (the plain switch; the user,
+  2 Nov 2026) — and **Toggle ▾** →
   every 15 min / 30 min / 1 h / custom minutes (`WlcToggleAll`, the user, 2 Nov 2026). **The toggling runs on the lab laptop**
   (`server/wlcToggle.mjs`, `GET/POST /api/wlc-toggle`, state in `data/wlc-toggle.json`, gitignored, survives a restart): first
   switch at once (off if most are on, else on), then the other state every interval, on the devices listed, until **Stop** —

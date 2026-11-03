@@ -86,8 +86,28 @@ export function WlcToggleAll({ serials, enabledCount }) {
     const j = await wlcToggleJob({ serials, everyMin, first, by: by(), endAt: end, endState: endOn })
     if (j.ok) { setJob(j); refreshSoon() } else alert(`Couldn't start: ${j.error || j.http}`)
   }
+  // WLC on / off for a while (the user, 2 Nov 2026): every device switched now, back to the other state at the end — run
+  // by the lab laptop like Toggle. "Until I turn it off" is the plain switch.
+  const [hold, setHold] = useState(null)       // 'on' | 'off': which menu is open
+  const startHold = async (to, min) => {
+    setHold(null)
+    if (!(min >= 1) || !serials.length) return
+    const end = Date.now() + min * 60e3
+    if (!confirm(`Turn wireless charging ${to ? 'ON' : 'OFF'} on all ${serials.length} devices for ${fmtEvery(min)}, then back ${to ? 'OFF' : 'ON'} at ${clock(end)}? It runs on the lab laptop.`)) return
+    const j = await wlcToggleJob({ serials, hold: true, first: to, by: by(), endAt: end, endState: !to })
+    if (j.ok) { setJob(j); refreshSoon() } else alert(`Couldn't start: ${j.error || j.http}`)
+  }
   const stop = async () => { const j = await wlcToggleJob({ stop: true, by: by() }); if (j.ok) setJob(j) }
   const result = prog && !busy ? `WLC ${prog.to ? 'on' : 'off'}: ${prog.total - prog.failed.length} of ${prog.total}${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null
+  if (job?.active && job.hold) {
+    return (
+      <span className="app-all" onClick={e => e.stopPropagation()}>
+        <span className="hint" title={job.last ? `WLC ${job.last.to ? 'on' : 'off'} on ${job.last.ok} at ${new Date(job.last.at).toLocaleTimeString()}${job.last.failed?.length ? ` · failed: ${job.last.failed.join(', ')}` : ''}` : undefined}>
+          <span className="spin" style={{ width: 10, height: 10 }} /> WLC {job.endState ? 'off' : 'on'} · back {job.endState ? 'on' : 'off'} at {clock(job.endAt)}</span>
+        <button type="button" className="btn btn-sm" onClick={stop} title="Cancel the timer; WLC stays as it is now">Stop</button>
+      </span>
+    )
+  }
   if (job?.active) {
     const next = new Date(job.nextAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     return (
@@ -103,10 +123,14 @@ export function WlcToggleAll({ serials, enabledCount }) {
     <span className="app-all" onClick={e => e.stopPropagation()}>
       {result && <span className={`hint${prog.failed.length ? ' app-all-bad' : ''}`} title={prog.failed.join('\n') || undefined}>{result}</span>}
       {busy && <span className="hint"><span className="spin" style={{ width: 10, height: 10 }} /> {prog.done} / {prog.total}…</span>}
-      {offCount > 0 && <button type="button" className="btn btn-sm" disabled={busy} onClick={e => all(true, e)} title={`${offCount} with WLC off: turn it on on every device in this list`}>WLC on</button>}
-      {enabledCount > 0 && <button type="button" className="btn btn-sm" disabled={busy} onClick={e => all(false, e)} title={`${enabledCount} with WLC on: turn it off on every device in this list`}>WLC off</button>}
+      {[[true, offCount > 0, `${offCount} with WLC off`], [false, enabledCount > 0, `${enabledCount} with WLC on`]].map(([to, show, why]) => show && (
+        <span key={String(to)} className="wlc-menu-wrap">
+          <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={hold === (to ? 'on' : 'off')} title={`${why}: turn it ${to ? 'on' : 'off'} on every device in this list`}
+            onClick={() => { setMenu(false); setHold(h => h === (to ? 'on' : 'off') ? null : to ? 'on' : 'off') }}>WLC {to ? 'on' : 'off'} ▾</button>
+          {hold === (to ? 'on' : 'off') && <ForMenu to={to} onPick={min => startHold(to, min)} onAlways={e => { setHold(null); all(to, e) }} />}
+        </span>))}
       <span className="wlc-menu-wrap">
-        <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={menu} onClick={() => setMenu(m => !m)}>Toggle ▾</button>
+        <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={menu} onClick={() => { setHold(null); setMenu(m => !m) }}>Toggle ▾</button>
         {menu && (
           <span className="wlc-menu" role="menu">
             {/* when to stop (optional) and the state every device is left in then (the user, 2 Nov 2026) */}
@@ -125,6 +149,21 @@ export function WlcToggleAll({ serials, enabledCount }) {
             </span>
           </span>
         )}
+      </span>
+    </span>
+  )
+}
+// "WLC on ▾" / "WLC off ▾": for how long, then back
+function ForMenu({ to, onPick, onAlways }) {
+  const [custom, setCustom] = useState('')
+  return (
+    <span className="wlc-menu" role="menu">
+      {[15, 30, 60].map(m => <button key={m} type="button" role="menuitem" onClick={() => onPick(m)}>For {fmtEvery(m)}</button>)}
+      <button type="button" role="menuitem" onClick={onAlways}>Until I turn it {to ? 'off' : 'on'}</button>
+      <span className="wlc-custom">
+        <input className="input" inputMode="numeric" placeholder="min" value={custom} onChange={e => setCustom(e.target.value.replace(/\D/g, '').slice(0, 4))}
+          onKeyDown={e => { if (e.key === 'Enter' && +custom >= 1) onPick(Math.min(1440, +custom)) }} aria-label="Custom time in minutes" />
+        <button type="button" className="btn btn-sm" disabled={!(+custom >= 1)} onClick={() => onPick(Math.min(1440, +custom))}>Custom</button>
       </span>
     </span>
   )

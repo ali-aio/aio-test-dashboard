@@ -29,3 +29,5 @@ data/wlc-toggle.json.tmp
 data/room.jsonl
 data/room.jsonl.tmp
 firmware/room-sensor/secrets.h
+data/app-schedule.json
+data/app-schedule.json.tmp

@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { appCommand } from '../lib/data.js'
+import React, { useEffect, useState } from 'react'
+import { appCommand, appScheduleJobs } from '../lib/data.js'
 import { pollHostApp } from '../lib/fleet.js'
 
 // Open / close Nugget (the device's role app) on one lab tablet, from Today's "Ads on screen" drop-down (the user,
@@ -68,14 +68,64 @@ export function AppToggleAll({ serials, onScreenCount }) {
     }))
     setLast({ action, at: Date.now() }); refreshSoon()
   }
-  const label = busy ? `${action === 'open' ? 'Opening' : 'Closing'} ${prog.done} / ${prog.total}…` : `${action === 'open' ? 'Open' : 'Close'} on all`
+  const label = busy ? `${action === 'open' ? 'Opening' : 'Closing'} ${prog.done} / ${prog.total}…` : `${action === 'open' ? 'Open' : 'Close'} on all ▾`
   const result = prog && !busy ? `${prog.total - prog.failed.length} of ${prog.total} done${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null
+  // when: now, at a time, or every day at a time (the user, 3 Nov 2026: "tomorrow the cycle starts again") — the timed
+  // ones run on the lab laptop (server/appSchedule.mjs), on the devices listed now
+  const [menu, setMenu] = useState(false)
+  const [sAct, setSAct] = useState(null)       // the scheduled action; defaults to the button's
+  const [time, setTime] = useState('')
+  const [daily, setDaily] = useState(false)
+  const [jobs, setJobs] = useState([])
+  useEffect(() => {
+    let live = true
+    const load = () => appScheduleJobs().then(j => { if (live && j.ok) setJobs(j.jobs || []) }).catch(() => {})
+    load(); const t = setInterval(load, 30e3)
+    return () => { live = false; clearInterval(t) }
+  }, [])
+  const act = sAct || action
+  const nextAt = () => { if (!time) return null; const [h, m] = time.split(':').map(Number), d = new Date(); d.setHours(h, m, 0, 0)
+    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1); return d.getTime() }
+  const schedule = async () => {
+    const at = nextAt(); if (!at || !serials.length) return
+    const what = `${act === 'open' ? 'Open' : 'Close'} Nugget on all ${serials.length} devices ${daily ? `every day at ${clock(at, true)}` : `at ${clock(at)}`}`
+    if (!confirm(`${what}? It runs on the lab laptop${daily ? ', until you remove it' : ''}.`)) return
+    const j = await appScheduleJobs({ action: act, at, daily, serials, by: by() })
+    if (j.ok) { setJobs(j.jobs || []); setMenu(false); setTime('') } else alert(`Couldn't schedule: ${j.error || j.http}`)
+  }
+  const drop = async (job) => {
+    if (!confirm(`Remove "${jobText(job)}"?`)) return
+    const j = await appScheduleJobs({ remove: job.id }); if (j.ok) setJobs(j.jobs || [])
+  }
   return (
-    <span className="app-all">
+    <span className="app-all" onClick={e => e.stopPropagation()}>
       {result && <span className={`hint${prog.failed.length ? ' app-all-bad' : ''}`} title={prog.failed.join('\n') || undefined}>{result}</span>}
-      <button type="button" className="btn btn-sm" disabled={busy || !serials.length} onClick={run}
-        title={`${action === 'open' ? 'Open' : 'Close'} Nugget on every device in this list`}>
-        {busy && <span className="spin" style={{ width: 11, height: 11 }} />} {label}</button>
+      {jobs.map(j => (
+        <span key={j.id} className="app-job" title={`${j.serials.length} devices · set by ${j.by || '—'}${j.last ? ` · last: ${j.last.ok} of ${j.last.total} at ${new Date(j.last.at).toLocaleString()}${j.last.failed?.length ? ` · failed: ${j.last.failed.join(', ')}` : ''}` : ''}`}>
+          {jobText(j)}<button type="button" aria-label={`Remove ${jobText(j)}`} onClick={() => drop(j)}>×</button></span>))}
+      <span className="wlc-menu-wrap">
+        <button type="button" className="btn btn-sm" disabled={busy || !serials.length} aria-expanded={menu} onClick={() => setMenu(m => !m)}
+          title={`${action === 'open' ? 'Open' : 'Close'} Nugget on every device in this list — now, at a time, or every day`}>
+          {busy && <span className="spin" style={{ width: 11, height: 11 }} />} {label}</button>
+        {menu && (
+          <span className="wlc-menu" role="menu">
+            <button type="button" role="menuitem" onClick={e => { setMenu(false); run(e) }}>{action === 'open' ? 'Open' : 'Close'} now</button>
+            <span className="wlc-end">
+              <span className="wlc-end-state" role="group" aria-label="Action">
+                {['open', 'close'].map(a => <button key={a} type="button" className={act === a ? 'is-on' : ''} aria-pressed={act === a} onClick={() => setSAct(a)}>{a === 'open' ? 'Open' : 'Close'}</button>)}</span>
+              <label>at <input type="time" className="input" value={time} onChange={e => setTime(e.target.value)} aria-label="Time" /></label>
+              <span className="wlc-end-state" role="group" aria-label="How often">
+                <button type="button" className={!daily ? 'is-on' : ''} aria-pressed={!daily} onClick={() => setDaily(false)}>Once</button>
+                <button type="button" className={daily ? 'is-on' : ''} aria-pressed={daily} onClick={() => setDaily(true)}>Every day</button></span>
+              <button type="button" className="btn btn-sm" disabled={!time} onClick={schedule}>Schedule</button>
+            </span>
+          </span>
+        )}
+      </span>
     </span>
   )
 }
+
+const clock = (t, timeOnly = false) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  + (!timeOnly && new Date(t).toDateString() !== new Date().toDateString() ? ' tomorrow' : '')
+const jobText = j => `${j.action === 'open' ? 'Open' : 'Close'} ${j.daily ? `daily ${clock(j.at, true)}` : clock(j.at)}`

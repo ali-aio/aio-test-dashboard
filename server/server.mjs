@@ -35,6 +35,7 @@ import { createPlanStore, readPlanBody } from './plan.mjs';
 import { keepDevice } from '../src/lib/device.js';
 import { createPhoneStore, readPhoneBody } from './phone.mjs';
 import { createWlcToggler } from './wlcToggle.mjs';
+import { createAppSchedule } from './appSchedule.mjs';
 import { createIphones } from './iphones.mjs';
 import { createRoom } from './room.mjs';
 import { createRoomSerial } from './roomSerial.mjs';
@@ -74,6 +75,44 @@ const wlcToggler = createWlcToggler(ROOT, {
     try { fs.appendFileSync(path.join(ROOT, 'data', 'commands.jsonl'), JSON.stringify({ at: Date.now(), serial, action: enabled ? 'wlc on' : 'wlc off', by: 'toggle timer', status: r.status, result: r.json }) + '\n'); } catch (e) {}
     return r;
   },
+});
+// Open / close Nugget on one lab tablet through the MDM, logged; used by the buttons and the schedule.
+async function appCmd(serial, action, by = '', ip = '') {
+  // Open always opens the lab's build, aio.app.nugget.uatv2 (the user, 2 Nov 2026: the host-app list sometimes named
+  // plain aio.app.nugget, and "Open on all" opened that on some tablets, uatv2 on others). Close stops uatv2 and also
+  // the Nugget the host-app list names for the device, if that is another one, so a tablet left on it can be closed.
+  const LAB_PKG = 'aio.app.nugget.uatv2';
+  let listed = null;
+  if (action === 'close') { try { const ha = await mdm.get('/api/v1/testdata/host-app?range=6h', { ttlMs: HOSTAPP_TTL }); listed = (ha.devices || []).find(x => x.serial_number === serial)?.package || null; } catch (e) {} }
+  const pkgs = [LAB_PKG, ...(listed && listed !== LAB_PKG && /^aio\.app\.nugget/.test(listed) ? [listed] : [])];
+  const log = (pkg, r) => { try { fs.appendFileSync(path.join(ROOT, 'data', 'commands.jsonl'), JSON.stringify({ at: Date.now(), serial, action, package: pkg, by, ip, status: r.status, result: r.json }) + '\n'); } catch (e) {} };
+  // open wakes the screen and clears the lock screen itself (MDM guide, 2 Nov 2026), so no separate "screen on" first
+  const results = [];
+  for (const pkg of pkgs) {
+    let r;
+    // the MDM sometimes answers 502 / 503 / 504 with no body in a burst (2 Nov 2026: 3 of 22 in one Open on all): try again twice
+    for (let t = 0; t < 3; t++) {
+      if (t) await new Promise(ok => setTimeout(ok, 2000 * t));
+      try { r = await mdm.command(`/api/v1/testdata/devices/${serial}/app/${action}?wait=true`, { package: pkg }); }
+      catch (e) { r = { status: 504, json: { error: `MDM did not answer (${e.message})` } }; }
+      log(pkg, r);
+      if (![502, 503, 504].includes(r.status)) break;
+    }
+    results.push(r);
+    if (r.status === 409) break; // offline: the second would answer the same
+  }
+  const ok = results.find(x => x.status >= 200 && x.status < 300 && x.json?.status !== 'failed');
+  const r = ok || results[0];
+  const out = r.json || { error: `MDM answered ${r.status}` };
+  // 409 = the tablet is offline (not queued): say so plainly
+  if (r.status === 409 && !out.output) out.error = `${serial} is offline${out.last_seen_at ? ` (last seen ${out.last_seen_at})` : ''} — not sent`;
+  return { status: r.status, out };
+}
+// Open / close on a schedule, once at a time or every day (server/appSchedule.mjs; the user, 3 Nov 2026)
+const appSchedule = createAppSchedule(ROOT, {
+  keep: keepDevice,
+  log: msg => console.log(`[app-schedule] ${msg}`),
+  send: (serial, action, by) => appCmd(serial, action, by || 'schedule', 'schedule'),
 });
 // the iPhones' own battery, read over Wi-Fi by the lab laptop (server/iphones.mjs)
 const iphones = createIphones(ROOT, { python: process.env.IOS_PYTHON || fileCfg.iosPython || undefined, log: m => console.log(`[iphone] ${m}`) });
@@ -196,36 +235,24 @@ http.createServer(async (req, res) => {
         const [, serial, action] = am;
         if (!keepDevice({ serial_number: serial })) return json(req, res, 403, { error: `${serial} is not a lab device` });
         let body = {}; try { body = await readPhoneBody(req); } catch (e) {}
-        // Open always opens the lab's build, aio.app.nugget.uatv2 (the user, 2 Nov 2026: the host-app list sometimes named
-        // plain aio.app.nugget, and "Open on all" opened that on some tablets, uatv2 on others). Close stops uatv2 and also
-        // the Nugget the host-app list names for the device, if that is another one, so a tablet left on it can be closed.
-        const LAB_PKG = 'aio.app.nugget.uatv2';
-        let listed = null;
-        if (action === 'close') { try { const ha = await mdm.get('/api/v1/testdata/host-app?range=6h', { ttlMs: HOSTAPP_TTL }); listed = (ha.devices || []).find(x => x.serial_number === serial)?.package || null; } catch (e) {} }
-        const pkgs = [LAB_PKG, ...(listed && listed !== LAB_PKG && /^aio\.app\.nugget/.test(listed) ? [listed] : [])];
         const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
-        const log = (pkg, r) => { try { fs.appendFileSync(path.join(ROOT, 'data', 'commands.jsonl'), JSON.stringify({ at: Date.now(), serial, action, package: pkg, by: String(body.by || '').slice(0, 60), ip, status: r.status, result: r.json }) + '\n'); } catch (e) {} };
-        // open wakes the screen and clears the lock screen itself (MDM guide, 2 Nov 2026), so no separate "screen on" first
-        const results = [];
-        for (const pkg of pkgs) {
-          let r;
-          // the MDM sometimes answers 502 / 503 / 504 with no body in a burst (2 Nov 2026: 3 of 22 in one Open on all): try again twice
-          for (let t = 0; t < 3; t++) {
-            if (t) await new Promise(ok => setTimeout(ok, 2000 * t));
-            try { r = await mdm.command(`/api/v1/testdata/devices/${serial}/app/${action}?wait=true`, { package: pkg }); }
-            catch (e) { r = { status: 504, json: { error: `MDM did not answer (${e.message})` } }; }
-            log(pkg, r);
-            if (![502, 503, 504].includes(r.status)) break;
-          }
-          results.push(r);
-          if (r.status === 409) break; // offline: the second would answer the same
-        }
-        const ok = results.find(x => x.status >= 200 && x.status < 300 && x.json?.status !== 'failed');
-        const r = ok || results[0];
-        const out = r.json || { error: `MDM answered ${r.status}` };
-        // 409 = the tablet is offline (not queued): say so plainly
-        if (r.status === 409 && !out.output) out.error = `${serial} is offline${out.last_seen_at ? ` (last seen ${out.last_seen_at})` : ''} — not sent`;
-        return json(req, res, r.status, out);
+        const { status, out } = await appCmd(serial, action, String(body.by || '').slice(0, 60), ip);
+        return json(req, res, status, out);
+      }
+      // Open / close on a schedule (server/appSchedule.mjs): GET the jobs, POST { action, at, daily, serials, by } to add one,
+      // POST { remove: id } to drop one (the user, 3 Nov 2026)
+      if (p === '/api/app-schedule') {
+        if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, appSchedule.get());
+        if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });
+        let body = {}; try { body = await readPhoneBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
+        if (body.remove) return json(req, res, 200, appSchedule.remove(String(body.remove)));
+        const serials = (Array.isArray(body.serials) ? body.serials : []).filter(sn => typeof sn === 'string' && keepDevice({ serial_number: sn }));
+        const at = +body.at;
+        if (!serials.length) return json(req, res, 400, { error: 'no lab devices given' });
+        if (!['open', 'close'].includes(body.action)) return json(req, res, 400, { error: 'action must be open or close' });
+        if (!(Number.isFinite(at) && at > Date.now() - 60e3 && at - Date.now() < 48 * 3600e3)) return json(req, res, 400, { error: 'at must be within the next 48 h' });
+        if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
+        return json(req, res, 200, appSchedule.add({ action: body.action, at, daily: body.daily === true, serials, by: String(body.by || '').slice(0, 60) }));
       }
       // WLC toggling on a timer, run by this server (server/wlcToggle.mjs): GET the job, POST { serials, everyMin, first,
       // by } to start, POST { stop: true } to stop

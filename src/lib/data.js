@@ -109,6 +109,14 @@ export async function appCommand(serial, action, by = '') {
   return { ok: r.ok, http: r.status, ...(j || {}) };
 }
 
+/** Open / close on a schedule, run by our server (server/appSchedule.mjs): no body → { jobs }; { action, at, daily,
+ *  serials, by } adds one; { remove: id } drops one. */
+export async function appScheduleJobs(body) {
+  const r = await fetch('/api/app-schedule', body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : { cache: 'no-store' });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  return { ok: r.ok, http: r.status, ...(j || {}) };
+}
+
 /** Wireless charging on a lab T7's pad on / off, through our server (lab devices only). Resolves to the MDM's
  *  answer { serial, enabled, connected } or { error }. */
 export async function wlcCommand(serial, enabled, by = '') {

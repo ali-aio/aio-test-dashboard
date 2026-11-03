@@ -284,6 +284,10 @@ export function adaptCycle(d, c0, rows, ctx) {
     return s[s.length - 1].v;
   };
   const plan = planFor({ ...c, serial: d.serial, charging, padHours }, ctx, pctAt);
+  // the lab ran this device's load its own way that cycle (`noLoadCheck`, e.g. 30 Oct's 30-min gaps): it stays in the
+  // cycle, but its hours don't feed the test's WLC active / inactive per-hour bars or drains (the user, 3 Nov 2026: a
+  // device with no load at the start isn't running the Restaurant Case — it showed WLC inactive in hours 1–3)
+  const ownLoad = !charging && !!plannedTest({ ...c, serial: d.serial, charging }, ctx).skipLoad;
   // left the cycle part-way (taken out, or stopped doing what the test does): the run up to then
   let fullRun = null;
   if (plan.cutAt != null) {
@@ -363,8 +367,9 @@ export function adaptCycle(d, c0, rows, ctx) {
     series, tempSeries, hourly: built,
     // mean battery lost per hour with the WLC active / inactive (the hours above), read by
     // Restaurant Case's "Avg T7 drain · WLC active / inactive" cards
-    wirelessDrainPerHr: meanDrop(built.filter(e => e.wireless === true)),
-    withoutWirelessDrainPerHr: meanDrop(built.filter(e => e.wireless === false)),
+    ownLoad,
+    wirelessDrainPerHr: ownLoad ? null : meanDrop(built.filter(e => e.wireless === true)),
+    withoutWirelessDrainPerHr: ownLoad ? null : meanDrop(built.filter(e => e.wireless === false)),
     // mean temperature in each third of the run (start / middle / end), as T7 computes it
     tempPhases: temperaturePhases(tempSeries, duration),
     // T7's views iterate these unconditionally, so they must be arrays even though the MDM

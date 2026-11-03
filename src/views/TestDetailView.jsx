@@ -416,10 +416,10 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               hint: `· ${x.s.min.toFixed(1)}–${x.s.max.toFixed(1)} °C${x.s.rh != null ? ` · ${x.s.rh}% RH` : ''}`, highlight: x.b.key === bench,
               onClick: () => { setBench((k) => (k === x.b.key ? null : x.b.key)); setFocus(null) } }))} />
         })()}
-        <Stat label="Device peak temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
+        <Stat label="Avg device peak temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
           foot={hottestRun == null
             ? 'no temperature recorded'
-            : `average · hottest ${fmtTemp(hottestRun)}`}
+            : `hottest ${fmtTemp(hottestRun)}`}
           breakdown={peakBreakdown} breakdownWide breakdownRight
           breakdownLabel="Cycle peak temperatures · hottest first" />
       </div>

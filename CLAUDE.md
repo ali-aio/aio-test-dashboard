@@ -612,6 +612,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   with it"): every per-device rule — load hours, cycle length, short cycle, drain, the iPhone card's hours — uses **that
   device's own start**, never the bench's. Any change to such a rule gets a test with a device starting 1–3 h after the
   bench (see the late-load test, which also has a device unplugged 2 h late).
+- **A device whose load the lab ran its own way is left out of the Restaurant Case's WLC active / inactive figures** (the user,
+  3 Nov 2026: "if a device has no load at the start it isn't in the Restaurant Case, why is it in the graph"): `ownLoad` on the
+  cycle (= `noLoadCheck`, 30 Oct's 17 gap devices) keeps it out of Drain by hour's WLC bars (`hourlyProfile`, `hourContributors`)
+  and the WLC drain tile; it is still in the cycle (curves, table, cycle count).
 - **A plan entry can list devices whose load the lab ran its own way** (`noLoadCheck: [serials]`; the user, 30 Oct 2026: "add
   the 30-minute gap devices also in today's cycle"): their load hours aren't checked (`skipLoad` in `plannedTest` /
   `leftTest`), so they stay in the cycle instead of going to Old cycles or "left cycle". Set on 30 Oct for every bench
@@ -689,9 +693,9 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - Bar charts (`GroupedColumns`): an hour's bars are centred under its label, whichever measures it has (one bar
   alone sits centred, not in its slot of two).
 - Restaurant Case tiles: one **Avg drain · WLC active** tile whose drop-down gives **WLC inactive** (from the cycle's hours; the
-  user, 3 Nov 2026: two tiles → one, and not the whole-run average), "Device peak temp".
+  user, 3 Nov 2026: two tiles → one, and not the whole-run average), "Avg device peak temp".
 - Battery temperatures say **device** wherever room temp is near (the user, 3 Nov 2026, "to avoid confusion with room temp"):
-  test screen tile "Device peak temp" (one line; "average · hottest 64.8 °C" below — "Avg peak device temp" wrapped), its tables "Peak device temp"; Today's list "Device temp now" / "Peak device temp". Stat tiles stay
+  test screen tile "Avg device peak temp" (the user's wording, 3 Nov 2026; "hottest 64.8 °C" below), its tables "Peak device temp"; Today's list "Device temp now" / "Peak device temp". Stat tiles stay
   one line each (tight padding, no gap between value and note); tooltips stay by the cursor.
 - Every cycle: **Drain with WLC / without WLC** columns. Export CSV → **This table, as shown** or **All devices, hour by hour**; the latter first asks
   which devices (all ticked).

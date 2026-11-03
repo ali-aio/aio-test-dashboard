@@ -625,7 +625,7 @@ export function hourlyProfile(cycles) {
       if (!gain.has(h)) gain.set(h, [])
       gain.get(h).push(lh.get(h + 1) - v)
     }
-    if (c.testType === 'Restaurant Case') {
+    if (c.testType === 'Restaurant Case' && !c.ownLoad) { // not a device whose load the lab ran its own way (noLoadCheck)
       for (const entry of c.hourly) {
         if (entry.wireless == null) continue // pad not known in that hour: in neither bar
         const target = entry.wireless ? wirelessDrop : withoutWirelessDrop
@@ -675,6 +675,7 @@ export function hourlyProfile(cycles) {
 export function hourContributors(cycles, h) {
   const rows = []
   for (const c of cycles) {
+    if (c.testType === 'Restaurant Case' && c.ownLoad) continue // not in the WLC bars (hourlyProfile), so not behind them
     const bh = hourMapFromSeries(c.series)
     const lh = hourMapFromSeries(c.loadSeries)
     const from = bh.get(h)

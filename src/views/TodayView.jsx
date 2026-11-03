@@ -210,7 +210,8 @@ export default function TodayView({ fleet }) {
   const padCols = !T?.charging && (!T?.tt || T.tt.loadHours || ['wlc_load', 'load_only', 'wlc_phone'].includes(T.tt.id))
   const etaEnd = rate && medNow > END_BAND ? now + (medNow - END_BAND) / rate * H : null
   const etaEmpty = rate && medNow > 0 ? now + medNow / rate * H : null
-  const when = t => (dayKey(t) === key ? hm(t) : dt(t))
+  // time first, then a short date when it isn't the cycle's day ("04:41 AM Nov 4"), like the big value
+  const when = t => (dayKey(t) === key ? hm(t) : `${hm(t)} ${new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' })}`)
   // Start the charts half an hour before the run so the drop-off is visible, not four
   // hours of a flat line at 100% while the devices sat on the charger.
   // the charts start when the cycle did: the bench off the charger that day (10:00, not the plan's 07:00 or 30 min
@@ -383,7 +384,7 @@ export default function TodayView({ fleet }) {
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />
         <Metric label="Charge rate" value={chRate ? <>{chRate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
           delta={chRate ? `${(chRate / 6).toFixed(2)}% per 10 min · median of ${chRates.length}` : 'needs 20 min on charge'} />
-        <Metric label={`Reaches ${FULL}%`} value={etaFull ? <>{hm(etaFull)}{dayKey(etaFull) !== todayKey() && <span className="secondary" style={{ fontSize: 13, fontWeight: 500 }}> {new Date(etaFull).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</> : medNow != null && medNow >= FULL ? 'Done' : '—'}
+        <Metric label={`Reaches ${FULL}%`} value={etaFull ? <span style={{ whiteSpace: 'nowrap' }}>{hm(etaFull)}{dayKey(etaFull) !== todayKey() && <span className="secondary" style={{ fontSize: 12, fontWeight: 500 }}> {new Date(etaFull).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</span> : medNow != null && medNow >= FULL ? 'Done' : '—'}
           delta={etaFull ? `${fmtDur(etaFull - now)} from now` : `${full} of ${charges.by.size} devices at ${FULL}% or more`} />
         </> : <>
         {/* the big number is only the time (the user, 2 Nov 2026: "7h 02m · 7h 00m left" wrapped onto two lines);
@@ -407,7 +408,7 @@ export default function TodayView({ fleet }) {
             return { id: k, label, value: x.rate ?? 0, display: x.rate ? `${x.rate.toFixed(2)} %/h` : '—',
               highlight: x.rate != null } // no description under the label (the user, 2 Nov 2026)
           })} />
-        <Metric label={`Reaches ${END_BAND}%`} value={etaEnd ? <>{hm(etaEnd)}{dayKey(etaEnd) !== key && <span className="secondary" style={{ fontSize: 13, fontWeight: 500 }}> {new Date(etaEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</> : medNow != null && medNow <= END_BAND ? 'Done' : '—'}
+        <Metric label={`Reaches ${END_BAND}%`} value={etaEnd ? <span style={{ whiteSpace: 'nowrap' }}>{hm(etaEnd)}{dayKey(etaEnd) !== key && <span className="secondary" style={{ fontSize: 12, fontWeight: 500 }}> {new Date(etaEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>}</span> : medNow != null && medNow <= END_BAND ? 'Done' : '—'}
           delta={/* the time to 0 % too, at the bottom, also once 20 % is passed (the user, 2 Nov 2026) */
             etaEnd ? `${fmtDur(etaEnd - now)} from now${etaEmpty ? ` · 0 % ≈ ${when(etaEmpty)}` : ''}`
             : etaEmpty ? `Reaches 0 % ≈ ${when(etaEmpty)} · ${fmtDur(etaEmpty - now)} from now`

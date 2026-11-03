@@ -800,6 +800,8 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   gitignored), each cell merged on its own by `mod` (`mergePhone` in `src/lib/phoneLog.js`, tested), keyed by cycle day ·
   serial · hour; a plain digits-only box (no up / down arrows), saved as soon as it is typed (0.5 s after the last key, or
   Enter / leaving the box); pulled every minute and on tab focus.
+  **In a test with a set load time (Restaurant Case, WLC + Discharge: 3 h) only hours 0 – 3 are shown** (`maxHours` = `loadHours`;
+  the user, 3 Nov 2026: "remove 4, 5, 6, 7 h"); later readings stay in `data/phone.json`, not shown or counted in Gained.
   Columns (the user, 27 Oct 2026): Start, then **the next hour is there before it comes** ("· next", started 10:00 → 11:00
   to type into on the hour); after hour 1 a T7 gets a new hour only if **its pad had a load during the hour before**
   (`loadIn`: two readings with `padLoad`, or the latest) or something was typed there — otherwise "no load".

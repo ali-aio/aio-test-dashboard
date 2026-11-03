@@ -62,7 +62,7 @@ function PhoneLive({ ph, now, onPad }) {
 
 const hhmm = t => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 
-export default function PhoneOnPad({ day, start: benchStart, end, serials, now, ownStart = () => null }) {
+export default function PhoneOnPad({ day, start: benchStart, end, serials, now, ownStart = () => null, maxHours = null }) {
   const db = useSyncExternalStore(subscribePhone, getPhone, getPhone)
   const ip = useSyncExternalStore(subscribeIphones, getIphones, getIphones)
   // the T7s carrying an iPhone: the ones picked by hand, and any whose iPhone the lab laptop has been
@@ -90,7 +90,9 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
   // The next hour is there before it comes, to type into on the hour; after hour 1 a device gets an
   // hour only if its pad had a load (the iPhone) during the hour before it, or something was typed there.
   const upTo = Math.min(Math.min(now, end ?? now), now)
-  const last = Math.max(1, Math.min(24, Math.floor((upTo - start) / H) + 1))
+  // a test with a set load time (Restaurant Case, WLC + Discharge: 3 h) shows only those hours — the iPhone is the load
+  // (the user, 3 Nov 2026: "remove 4, 5, 6, 7 h"); readings after them stay on record, not shown or counted
+  const last = Math.max(1, Math.min(maxHours || 24, Math.floor((upTo - start) / H) + 1))
   const typed = (sn, h) => db.cells?.[cellKey(day, sn, h)]?.pct != null || autoAt(sn)(h) != null
   const shownFor = sn => { const set = new Set([0, 1]); for (let h = 2; h <= last; h++) if (typed(sn, h) || loadIn(sn, start + (h - 1) * H, Math.min(start + h * H, upTo + 1))) set.add(h); return set }
   const shown = new Map(devices.map(sn => [sn, shownFor(sn)]))

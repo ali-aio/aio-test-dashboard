@@ -688,8 +688,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - Drain by hour tooltip: device count beside WLC active / inactive; its cycle list has a WLC column.
 - Bar charts (`GroupedColumns`): an hour's bars are centred under its label, whichever measures it has (one bar
   alone sits centred, not in its slot of two).
-- Restaurant Case tiles: one **Avg drain** tile (the whole-run average) whose drop-down gives **WLC active / WLC inactive** (from the
-  cycle's hours; two tiles until the user, 3 Nov 2026: "make one card for drain rate"), "Avg peak device temp".
+- Restaurant Case tiles: one **Avg drain · WLC active** tile whose drop-down gives **WLC inactive** (from the cycle's hours; the
+  user, 3 Nov 2026: two tiles → one, and not the whole-run average), "Avg peak device temp".
 - Battery temperatures say **device** wherever room temp is near (the user, 3 Nov 2026, "to avoid confusion with room temp"):
   test screen "Avg peak device temp" ("hottest device …"), its tables "Peak device temp"; Today's list "Device temp now" / "Peak device temp". Stat tiles stay
   one line each (tight padding, no gap between value and note); tooltips stay by the cursor.

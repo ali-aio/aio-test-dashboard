@@ -374,14 +374,14 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             breakdown: shortRuns.map((c) => ({ id: c.id, label: `${fmtSerial(c.serial)} · ${fmtDate(c.date)}`, value: c.ranH ?? c.duration, display: fmtHours(c.ranH ?? c.duration),
               hint: c.leftCycle ? `· ${c.leftCycle.why}` : '· back on charge early', highlight: !!c.short, onClick: () => pickDevice(c.serial) })),
           } : {})} />
-        {/* Restaurant Case: one Avg drain tile, WLC active / inactive in its drop-down (the user, 3 Nov 2026) */}
-        {isRestaurant ? (
-          <Stat label={drainLabel} value={fmtRate(k.avgDropPerHr)}
-            foot={k.avgDropPerHr != null ? `${Math.abs(k.avgDropPerHr / 6).toFixed(2)}% per 10 min` : 'needs two whole-hour readings'}
-            breakdownLabel="Avg drain with / without a load on the pad" breakdownRight breakdownNoun="state"
-            breakdown={restaurantRates.map((mode) => ({ id: mode.rateKey, label: mode.label.replace('Avg drain · ', ''),
-              value: mode.rate ?? 0, display: mode.rate != null ? fmtRate(mode.rate) : '—', highlight: mode.rate != null }))} />
-        ) : (
+        {isRestaurant ? (() => {
+          // the tile is the drain with WLC; its drop-down adds the drain without (the user, 3 Nov 2026)
+          const [on, off] = restaurantRates
+          return <Stat label="Avg drain · WLC active" value={fmtRate(on.rate)}
+            foot={on.rate != null ? `${Math.abs(on.rate / 6).toFixed(2)}% per 10 min` : 'needs consecutive hourly readings with a load'}
+            breakdownLabel="Avg drain without WLC" breakdownRight breakdownNoun="state"
+            breakdown={[{ id: off.rateKey, label: 'WLC inactive', value: off.rate ?? 0, display: off.rate != null ? fmtRate(off.rate) : '—', highlight: off.rate != null }]} />
+        })() : (
           <Stat label={isCharging ? 'Avg charge rate' : drainLabel} value={fmtRate(k.avgDropPerHr)}
             foot={k.avgDropPerHr != null
               ? `${Math.abs(k.avgDropPerHr / 6).toFixed(2)}% per 10 min`

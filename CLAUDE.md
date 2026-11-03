@@ -691,7 +691,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - Restaurant Case tiles: one **Avg drain · WLC active** tile whose drop-down gives **WLC inactive** (from the cycle's hours; the
   user, 3 Nov 2026: two tiles → one, and not the whole-run average), "Avg peak device temp".
 - Battery temperatures say **device** wherever room temp is near (the user, 3 Nov 2026, "to avoid confusion with room temp"):
-  test screen "Avg peak device temp" ("hottest device …"), its tables "Peak device temp"; Today's list "Device temp now" / "Peak device temp". Stat tiles stay
+  test screen tile "Device peak temp" (one line; "average · hottest 64.8 °C" below — "Avg peak device temp" wrapped), its tables "Peak device temp"; Today's list "Device temp now" / "Peak device temp". Stat tiles stay
   one line each (tight padding, no gap between value and note); tooltips stay by the cursor.
 - Every cycle: **Drain with WLC / without WLC** columns. Export CSV → **This table, as shown** or **All devices, hour by hour**; the latter first asks
   which devices (all ticked).

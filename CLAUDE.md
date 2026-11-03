@@ -274,7 +274,8 @@ Firmware client at no venue); anything else answers 404. Every control call is i
   The same slots give each test's **Every cycle** table (`TestDetailView`) two columns, **Drain with WLC / without WLC**
   (`padSplit`: %/h over the cycle's slots with a load on the pad for most of the slot / without; under 30 min = —),
   for tests that place a load (Restaurant Case, WLC on Load, WLC + Discharge, WLC on Phone, Load only) and Old cycles.
-  That table's **Export CSV** opens a menu: **Overview** (one row per cycle, as shown, search applied) or **Per hour**
+  That table's **Export CSV** opens a menu (titles only, no descriptions — the user, 3 Nov 2026: "Per hour" confused lay readers):
+  **This table, as shown (N rows)** (one row per cycle, search applied) or **All devices, hour by hour**
   (`cycleHoursCsv` in `csv.js`, tested: one row per device × cycle × hour — the hour's own Date and Time (no cycle-start / From / To /
   Hour / Minutes columns, the user, 26 Oct), Battery % at that time (one column) from the cycle's curve, drained or gained (no separate %/h: a row is an hour — the user, 26 Oct), minutes with a load on the pad from the slots, average / peak battery temp).
 - **Battery health** (the **last card of the Summary screen**; until 21 Oct 2026 its own Health screen, whose address
@@ -689,7 +690,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   alone sits centred, not in its slot of two).
 - Restaurant Case tiles: "Avg drain · WLC active / inactive" (from the cycle's hours), "Avg peak temp". Stat tiles stay
   one line each (tight padding, no gap between value and note); tooltips stay by the cursor.
-- Every cycle: **Drain with WLC / without WLC** columns. Export CSV → **Overview** or **Per hour**; Per hour first asks
+- Every cycle: **Drain with WLC / without WLC** columns. Export CSV → **This table, as shown** or **All devices, hour by hour**; the latter first asks
   which devices (all ticked).
 - Device page: average battery temperature beside the peak.
 - **Comparison → Compare by: Firmware · Build · Device · Cycle** (the user, 31 Oct 2026: "compare two cycles of Ads only"): Cycle =

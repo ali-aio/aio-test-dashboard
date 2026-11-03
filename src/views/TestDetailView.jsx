@@ -743,9 +743,9 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             {exportOpen && (
               <div className="popover popover-right export-menu" role="menu" aria-label="Export CSV">
                 <button type="button" role="menuitem" className="export-opt" onClick={() => exportTable('overview')}>
-                  <b>Overview</b><span>One row per cycle, as in this table ({tableRows.length} rows)</span></button>
+                  <b>This table, as shown ({tableRows.length} rows)</b></button>
                 <button type="button" role="menuitem" className="export-opt" onClick={() => exportTable('hours')}>
-                  <b>Per hour</b><span>Every device's cycles hour by hour: battery at the start and end of each hour, {isCharging ? 'gained' : 'drained'}, minutes with a load on the wireless pad, temperature</span></button>
+                  <b>All devices, hour by hour</b></button>
               </div>)}
           </div>
         </div>}>

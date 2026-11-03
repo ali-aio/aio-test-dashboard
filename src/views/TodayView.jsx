@@ -562,8 +562,8 @@ export default function TodayView({ fleet }) {
           {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: T.charging ? 'On charger' : 'Off charger', className: 'r' },
               { label: T.charging ? 'Charge rate' : 'Drain', className: 'r' },
               ...(padCols ? [{ label: 'Drain with WLC', className: 'r' }, { label: 'Drain without WLC', className: 'r' }] : []),
-              { label: 'Cycles', className: 'r' }, { label: 'Temp now', className: 'r' },
-              { label: 'Peak today', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' },
+              { label: 'Cycles', className: 'r' }, { label: 'Device temp now', className: 'r' },
+              { label: 'Peak device temp', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' },
               ...(canOut ? [{ label: '', sortable: false }] : [])]}>
               {conf.filter(c => matches(c.serial) && c.serial.toLowerCase().includes(listQ.trim().toLowerCase())).sort((a, b) => byBenchOrder(a.serial, b.serial)).map(c => { // the lab's bench order (BENCH_ORDER); a heading click still sorts
                 const r = runs.get(c.serial)

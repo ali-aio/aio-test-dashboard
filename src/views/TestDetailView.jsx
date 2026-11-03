@@ -416,10 +416,10 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               hint: `· ${x.s.min.toFixed(1)}–${x.s.max.toFixed(1)} °C${x.s.rh != null ? ` · ${x.s.rh}% RH` : ''}`, highlight: x.b.key === bench,
               onClick: () => { setBench((k) => (k === x.b.key ? null : x.b.key)); setFocus(null) } }))} />
         })()}
-        <Stat label="Avg peak temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
+        <Stat label="Avg peak device temp" value={fmtNum(k.avgPeakTemp, 1)} unit="°C"
           foot={hottestRun == null
             ? 'no temperature recorded'
-            : `hottest cycle ${fmtTemp(hottestRun)}`}
+            : `hottest device ${fmtTemp(hottestRun)}`}
           breakdown={peakBreakdown} breakdownWide breakdownRight
           breakdownLabel="Cycle peak temperatures · hottest first" />
       </div>
@@ -620,7 +620,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                 { key: 'n', label: 'Cycles' },
                 { key: 'dur', label: 'Avg cycle time' },
                 { key: 'drop', label: isCharging ? 'Avg charge rate' : 'Avg drain' },
-                { key: 'temp', label: 'Avg peak temp' },
+                { key: 'temp', label: 'Avg peak device temp' },
               ]}
               tableRows={secondary.map((b) => ({
                 build: b.label, n: groupCount(b.label, b.cycles), dur: fmtHours(b.avgDuration),
@@ -762,7 +762,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             { label: 'Cycle time' }, { label: 'Start' }, { label: isCharging ? 'Charged to' : 'End' },
             { label: isCharging ? 'Charge rate' : 'Drain' },
             ...(showPad ? [{ label: 'Drain with WLC' }, { label: 'Drain without WLC' }] : []),
-            { label: 'Peak temp' }, ...(expectsAds ? [{ label: 'Ads on screen' }] : []), { label: 'Battery cycles' },
+            { label: 'Peak device temp' }, ...(expectsAds ? [{ label: 'Ads on screen' }] : []), { label: 'Battery cycles' },
             { label: 'Firmware', style: { textAlign: 'left' } }, ...(isField ? [{ label: 'WLC', style: { textAlign: 'left' } }] : []),
           ]}>
             {/* the search matches the serial, the firmware or the date as shown */}

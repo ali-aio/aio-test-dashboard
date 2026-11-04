@@ -2249,3 +2249,6 @@ input.phone-auto { font-style: italic; }
   background: var(--wash); color: var(--text-secondary); white-space: nowrap; }
 .app-job button { border: 0; background: none; color: inherit; cursor: pointer; font: inherit; padding: 0 3px; line-height: 1; }
 .app-job button:hover { color: var(--text-primary); }
+
+/* Today's WLC / Ads tiles: a process the lab laptop is running (toggle, schedule, battery rule) */
+.auto-run { color: var(--accent, var(--series-1)); font-weight: 500; }

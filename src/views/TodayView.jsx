@@ -4,6 +4,7 @@ import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
 import PartStatus from '../components/PartStatus.jsx'
 import PhoneOnPad from '../components/PhoneOnPad.jsx'
 import AppToggle, { AppToggleAll } from '../components/AppToggle.jsx'
+import { useAutomations } from '../components/useAutomations.js'
 import WlcToggle, { WlcToggleAll } from '../components/WlcToggle.jsx'
 import { subscribePhone, getPhone, startPhoneSync, pendingOuts, setPendingOut } from '../lib/phoneLog.js'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
@@ -45,6 +46,7 @@ function ChargeIcon({ state }) {
 export default function TodayView({ fleet }) {
   const { DEV, allCycles, opts } = fleet
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
+  const auto = useAutomations() // what the lab laptop runs on its own: shown on the WLC and Ads tiles
   useEffect(() => { loadWindow(DEV) }, [DEV])
 
   const now = Date.now()
@@ -442,7 +444,8 @@ export default function TodayView({ fleet }) {
           rows.forEach(r => { r.odd = r.on !== most })
           rows.sort((a, b) => (b.odd - a.odd) || (b.on - a.on) || (b.padOn - a.padOn) || byBenchOrder(a.d.serial, b.d.serial))
           return <Stat label="WLC · load placed" warn={rows.some(r => r.odd)} value={<>{n}<span className="secondary" style={{ fontSize: 13 }}> / {rows.length}</span></>}
-            foot={(() => { const k = rows.filter(r => r.padOn && !r.on).length; return k ? `load on the pad · ${k} pad on, no load` : 'load on the pad' })()}
+            foot={<>{(() => { const k = rows.filter(r => r.padOn && !r.on).length; return k ? `load on the pad · ${k} pad on, no load` : 'load on the pad' })()}
+              {auto.wlc.length > 0 && <span className="auto-run" title="Running on the lab laptop — open the card to see or stop it"><br />⟳ {auto.wlc.join(' · ')}</span>}</>}
             breakdownLabel="WLC" breakdownRight breakdownWide breakdownNoun="device"
             breakdown={rows.map(r => ({ id: r.d.serial, label: r.d.serial, value: r.on ? 1 : 0, warn: r.odd,
               display: !r.wlcOn ? 'WLC off' : r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'No load', hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial),
@@ -475,7 +478,8 @@ export default function TodayView({ fleet }) {
           if (!known.length) return null
           const wantAds = !!T.tt?.ads && !T.charging && !ended
           return <Stat label="Ads on screen" warn={off > 0 && (wantAds || off * 2 < known.length)} value={<><span style={wantAds && off ? { color: 'var(--status-critical)' } : undefined}>{on}</span><span className="secondary" style={{ fontSize: 13 }}> / {known.length}</span></>}
-            foot={off ? `${off} not showing the app${wantAds ? ' · ads stopped' : ''}` : 'the app in front on every device'}
+            foot={<>{off ? `${off} not showing the app${wantAds ? ' · ads stopped' : ''}` : 'the app in front on every device'}
+              {auto.app.length > 0 && <span className="auto-run" title="Scheduled on the lab laptop — open the card to see or remove it"><br />⟳ {auto.app.join(' · ')}</span>}</>}
             breakdownLabel="Ads on screen" breakdownRight breakdownWide breakdownNoun="device"
             breakdownAction={<AppToggleAll serials={rows.map(r => r.sn)} onScreenCount={on} />}
             breakdown={rows.map(r => ({ id: r.sn, label: r.sn, value: r.code === SPAN.on ? 1 : 0, highlight: wantAds && r.x && r.code !== SPAN.on,

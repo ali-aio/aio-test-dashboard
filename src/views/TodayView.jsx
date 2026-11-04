@@ -202,7 +202,7 @@ export default function TodayView({ fleet }) {
     return () => { live = false } }, [coarse])
   const runs = useMemo(() => new Map(coarse.map(({ c, start: s0 }) => {
     const start = refinedStart(c.serial, s0) || s0
-    return [c.serial, { start, rate: drainSince(c.rows, start), split: drainSplit(c.rows, start), now: c.rows[c.rows.length - 1].battery_pct }]
+    return [c.serial, { start, rows: c.rows, rate: drainSince(c.rows, start), split: drainSplit(c.rows, start), now: c.rows[c.rows.length - 1].battery_pct }]
   })), [coarse, refineRev])
   const all = [...runs.values()], started = all.filter(r => r.start)
   const runStart = started.length ? median(started.map(r => r.start.t)) : null
@@ -224,6 +224,12 @@ export default function TodayView({ fleet }) {
   const stillSet = new Set(stillCharging)
   // Devices today: drain with / without WLC for a test that places a load on the pad (or a test not named yet) — the user, 2 Nov 2026
   const padCols = !T?.charging && (!T?.tt || T.tt.loadHours || ['wlc_load', 'load_only', 'wlc_phone'].includes(T.tt.id))
+  // Reached N %: while a "WLC off at ≤ N %" rule runs on the lab laptop, when each device first read N % or less since it
+  // left the charger (the user, 4 Nov 2026: today's WLC on Load, load until 15 %, then WLC off — the boot-loop repro)
+  const reachPct = !T.charging && auto.rules?.length ? Math.max(...auto.rules.map(x => x.pct)) : null
+  const reachAt = r => { if (reachPct == null || !r?.start || !r.rows) return null
+    for (const x of r.rows) { const t = Date.parse(x.timestamp); if (t >= r.start.t && !x.empty && x.battery_pct != null && x.battery_pct <= reachPct) return t }
+    return null }
   const etaEnd = rate && medNow > END_BAND ? now + (medNow - END_BAND) / rate * H : null
   const etaEmpty = rate && medNow > 0 ? now + medNow / rate * H : null
   // time first, then a short date when it isn't the cycle's day ("04:41 AM Nov 4"), like the big value
@@ -589,6 +595,7 @@ export default function TodayView({ fleet }) {
           {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: T.charging ? 'On charger' : 'Off charger', className: 'r' },
               { label: T.charging ? 'Charge rate' : 'Drain', className: 'r' },
               ...(padCols ? [{ label: 'Drain with WLC', className: 'r' }, { label: 'Drain without WLC', className: 'r' }] : []),
+              ...(reachPct != null ? [{ label: `Reached ${reachPct} %`, className: 'r' }] : []),
               { label: 'Cycles', className: 'r' }, { label: 'Device temp now', className: 'r' },
               { label: 'Peak device temp', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' },
               ...(canOut ? [{ label: '', sortable: false }] : [])]}>
@@ -611,6 +618,7 @@ export default function TodayView({ fleet }) {
                   <td className="r mono" style={{ color: c.state === 'drifting' ? 'var(--warn)' : 'inherit' }}>{r?.rate != null ? r.rate.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td>
                   {padCols && <><td className="r mono" title="since it left the charger, over the time with a load on the pad (under 20 min = —)">{r?.split?.active != null ? r.split.active.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td>
                     <td className="r mono" title="since it left the charger, over the time with no load on the pad (under 20 min = —)">{r?.split?.none != null ? r.split.none.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td></>}</>}
+                  {reachPct != null && (() => { const t = reachAt(r); return <td className="r mono" title={t ? `first reading at ${reachPct} % or less since it left the charger · WLC is switched off then` : `not at ${reachPct} % yet`}>{t ? when(t) : <span className="secondary">—</span>}</td> })()}
                   <td className="r mono">{fmtLifetime(lifetimeCycles(d.snap))}</td>
                   <td className="r mono" style={{ color: online(d) && d.snap.battery_temp_c >= TEMP_LIMIT ? 'var(--bad)' : online(d) && d.snap.battery_temp_c >= TEMP_WARN ? 'var(--warn)' : 'inherit' }}>{online(d) && d.snap.battery_temp_c ? d.snap.battery_temp_c.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td>
                   <td className="r mono" style={{ color: s?.maxTemp >= TEMP_LIMIT ? 'var(--bad)' : s?.maxTemp >= TEMP_WARN ? 'var(--warn)' : 'inherit' }}>{s?.maxTemp != null ? s.maxTemp.toFixed(1) + ' °C' : <span className="secondary">—</span>}</td>
@@ -620,7 +628,7 @@ export default function TodayView({ fleet }) {
                 </tr>
                 // the take-out form opens right under its device, as part of the table
                 return takingOut === c.serial && canOut ? [row,
-                  <tr key={c.serial + ':out'} data-attached="1" className="takeout-row"><td colSpan={padCols ? 12 : 10}>
+                  <tr key={c.serial + ':out'} data-attached="1" className="takeout-row"><td colSpan={(padCols ? 12 : 10) + (reachPct != null ? 1 : 0)}>
                     <TakeOutForm serial={c.serial} cycle={T} onCancel={() => setTakingOut(null)}
                       onSave={rec => { if (T.decl) takeOut(GROUP, T.decl.id, { serial: c.serial, ...rec }); else setPendingOut(T.key, c.serial, rec); setTakingOut(null); setPlanRev(v => v + 1) }} />
                   </td></tr>] : row

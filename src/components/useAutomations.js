@@ -25,5 +25,5 @@ export function useAutomations() {
     if (j.action.startsWith('wlc_')) wlc.push(`WLC ${j.action === 'wlc_on' ? 'on' : 'off'} ${when}`)
     else app.push(`${j.action === 'open' ? 'open' : 'close'} ${when}`)
   }
-  return { wlc, app }
+  return { wlc, app, rules: s.rules }
 }

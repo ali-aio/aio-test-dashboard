@@ -2263,3 +2263,6 @@ input.phone-auto { font-style: italic; }
 .wlc-end > label { flex: 1 1 100%; }
 
 .btn.btn-warn { background: var(--status-warning, #d97706); border-color: var(--status-warning, #d97706); color: #fff; }
+
+/* Devices today: a device still on the charger after the cycle started (4 Nov 2026) */
+tr.row-warn > td { background: color-mix(in srgb, var(--status-warning) 14%, transparent); }

@@ -208,6 +208,11 @@ export default function TodayView({ fleet }) {
   const splitOf = (k) => { const xs = started.map(r => r.split?.[k]).filter(v => v != null && v > 0); return { n: xs.length, rate: enough(xs) ? median(xs) : null } }
   // The lab's daily run goes back on charge at 15–25%, so 20% is "the run is done".
   const END_BAND = 20
+  // devices still on the charger after the cycle started (the user, 4 Nov 2026: 00485 / 00606 / 00790 stayed on charge an
+  // hour into the cycle and nobody noticed): a discharge cycle running for 10 min+, the device reporting and charging now
+  const cycleOn = !T.charging && (T.running || T.decl) && T.startMs != null && now - T.startMs >= 10 * MIN && now < (T.endMs ?? Infinity)
+  const stillCharging = cycleOn ? (T.serials || []).filter(sn => { const d = fleet.DMAP.get(sn); return d && online(d) && d.snap?.charging }).sort(byBenchOrder) : []
+  const stillSet = new Set(stillCharging)
   // Devices today: drain with / without WLC for a test that places a load on the pad (or a test not named yet) — the user, 2 Nov 2026
   const padCols = !T?.charging && (!T?.tt || T.tt.loadHours || ['wlc_load', 'load_only', 'wlc_phone'].includes(T.tt.id))
   const etaEnd = rate && medNow > END_BAND ? now + (medNow - END_BAND) / rate * H : null
@@ -378,6 +383,13 @@ export default function TodayView({ fleet }) {
 
       {/* readings that did not come for some devices: said here, retried by itself */}
       <PartStatus window DEV={DEV} />
+      {stillCharging.length > 0 && (
+        <div className="banner banner-warn" role="alert">
+          <svg viewBox="0 0 16 16" width="16" height="16" style={{ flex: 'none', marginTop: 2 }} aria-hidden="true" fill="currentColor"><path d="M9.2 1 3.5 9h3.6L6.6 15l5.9-8.2H8.8z" /></svg>
+          <div><b>{stillCharging.length} device{stillCharging.length === 1 ? ' is' : 's are'} still on the charger</b> — the cycle started at {hm(T.startMs)}:{' '}
+            {stillCharging.map((sn, i) => <React.Fragment key={sn}>{i ? ', ' : ''}<button type="button" className="link-btn plain-link mono" onClick={() => focusDevice(sn)}>{sn}</button></React.Fragment>)}</div>
+        </div>
+      )}
       {!waiting && <div className="stat-row">
         {/* how long the devices have been running since they came off the charger, and how
             much of the planned cycle is left (to its end time on the Cycle plan) */}
@@ -574,7 +586,7 @@ export default function TodayView({ fleet }) {
                 const r = runs.get(c.serial)
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
                 const st = status(d), s = dayStats(c.serial, T.startMs), cs = CSTATE[c.state]
-                const row = <tr key={c.serial} className={`row-link${only === c.serial ? ' is-selected' : ''}`} onClick={() => focusDevice(c.serial)}
+                const row = <tr key={c.serial} className={`row-link${only === c.serial ? ' is-selected' : ''}${stillSet.has(c.serial) ? ' row-warn' : ''}`} onClick={() => focusDevice(c.serial)}
                   title={only === c.serial ? 'Click to show every device again' : `Show only ${c.serial} in the charts above`}>
                   <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button></td>
                   <td><span className={`pill ${cs[0]}`}>{cs[1]}</span></td>
@@ -584,7 +596,7 @@ export default function TodayView({ fleet }) {
                     return <><td className="r mono" title={ch ? `from ${ch.pct}% at ${hm(ch.t)}` : undefined}>{ch ? hm(ch.t) : <span className="secondary">not on charge</span>}</td>
                       <td className="r mono">{g != null ? `+${Math.max(0, g).toFixed(2)} %/h` : <span className="secondary">—</span>}</td></> })() : <>
                   <td className="r mono" title={r?.start?.firstOff ? `last check-in on charge ${new Date(r.start.after).toLocaleTimeString()} · first off charge ${new Date(r.start.firstOff).toLocaleTimeString()} — the MDM has no reading in between` : undefined}>
-                    {r?.start ? hm(r.start.t) : <span className="secondary">still full</span>}
+                    {stillSet.has(c.serial) ? <b style={{ color: 'var(--status-warning)' }}>still on charger</b> : r?.start ? hm(r.start.t) : <span className="secondary">still full</span>}
                     {r?.start?.firstOff && r.start.firstOff - r.start.t > 5 * MIN ? <span className="secondary" style={{ fontSize: 11 }}> – {hm(r.start.firstOff)}</span> : null}</td>
                   <td className="r mono" style={{ color: c.state === 'drifting' ? 'var(--warn)' : 'inherit' }}>{r?.rate != null ? r.rate.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td>
                   {padCols && <><td className="r mono" title="since it left the charger, over the time with a load on the pad (under 20 min = —)">{r?.split?.active != null ? r.split.active.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td>

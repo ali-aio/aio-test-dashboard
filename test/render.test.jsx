@@ -24,7 +24,7 @@ import { runStartOf, drainSplit } from '../src/lib/window.js'
 import { takeOutReasons } from '../src/lib/plan.js'
 import RangePicker from '../src/components/RangePicker.jsx'
 import { parseReport, roomSummary, roomStats } from '../src/lib/room.js'
-import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart, readingAt, readT7s, padAt, onPadAt, pendingNote } from '../src/lib/phoneLog.js'
+import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart, readingAt, readT7s, padAt, onPadAt, pendingNote, iphoneEnd } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
 import { testTypeFor, planFor, temperaturePhases, runningCharge, adaptCycle, CTX } from '../src/lib/adapt.js'
@@ -578,6 +578,16 @@ const mdmCases = []
     const off = phoneHours(db, d, sn, 3, h => onPadAt(rows, t7, t0 + h * H))
     want(off.rows[1].pct === 60 && off.rows[3].pct == null, 'typed stays; off the pad left empty')
     want(readT7s({ readings: { [sn]: rows } }, t0 + 2.5 * H, t0 + 4 * H, () => t7).length === 0, 'an iPhone read only off the pad doesn\'t add its T7')
+    // when the iPhone finished (4 Nov 2026): 100 %, or off the pad = stopped charging with the pad showing no load
+    const pad = (offAt) => { const a = []; for (let t = t0; t <= t0 + 5 * H; t += 3 * M) a.push({ timestamp: new Date(t).toISOString(), extra: { wlc_status: t >= offAt && t < offAt + 3 * M ? 0 : 1 } }); return a }
+    const fullRows = [[t0, 20, 1], [t0 + H, 60, 1], [t0 + 2 * H, 100, 1], [t0 + 2.5 * H, 100, 1]]
+    const f = iphoneEnd(fullRows, pad(t0 + 3 * H), t0)
+    want(f && f.why === 'full' && f.at === t0 + 2 * H, `full at 100 %: ${JSON.stringify(f)}`)
+    const offRows = [[t0, 20, 1], [t0 + H, 60, 1], [t0 + 2 * H, 97, 1], [t0 + 2 * H + 5 * M, 97, 0]]
+    const o = iphoneEnd(offRows, pad(t0 + 2 * H + 3 * M), t0)
+    want(o && o.why === 'removed' && o.pct === 97 && o.at === t0 + 2 * H + 3 * M, `off the pad at the pad's no-load reading: ${JSON.stringify(o)}`)
+    want(iphoneEnd([[t0, 20, 1], [t0 + H, 30, 0], [t0 + 2 * H, 40, 1]], pad(t0 + 9 * H), t0) === null, 'not charging with the pad still loaded (a Shortcuts report) is not a removal')
+    want(iphoneEnd([[t0 - H, 100, 1]], [], t0) === null && iphoneEnd(null, [], t0) === null, 'before the start / no readings')
   })
   check('csv per hour: each device\'s cycle hour by hour, with the pad\'s load minutes', () => {
     const t0 = Date.UTC(2026, 9, 17, 9), H = 3600e3

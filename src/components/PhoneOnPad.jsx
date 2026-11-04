@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { subscribePhone, getPhone, setPhoneStart, phoneStart, phoneDevices, phoneHours, setPhoneDevice, setPhonePct, cellKey, devKey, subscribeIphones, getIphones, onPadAt, padAt, readT7s } from '../lib/phoneLog.js'
+import { subscribePhone, getPhone, setPhoneStart, phoneStart, phoneDevices, phoneHours, setPhoneDevice, setPhonePct, cellKey, devKey, subscribeIphones, getIphones, onPadAt, padAt, readT7s, iphoneEnd } from '../lib/phoneLog.js'
 import { rowsFor } from '../lib/window.js'
 import { padLoad } from '../lib/pad.js'
 import { hm, H } from '../lib/format.js'
@@ -96,7 +96,14 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
   const typed = (sn, h) => db.cells?.[cellKey(day, sn, h)]?.pct != null || autoAt(sn)(h) != null
   const shownFor = sn => { const set = new Set([0, 1]); for (let h = 2; h <= last; h++) if (typed(sn, h) || loadIn(sn, start + (h - 1) * H, Math.min(start + h * H, upTo + 1))) set.add(h); return set }
   const shown = new Map(devices.map(sn => [sn, shownFor(sn)]))
-  const hours = Array.from({ length: last + 1 }, (_, h) => h).filter(h => devices.some(sn => shown.get(sn).has(h)))
+  // when each iPhone finished: reached 100 %, or came off the pad (the user, 4 Nov 2026: in place of the empty "next" hour)
+  const ends = new Map(devices.map(sn => [sn, iphoneEnd(ip.readings?.[sn], rowsFor(sn), start - 30 * 60e3)]))
+  const allEnded = devices.length && devices.every(sn => ends.get(sn))
+  const lastEnd = allEnded ? Math.max(...devices.map(sn => ends.get(sn).at)) : null
+  // once every iPhone has finished, no hour after the last one is shown (no "next" hour to type into)
+  const hours = Array.from({ length: last + 1 }, (_, h) => h).filter(h => devices.some(sn => shown.get(sn).has(h)) && (lastEnd == null || start + h * H <= lastEnd))
+  const anyEnd = devices.some(sn => ends.get(sn))
+  const dur = ms => { const m = Math.max(0, Math.round(ms / 60e3)); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` }
   const free = serials.filter(s => !devices.includes(s))
   const remove = s => {
     const has = hours.some(h => db.cells?.[cellKey(day, s, h)]?.pct != null)
@@ -126,20 +133,26 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
       <div className="scroll-x"><table className="data phone-table">
         <thead><tr><th>T7</th>
           {hours.map(h => <th key={h} className="r"><div>{h === 0 ? 'Start' : `${h} h`}{start + h * H > now ? <span className="secondary" style={{ fontWeight: 400 }}> · next</span> : null}</div><div className="secondary" style={{ fontWeight: 400 }}>{hm(start + h * H)}</div></th>)}
+          {anyEnd && <th className="r"><div>Full / off pad</div><div className="secondary" style={{ fontWeight: 400 }}>iPhone</div></th>}
           <th className="r">Gained</th><th className="r">Per hour</th><th className="r">Full at</th><th /></tr></thead>
         <tbody>{devices.map(s => {
-          const p = phoneHours(db, day, s, last, autoAt(s)), ph = phoneOn(s)
+          const p = phoneHours(db, day, s, last, autoAt(s)), ph = phoneOn(s), e = ends.get(s)
+          // with an end, Gained / Per hour run from the first reading to it, and Full at is the time to 100 %
+          const first = p.rows.find(r => r.pct != null && hours.includes(r.h))
+          if (e && first) { p.total = e.pct - first.pct; const span = (e.at - (start + first.h * H)) / H; p.perH = span > 0 ? p.total / span : null }
           return <tr key={s}>
             <td className="mono">{s}{ph ? <PhoneLive ph={ph} now={now} onPad={padAt(rowsFor(s), now)} /> : null}</td>
-            {p.rows.filter(r => hours.includes(r.h)).map(r => { const t7 = start + r.h * H > now ? null : t7At(s, start + r.h * H); if (!shown.get(s).has(r.h)) return <td key={r.h} className="r secondary" title="no load on this T7's pad in the hour before">no load</td>; return (
+            {p.rows.filter(r => hours.includes(r.h)).map(r => { const t7 = start + r.h * H > now ? null : t7At(s, start + r.h * H); if (e && start + r.h * H > e.at) return <td key={r.h} className="r secondary" title={`the iPhone ${e.why === 'full' ? 'reached 100 %' : 'came off the pad'} at ${hm(e.at)}`}>—</td>; if (!shown.get(s).has(r.h)) return <td key={r.h} className="r secondary" title="no load on this T7's pad in the hour before">no load</td>; return (
               <td key={r.h} className="r">
                 <Cell day={day} serial={s} h={r.h} value={r.auto ? null : r.pct} auto={r.auto?.pct} title={`iPhone battery on ${s} at ${hm(start + r.h * H)} (${r.h === 0 ? 'cycle start' : `hour ${r.h}`})${r.auto ? (r.auto.est ? ` · from the iPhone: between ${r.auto.est.a}% at ${hm(r.auto.est.from)} and ${r.auto.est.b}% at ${hm(r.auto.est.to)} — type to replace` : ` · read from the iPhone at ${hm(r.auto.at)} — type to replace`) : ''}`} />
                 <div className="phone-sub">{r.gain != null ? <b className={r.gain > 0 ? 'up' : r.gain < 0 ? 'down' : ''}>{r.gain > 0 ? '+' : ''}{r.gain}%</b> : null}
                   {t7 != null ? <span className="secondary" title="the T7's own battery at that time (MDM)">T7 {t7}%</span> : null}</div>
               </td>) })}
+            {anyEnd && <td className="r mono" title={e ? `${e.why === 'full' ? 'reached 100 %' : 'taken off the pad (stopped charging, no load on the pad)'} at ${hm(e.at)}, ${dur(e.at - start)} after the start` : 'still on the pad'}>
+              {e ? <><div>{e.pct}% · {hm(e.at)}</div><div className="secondary" style={{ fontSize: 11 }}>{e.why === 'full' ? 'full' : 'off the pad'}</div></> : '—'}</td>}
             <td className="r mono">{p.total != null ? `${p.total > 0 ? '+' : ''}${p.total}%` : '—'}</td>
             <td className="r mono">{p.perH != null ? `${p.perH.toFixed(1)} %/h` : '—'}</td>
-            <td className="r mono">{p.fullAt != null ? (p.fullAt === 0 ? 'at start' : `${p.fullAt} h`) : '—'}</td>
+            <td className="r mono">{e?.why === 'full' ? dur(e.at - start) : p.fullAt != null ? (p.fullAt === 0 ? 'at start' : `${p.fullAt} h`) : '—'}</td>
             <td className="r"><button type="button" className="btn btn-sm" title={`Take ${s} off this list`} onClick={() => remove(s)}>×</button></td>
           </tr>
         })}</tbody>

@@ -120,6 +120,30 @@ export const onPadAt = (phoneRows, t7Rows, t, now = Infinity) => {
   return r && padAt(t7Rows, t) !== false ? r : null;
 };
 
+/** When the iPhone on this T7 finished, from its own readings since `from` (rows [[t, pct, charging]], oldest first):
+ *  the first reading at 100 % (`why: 'full'`), or the moment it came off the pad — it stopped charging after charging
+ *  and the T7's pad showed no load in between (`why: 'removed'`, at = that pad reading, pct = its level then). A reading that merely says "not charging" with the pad still loaded (a Shortcuts report carries no
+ *  charging flag) is not a removal. { at, pct, why } or null (the user, 4 Nov 2026: replace the "next" hour with
+ *  the time the iPhone came off charge or reached 100). */
+export function iphoneEnd(rows, t7Rows, from) {
+  let lastCh = null;
+  for (const [t, pct, ch] of rows || []) {
+    if (t < from) continue;
+    if (pct >= 100) return { at: t, pct, why: 'full' };
+    if (ch) { lastCh = [t, pct]; continue; }
+    if (!lastCh) continue;
+    // the T7's first reading without a load between the last charging reading and 10 min after this one
+    let off = null;
+    for (const r of t7Rows || []) {
+      const rt = Date.parse(r.timestamp); if (rt < lastCh[0] - 5 * 60e3) continue; if (rt > t + 10 * 60e3) break;
+      if (padLoad(r.extra?.wlc_status) === false) { off = rt; break; }
+    }
+    // the level then: the first reading off charge when it came within 10 min (it reads what the phone had banked), else the last charging one
+    if (off != null) return { at: Math.min(off, t), pct: t - off <= 10 * 60e3 ? Math.max(pct, lastCh[1]) : lastCh[1], why: 'removed' };
+  }
+  return null;
+}
+
 /** The T7s whose iPhone was read at least twice in [a, b) while on the pad (`rowsOf(t7)` = its MDM readings). */
 export const readT7s = (ip, a, b, rowsOf = () => null) => Object.entries(ip?.readings || {})
   .filter(([t7, rows]) => rows.filter(r => r[0] >= a && r[0] < b && padAt(rowsOf(t7), r[0]) !== false).length >= 2).map(([t7]) => t7);

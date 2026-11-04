@@ -871,6 +871,11 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   dont show iphone reading"): an hour is filled from the iPhone only when the T7 had a load on its pad (`padLoad`) within
   15 min of it (`padAt` / `onPadAt` in `phoneLog.js`, tested; no T7 readings there = not known, kept); a T7 joins the card
   only from readings taken on the pad; under the serial grey "iPhone off the pad" while its pad has no load. Typed values stay.
+  **Full / off pad** (the user, 4 Nov 2026: replace the empty "next" hour with "the time when the iPhone was removed from charge or
+  reached 100"): `iphoneEnd` in `phoneLog.js` (tested) — the first reading at 100 %, or the iPhone stopping charging with the T7's pad
+  showing no load around then (a not-charging reading with the pad still loaded is not a removal). A column **Full / off pad**
+  ("97 % · 15:48 / off the pad"); hours after a device's end read —; once every iPhone has finished, no hour after the last end
+  is shown (no "next"); Gained / Per hour run to the end, Full at = time from the start to 100 % ("3h 30m").
   Phones (iPhone 13 Pro Max each): **iphone1** `00008110-001854382288401E` on **00790**, **iphone2**
   `00008110-000574683A80401E` on **00606**, **iphone3** `00008110-00142D603E20401E` on **00485**.
   **After the cycle** (the user, 29 Oct 2026: "when the cycle ends does it show the phone data"): a read-only **iPhone on the

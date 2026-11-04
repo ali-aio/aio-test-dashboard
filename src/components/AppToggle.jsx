@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { appCommand, appScheduleJobs } from '../lib/data.js'
+import { appCommand, appScheduleJobs, appBulk } from '../lib/data.js'
 import { pollHostApp } from '../lib/fleet.js'
 import { useKeepOnScreen } from './Primitives.jsx'
 
@@ -53,24 +53,28 @@ export function AppToggleAll({ serials, onScreenCount }) {
   // for 2 min after a bulk command, its opposite (the MDM's list takes up to a minute to catch up)
   const fresh = last && Date.now() - last.at < 120e3
   const action = fresh ? (last.action === 'open' ? 'close' : 'open') : onScreenCount * 2 > serials.length ? 'close' : 'open'
-  const busy = prog && prog.done < prog.total
+  // the run itself is on the lab laptop (POST /api/app-bulk), so a reload, a closed drop-down or a second browser can't cut
+  // it short or start it twice (4 Nov 2026); this polls its progress every 2 s while it runs, every 20 s otherwise
+  const busy = !!prog?.running
+  useEffect(() => {
+    let live = true, t
+    const tick = () => appBulk().then(j => { if (!live) return; if (j.ok && j.startedAt) setProg(j); t = setTimeout(tick, j.running ? 2e3 : 20e3) }).catch(() => { t = setTimeout(tick, 20e3) })
+    tick(); return () => { live = false; clearTimeout(t) }
+  }, [])
   const run = async e => {
     e.stopPropagation()
-    if (!serials.length || !confirm(`${action === 'open' ? 'Open' : 'Close'} Nugget on all ${serials.length} devices?`)) return
-    const p = { done: 0, total: serials.length, failed: [] }; setProg({ ...p })
-    const queue = [...serials], who = by()
-    await Promise.all([0, 1, 2].map(async () => {
-      while (queue.length) {
-        const sn = queue.shift()
-        try { const r = await appCommand(sn, action, who); if (!r.ok || r.status === 'failed' || r.status === 'expired') p.failed.push(`${sn}: ${r.output || r.error || r.status || r.http}`) }
-        catch (err) { p.failed.push(`${sn}: ${err.message}`) }
-        p.done++; setProg({ ...p })
-      }
-    }))
-    setLast({ action, at: Date.now() }); refreshSoon()
+    if (!serials.length || !confirm(`${action === 'open' ? 'Open' : 'Close'} Nugget on all ${serials.length} devices? It runs on the lab laptop.`)) return
+    const j = await appBulk({ action, serials, by: by() })
+    if (j.ok || j.http === 409) setProg(j)
+    if (!j.ok) { alert(j.error || `HTTP ${j.http}`); return }
+    setLast({ action, at: Date.now() })
+    // poll fast until it ends, then refresh the list
+    const wait = async () => { const k = await appBulk(); if (k.ok) setProg(k); if (k.running) setTimeout(wait, 2e3); else refreshSoon() }
+    setTimeout(wait, 2e3)
   }
-  const label = busy ? `${action === 'open' ? 'Opening' : 'Closing'} ${prog.done} / ${prog.total}…` : `${action === 'open' ? 'Open' : 'Close'} on all ▾`
-  const result = prog && !busy ? `${prog.total - prog.failed.length} of ${prog.total} done${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null
+  const label = busy ? `${prog.action === 'open' ? 'Opening' : 'Closing'} ${prog.done} / ${prog.total}…` : `${action === 'open' ? 'Open' : 'Close'} on all ▾`
+  // the last run's result, for 10 min after it ended
+  const result = prog && !busy && Date.now() - (prog.endedAt || 0) < 600e3 ? `${prog.action === 'open' ? 'Opened' : 'Closed'} ${prog.ok} of ${prog.total}${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null
   // when: now, at a time, or every day at a time (the user, 3 Nov 2026: "tomorrow the cycle starts again") — the timed
   // ones run on the lab laptop (server/appSchedule.mjs), on the devices listed now
   const [menu, setMenu] = useState(false)

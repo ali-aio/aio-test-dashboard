@@ -582,6 +582,13 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   clears the lock screen** (MDM, 2 Nov 2026; until then we sent "screen on" first and the tablet stayed locked); 409 = offline,
   shown as "… is offline — not sent"; every command appended to
   `data/commands.jsonl` (gitignored) with who / when / answer.
+  **Open / Close on all runs on the lab laptop** (`runAppBulk` in server.mjs, `GET/POST /api/app-bulk`; 4 Nov 2026: a browser-side
+  run was cut short by a server restart and a second click ran two at once — 10 devices never got the close): one run at a time
+  (409 while one runs), any browser shows its progress ("Closing 7 / 22…", then "Closed 21 of 22 · 1 failed" for 10 min).
+  A command the MDM answers 202 (its 20 s wait ran out) is followed on `GET /commands/{id}` for up to 60 s more; still running
+  then = failed ("still running on the tablet"), never counted done. **Nugget can come back by itself after "closed"**: 4 Nov 2026
+  00064 / 00089 / 00100 answered "closed" at 11:07 and checked in with Nugget in front ~30 s later — the tablet (or Nugget)
+  relaunches it; that's for the MDM / app team, the card shows what the check-ins say.
   **Open / Close on all ▾ is a menu** (the user, 3 Nov 2026: "when — now or at a time", and "keep this continuously, as tomorrow
   the cycle starts again"): **Open / Close now**, or **Open | Close at HH:MM, Once | Every day** → Schedule. Timed ones run on the
   lab laptop (`server/appSchedule.mjs`, `GET/POST /api/app-schedule`, `data/app-schedule.json`, gitignored; a daily job moves on

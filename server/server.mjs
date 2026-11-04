@@ -99,15 +99,39 @@ async function appCmd(serial, action, by = '', ip = '') {
       log(pkg, r);
       if (![502, 503, 504].includes(r.status)) break;
     }
+    // 202 = the MDM's 20 s wait ran out while the tablet was still on it: follow the command until it is done (up to
+    // 60 s more), so "running" / "queued" isn't read as done (4 Nov 2026: Close on all left 00232 / 00833 "running")
+    for (let k = 0; r.status === 202 && r.json?.command_id && !r.json?.done && k < 20; k++) {
+      await new Promise(ok => setTimeout(ok, 3000));
+      try { const c = await mdm.get(`/api/v1/testdata/commands/${r.json.command_id}`); if (c?.done) { r = { status: 200, json: c }; log(pkg, r); } }
+      catch (e) {}
+    }
+    if (r.status === 202 && !r.json?.done) r = { status: 202, json: { ...(r.json || {}), error: `still ${r.json?.status || 'running'} on the tablet after 80 s` } };
     results.push(r);
     if (r.status === 409) break; // offline: the second would answer the same
   }
-  const ok = results.find(x => x.status >= 200 && x.status < 300 && x.json?.status !== 'failed');
+  const ok = results.find(x => x.status === 200 && x.json?.done !== false && !['failed', 'expired'].includes(x.json?.status));
   const r = ok || results[0];
   const out = r.json || { error: `MDM answered ${r.status}` };
   // 409 = the tablet is offline (not queued): say so plainly
   if (r.status === 409 && !out.output) out.error = `${serial} is offline${out.last_seen_at ? ` (last seen ${out.last_seen_at})` : ''} — not sent`;
   return { status: r.status, out };
+}
+// Open / Close on all, run here rather than in the browser (4 Nov 2026: a restart of this server and a second click cut a
+// browser-side run short — 10 devices never got the close). One run at a time; any browser sees its progress.
+let appBulk = null; // { action, by, total, done, ok, failed: [], startedAt, endedAt, running }
+async function runAppBulk(action, serials, by) {
+  appBulk = { action, by, total: serials.length, done: 0, ok: 0, failed: [], startedAt: Date.now(), endedAt: null, running: true };
+  const job = appBulk, queue = [...serials];
+  await Promise.all([0, 1, 2].map(async () => {
+    while (queue.length) {
+      const sn = queue.shift();
+      try { const { status, out } = await appCmd(sn, action, by, 'all'); if (status === 200 && !['failed', 'expired'].includes(out?.status)) job.ok++; else job.failed.push(`${sn}: ${out?.error || out?.output || status}`); }
+      catch (e) { job.failed.push(`${sn}: ${e.message}`); }
+      job.done++;
+    }
+  }));
+  job.running = false; job.endedAt = Date.now();
 }
 // Open / close on a schedule, once at a time or every day (server/appSchedule.mjs; the user, 3 Nov 2026)
 const appSchedule = createAppSchedule(ROOT, {
@@ -259,6 +283,19 @@ http.createServer(async (req, res) => {
         const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
         const { status, out } = await appCmd(serial, action, String(body.by || '').slice(0, 60), ip);
         return json(req, res, status, out);
+      }
+      // Open / Close on all (runAppBulk): GET the run, POST { action, serials, by } to start one (409 while one runs)
+      if (p === '/api/app-bulk') {
+        if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, appBulk || { running: false });
+        if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });
+        let body = {}; try { body = await readPhoneBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
+        if (appBulk?.running) return json(req, res, 409, { ...appBulk, error: `a ${appBulk.action} on all is already running (${appBulk.done} / ${appBulk.total})` });
+        const serials = (Array.isArray(body.serials) ? body.serials : []).filter(sn => typeof sn === 'string' && keepDevice({ serial_number: sn }));
+        if (!serials.length) return json(req, res, 400, { error: 'no lab devices given' });
+        if (!['open', 'close'].includes(body.action)) return json(req, res, 400, { error: 'action must be open or close' });
+        if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
+        runAppBulk(body.action, [...new Set(serials)], String(body.by || '').slice(0, 60)).catch(e => console.log(`[app-bulk] ${e.message}`));
+        return json(req, res, 200, appBulk);
       }
       // Open / close on a schedule (server/appSchedule.mjs): GET the jobs, POST { action, at, daily, serials, by } to add one,
       // POST { remove: id } to drop one (the user, 3 Nov 2026)

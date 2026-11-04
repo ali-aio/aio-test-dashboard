@@ -109,6 +109,14 @@ export async function appCommand(serial, action, by = '') {
   return { ok: r.ok, http: r.status, ...(j || {}) };
 }
 
+/** Open / Close on all, run by our server (runAppBulk in server.mjs): no body → the current / last run; { action, serials, by }
+ *  starts one (409 while one runs). */
+export async function appBulk(body) {
+  const r = await fetch('/api/app-bulk', body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : { cache: 'no-store' });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  return { ok: r.ok, http: r.status, ...(j || {}) };
+}
+
 /** Open / close on a schedule, run by our server (server/appSchedule.mjs): no body → { jobs }; { action, at, daily,
  *  serials, by } adds one; { remove: id } drops one. */
 export async function appScheduleJobs(body) {

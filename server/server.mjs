@@ -36,6 +36,7 @@ import { keepDevice } from '../src/lib/device.js';
 import { createPhoneStore, readPhoneBody } from './phone.mjs';
 import { createWlcToggler } from './wlcToggle.mjs';
 import { createAppSchedule } from './appSchedule.mjs';
+import { createWlcBattery } from './wlcBattery.mjs';
 import { createIphones } from './iphones.mjs';
 import { createRoom } from './room.mjs';
 import { createRoomSerial } from './roomSerial.mjs';
@@ -121,6 +122,17 @@ const appSchedule = createAppSchedule(ROOT, {
       return { status: r.status, out: r.json || { error: `MDM answered ${r.status}` } };
     }
     return appCmd(serial, action, by || 'schedule', 'schedule');
+  },
+});
+// WLC on / off when a device's battery reaches a level (server/wlcBattery.mjs; the user, 3 Nov 2026)
+const wlcBattery = createWlcBattery(ROOT, {
+  keep: keepDevice,
+  log: msg => console.log(`[wlc-battery] ${msg}`),
+  devices: () => mdm.get('/api/v1/testdata/devices', { ttlMs: DEVICES_TTL }),
+  send: async (serial, enabled, by) => {
+    const r = await mdm.command(`/api/v1/testdata/devices/${serial}/wlc`, { enabled });
+    try { fs.appendFileSync(path.join(ROOT, 'data', 'commands.jsonl'), JSON.stringify({ at: Date.now(), serial, action: enabled ? 'wlc on' : 'wlc off', by, ip: 'battery rule', status: r.status, result: r.json }) + '\n'); } catch (e) {}
+    return r;
   },
 });
 // the iPhones' own battery, read over Wi-Fi by the lab laptop (server/iphones.mjs)
@@ -262,6 +274,19 @@ http.createServer(async (req, res) => {
         if (!(Number.isFinite(at) && at > Date.now() - 60e3 && at - Date.now() < 48 * 3600e3)) return json(req, res, 400, { error: 'at must be within the next 48 h' });
         if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
         return json(req, res, 200, appSchedule.add({ action: body.action, at, daily: body.daily === true, serials, by: String(body.by || '').slice(0, 60) }));
+      }
+      // WLC by battery level (server/wlcBattery.mjs): GET the rules, POST { pct, enabled, serials, by } / { remove: id }
+      if (p === '/api/wlc-battery') {
+        if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, wlcBattery.get());
+        if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });
+        let body = {}; try { body = await readPhoneBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
+        if (body.remove) return json(req, res, 200, wlcBattery.remove(String(body.remove)));
+        const serials = (Array.isArray(body.serials) ? body.serials : []).filter(sn => typeof sn === 'string' && keepDevice({ serial_number: sn }));
+        const pct = Math.round(+body.pct);
+        if (!serials.length) return json(req, res, 400, { error: 'no lab devices given' });
+        if (!(pct >= 1 && pct <= 99)) return json(req, res, 400, { error: 'pct must be 1 – 99' });
+        if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
+        return json(req, res, 200, wlcBattery.add({ pct, enabled: body.enabled === true, serials, by: String(body.by || '').slice(0, 60) }));
       }
       // WLC toggling on a timer, run by this server (server/wlcToggle.mjs): GET the job, POST { serials, everyMin, first,
       // by } to start, POST { stop: true } to stop

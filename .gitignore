@@ -31,3 +31,5 @@ data/room.jsonl.tmp
 firmware/room-sensor/secrets.h
 data/app-schedule.json
 data/app-schedule.json.tmp
+data/wlc-battery.json
+data/wlc-battery.json.tmp

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { appCommand, appScheduleJobs } from '../lib/data.js'
 import { pollHostApp } from '../lib/fleet.js'
+import { useKeepOnScreen } from './Primitives.jsx'
 
 // Open / close Nugget (the device's role app) on one lab tablet, from Today's "Ads on screen" drop-down (the user,
 // 30 Oct 2026). ▶ opens it when it isn't on screen, ■ closes it when it is. Asks first; the server allows lab devices
@@ -73,6 +74,7 @@ export function AppToggleAll({ serials, onScreenCount }) {
   // when: now, at a time, or every day at a time (the user, 3 Nov 2026: "tomorrow the cycle starts again") — the timed
   // ones run on the lab laptop (server/appSchedule.mjs), on the devices listed now
   const [menu, setMenu] = useState(false)
+  const menuBox = useKeepOnScreen(menu)
   const [sAct, setSAct] = useState(null)       // the scheduled action; defaults to the button's
   const [time, setTime] = useState('')
   const [daily, setDaily] = useState(false)
@@ -108,7 +110,7 @@ export function AppToggleAll({ serials, onScreenCount }) {
           title={`${action === 'open' ? 'Open' : 'Close'} Nugget on every device in this list — now, at a time, or every day`}>
           {busy && <span className="spin" style={{ width: 11, height: 11 }} />} {label}</button>
         {menu && (
-          <span className="wlc-menu" role="menu">
+          <span ref={menuBox} className="wlc-menu" role="menu">
             <button type="button" role="menuitem" onClick={e => { setMenu(false); run(e) }}>{action === 'open' ? 'Open' : 'Close'} now</button>
             <span className="wlc-end">
               <span className="wlc-end-state" role="group" aria-label="Action">

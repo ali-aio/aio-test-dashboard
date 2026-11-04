@@ -2252,3 +2252,12 @@ input.phone-auto { font-style: italic; }
 
 /* Today's WLC / Ads tiles: a process the lab laptop is running (toggle, schedule, battery rule) */
 .auto-run { color: var(--accent, var(--series-1)); font-weight: 500; }
+
+/* WLC / Ads header menus (3 Nov 2026: buttons wrapped their ▾, the menu ran off screen, rows broke apart) */
+.app-all { flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
+.app-all .btn { white-space: nowrap; }
+.wlc-menu { min-width: 250px; max-width: calc(100vw - 24px); }
+.wlc-menu-wrap:not(:last-child) .wlc-menu { right: auto; left: 0; }
+.wlc-end label, .wlc-custom > span { white-space: nowrap; }
+.wlc-end { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.wlc-end > label { flex: 1 1 100%; }

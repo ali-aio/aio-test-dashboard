@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { wlcCommand, wlcToggleJob, appScheduleJobs, wlcBatteryRules } from '../lib/data.js'
 import { poll } from '../lib/fleet.js'
+import { useKeepOnScreen } from './Primitives.jsx'
 
 // Wireless charging on a lab T7's pad on / off, from Today's "WLC · load placed" drop-down (the user, 2 Nov 2026).
 // The MDM answers at once ({serial, enabled, connected}); a tablet that isn't connected takes the setting when it
@@ -46,6 +47,7 @@ export default function WlcToggle({ serial, enabled: live }) {
 export function WlcToggleAll({ serials, enabledCount }) {
   const [prog, setProg] = useState(null)   // { to, done, total, failed } of an on / off on all
   const [menu, setMenu] = useState(false)
+  const menuBox = useKeepOnScreen(menu)
   const [custom, setCustom] = useState('')
   const [until, setUntil] = useState('')       // "HH:MM" (optional): stop then — today, or tomorrow if that's past
   const [endOn, setEndOn] = useState(true)     // the state every device is left in at the end
@@ -177,7 +179,7 @@ export function WlcToggleAll({ serials, enabledCount }) {
       <span className="wlc-menu-wrap">
         <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={menu} onClick={() => { setHold(null); setMenu(m => !m) }}>Toggle ▾</button>
         {menu && (
-          <span className="wlc-menu" role="menu">
+          <span ref={menuBox} className="wlc-menu" role="menu">
             {/* when to stop (optional) and the state every device is left in then (the user, 2 Nov 2026) */}
             <span className="wlc-end">
               <label>Until <input type="time" className="input" value={until} onChange={e => setUntil(e.target.value)} aria-label="End time (optional)" /></label>
@@ -202,10 +204,11 @@ export function WlcToggleAll({ serials, enabledCount }) {
 function ForMenu({ to, onPick, onAlways, onSchedule, onBattery }) {
   const [custom, setCustom] = useState('')
   const [pct, setPct] = useState('')
+  const box = useKeepOnScreen(true) // never past the window's edge (3 Nov 2026: it opened half off screen)
   const [time, setTime] = useState('')
   const [daily, setDaily] = useState(false)
   return (
-    <span className="wlc-menu" role="menu">
+    <span ref={box} className="wlc-menu" role="menu">
       {[15, 30, 60].map(m => <button key={m} type="button" role="menuitem" onClick={() => onPick(m)}>For {fmtEvery(m)}</button>)}
       <button type="button" role="menuitem" onClick={onAlways}>Until I turn it {to ? 'off' : 'on'}</button>
       <span className="wlc-custom">

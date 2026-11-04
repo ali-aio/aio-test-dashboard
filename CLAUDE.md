@@ -591,8 +591,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   Today → **WLC · load placed** drop-down, a ⚡ switch in front of each device (`WlcToggle.jsx`, asks first, flips at once)
   and in its header (titled **WLC**) **WLC on ▾** (shown while some are off), **WLC off ▾** (while some are on) — each a menu
   **For 15 min / 30 min / 1 h / Custom min** (switched now, back to the other state then: a `hold` job on the lab laptop, header
-  "WLC on · back off at 11:45 · Stop", Stop leaves WLC as it is) or **Until I turn it off / on** (the plain switch; the user,
-  2 Nov 2026) — and **Toggle ▾** →
+  "WLC on · back off at 11:45 · Stop", Stop leaves WLC as it is) or **WLC on / off now** (the plain switch, first in the menu; was "Until I turn it off" — the user, 3 Nov 2026:
+  "add a now option") — and **Toggle ▾** →
   every 15 min / 30 min / 1 h / custom minutes (`WlcToggleAll`, the user, 2 Nov 2026). The WLC on / off menus also take
   **WLC on | off at HH:MM, Once | Every day** → Schedule (the user, 3 Nov 2026: "like ads"): the same server schedule as the Ads
   card (`appSchedule.mjs`, actions `wlc_on` / `wlc_off`), chips "WLC off daily 01:30 ×" in the WLC header.

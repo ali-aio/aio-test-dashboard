@@ -209,8 +209,9 @@ function ForMenu({ to, onPick, onAlways, onSchedule, onBattery }) {
   const [daily, setDaily] = useState(false)
   return (
     <span ref={box} className="wlc-menu" role="menu">
+      {/* now, and it stays so (the user, 3 Nov 2026: "add a now option, like WLC off now") */}
+      <button type="button" role="menuitem" onClick={onAlways}><b>WLC {to ? 'on' : 'off'} now</b></button>
       {[15, 30, 60].map(m => <button key={m} type="button" role="menuitem" onClick={() => onPick(m)}>For {fmtEvery(m)}</button>)}
-      <button type="button" role="menuitem" onClick={onAlways}>Until I turn it {to ? 'off' : 'on'}</button>
       <span className="wlc-custom">
         <input className="input" inputMode="numeric" placeholder="min" value={custom} onChange={e => setCustom(e.target.value.replace(/\D/g, '').slice(0, 4))}
           onKeyDown={e => { if (e.key === 'Enter' && +custom >= 1) onPick(Math.min(1440, +custom)) }} aria-label="Custom time in minutes" />
@@ -225,7 +226,7 @@ function ForMenu({ to, onPick, onAlways, onSchedule, onBattery }) {
         <button type="button" className="btn btn-sm" disabled={!time} onClick={() => onSchedule(time, daily)}>Schedule</button>
       </span>
       {/* each device on its own, when its battery reaches a level (the user, 3 Nov 2026: "at 15 % disable WLC") */}
-      <span className="wlc-custom" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+      <span className="wlc-custom" style={{ alignItems: 'center' }}>
         <span style={{ fontSize: 12.5 }}>When battery reaches</span>
         <input className="input" inputMode="numeric" placeholder="%" value={pct} onChange={e => setPct(e.target.value.replace(/\D/g, '').slice(0, 2))}
           onKeyDown={e => { if (e.key === 'Enter' && +pct >= 1) onBattery(+pct) }} aria-label="Battery %" style={{ width: 48 }} />

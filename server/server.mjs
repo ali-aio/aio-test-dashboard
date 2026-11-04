@@ -112,7 +112,16 @@ async function appCmd(serial, action, by = '', ip = '') {
 const appSchedule = createAppSchedule(ROOT, {
   keep: keepDevice,
   log: msg => console.log(`[app-schedule] ${msg}`),
-  send: (serial, action, by) => appCmd(serial, action, by || 'schedule', 'schedule'),
+  send: async (serial, action, by) => {
+    // WLC on / off at a time or every day too (the user, 3 Nov 2026), through the same MDM route as the ⚡ buttons
+    if (action === 'wlc_on' || action === 'wlc_off') {
+      const enabled = action === 'wlc_on';
+      const r = await mdm.command(`/api/v1/testdata/devices/${serial}/wlc`, { enabled });
+      try { fs.appendFileSync(path.join(ROOT, 'data', 'commands.jsonl'), JSON.stringify({ at: Date.now(), serial, action: enabled ? 'wlc on' : 'wlc off', by: by || 'schedule', ip: 'schedule', status: r.status, result: r.json }) + '\n'); } catch (e) {}
+      return { status: r.status, out: r.json || { error: `MDM answered ${r.status}` } };
+    }
+    return appCmd(serial, action, by || 'schedule', 'schedule');
+  },
 });
 // the iPhones' own battery, read over Wi-Fi by the lab laptop (server/iphones.mjs)
 const iphones = createIphones(ROOT, { python: process.env.IOS_PYTHON || fileCfg.iosPython || undefined, log: m => console.log(`[iphone] ${m}`) });
@@ -249,7 +258,7 @@ http.createServer(async (req, res) => {
         const serials = (Array.isArray(body.serials) ? body.serials : []).filter(sn => typeof sn === 'string' && keepDevice({ serial_number: sn }));
         const at = +body.at;
         if (!serials.length) return json(req, res, 400, { error: 'no lab devices given' });
-        if (!['open', 'close'].includes(body.action)) return json(req, res, 400, { error: 'action must be open or close' });
+        if (!['open', 'close', 'wlc_on', 'wlc_off'].includes(body.action)) return json(req, res, 400, { error: 'action must be open, close, wlc_on or wlc_off' });
         if (!(Number.isFinite(at) && at > Date.now() - 60e3 && at - Date.now() < 48 * 3600e3)) return json(req, res, 400, { error: 'at must be within the next 48 h' });
         if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
         return json(req, res, 200, appSchedule.add({ action: body.action, at, daily: body.daily === true, serials, by: String(body.by || '').slice(0, 60) }));

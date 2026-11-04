@@ -79,7 +79,7 @@ export function AppToggleAll({ serials, onScreenCount }) {
   const [jobs, setJobs] = useState([])
   useEffect(() => {
     let live = true
-    const load = () => appScheduleJobs().then(j => { if (live && j.ok) setJobs(j.jobs || []) }).catch(() => {})
+    const load = () => appScheduleJobs().then(j => { if (live && j.ok) setJobs(appJobs(j)) }).catch(() => {})
     load(); const t = setInterval(load, 30e3)
     return () => { live = false; clearInterval(t) }
   }, [])
@@ -91,11 +91,11 @@ export function AppToggleAll({ serials, onScreenCount }) {
     const what = `${act === 'open' ? 'Open' : 'Close'} Nugget on all ${serials.length} devices ${daily ? `every day at ${clock(at, true)}` : `at ${clock(at)}`}`
     if (!confirm(`${what}? It runs on the lab laptop${daily ? ', until you remove it' : ''}.`)) return
     const j = await appScheduleJobs({ action: act, at, daily, serials, by: by() })
-    if (j.ok) { setJobs(j.jobs || []); setMenu(false); setTime('') } else alert(`Couldn't schedule: ${j.error || j.http}`)
+    if (j.ok) { setJobs(appJobs(j)); setMenu(false); setTime('') } else alert(`Couldn't schedule: ${j.error || j.http}`)
   }
   const drop = async (job) => {
     if (!confirm(`Remove "${jobText(job)}"?`)) return
-    const j = await appScheduleJobs({ remove: job.id }); if (j.ok) setJobs(j.jobs || [])
+    const j = await appScheduleJobs({ remove: job.id }); if (j.ok) setJobs(appJobs(j))
   }
   return (
     <span className="app-all" onClick={e => e.stopPropagation()}>
@@ -129,3 +129,4 @@ export function AppToggleAll({ serials, onScreenCount }) {
 const clock = (t, timeOnly = false) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   + (!timeOnly && new Date(t).toDateString() !== new Date().toDateString() ? ' tomorrow' : '')
 const jobText = j => `${j.action === 'open' ? 'Open' : 'Close'} ${j.daily ? `daily ${clock(j.at, true)}` : clock(j.at)}`
+const appJobs = j => (j.jobs || []).filter(x => x.action === 'open' || x.action === 'close')

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { wlcCommand, wlcToggleJob } from '../lib/data.js'
+import { wlcCommand, wlcToggleJob, appScheduleJobs } from '../lib/data.js'
 import { poll } from '../lib/fleet.js'
 
 // Wireless charging on a lab T7's pad on / off, from Today's "WLC · load placed" drop-down (the user, 2 Nov 2026).
@@ -98,6 +98,30 @@ export function WlcToggleAll({ serials, enabledCount }) {
     if (j.ok) { setJob(j); refreshSoon() } else alert(`Couldn't start: ${j.error || j.http}`)
   }
   const stop = async () => { const j = await wlcToggleJob({ stop: true, by: by() }); if (j.ok) setJob(j) }
+  // WLC on / off at a time, once or every day (server/appSchedule.mjs, shared with the Ads card's schedule)
+  const [jobs, setJobs] = useState([])
+  useEffect(() => {
+    let live = true
+    const load = () => appScheduleJobs().then(j => { if (live && j.ok) setJobs((j.jobs || []).filter(x => x.action.startsWith('wlc_'))) }).catch(() => {})
+    load(); const t = setInterval(load, 30e3)
+    return () => { live = false; clearInterval(t) }
+  }, [])
+  const keepWlc = j => (j.jobs || []).filter(x => x.action.startsWith('wlc_'))
+  const schedule = async (to, time, daily) => {
+    const [h, m] = time.split(':').map(Number), d = new Date(); d.setHours(h, m, 0, 0)
+    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1)
+    const at = d.getTime()
+    if (!confirm(`Turn wireless charging ${to ? 'ON' : 'OFF'} on all ${serials.length} devices ${daily ? `every day at ${clock(at).replace(' tomorrow', '')}` : `at ${clock(at)}`}? It runs on the lab laptop${daily ? ', until you remove it' : ''}.`)) return
+    const j = await appScheduleJobs({ action: to ? 'wlc_on' : 'wlc_off', at, daily, serials, by: by() })
+    if (j.ok) { setJobs(keepWlc(j)); setHold(null) } else alert(`Couldn't schedule: ${j.error || j.http}`)
+  }
+  const dropJob = async (job) => {
+    if (!confirm(`Remove "${wlcJobText(job)}"?`)) return
+    const j = await appScheduleJobs({ remove: job.id }); if (j.ok) setJobs(keepWlc(j))
+  }
+  const chips = jobs.map(j => (
+    <span key={j.id} className="app-job" title={`${j.serials.length} devices · set by ${j.by || '—'}${j.last ? ` · last: ${j.last.ok} of ${j.last.total} at ${new Date(j.last.at).toLocaleString()}` : ''}`}>
+      {wlcJobText(j)}<button type="button" aria-label={`Remove ${wlcJobText(j)}`} onClick={() => dropJob(j)}>×</button></span>))
   const result = prog && !busy ? `WLC ${prog.to ? 'on' : 'off'}: ${prog.total - prog.failed.length} of ${prog.total}${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null
   if (job?.active && job.hold) {
     return (
@@ -122,12 +146,13 @@ export function WlcToggleAll({ serials, enabledCount }) {
   return (
     <span className="app-all" onClick={e => e.stopPropagation()}>
       {result && <span className={`hint${prog.failed.length ? ' app-all-bad' : ''}`} title={prog.failed.join('\n') || undefined}>{result}</span>}
+      {chips}
       {busy && <span className="hint"><span className="spin" style={{ width: 10, height: 10 }} /> {prog.done} / {prog.total}…</span>}
       {[[true, offCount > 0, `${offCount} with WLC off`], [false, enabledCount > 0, `${enabledCount} with WLC on`]].map(([to, show, why]) => show && (
         <span key={String(to)} className="wlc-menu-wrap">
           <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={hold === (to ? 'on' : 'off')} title={`${why}: turn it ${to ? 'on' : 'off'} on every device in this list`}
             onClick={() => { setMenu(false); setHold(h => h === (to ? 'on' : 'off') ? null : to ? 'on' : 'off') }}>WLC {to ? 'on' : 'off'} ▾</button>
-          {hold === (to ? 'on' : 'off') && <ForMenu to={to} onPick={min => startHold(to, min)} onAlways={e => { setHold(null); all(to, e) }} />}
+          {hold === (to ? 'on' : 'off') && <ForMenu to={to} onPick={min => startHold(to, min)} onAlways={e => { setHold(null); all(to, e) }} onSchedule={(t, d) => schedule(to, t, d)} />}
         </span>))}
       <span className="wlc-menu-wrap">
         <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={menu} onClick={() => { setHold(null); setMenu(m => !m) }}>Toggle ▾</button>
@@ -154,8 +179,10 @@ export function WlcToggleAll({ serials, enabledCount }) {
   )
 }
 // "WLC on ▾" / "WLC off ▾": for how long, then back
-function ForMenu({ to, onPick, onAlways }) {
+function ForMenu({ to, onPick, onAlways, onSchedule }) {
   const [custom, setCustom] = useState('')
+  const [time, setTime] = useState('')
+  const [daily, setDaily] = useState(false)
   return (
     <span className="wlc-menu" role="menu">
       {[15, 30, 60].map(m => <button key={m} type="button" role="menuitem" onClick={() => onPick(m)}>For {fmtEvery(m)}</button>)}
@@ -165,8 +192,17 @@ function ForMenu({ to, onPick, onAlways }) {
           onKeyDown={e => { if (e.key === 'Enter' && +custom >= 1) onPick(Math.min(1440, +custom)) }} aria-label="Custom time in minutes" />
         <button type="button" className="btn btn-sm" disabled={!(+custom >= 1)} onClick={() => onPick(Math.min(1440, +custom))}>Custom</button>
       </span>
+      {/* at a time, once or every day (the user, 3 Nov 2026: "like ads") — run on the lab laptop */}
+      <span className="wlc-end" style={{ borderBottom: 0, borderTop: '1px solid var(--border)', marginTop: 4, marginBottom: 0, paddingTop: 8 }}>
+        <label>WLC {to ? 'on' : 'off'} at <input type="time" className="input" value={time} onChange={e => setTime(e.target.value)} aria-label="Time" /></label>
+        <span className="wlc-end-state" role="group" aria-label="How often">
+          <button type="button" className={!daily ? 'is-on' : ''} aria-pressed={!daily} onClick={() => setDaily(false)}>Once</button>
+          <button type="button" className={daily ? 'is-on' : ''} aria-pressed={daily} onClick={() => setDaily(true)}>Every day</button></span>
+        <button type="button" className="btn btn-sm" disabled={!time} onClick={() => onSchedule(time, daily)}>Schedule</button>
+      </span>
     </span>
   )
 }
 const fmtEvery = m => (m % 60 === 0 ? `${m / 60} h` : `${m} min`)
 const clock = t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + (new Date(t).toDateString() !== new Date().toDateString() ? ' tomorrow' : '')
+const wlcJobText = j => `WLC ${j.action === 'wlc_on' ? 'on' : 'off'} ${j.daily ? `daily ${clock(j.at).replace(' tomorrow', '')}` : clock(j.at)}`

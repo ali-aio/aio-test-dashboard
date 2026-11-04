@@ -593,7 +593,9 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   **For 15 min / 30 min / 1 h / Custom min** (switched now, back to the other state then: a `hold` job on the lab laptop, header
   "WLC on · back off at 11:45 · Stop", Stop leaves WLC as it is) or **Until I turn it off / on** (the plain switch; the user,
   2 Nov 2026) — and **Toggle ▾** →
-  every 15 min / 30 min / 1 h / custom minutes (`WlcToggleAll`, the user, 2 Nov 2026). **The toggling runs on the lab laptop**
+  every 15 min / 30 min / 1 h / custom minutes (`WlcToggleAll`, the user, 2 Nov 2026). The WLC on / off menus also take
+  **WLC on | off at HH:MM, Once | Every day** → Schedule (the user, 3 Nov 2026: "like ads"): the same server schedule as the Ads
+  card (`appSchedule.mjs`, actions `wlc_on` / `wlc_off`), chips "WLC off daily 01:30 ×" in the WLC header. **The toggling runs on the lab laptop**
   (`server/wlcToggle.mjs`, `GET/POST /api/wlc-toggle`, state in `data/wlc-toggle.json`, gitignored, survives a restart): first
   switch at once (off if most are on, else on), then the other state every interval, on the devices listed, until **Stop** —
   or an optional **Until HH:MM** (today, or tomorrow if past) when it leaves every device in the chosen **then WLC on / off**

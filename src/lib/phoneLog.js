@@ -152,7 +152,18 @@ async function push(patch) {
     if (r.ok) { db = mergePhone(db, await r.json()); emit(); } else if (r.status === 404) backend = false;
   } catch (e) { /* the next pull sends nothing back; the cell stays in this browser and is re-sent on the next edit */ }
 }
-const change = patch => { db = mergePhone(db, patch); emit(); push(patch); };
+// a change always wins over what is there, whatever the clocks say (4 Nov 2026: Put back on a take-out made from a
+// computer whose clock ran ahead was "older" and ignored): its mod is bumped past the entry it replaces
+export const bumpPast = (cur, patch) => {
+  const out = {};
+  for (const sec of ['devices', 'cells', 'outs', 'starts']) {
+    if (!patch?.[sec]) continue;
+    out[sec] = {};
+    for (const [k, v] of Object.entries(patch[sec])) { const old = cur?.[sec]?.[k]; out[sec][k] = old && old.mod >= v.mod ? { ...v, mod: old.mod + 1 } : v; }
+  }
+  return out;
+};
+const change = patch => { patch = bumpPast(db, patch); db = mergePhone(db, patch); emit(); push(patch); };
 export const setPhoneDevice = (day, serial, on, by = '') => change({ devices: { [devKey(day, serial)]: { on, by, mod: Date.now() } } });
 export const setPendingOut = (day, serial, rec) => change({ outs: { [devKey(day, serial)]: rec ? { on: true, ...rec, at: rec.at ?? Date.now(), mod: Date.now() } : { on: false, mod: Date.now() } } });
 export const setPhoneStart = (day, at, by = '') => change({ starts: { [day]: { at, by, mod: Date.now() } } });

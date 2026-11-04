@@ -12,7 +12,7 @@
 // so two people typing into different cells never overwrite each other.
 import fs from 'node:fs';
 import path from 'node:path';
-import { mergePhone, cleanPhone } from '../src/lib/phoneLog.js';
+import { mergePhone, cleanPhone, bumpPast } from '../src/lib/phoneLog.js';
 
 const MAX_BODY = 256 << 10;
 
@@ -28,7 +28,8 @@ export function createPhoneStore(root) {
   };
   return {
     get: () => db,
-    post: body => { db = { ...mergePhone(db, cleanPhone(body)), at: Date.now() }; save(); return db; },
+    // the last change received wins, even from a browser whose clock is behind (bumpPast)
+    post: body => { db = { ...mergePhone(db, bumpPast(db, cleanPhone(body))), at: Date.now() }; save(); return db; },
   };
 }
 

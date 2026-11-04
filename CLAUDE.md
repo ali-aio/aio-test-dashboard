@@ -759,6 +759,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   with no plan entry yet ("Cycle running · test not known yet"), Take out / Put back keep the record in `data/phone.json`
   (`outs`, `pendingOuts` / `setPendingOut` in `phoneLog.js`); the device leaves Today's charts and list at once, and as soon
   as a plan entry names that cycle (Auto or a person) Today moves each held take-out onto it (`takeOut`, keeping its time).
+  **The last change wins whatever the clocks say** (`bumpPast` in `phoneLog.js`, browser and server; 4 Nov 2026: Put back did nothing —
+  the take-out came from a browser whose clock ran ahead, so the put-back's `mod` was "older"). Same for iPhone cells and starts.
 
 ### Today
 In order: the planned cycle running now → a bench off the charger whose test isn't named yet, **"Cycle running · test

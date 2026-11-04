@@ -244,6 +244,7 @@ export default function TodayView({ fleet }) {
   const matches = sn => !q || sn.toLowerCase().includes(q)
   const [listOpen, setListOpen] = useState(false)
   const [outOpen, setOutOpen] = useState(false) // Taken out of this cycle, closed by default
+  const [putting, setPutting] = useState(null), putTimer = useRef(null) // Put back armed for this serial
   const [listQ, setListQ] = useState('') // search inside the Devices today list
   const listShown = listOpen || !!q
   // A device clicked in the table is ticked alone in the two charts above (Every device),
@@ -621,7 +622,14 @@ export default function TodayView({ fleet }) {
                   <td>{r.reason}</td>
                   <td>{r.note || <span className="secondary">—</span>}</td>
                   <td>{r.by || <span className="secondary">—</span>}</td>
-                  <td className="r"><button type="button" className="btn btn-sm" onClick={e => { e.stopPropagation(); if (confirm(`Put ${r.serial} back into this cycle? The record of it being taken out is removed.`)) { if (T.decl) putBack(GROUP, T.decl.id, r.serial); else setPendingOut(T.key, r.serial, null); setPlanRev(v => v + 1) } }}>Put back</button></td>
+                  {/* two clicks, no browser pop-up (4 Nov 2026: a browser set to block this site's dialogs made confirm() say no
+                      without asking, so Put back did nothing): the first arms it for 5 s, the second puts it back */}
+                  <td className="r"><button type="button" className={`btn btn-sm${putting === r.serial ? ' btn-warn' : ''}`}
+                    title={`Put ${r.serial} back into this cycle (the record of it being taken out is removed)`}
+                    onClick={e => { e.stopPropagation()
+                      if (putting !== r.serial) { setPutting(r.serial); clearTimeout(putTimer.current); putTimer.current = setTimeout(() => setPutting(null), 5000); return }
+                      setPutting(null); if (T.decl) putBack(GROUP, T.decl.id, r.serial); else setPendingOut(T.key, r.serial, null); setPlanRev(v => v + 1) }}>
+                    {putting === r.serial ? 'Click again to put back' : 'Put back'}</button></td>
                 </tr>
               ))}
             </SortTable></div>}

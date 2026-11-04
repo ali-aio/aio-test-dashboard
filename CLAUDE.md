@@ -761,6 +761,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   as a plan entry names that cycle (Auto or a person) Today moves each held take-out onto it (`takeOut`, keeping its time).
   **The last change wins whatever the clocks say** (`bumpPast` in `phoneLog.js`, browser and server; 4 Nov 2026: Put back did nothing —
   the take-out came from a browser whose clock ran ahead, so the put-back's `mod` was "older"). Same for iPhone cells and starts.
+  **Put back is two clicks, no pop-up** ("Click again to put back", armed 5 s): a browser that blocks the site's dialogs answers
+  `confirm()` with no, silently — that was the rest of the 4 Nov "Put back not working".
 
 ### Today
 In order: the planned cycle running now → a bench off the charger whose test isn't named yet, **"Cycle running · test

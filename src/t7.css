@@ -2261,3 +2261,5 @@ input.phone-auto { font-style: italic; }
 .wlc-end label, .wlc-custom > span { white-space: nowrap; }
 .wlc-end { flex-direction: row; flex-wrap: wrap; align-items: center; }
 .wlc-end > label { flex: 1 1 100%; }
+
+.btn.btn-warn { background: var(--status-warning, #d97706); border-color: var(--status-warning, #d97706); color: #fff; }

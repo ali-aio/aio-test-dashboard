@@ -6,7 +6,7 @@ import PhoneOnPad from '../components/PhoneOnPad.jsx'
 import AppToggle, { AppToggleAll } from '../components/AppToggle.jsx'
 import { useAutomations } from '../components/useAutomations.js'
 import WlcToggle, { WlcToggleAll } from '../components/WlcToggle.jsx'
-import { subscribePhone, getPhone, startPhoneSync, pendingOuts, setPendingOut } from '../lib/phoneLog.js'
+import { subscribePhone, getPhone, startPhoneSync, pendingOuts, setPendingOut, pendingNote, setPendingNote } from '../lib/phoneLog.js'
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, refineStarts, refinedStart, drainSince, drainSplit, WINDOW_HOURS } from '../lib/window.js'
@@ -161,6 +161,15 @@ export default function TodayView({ fleet }) {
     const held = pendingOuts(phoneDb, T.key); if (!held.length) return
     const have = new Set((T.decl.removed || []).map(r => r.serial))
     for (const r of held) { if (!have.has(r.serial)) takeOut(GROUP, T.decl.id, r); setPendingOut(T.key, r.serial, null) }
+    setPlanRev(v => v + 1)
+  }, [T.decl?.id, T.key, phoneDb])
+  // a note written before the test was known goes onto the plan entry once there is one (added after any note it has)
+  useEffect(() => {
+    if (!T.decl) return
+    const held = pendingNote(phoneDb, T.key); if (!held) return
+    const cur = T.decl.note || ''
+    if (!cur.includes(held)) setCycleNote(GROUP, T.decl.id, cur ? `${cur}\n${held}` : held)
+    setPendingNote(T.key, '')
     setPlanRev(v => v + 1)
   }, [T.decl?.id, T.key, phoneDb])
   const key = T.key
@@ -377,6 +386,7 @@ export default function TodayView({ fleet }) {
           </div>
           {/* a note on this cycle, for the record (shared with the plan; shown on its test screen too) */}
           {T.decl && !waiting && <CycleNote key={T.decl.id} decl={T.decl} onSaved={() => setPlanRev(v => v + 1)} />}
+          {!T.decl && T.pendingOut && !waiting && <CycleNote key={'held' + T.key} note={pendingNote(phoneDb, T.key)} onSave={text => setPendingNote(T.key, text)} onSaved={() => {}} />}
         </div>
         </div>
       </div>
@@ -782,17 +792,20 @@ function TakeOutForm({ serial, cycle, onSave, onCancel }) {
 // A note kept on the cycle (the user, 29 Oct 2026: "just for the record" — which devices had the load
 // for the first 3 h and which with a 30-min gap). Saved on the plan entry, so every browser and the
 // test screen see it.
-function CycleNote({ decl, onSaved }) {
+// Before the cycle's test is known it takes `note` / `onSave` instead (held in data/phone.json, moved onto the entry later).
+function CycleNote({ decl, note, onSave, onSaved }) {
+  const cur = decl ? decl.note || '' : note || ''
   const [editing, setEditing] = useState(false)
-  const [text, setText] = useState(decl.note || '')
-  const save = () => { setCycleNote(GROUP, decl.id, text); setEditing(false); onSaved() }
+  const [text, setText] = useState(cur)
+  useEffect(() => { if (!editing) setText(cur) }, [cur])
+  const save = () => { if (decl) setCycleNote(GROUP, decl.id, text); else onSave(text); setEditing(false); onSaved() }
   if (editing) return (
     <div className="cycle-note-edit">
       <textarea className="input" rows={2} autoFocus value={text} onChange={e => setText(e.target.value)} placeholder="e.g. 064, 280: load the first 3 h; the rest: load with a 30-min gap" />
       <span style={{ display: 'flex', gap: 6 }}><button type="button" className="btn btn-sm btn-primary" onClick={save}>Save note</button>
-        <button type="button" className="btn btn-sm" onClick={() => { setText(decl.note || ''); setEditing(false) }}>Cancel</button></span>
+        <button type="button" className="btn btn-sm" onClick={() => { setText(cur); setEditing(false) }}>Cancel</button></span>
     </div>)
-  return decl.note
-    ? <div className="cycle-note" style={{ marginTop: 8, cursor: 'default' }}><b>Note</b> {decl.note} <button type="button" className="link-btn" onClick={() => setEditing(true)}>✎ edit</button></div>
+  return cur
+    ? <div className="cycle-note" style={{ marginTop: 8, cursor: 'default', whiteSpace: 'pre-line' }}><b>Note</b> {cur} <button type="button" className="link-btn" onClick={() => setEditing(true)}>✎ edit</button></div>
     : <button type="button" className="link-btn" style={{ marginTop: 6, fontSize: 12.5 }} onClick={() => setEditing(true)}>+ Add a note to this cycle</button>
 }

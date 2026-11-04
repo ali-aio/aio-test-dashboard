@@ -16,7 +16,7 @@ export const cellKey = (day, serial, h) => `${day}|${serial}|${h}`;
 
 /** Keep only well-formed entries of a POST body. */
 export function cleanPhone(b) {
-  const out = { devices: {}, cells: {}, outs: {}, starts: {} };
+  const out = { devices: {}, cells: {}, outs: {}, starts: {}, notes: {} };
   for (const [k, v] of Object.entries(b?.devices || {}))
     if (/^\d{4}-\d\d-\d\d\|[\w-]{3,40}$/.test(k) && v && Number.isFinite(v.mod)) out.devices[k] = { on: !!v.on, by: String(v.by || '').slice(0, 60), mod: v.mod };
   for (const [k, v] of Object.entries(b?.cells || {})) {
@@ -33,13 +33,17 @@ export function cleanPhone(b) {
   // the iPhone card's start time for a cycle day, set by hand: "<cycle day>" → { at (ms, null = back to the devices' own), by, mod }
   for (const [k, v] of Object.entries(b?.starts || {}))
     if (/^\d{4}-\d\d-\d\d$/.test(k) && v && Number.isFinite(v.mod)) out.starts[k] = { at: Number.isFinite(v.at) ? v.at : null, by: String(v.by || '').slice(0, 60), mod: v.mod };
+  // a cycle note written before the cycle's test is known (the user, 4 Nov 2026): "<cycle day>" → { text, by, mod };
+  // moved onto the plan entry once one names the cycle, like the held take-outs
+  for (const [k, v] of Object.entries(b?.notes || {}))
+    if (/^\d{4}-\d\d-\d\d$/.test(k) && v && Number.isFinite(v.mod)) out.notes[k] = { text: String(v.text || '').slice(0, 2000), by: String(v.by || '').slice(0, 60), mod: v.mod };
   return out;
 }
 
 /** Merge b into a, entry by entry: the newer mod wins. */
 export function mergePhone(a, b) {
   const pick = (x = {}, y = {}) => { const o = { ...x }; for (const [k, v] of Object.entries(y)) if (!o[k] || v.mod >= o[k].mod) o[k] = v; return o; };
-  return { ...a, devices: pick(a?.devices, b?.devices), cells: pick(a?.cells, b?.cells), outs: pick(a?.outs, b?.outs), starts: pick(a?.starts, b?.starts) };
+  return { ...a, devices: pick(a?.devices, b?.devices), cells: pick(a?.cells, b?.cells), outs: pick(a?.outs, b?.outs), starts: pick(a?.starts, b?.starts), notes: pick(a?.notes, b?.notes) };
 }
 
 /** Take-outs held for a cycle day whose test isn't known yet: [{ serial, reason, note, by, at }]. */
@@ -156,7 +160,7 @@ async function push(patch) {
 // computer whose clock ran ahead was "older" and ignored): its mod is bumped past the entry it replaces
 export const bumpPast = (cur, patch) => {
   const out = {};
-  for (const sec of ['devices', 'cells', 'outs', 'starts']) {
+  for (const sec of ['devices', 'cells', 'outs', 'starts', 'notes']) {
     if (!patch?.[sec]) continue;
     out[sec] = {};
     for (const [k, v] of Object.entries(patch[sec])) { const old = cur?.[sec]?.[k]; out[sec][k] = old && old.mod >= v.mod ? { ...v, mod: old.mod + 1 } : v; }
@@ -167,6 +171,9 @@ const change = patch => { patch = bumpPast(db, patch); db = mergePhone(db, patch
 export const setPhoneDevice = (day, serial, on, by = '') => change({ devices: { [devKey(day, serial)]: { on, by, mod: Date.now() } } });
 export const setPendingOut = (day, serial, rec) => change({ outs: { [devKey(day, serial)]: rec ? { on: true, ...rec, at: rec.at ?? Date.now(), mod: Date.now() } : { on: false, mod: Date.now() } } });
 export const setPhoneStart = (day, at, by = '') => change({ starts: { [day]: { at, by, mod: Date.now() } } });
+/** The note held for a cycle day whose test isn't known yet ('' = none). */
+export const pendingNote = (db, day) => db?.notes?.[day]?.text || '';
+export const setPendingNote = (day, text, by = '') => change({ notes: { [day]: { text: String(text || '').trim(), by, mod: Date.now() } } });
 export const phoneStart = (db, day) => db?.starts?.[day]?.at ?? null;
 export const setPhonePct = (day, serial, h, pct, by = '') => change({ cells: { [cellKey(day, serial, h)]: { pct: pct === '' || pct == null ? null : Math.round(+pct), by, mod: Date.now() } } });
 /** Pull now, every minute and on returning to the tab, while a screen that shows it is open. */

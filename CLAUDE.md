@@ -759,6 +759,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   with no plan entry yet ("Cycle running · test not known yet"), Take out / Put back keep the record in `data/phone.json`
   (`outs`, `pendingOuts` / `setPendingOut` in `phoneLog.js`); the device leaves Today's charts and list at once, and as soon
   as a plan entry names that cycle (Auto or a person) Today moves each held take-out onto it (`takeOut`, keeping its time).
+  **A cycle note works before the test is known too** (the user, 4 Nov 2026): held per cycle day in `data/phone.json` (`notes`,
+  `pendingNote` / `setPendingNote`), shown and edited on Today the same way, and moved onto the plan entry (after any note it has) once one names the cycle.
   **The last change wins whatever the clocks say** (`bumpPast` in `phoneLog.js`, browser and server; 4 Nov 2026: Put back did nothing —
   the take-out came from a browser whose clock ran ahead, so the put-back's `mod` was "older"). Same for iPhone cells and starts.
   **Put back is two clicks, no pop-up** ("Click again to put back", armed 5 s): a browser that blocks the site's dialogs answers

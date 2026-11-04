@@ -24,7 +24,7 @@ import { runStartOf, drainSplit } from '../src/lib/window.js'
 import { takeOutReasons } from '../src/lib/plan.js'
 import RangePicker from '../src/components/RangePicker.jsx'
 import { parseReport, roomSummary, roomStats } from '../src/lib/room.js'
-import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart, readingAt, readT7s, padAt, onPadAt } from '../src/lib/phoneLog.js'
+import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart, readingAt, readT7s, padAt, onPadAt, pendingNote } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
 import { testTypeFor, planFor, temperaturePhases, runningCharge, adaptCycle, CTX } from '../src/lib/adapt.js'
@@ -521,6 +521,11 @@ const mdmCases = []
     db = mergePhone(db, cleanPhone({ outs: { [`${d}|AT070AABU00064`]: { on: true, reason: 'Hardware fault', at: 5, mod: 5 } } }))
     want(pendingOuts(db, d).length === 1 && pendingOuts(db, d)[0].serial === 'AT070AABU00064' && pendingOuts(db, d)[0].at === 5, 'held take-out')
     db = mergePhone(db, cleanPhone({ outs: { [`${d}|AT070AABU00064`]: { on: false, mod: 6 } } }))
+    // a note held before the test is known (4 Nov 2026)
+    db = mergePhone(db, cleanPhone({ notes: { [d]: { text: 'iPhones on the pad first', by: 'T', mod: 7 }, bad: { text: 'x', mod: 7 } } }))
+    want(pendingNote(db, d) === 'iPhones on the pad first' && !db.notes.bad && pendingNote(db, '2026-01-01') === '', 'held cycle note kept per day')
+    db = mergePhone(db, cleanPhone({ notes: { [d]: { text: '', mod: 8 } } }))
+    want(pendingNote(db, d) === '', 'held note cleared once moved')
     want(!pendingOuts(db, d).length, 'cleared take-out')
     // the card's start set by hand, per cycle day; null = back to the devices' own
     db = mergePhone(db, cleanPhone({ starts: { [d]: { at: 1793253000000, mod: 7 }, 'bad': { at: 1, mod: 7 } } }))

@@ -25,7 +25,7 @@ export default function ActionPlanner({ actions, defaultAction, count, onNow, on
   const ready = (start === 'now' || at) && (len !== 'custom' || minutes >= 1) && (!minutes || minutes <= 1440)
   const day = t => (new Date(t).toDateString() === new Date().toDateString() ? '' : ' tomorrow')
   const sentence = !ready ? (start === 'at' && !time ? 'Pick a start time.' : 'Set how long.')
-    : `${a.verb} on all ${count} devices ${start === 'now' ? 'now' : `at ${hm(at)}${daily ? '' : day(at)}`}`
+    : `${a.verb} ${a.prep || 'on'} all ${count} devices ${start === 'now' ? 'now' : `at ${hm(at)}${daily ? '' : day(at)}`}`
       + (minutes ? ` for ${fmtLen(minutes)}, then ${a.back}${start === 'now' ? ` at ${hm(Date.now() + minutes * 60e3)}` : ` at ${hm(at + minutes * 60e3)}`}` : '')
       + (daily && start === 'at' ? ' — every day' : '') + '.'
   const go = () => {

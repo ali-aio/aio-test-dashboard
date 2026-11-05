@@ -180,7 +180,7 @@ export function WlcToggleAll({ serials, enabledCount }) {
       <span className="wlc-menu-wrap">
         <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={!!hold} onClick={() => { setMenu(false); setHold(h => (h ? null : 'plan')) }}>WLC on / off ▾</button>
         {hold && <ActionPlanner count={serials.length} defaultAction={enabledCount * 2 > serials.length ? 'wlc_off' : 'wlc_on'}
-          actions={[{ id: 'wlc_on', label: 'WLC on', verb: 'Turn WLC on', back: 'WLC off' }, { id: 'wlc_off', label: 'WLC off', verb: 'Turn WLC off', back: 'WLC on' }]}
+          actions={[{ id: 'wlc_on', label: 'WLC on', verb: 'Turn WLC on', prep: 'for', back: 'WLC off' }, { id: 'wlc_off', label: 'WLC off', verb: 'Turn WLC off', prep: 'for', back: 'WLC on' }]}
           onNow={act => { setHold(null); all(act === 'wlc_on') }}
           onPlan={plan}
           extra={<BatteryRow onSet={pct => addRule(false, pct)} />} />}

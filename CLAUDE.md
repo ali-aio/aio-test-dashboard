@@ -596,7 +596,8 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   13:00 — every day.") above the button. Now + until changed = the plain switch (bulk run); anything else is a schedule job with
   `durationMin`: when it runs, `appSchedule.mjs` adds a one-off opposite job that long after (`endOf`; removing the job drops its
   pending end). WLC's battery rule sits under the form ("Or: WLC off on each device when its battery reaches N %"). The old
-  For 15 min / Until I turn it off / at-time menus are gone; Toggle ▾ stays as it was.
+  For 15 min / Until I turn it off / at-time menus are gone; Toggle ▾ stays as it was. The Ads side names the app **nugget-uatv2** (the user,
+  5 Nov 2026: "not Nugget but nugget-uatv2"; `APP` in `AppToggle.jsx`), in the sentence, confirms and button hovers.
   **Open / Close on all ▾ is a menu** (the user, 3 Nov 2026: "when — now or at a time", and "keep this continuously, as tomorrow
   the cycle starts again"): **Open / Close now**, or **Open | Close at HH:MM, Once | Every day** → Schedule. Timed ones run on the
   lab laptop (`server/appSchedule.mjs`, `GET/POST /api/app-schedule`, `data/app-schedule.json`, gitignored; a daily job moves on

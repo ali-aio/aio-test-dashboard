@@ -7,6 +7,8 @@ import ActionPlanner, { fmtLen } from './ActionPlanner.jsx'
 // Open / close Nugget (the device's role app) on one lab tablet, from Today's "Ads on screen" drop-down (the user,
 // 30 Oct 2026). ▶ opens it when it isn't on screen, ■ closes it when it is. Asks first; the server allows lab devices
 // only and logs every command (data/commands.jsonl); the MDM answers within ~20 s ("opened …", "closed …").
+// the app the lab runs, by its name (the user, 5 Nov 2026: "not Nugget but nugget-uatv2"); open always opens aio.app.nugget.uatv2
+const APP = 'nugget-uatv2'
 const by = () => { try { return localStorage.getItem('declaredBy') || '' } catch (e) { return '' } }
 // the devices report the change within ~a minute: ask the host-app list again a few times rather than once at 3 s
 // (30 Oct 2026: after Open on all the card still read 0 / 22 while the MDM already had 14 on screen)
@@ -21,7 +23,7 @@ export default function AppToggle({ serial, onScreen: live }) {
   const action = onScreen ? 'close' : 'open'
   const run = async (e, act = action) => {
     e?.stopPropagation()
-    if (!confirm(`${action === 'open' ? 'Open' : 'Close'} Nugget on ${serial}?`)) return
+    if (!confirm(`${action === 'open' ? 'Open' : 'Close'} ${APP} on ${serial}?`)) return
     setState('busy')
     try {
       const r = await appCommand(serial, action, by())
@@ -32,7 +34,7 @@ export default function AppToggle({ serial, onScreen: live }) {
     } catch (err) { setState({ ok: false, text: err.message }); setTimeout(() => setState(null), 15000) }
   }
   const busy = state === 'busy', res = state && state !== 'busy' ? state : null
-  const title = busy ? `Sending "${action}" to ${serial}…` : res ? `Failed: ${res.text}` : `${action === 'open' ? 'Open' : 'Close'} Nugget on ${serial}`
+  const title = busy ? `Sending "${action}" to ${serial}…` : res ? `Failed: ${res.text}` : `${action === 'open' ? 'Open' : 'Close'} ${APP} on ${serial}`
   return (
     <button type="button" className={`app-btn${res ? ' is-bad' : ''}`} disabled={busy} title={title} aria-label={title} onClick={run}>
       {busy ? <span className="spin" style={{ width: 11, height: 11 }} />
@@ -62,13 +64,13 @@ export function AppToggleAll({ serials, onScreenCount }) {
     const tick = () => appBulk().then(j => { if (!live) return; if (j.ok && j.startedAt) setProg(j); t = setTimeout(tick, j.running ? 2e3 : 20e3) }).catch(() => { t = setTimeout(tick, 20e3) })
     tick(); return () => { live = false; clearTimeout(t) }
   }, [])
-  const run = async e => {
-    e.stopPropagation()
-    if (!serials.length || !confirm(`${action === 'open' ? 'Open' : 'Close'} Nugget on all ${serials.length} devices? It runs on the lab laptop.`)) return
-    const j = await appBulk({ action, serials, by: by() })
+  const run = async (e, act = action) => {
+    e?.stopPropagation()
+    if (!serials.length || !confirm(`${act === 'open' ? 'Open' : 'Close'} ${APP} on all ${serials.length} devices? It runs on the lab laptop.`)) return
+    const j = await appBulk({ action: act, serials, by: by() })
     if (j.ok || j.http === 409) setProg(j)
     if (!j.ok) { alert(j.error || `HTTP ${j.http}`); return }
-    setLast({ action, at: Date.now() })
+    setLast({ action: act, at: Date.now() })
     // poll fast until it ends, then refresh the list
     const wait = async () => { const k = await appBulk(); if (k.ok) setProg(k); if (k.running) setTimeout(wait, 2e3); else refreshSoon() }
     setTimeout(wait, 2e3)
@@ -104,10 +106,10 @@ export function AppToggleAll({ serials, onScreenCount }) {
           {jobText(j)}<button type="button" aria-label={`Remove ${jobText(j)}`} onClick={() => drop(j)}>×</button></span>))}
       <span className="wlc-menu-wrap">
         <button type="button" className="btn btn-sm" disabled={busy || !serials.length} aria-expanded={menu} onClick={() => setMenu(m => !m)}
-          title={`${action === 'open' ? 'Open' : 'Close'} Nugget on every device in this list — now, at a time, or every day`}>
+          title={`${action === 'open' ? 'Open' : 'Close'} ${APP} on every device in this list — now, at a time, or every day`}>
           {busy && <span className="spin" style={{ width: 11, height: 11 }} />} {label}</button>
         {menu && <ActionPlanner count={serials.length} defaultAction={action}
-          actions={[{ id: 'open', label: 'Open', verb: 'Open Nugget', back: 'close it' }, { id: 'close', label: 'Close', verb: 'Close Nugget', back: 'open it' }]}
+          actions={[{ id: 'open', label: 'Open', verb: `Open ${APP}`, back: 'close it' }, { id: 'close', label: 'Close', verb: `Close ${APP}`, back: 'open it' }]}
           onNow={act => { setMenu(false); run(null, act) }} onPlan={plan} />}
       </span>
     </span>

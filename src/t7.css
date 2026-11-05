@@ -2266,3 +2266,19 @@ input.phone-auto { font-style: italic; }
 
 /* Devices today: a device still on the charger after the cycle started (4 Nov 2026) */
 tr.row-warn > td { background: color-mix(in srgb, var(--status-warning) 14%, transparent); }
+
+/* WLC / Ads planner (ActionPlanner.jsx; the user, 5 Nov 2026: one plain form instead of nested menus) */
+.plan-menu { min-width: 330px; padding: 10px 12px; gap: 9px; }
+.plan-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.plan-wrap { flex-wrap: wrap; row-gap: 6px; }
+.plan-k { width: 46px; flex: none; color: var(--text-secondary); font-weight: 500; }
+.plan-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.plan-seg button { font: inherit; font-size: 12px; padding: 3px 9px; border: 1px solid var(--border-strong); background: var(--surface-1); color: var(--text-primary); border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.plan-seg button.is-on { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+.plan-row .input { min-height: 26px; padding: 2px 6px; }
+.plan-row input[type=time] { width: 112px; }
+.plan-custom { display: inline-flex; align-items: center; gap: 4px; }
+.plan-custom .input { width: 46px; }
+.plan-say { font-size: 12.5px; line-height: 1.4; padding: 8px 10px; border-radius: 6px; background: var(--wash); color: var(--text-primary); }
+.plan-go { align-self: flex-end; }
+.plan-battery { flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 9px; margin-top: 2px; }

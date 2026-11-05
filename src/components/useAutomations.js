@@ -21,7 +21,7 @@ export function useAutomations() {
   if (t) wlc.push(t.hold ? `WLC ${t.endState ? 'off' : 'on'} until ${hm(t.endAt)}` : `toggling every ${every(t.everyMin)}${t.endAt ? ` until ${hm(t.endAt)}` : ''}`)
   for (const r of s.rules) wlc.push(`WLC ${r.enabled ? 'on' : 'off'} at ≤${r.pct}%`)
   for (const j of s.jobs) {
-    const when = j.daily ? `daily ${hm(j.at)}` : hm(j.at)
+    const when = (j.daily ? `daily ${hm(j.at)}` : hm(j.at)) + (j.durationMin ? ` for ${every(j.durationMin)}` : '') + (j.endOf ? ' (end)' : '')
     if (j.action.startsWith('wlc_')) wlc.push(`WLC ${j.action === 'wlc_on' ? 'on' : 'off'} ${when}`)
     else app.push(`${j.action === 'open' ? 'open' : 'close'} ${when}`)
   }

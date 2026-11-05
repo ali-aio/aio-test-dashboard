@@ -310,7 +310,9 @@ http.createServer(async (req, res) => {
         if (!['open', 'close', 'wlc_on', 'wlc_off'].includes(body.action)) return json(req, res, 400, { error: 'action must be open, close, wlc_on or wlc_off' });
         if (!(Number.isFinite(at) && at > Date.now() - 60e3 && at - Date.now() < 48 * 3600e3)) return json(req, res, 400, { error: 'at must be within the next 48 h' });
         if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
-        return json(req, res, 200, appSchedule.add({ action: body.action, at, daily: body.daily === true, serials, by: String(body.by || '').slice(0, 60) }));
+        const durationMin = body.durationMin == null ? null : Math.round(+body.durationMin);
+        if (durationMin != null && !(durationMin >= 1 && durationMin <= 1440)) return json(req, res, 400, { error: 'durationMin must be 1 – 1440' });
+        return json(req, res, 200, appSchedule.add({ action: body.action, at, daily: body.daily === true, serials, by: String(body.by || '').slice(0, 60), durationMin }));
       }
       // WLC by battery level (server/wlcBattery.mjs): GET the rules, POST { pct, enabled, serials, by } / { remove: id }
       if (p === '/api/wlc-battery') {

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { appCommand, appScheduleJobs, appBulk } from '../lib/data.js'
 import { pollHostApp } from '../lib/fleet.js'
 import { useKeepOnScreen } from './Primitives.jsx'
+import ActionPlanner, { fmtLen } from './ActionPlanner.jsx'
 
 // Open / close Nugget (the device's role app) on one lab tablet, from Today's "Ads on screen" drop-down (the user,
 // 30 Oct 2026). ▶ opens it when it isn't on screen, ■ closes it when it is. Asks first; the server allows lab devices
@@ -18,8 +19,8 @@ export default function AppToggle({ serial, onScreen: live }) {
   const [flip, setFlip] = useState(null)   // { on, at }
   const onScreen = flip && Date.now() - flip.at < 120e3 && flip.on !== live ? flip.on : live
   const action = onScreen ? 'close' : 'open'
-  const run = async e => {
-    e.stopPropagation()
+  const run = async (e, act = action) => {
+    e?.stopPropagation()
     if (!confirm(`${action === 'open' ? 'Open' : 'Close'} Nugget on ${serial}?`)) return
     setState('busy')
     try {
@@ -72,16 +73,12 @@ export function AppToggleAll({ serials, onScreenCount }) {
     const wait = async () => { const k = await appBulk(); if (k.ok) setProg(k); if (k.running) setTimeout(wait, 2e3); else refreshSoon() }
     setTimeout(wait, 2e3)
   }
-  const label = busy ? `${prog.action === 'open' ? 'Opening' : 'Closing'} ${prog.done} / ${prog.total}…` : `${action === 'open' ? 'Open' : 'Close'} on all ▾`
+  const label = busy ? `${prog.action === 'open' ? 'Opening' : 'Closing'} ${prog.done} / ${prog.total}…` : 'Open / Close ▾'
   // the last run's result, for 10 min after it ended
   const result = prog && !busy && Date.now() - (prog.endedAt || 0) < 600e3 ? `${prog.action === 'open' ? 'Opened' : 'Closed'} ${prog.ok} of ${prog.total}${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null
   // when: now, at a time, or every day at a time (the user, 3 Nov 2026: "tomorrow the cycle starts again") — the timed
   // ones run on the lab laptop (server/appSchedule.mjs), on the devices listed now
   const [menu, setMenu] = useState(false)
-  const menuBox = useKeepOnScreen(menu)
-  const [sAct, setSAct] = useState(null)       // the scheduled action; defaults to the button's
-  const [time, setTime] = useState('')
-  const [daily, setDaily] = useState(false)
   const [jobs, setJobs] = useState([])
   useEffect(() => {
     let live = true
@@ -89,15 +86,11 @@ export function AppToggleAll({ serials, onScreenCount }) {
     load(); const t = setInterval(load, 30e3)
     return () => { live = false; clearInterval(t) }
   }, [])
-  const act = sAct || action
-  const nextAt = () => { if (!time) return null; const [h, m] = time.split(':').map(Number), d = new Date(); d.setHours(h, m, 0, 0)
-    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1); return d.getTime() }
-  const schedule = async () => {
-    const at = nextAt(); if (!at || !serials.length) return
-    const what = `${act === 'open' ? 'Open' : 'Close'} Nugget on all ${serials.length} devices ${daily ? `every day at ${clock(at, true)}` : `at ${clock(at)}`}`
-    if (!confirm(`${what}? It runs on the lab laptop${daily ? ', until you remove it' : ''}.`)) return
-    const j = await appScheduleJobs({ action: act, at, daily, serials, by: by() })
-    if (j.ok) { setJobs(appJobs(j)); setMenu(false); setTime('') } else alert(`Couldn't schedule: ${j.error || j.http}`)
+  // one form: open / close · now or at a time · for how long · once or every day (the user, 5 Nov 2026)
+  const plan = async ({ action: act, at, daily, durationMin, sentence }) => {
+    if (!confirm(`${sentence} It runs on the lab laptop${daily ? ', every day until you remove it' : ''}.`)) return
+    const j = await appScheduleJobs({ action: act, at, daily, durationMin, serials, by: by() })
+    if (j.ok) { setJobs(appJobs(j)); setMenu(false); refreshSoon() } else alert(`Couldn't set: ${j.error || j.http}`)
   }
   const drop = async (job) => {
     if (!confirm(`Remove "${jobText(job)}"?`)) return
@@ -113,20 +106,9 @@ export function AppToggleAll({ serials, onScreenCount }) {
         <button type="button" className="btn btn-sm" disabled={busy || !serials.length} aria-expanded={menu} onClick={() => setMenu(m => !m)}
           title={`${action === 'open' ? 'Open' : 'Close'} Nugget on every device in this list — now, at a time, or every day`}>
           {busy && <span className="spin" style={{ width: 11, height: 11 }} />} {label}</button>
-        {menu && (
-          <span ref={menuBox} className="wlc-menu" role="menu">
-            <button type="button" role="menuitem" onClick={e => { setMenu(false); run(e) }}>{action === 'open' ? 'Open' : 'Close'} now</button>
-            <span className="wlc-end">
-              <span className="wlc-end-state" role="group" aria-label="Action">
-                {['open', 'close'].map(a => <button key={a} type="button" className={act === a ? 'is-on' : ''} aria-pressed={act === a} onClick={() => setSAct(a)}>{a === 'open' ? 'Open' : 'Close'}</button>)}</span>
-              <label>at <input type="time" className="input" value={time} onChange={e => setTime(e.target.value)} aria-label="Time" /></label>
-              <span className="wlc-end-state" role="group" aria-label="How often">
-                <button type="button" className={!daily ? 'is-on' : ''} aria-pressed={!daily} onClick={() => setDaily(false)}>Once</button>
-                <button type="button" className={daily ? 'is-on' : ''} aria-pressed={daily} onClick={() => setDaily(true)}>Every day</button></span>
-              <button type="button" className="btn btn-sm" disabled={!time} onClick={schedule}>Schedule</button>
-            </span>
-          </span>
-        )}
+        {menu && <ActionPlanner count={serials.length} defaultAction={action}
+          actions={[{ id: 'open', label: 'Open', verb: 'Open Nugget', back: 'close it' }, { id: 'close', label: 'Close', verb: 'Close Nugget', back: 'open it' }]}
+          onNow={act => { setMenu(false); run(null, act) }} onPlan={plan} />}
       </span>
     </span>
   )
@@ -134,5 +116,5 @@ export function AppToggleAll({ serials, onScreenCount }) {
 
 const clock = (t, timeOnly = false) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   + (!timeOnly && new Date(t).toDateString() !== new Date().toDateString() ? ' tomorrow' : '')
-const jobText = j => `${j.action === 'open' ? 'Open' : 'Close'} ${j.daily ? `daily ${clock(j.at, true)}` : clock(j.at)}`
+const jobText = j => `${j.action === 'open' ? 'Open' : 'Close'} ${j.daily ? `daily ${clock(j.at, true)}` : clock(j.at)}${j.durationMin ? ` for ${fmtLen(j.durationMin)}` : ''}${j.endOf ? ' (end)' : ''}`
 const appJobs = j => (j.jobs || []).filter(x => x.action === 'open' || x.action === 'close')

@@ -589,6 +589,14 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   then = failed ("still running on the tablet"), never counted done. **Nugget can come back by itself after "closed"**: 4 Nov 2026
   00064 / 00089 / 00100 answered "closed" at 11:07 and checked in with Nugget in front ~30 s later — the tablet (or Nugget)
   relaunches it; that's for the MDM / app team, the card shows what the check-ins say.
+  **One form for both cards** (the user, 5 Nov 2026: "start at 10 for 3 hours and then off — the menus confuse users"):
+  `ActionPlanner.jsx` behind **Open / Close ▾** (Ads) and **WLC on / off ▾** (WLC): **Do** (Open | Close, WLC on | off) ·
+  **Start** (Now | At a time) · **For** (Until I change it | 15 min | 30 min | 1 h | 3 h | Custom h + min) · **Repeat** (Once |
+  Every day, with a start time) — read back as one sentence ("Turn WLC on on all 19 devices at 10:00 for 3 h, then WLC off at
+  13:00 — every day.") above the button. Now + until changed = the plain switch (bulk run); anything else is a schedule job with
+  `durationMin`: when it runs, `appSchedule.mjs` adds a one-off opposite job that long after (`endOf`; removing the job drops its
+  pending end). WLC's battery rule sits under the form ("Or: WLC off on each device when its battery reaches N %"). The old
+  For 15 min / Until I turn it off / at-time menus are gone; Toggle ▾ stays as it was.
   **Open / Close on all ▾ is a menu** (the user, 3 Nov 2026: "when — now or at a time", and "keep this continuously, as tomorrow
   the cycle starts again"): **Open / Close now**, or **Open | Close at HH:MM, Once | Every day** → Schedule. Timed ones run on the
   lab laptop (`server/appSchedule.mjs`, `GET/POST /api/app-schedule`, `data/app-schedule.json`, gitignored; a daily job moves on

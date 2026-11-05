@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { wlcCommand, wlcToggleJob, appScheduleJobs, wlcBatteryRules } from '../lib/data.js'
 import { poll } from '../lib/fleet.js'
 import { useKeepOnScreen } from './Primitives.jsx'
+import ActionPlanner, { fmtLen } from './ActionPlanner.jsx'
 
 // Wireless charging on a lab T7's pad on / off, from Today's "WLC · load placed" drop-down (the user, 2 Nov 2026).
 // The MDM answers at once ({serial, enabled, connected}); a tablet that isn't connected takes the setting when it
@@ -109,6 +110,11 @@ export function WlcToggleAll({ serials, enabledCount }) {
     return () => { live = false; clearInterval(t) }
   }, [])
   const keepWlc = j => (j.jobs || []).filter(x => x.action.startsWith('wlc_'))
+  const plan = async ({ action, at, daily, durationMin, sentence }) => {
+    if (!confirm(`${sentence} It runs on the lab laptop${daily ? ', every day until you remove it' : ''}.`)) return
+    const j = await appScheduleJobs({ action, at, daily, durationMin, serials, by: by() })
+    if (j.ok) { setJobs(keepWlc(j)); setHold(null); refreshSoon() } else alert(`Couldn't set: ${j.error || j.http}`)
+  }
   const schedule = async (to, time, daily) => {
     const [h, m] = time.split(':').map(Number), d = new Date(); d.setHours(h, m, 0, 0)
     if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1)
@@ -170,12 +176,15 @@ export function WlcToggleAll({ serials, enabledCount }) {
       {result && <span className={`hint${prog.failed.length ? ' app-all-bad' : ''}`} title={prog.failed.join('\n') || undefined}>{result}</span>}
       {chips}{ruleChips}
       {busy && <span className="hint"><span className="spin" style={{ width: 10, height: 10 }} /> {prog.done} / {prog.total}…</span>}
-      {[[true, offCount > 0, `${offCount} with WLC off`], [false, enabledCount > 0, `${enabledCount} with WLC on`]].map(([to, show, why]) => show && (
-        <span key={String(to)} className="wlc-menu-wrap">
-          <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={hold === (to ? 'on' : 'off')} title={`${why}: turn it ${to ? 'on' : 'off'} on every device in this list`}
-            onClick={() => { setMenu(false); setHold(h => h === (to ? 'on' : 'off') ? null : to ? 'on' : 'off') }}>WLC {to ? 'on' : 'off'} ▾</button>
-          {hold === (to ? 'on' : 'off') && <ForMenu to={to} onPick={min => startHold(to, min)} onAlways={e => { setHold(null); all(to, e) }} onSchedule={(t, d) => schedule(to, t, d)} onBattery={pct => addRule(to, pct)} />}
-        </span>))}
+      {/* one form: on / off · now or at a time · for how long · once or every day (the user, 5 Nov 2026) */}
+      <span className="wlc-menu-wrap">
+        <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={!!hold} onClick={() => { setMenu(false); setHold(h => (h ? null : 'plan')) }}>WLC on / off ▾</button>
+        {hold && <ActionPlanner count={serials.length} defaultAction={enabledCount * 2 > serials.length ? 'wlc_off' : 'wlc_on'}
+          actions={[{ id: 'wlc_on', label: 'WLC on', verb: 'Turn WLC on', back: 'WLC off' }, { id: 'wlc_off', label: 'WLC off', verb: 'Turn WLC off', back: 'WLC on' }]}
+          onNow={act => { setHold(null); all(act === 'wlc_on') }}
+          onPlan={plan}
+          extra={<BatteryRow onSet={pct => addRule(false, pct)} />} />}
+      </span>
       <span className="wlc-menu-wrap">
         <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={menu} onClick={() => { setHold(null); setMenu(m => !m) }}>Toggle ▾</button>
         {menu && (
@@ -201,41 +210,19 @@ export function WlcToggleAll({ serials, enabledCount }) {
   )
 }
 // "WLC on ▾" / "WLC off ▾": for how long, then back
-function ForMenu({ to, onPick, onAlways, onSchedule, onBattery }) {
-  const [custom, setCustom] = useState('')
+// each device on its own, when its battery reaches a level (the user, 3 Nov 2026: "at 15 % disable WLC")
+function BatteryRow({ onSet }) {
   const [pct, setPct] = useState('')
-  const box = useKeepOnScreen(true) // never past the window's edge (3 Nov 2026: it opened half off screen)
-  const [time, setTime] = useState('')
-  const [daily, setDaily] = useState(false)
   return (
-    <span ref={box} className="wlc-menu" role="menu">
-      {/* now, and it stays so (the user, 3 Nov 2026: "add a now option, like WLC off now") */}
-      <button type="button" role="menuitem" onClick={onAlways}><b>WLC {to ? 'on' : 'off'} now</b></button>
-      {[15, 30, 60].map(m => <button key={m} type="button" role="menuitem" onClick={() => onPick(m)}>For {fmtEvery(m)}</button>)}
-      <span className="wlc-custom">
-        <input className="input" inputMode="numeric" placeholder="min" value={custom} onChange={e => setCustom(e.target.value.replace(/\D/g, '').slice(0, 4))}
-          onKeyDown={e => { if (e.key === 'Enter' && +custom >= 1) onPick(Math.min(1440, +custom)) }} aria-label="Custom time in minutes" />
-        <button type="button" className="btn btn-sm" disabled={!(+custom >= 1)} onClick={() => onPick(Math.min(1440, +custom))}>Custom</button>
-      </span>
-      {/* at a time, once or every day (the user, 3 Nov 2026: "like ads") — run on the lab laptop */}
-      <span className="wlc-end" style={{ borderBottom: 0, borderTop: '1px solid var(--border)', marginTop: 4, marginBottom: 0, paddingTop: 8 }}>
-        <label>WLC {to ? 'on' : 'off'} at <input type="time" className="input" value={time} onChange={e => setTime(e.target.value)} aria-label="Time" /></label>
-        <span className="wlc-end-state" role="group" aria-label="How often">
-          <button type="button" className={!daily ? 'is-on' : ''} aria-pressed={!daily} onClick={() => setDaily(false)}>Once</button>
-          <button type="button" className={daily ? 'is-on' : ''} aria-pressed={daily} onClick={() => setDaily(true)}>Every day</button></span>
-        <button type="button" className="btn btn-sm" disabled={!time} onClick={() => onSchedule(time, daily)}>Schedule</button>
-      </span>
-      {/* each device on its own, when its battery reaches a level (the user, 3 Nov 2026: "at 15 % disable WLC") */}
-      <span className="wlc-custom" style={{ alignItems: 'center' }}>
-        <span style={{ fontSize: 12.5 }}>When battery reaches</span>
-        <input className="input" inputMode="numeric" placeholder="%" value={pct} onChange={e => setPct(e.target.value.replace(/\D/g, '').slice(0, 2))}
-          onKeyDown={e => { if (e.key === 'Enter' && +pct >= 1) onBattery(+pct) }} aria-label="Battery %" style={{ width: 48 }} />
-        <button type="button" className="btn btn-sm" disabled={!(+pct >= 1)} onClick={() => onBattery(+pct)}>Set</button>
-      </span>
+    <span className="plan-row plan-battery"><span className="plan-k">Or</span>
+      <span>WLC off on each device when its battery reaches</span>
+      <input className="input" inputMode="numeric" placeholder="%" value={pct} onChange={e => setPct(e.target.value.replace(/\D/g, '').slice(0, 2))}
+        onKeyDown={e => { if (e.key === 'Enter' && +pct >= 1) onSet(+pct) }} aria-label="Battery %" style={{ width: 52 }} />
+      <button type="button" className="btn btn-sm" disabled={!(+pct >= 1)} onClick={() => onSet(+pct)}>Set</button>
     </span>
   )
 }
 const fmtEvery = m => (m % 60 === 0 ? `${m / 60} h` : `${m} min`)
 const clock = t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + (new Date(t).toDateString() !== new Date().toDateString() ? ' tomorrow' : '')
-const wlcJobText = j => `WLC ${j.action === 'wlc_on' ? 'on' : 'off'} ${j.daily ? `daily ${clock(j.at).replace(' tomorrow', '')}` : clock(j.at)}`
+const wlcJobText = j => `WLC ${j.action === 'wlc_on' ? 'on' : 'off'} ${j.daily ? `daily ${clock(j.at).replace(' tomorrow', '')}` : clock(j.at)}${j.durationMin ? ` for ${fmtLen(j.durationMin)}` : ''}${j.endOf ? ' (end)' : ''}`
 const ruleText = r => `WLC ${r.enabled ? 'on' : 'off'} at ≤${r.pct}%`

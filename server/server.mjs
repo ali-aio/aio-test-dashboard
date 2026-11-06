@@ -38,6 +38,7 @@ import { createWlcToggler } from './wlcToggle.mjs';
 import { createAppSchedule } from './appSchedule.mjs';
 import { createWlcBattery } from './wlcBattery.mjs';
 import { createDeviceNotes } from './deviceNotes.mjs';
+import { createFwTests } from './fwTests.mjs';
 import { createIphones } from './iphones.mjs';
 import { createRoom } from './room.mjs';
 import { createRoomSerial } from './roomSerial.mjs';
@@ -69,6 +70,7 @@ const plan = createPlanStore(ROOT);
 // the iPhone readings typed in on Today (server/phone.mjs)
 const phone = createPhoneStore(ROOT);
 const deviceNotes = createDeviceNotes(ROOT);
+const fwTests = createFwTests(ROOT, { keep: keepDevice });
 // WLC toggling on a timer (server/wlcToggle.mjs): every switch through the MDM, logged like a button press
 const wlcToggler = createWlcToggler(ROOT, {
   keep: keepDevice,
@@ -266,6 +268,13 @@ http.createServer(async (req, res) => {
         else if (req.method !== 'GET') return json(req, res, 405, { error: 'GET or POST' });
         const r = room.report(q);
         return json(req, res, r.ok ? 200 : r.code, r);
+      }
+      if (p === '/api/fw-tests') {
+        if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, fwTests.list());
+        if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });
+        let body = {}; try { body = await readPhoneBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
+        const r = fwTests.post(body);
+        return json(req, res, r.error ? 400 : 200, r);
       }
       if (p === '/api/device-notes') {
         if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, deviceNotes.list(url.searchParams.get('serial')));

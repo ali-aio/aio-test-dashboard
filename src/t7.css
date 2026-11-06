@@ -2293,3 +2293,18 @@ tr.row-warn > td { background: color-mix(in srgb, var(--status-warning) 14%, tra
 .device-note-head { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; font-size: 12.5px; }
 .device-note-tools { margin-left: auto; display: inline-flex; gap: 12px; font-size: 12px; }
 .device-note-text { margin-top: 4px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Firmware tests (Today's section, Cycle plan's record) */
+.fw-about { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0 0 10px; font-size: 13px; }
+.fw-about dt { color: var(--text-secondary); }
+.fw-about dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fw-k { color: var(--text-secondary); font-size: 12.5px; }
+.fw-list { display: flex; flex-direction: column; gap: 14px; }
+.fw-item + .fw-item { border-top: 1px solid var(--border); padding-top: 14px; }
+.fw-head { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; margin-bottom: 6px; font-size: 13px; }
+.fw-devs-list { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; align-items: baseline; }
+.fw-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 16px; font-size: 12.5px; }
+.fw-form label { display: flex; flex-direction: column; gap: 3px; color: var(--text-secondary); }
+.fw-wide { grid-column: 1 / -1; }
+.fw-devs { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
+.fw-devs label { flex-direction: row; align-items: center; gap: 4px; color: var(--text-primary); }

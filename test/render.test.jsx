@@ -33,6 +33,7 @@ import { sortValue, compareValues, SortTable } from '../src/components/SortTable
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 import { extendLedger, cumAt, lifetimeAt, drainByAge, liveLedgers } from '../src/lib/drainAge.js'
 import { runsFrom, benchesFrom, classifyBench, applyAuto } from '../src/lib/autoPlan.js'
+import { onFwTest, withoutFwRuns } from '../src/lib/fwTests.js'
 import { slotBuckets, extendSlots, tagSlots, drainBands, conditionBands, padSplit } from '../src/lib/drainHours.js'
 import HealthView from '../src/components/BatteryHealth.jsx'
 import { healthRows, capacityIndex, earlyIndex, earlyDrain, fleetBaselines, loadClass, stressIndex, fleetP90, stressFactors, hoursAtFull, chargeSegments, medianToFull, slowCharges, gaugeJumps, shutdownsAbove, scoreOf, gradeOf, GRADE, SHUTDOWN, NO_FULL, JUMP } from '../src/lib/health.js'
@@ -801,6 +802,13 @@ const mdmCases = []
     const c2 = { start: t2, end: t2 + 14 * H, durationMs: 14 * H, startPct: 100, endPct: 18, reason: 'timed' }
     const l = adaptCycle({ serial: 'S1', cycles: [c2] }, c2, null, { ...ctx, hours: { S1: { h: late } } })
     want(l.testType === 'Restaurant Case' && l.start === t2 && l.duration === 14 && !l.short && !l.leftCycle, `late unplug: ${l.testType} · ${l.duration} h · ${l.leftCycle?.why || ''}`)
+  })
+  check('a device is on a firmware test only from its start to its end; Auto ignores runs started on one', () => {
+    const tests = [{ serials: ['A'], startedAt: 100, endedAt: 200 }, { serials: ['B'], startedAt: 100, endedAt: null }]
+    want(onFwTest(tests, 'A', 150) && !onFwTest(tests, 'A', 99) && !onFwTest(tests, 'A', 201), 'window')
+    want(onFwTest(tests, 'B', 9e9) && !onFwTest(tests, 'C', 150) && !onFwTest(undefined, 'A', 150), 'open end, other device, no tests')
+    const r = withoutFwRuns({ A: [{ start: 50 }, { start: 150 }, { start: 250 }], C: [{ start: 150 }] }, tests)
+    want(r.A.map(x => x.start).join() === '50,250' && r.C.length === 1, JSON.stringify(r))
   })
   check('an entry with endsRuns ends its runs at its end time, as finished runs (5 Nov 2026 Restaurant Case, over at 23:59)', () => {
     // 11 devices stayed off the charger past the end for the next test: not "ran past the 14 h cycle", not left, not short

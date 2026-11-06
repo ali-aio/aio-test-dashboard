@@ -35,3 +35,5 @@ data/wlc-battery.json
 data/wlc-battery.json.tmp
 data/device-notes.json
 data/device-notes.json.tmp
+data/fw-tests.json
+data/fw-tests.json.tmp

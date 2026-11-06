@@ -65,8 +65,6 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
         </div>
       </div>
 
-      <DeviceNotes serial={serial} />
-
       {!mine.length ? <><LiveChart serial={serial} d={d} /><EmptyNote>No finished cycles recorded for this device yet.</EmptyNote></> : <>
         <div className="stat-row">
           {/* the MDM's own count (discharge_total_pct ÷ 100), the figure the MDM shows for this device */}
@@ -140,6 +138,8 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
         {/* the iPhone this T7 charged on its pad, as typed in on Today (only where there are readings) */}
         <PhoneHistory cycles={mine} />
       </>}
+      {/* last on the page (the user, 6 Nov 2026) */}
+      <DeviceNotes serial={serial} />
     </div>
   )
 }

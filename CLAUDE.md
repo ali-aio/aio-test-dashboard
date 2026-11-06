@@ -631,12 +631,21 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 
 ### Device notes
 - **Notes on a device, kept for good** (the user, 6 Nov 2026: "after a week or month or year, if someone wants to see what happened
-  to those devices today, they see these notes"): the **Notes** card near the top of the device page (`DeviceNotes.jsx`, newest first, add / edit /
+  to those devices today, they see these notes"): the **Notes** card at the bottom of the device page (`DeviceNotes.jsx`, newest first, add / edit /
   two-click remove), `GET/POST /api/device-notes` (`server/deviceNotes.mjs`, `data/device-notes.json`, gitignored, lab laptop only; lab devices only; removing only hides a note).
 - **6 Nov 2026, boot loop test** (the notes as written are on each device; this is the copy in git). **New firmware, shutdown voltage raised to 3400 mV**, to test
   whether the voltage drop / cut-off is the main cause of the boot loop; each device is flashed, then drained several times: 00044, 00077, 00089, 00122,
   00142, 00226, 00387, 00429, 00485, 00606, 00790 (not put on charge after 5 Nov's cycle, reporting v2.2.001) and 00080, 00280, 00833 (reporting v2.2.003 before the flash).
   **Not flashed, Restaurant Case again:** 00064, 00100, 00172, 00188, 00231, 00232, 00318, 00442 (on charge from ~00:05, v2.2.001). 00281 has no battery (silent since 26 Oct): no note.
+
+### Firmware tests
+- **A device on a firmware test is not part of the bench** (the user, 6 Nov 2026): `data/fw-tests.json` on the lab laptop (`server/fwTests.mjs`, `GET/POST /api/fw-tests`,
+  gitignored; `src/lib/fwTests.js`, `onFwTest` from `startedAt` until `endedAt`). While on one it is left out of Today's cycle (charge or test, list and charts), Auto's benches and the
+  Charging Cycle; its drains have no plan entry, so they fall under Old cycles and stay on its device page.
+- **Today:** a section per test running now, named after the test, last on the page (`FwTestsToday`): firmware, part tested, why, each device's battery / state / firmware now. Shown from
+  when the test is set, not only once the day's cycle starts, so the page explains why those devices are missing.
+- **Cycle plan:** the **Firmware tests** card at the bottom (`FwTestsLog`): each test's dates, firmware, part tested, why, result and devices (links); add, edit, End test (the devices go back to the bench), two-click remove.
+- **6 Nov Restaurant Case:** a hand entry for the 8 devices not flashed, planned 10:00–23:59 (the start time is an assumption; the lab has been starting ~10:05), with a note.
 
 ### What counts in a test
 - **An entry with `endsRuns: true` ends its runs at its end time, as finished runs** (`endAt` in `planFor`; the user, 6 Nov 2026). Set by hand on 5 Nov's cycle
@@ -829,6 +838,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   point is every device's latest check-in (≤ 15 min old) at the newest one's time, in place of the running 10-min bucket
   (`buckets` in `window.js`). The bucket alone sat minutes behind and crept, and the lab read the lines as stuck (the user,
   27 Oct 2026: "lines are still stuck"); checked with a headless debug build — the data was arriving every 30 s.
+- **Off charger** with no run timed reads **on charge**, **still full** (≥ 98 %) or **—** (`noStartText`; 6 Nov 2026: devices at 13 % read "still full" while no cycle ran).
 - **On track with plan** shows **—** while no test is named (not "0 / 22", which read as every device off track — the user, 27 Oct 2026).
 - **Reaches 95 % / Reaches 20 %**: the time large, the date small beside it only when it isn't today ("05:18 AM Oct 31"; the user, 30 Oct 2026: the full date wrapped onto two lines),
   time and date never split over two lines (`nowrap`; 3 Nov 2026: "Nov" / "4" broke apart); the 0 % note reads "04:41 AM Nov 4" the same way.

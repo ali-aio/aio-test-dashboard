@@ -18,6 +18,7 @@ import { perHourRate, HOUR_SNAP } from './t7cycles.js';
 import { mdmCyclesFor } from './mdmTrack.js';
 import { curveKey, curveSeries, resampleRun } from './curves.js';
 import { runningCycle } from './window.js';
+import { getFw, onFwTest } from './fwTests.js';
 import { TEMP_WARN, TEMP_LIMIT, chargeSegments } from './profile.js';
 import { screenTime, adsGap } from './hostApp.js';
 import { padLoad } from './pad.js';
@@ -427,6 +428,8 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
     const live = runningCharge(rows, d.charges);
     for (const s of live ? [...(d.charges || []), live] : d.charges || []) {
       if (s.start < PLAN_FROM) continue;
+      // a device on a firmware test: its charges between drains are not the lab's Charging Cycle (the user, 6 Nov 2026)
+      if (onFwTest(getFw(), d.serial, s.start)) continue;
       const a = adaptCycle(d, { ...s, reason: 'charge', fullMs: null }, rows, ctx);
       if (a) out.push({ ...a, testType: 'Charging Cycle' });
     }

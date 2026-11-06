@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { runsFrom, benchesFrom, applyAuto, AUTO_FROM } from '../src/lib/autoPlan.js';
+import { withoutFwRuns } from '../src/lib/fwTests.js';
 
 const DAY = 86400e3, CHUNK = 7 * DAY, IV = 300;
 const readJson = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return null; } };
@@ -30,7 +31,7 @@ export async function buildAutoPlan({ root, group, devices, get, plan, now = Dat
   file.upto = now;
 
   const cur = plan.get(group);
-  const { decls, state, changes } = applyAuto(cur.decls, benchesFrom(file.runs), { now, state: file });
+  const { decls, state, changes } = applyAuto(cur.decls, benchesFrom(withoutFwRuns(file.runs, readJson(path.join(root, 'data', 'fw-tests.json'))?.tests?.filter(t => !t.removed))), { now, state: file });
   file.made = state.made; file.applied = state.applied;
   if (changes.length) {
     const r = plan.put(group, { decls, rota: cur.rota, baseRev: cur.rev });

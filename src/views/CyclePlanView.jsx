@@ -9,6 +9,7 @@ import { GROUP } from '../lib/fleet.js'
 import { splitText, benchCycles } from '../lib/splitCycles.js'
 import { FIELD_TEST_TYPES } from '../lib/testtypes.js'
 import PlanSource from '../components/PlanSource.jsx'
+import { FwTestsLog } from '../components/FwTests.jsx'
 import { mdmCyclesFor } from '../lib/mdmTrack.js'
 import { TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur, rt } from '../lib/cycles.js'
@@ -226,6 +227,7 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
         </div>
       </div>
       <AllCycles cycles={cycles} decls={decls} onOpen={onOpenCycle} />
+      <FwTestsLog DEV={DEV} />
     </div>
   )
 }

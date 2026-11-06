@@ -22,6 +22,8 @@ import { Segmented, Stat } from '../components/Primitives.jsx'
 import { buildStyleMap, keyBackground } from '../lib/palette.js'
 import { padLoad } from '../lib/pad.js'
 import { subscribeRoom, getRoom, startRoomSync, roomSummary } from '../lib/room.js'
+import { subscribeFw, getFw, onFwTest } from '../lib/fwTests.js'
+import { FwTestsToday } from '../components/FwTests.jsx'
 
 // A battery end label that would sit on the 0% / 100% axis mark only repeats the axis.
 const pctLabel = v => { const r = Math.round(v); return r >= 100 || r <= 0 ? null : `${r}%` }
@@ -44,10 +46,13 @@ function ChargeIcon({ state }) {
 }
 
 export default function TodayView({ fleet }) {
-  const { DEV, allCycles, opts } = fleet
+  const { DEV: allDev, allCycles, opts } = fleet
+  // a device on a firmware test is not part of the bench (the user, 6 Nov 2026): not in today's charge or cycle; it has its own section at the bottom
+  const fwTests = useSyncExternalStore(subscribeFw, getFw, getFw)
+  const DEV = useMemo(() => allDev.filter(d => !onFwTest(fwTests, d.serial, Date.now())), [allDev, fwTests])
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
   const auto = useAutomations() // what the lab laptop runs on its own: shown on the WLC and Ads tiles
-  useEffect(() => { loadWindow(DEV) }, [DEV])
+  useEffect(() => { loadWindow(allDev) }, [allDev])
 
   const now = Date.now()
   const [planRev, setPlanRev] = useState(0) // bumped after a take-out / put-back, to re-read the plan
@@ -613,7 +618,7 @@ export default function TodayView({ fleet }) {
                     return <><td className="r mono" title={ch ? `from ${ch.pct}% at ${hm(ch.t)}` : undefined}>{ch ? hm(ch.t) : <span className="secondary">not on charge</span>}</td>
                       <td className="r mono">{g != null ? `+${Math.max(0, g).toFixed(2)} %/h` : <span className="secondary">—</span>}</td></> })() : <>
                   <td className="r mono" title={r?.start?.firstOff ? `last check-in on charge ${new Date(r.start.after).toLocaleTimeString()} · first off charge ${new Date(r.start.firstOff).toLocaleTimeString()} — the MDM has no reading in between` : undefined}>
-                    {stillSet.has(c.serial) ? <b style={{ color: 'var(--status-warning)' }}>still on charger</b> : r?.start ? hm(r.start.t) : <span className="secondary">still full</span>}
+                    {stillSet.has(c.serial) ? <b style={{ color: 'var(--status-warning)' }}>still on charger</b> : r?.start ? hm(r.start.t) : <span className="secondary">{noStartText(rowsFor(c.serial))}</span>}
                     {r?.start?.firstOff && r.start.firstOff - r.start.t > 5 * MIN ? <span className="secondary" style={{ fontSize: 11 }}> – {hm(r.start.firstOff)}</span> : null}</td>
                   <td className="r mono" style={{ color: c.state === 'drifting' ? 'var(--warn)' : 'inherit' }}>{r?.rate != null ? r.rate.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td>
                   {padCols && <><td className="r mono" title="since it left the charger, over the time with a load on the pad (under 20 min = —)">{r?.split?.active != null ? r.split.active.toFixed(2) + ' %/h' : <span className="secondary">—</span>}</td>
@@ -668,9 +673,15 @@ export default function TodayView({ fleet }) {
         {/* an iPhone on the pad in place of the load: its battery, typed in each hour (the lab, 27 Oct 2026); last on the page (the user, 31 Oct 2026) */}
         {!T.charging && (T.running || T.decl) && <PhoneOnPad day={T.key} start={Math.round(chartFrom / 60e3) * 60e3} end={T.endMs} serials={T.serials} now={now} ownStart={sn => runs.get(sn)?.start?.t ?? null} maxHours={T.tt?.loadHours ?? null} />}
       </>}
+      <FwTestsToday fleet={fleet} />
     </div>
   )
 }
+
+// Off charger with no run timed (no cycle running): "still full" only when it is (the user, 6 Nov 2026: devices at 13 % read "still full")
+const noStartText = rows => { const last = rows?.[rows.length - 1]
+  if (!last || Date.now() - Date.parse(last.timestamp) > 15 * MIN) return '—'
+  return last.extra?.charging ? 'on charge' : last.battery_pct >= 98 ? 'still full' : '—' }
 
 // plan.js stores per cycles-group; these keep the group name in one place.
 const DECLS = () => loadDecls(GROUP)

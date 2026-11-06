@@ -802,6 +802,28 @@ const mdmCases = []
     const l = adaptCycle({ serial: 'S1', cycles: [c2] }, c2, null, { ...ctx, hours: { S1: { h: late } } })
     want(l.testType === 'Restaurant Case' && l.start === t2 && l.duration === 14 && !l.short && !l.leftCycle, `late unplug: ${l.testType} · ${l.duration} h · ${l.leftCycle?.why || ''}`)
   })
+  check('an entry with endsRuns ends its runs at its end time, as finished runs (5 Nov 2026 Restaurant Case, over at 23:59)', () => {
+    // 11 devices stayed off the charger past the end for the next test: not "ran past the 14 h cycle", not left, not short
+    const H = 3600e3, Q = 15 * 60e3, t0 = new Date(2026, 10, 5, 10, 5).getTime(), end = new Date(2026, 10, 5, 23, 59).getTime()
+    const slots = []
+    for (let t = t0; t < t0 + 21 * H; t += Q) slots.push([t, t < t0 + 3 * H ? 27 : 10, 15, t < t0 + 3 * H ? 15 : 0, 300])
+    const decl = { id: 'X', testType: 'restaurant', from: '2026-11-05', to: '2026-11-05', startTime: '10:00', endTime: '23:59', spanDays: 0,
+      repeat: 'none', group: { kind: 'serials', serials: ['S1'] } }
+    const ctx = { decls: [{ ...decl, endsRuns: true }], rota: {}, DEV: [{ serial: 'S1' }], hours: { S1: { h: slots } } }
+    const c = { start: t0, end: t0 + 21 * H, durationMs: 21 * H, startPct: 100, endPct: 14, reason: 'timed' }
+    const a = adaptCycle({ serial: 'S1', cycles: [c] }, c, null, ctx)
+    want(a.testType === 'Restaurant Case' && a.duration === 14 && !a.short && !a.leftCycle && !a.incomplete && a.end === end,
+      `${a.testType} · ${a.duration} h · short ${a.short} · left ${a.leftCycle?.why} · incomplete ${a.incomplete}`)
+    // still discharging now: finished all the same
+    const r = adaptCycle({ serial: 'S1', cycles: [] }, { ...c, inProgress: true }, null, ctx)
+    want(!r.inProgress && r.end === end, `running run: inProgress ${r.inProgress}`)
+    // a run recharged before the end is untouched, and without the flag the old rule stands
+    const c8 = { ...c, end: t0 + 13.9 * H, durationMs: 13.9 * H, endPct: 22 }
+    const b = adaptCycle({ serial: 'S1', cycles: [c8] }, c8, null, ctx)
+    want(b.end === c8.end && b.duration === 14 && !b.leftCycle, `recharged in time: ${b.duration} h`)
+    const o = adaptCycle({ serial: 'S1', cycles: [c] }, c, null, { ...ctx, decls: [decl] })
+    want(o.leftCycle && /ran past/.test(o.leftCycle.why), `no flag: ${o.leftCycle?.why}`)
+  })
   check('the lab\'s devices come from its own list, whatever MDM group they are in', () => {
     // 30 Oct 2026: the MDM's groups changed twice in a day and the dashboard went to a 404 each time
     const rows = [{ serial_number: 'AT070AABU00790', groups: [] }, { serial_number: 'AT070AABU00606', groups: ['San Jose Office'] },

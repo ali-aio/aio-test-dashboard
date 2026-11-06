@@ -80,9 +80,15 @@ export const testTypeFor = (cycle, ctx, pctAt) => planFor(cycle, ctx, pctAt).nam
  *  doing what the test does), when it left and why: { name, cutAt?, why? }. Its data up to then
  *  counts for the test; a run that never ran the test is Old cycles. `pctAt(ms)` gives its battery
  *  at a moment (default: a straight line from start to end), for the drain check. */
-export function planFor(cycle, ctx, pctAt) {
-  const field = cycle.charging ? FIELD_CHARGING : FIELD_DISCHARGE;
-  const { name, removedAt, skipLoad, declared } = plannedTest(cycle, ctx);
+export function planFor(cycle0, ctx, pctAt) {
+  const field = cycle0.charging ? FIELD_CHARGING : FIELD_DISCHARGE;
+  const { name, removedAt, skipLoad, declared, planEnd } = plannedTest(cycle0, ctx);
+  // An entry with `endsRuns`: the lab called the cycle over at its end time (the user, 6 Nov 2026: 5 Nov's Restaurant Case "ended
+  // at 11.59 pm", some devices stayed off the charger for the next test). The run stops being the test there, as a finished
+  // run: `endAt`, not "left the cycle" and not "ran past the 14 h cycle".
+  const endAt = planEnd != null && !cycle0.charging && cycle0.start < planEnd && (cycle0.end ?? cycle0.start) > planEnd ? planEnd : null;
+  const cycle = endAt == null ? cycle0 : { ...cycle0, end: endAt, durationMs: endAt - cycle0.start,
+    padHours: cycle0.padHours?.slice(0, Math.ceil((endAt - cycle0.start) / H)) };
   if (name === FIELD_DISCHARGE || name === FIELD_CHARGING || cycle.start < PLAN_FROM) return { name: field };
   // A device in a declared cycle that leaves it — taken out by hand or off track, however early — stays
   // that cycle's, cut where it left (the user, 2 Nov 2026: "if device removed from cycle, either out of
@@ -104,7 +110,7 @@ export function planFor(cycle, ctx, pctAt) {
     const p0 = cycle.startPct, p1 = at(until);
     if (p0 != null && p1 != null && (p0 - p1) / keptH < MIN_DRAIN) return leave(cycle.start, `idling: drained under ${MIN_DRAIN} %/h`);
   }
-  return cutAt == null ? { name } : { name, cutAt, why };
+  return cutAt == null ? (endAt == null ? { name } : { name, endAt }) : { name, cutAt, why };
 }
 function plannedTest(cycle, { decls, rota, DEV }) {
   // The declared cycle whose window this run started in — today's, or yesterday's still
@@ -128,7 +134,7 @@ function plannedTest(cycle, { decls, rota, DEV }) {
     // devices whose load the lab ran differently that cycle (30 Oct 2026: load with 30-min gaps, WLC switched from the MDM)
     // are still in it — the user: "add the 30-minute gap devices in today's cycle"; their load hours are not checked
     const skipLoad = (hit.decl.noLoadCheck || []).includes(cycle.serial);
-    return { name: ttById(hit.decl.testType)?.name || FIELD_DISCHARGE, removedAt, skipLoad, declared: true };
+    return { name: ttById(hit.decl.testType)?.name || FIELD_DISCHARGE, removedAt, skipLoad, declared: true, planEnd: hit.decl.endsRuns ? hit.endMs : null };
   }
   const key = dayKey(cycle.start);
   const r = resolveDay(key, { decls: [], rota, ran: 1, devices: 0 });
@@ -290,17 +296,18 @@ export function adaptCycle(d, c0, rows, ctx) {
   const ownLoad = !charging && !!plannedTest({ ...c, serial: d.serial, charging }, ctx).skipLoad;
   // left the cycle part-way (taken out, or stopped doing what the test does): the run up to then
   let fullRun = null;
-  if (plan.cutAt != null) {
+  const cutTo = plan.cutAt ?? plan.endAt ?? null;
+  if (cutTo != null) {
     // the whole run as it happened, for "what did it do after it left" (the user, 2 Nov 2026)
-    fullRun = { series, end: c.end, endPct: c.endPct, hours: round(duration, 3), inProgress: !!c.inProgress };
-    const cutH = (plan.cutAt - c.start) / H, endPct = Math.round(pctAt(plan.cutAt));
+    if (plan.cutAt != null) fullRun = { series, end: c.end, endPct: c.endPct, hours: round(duration, 3), inProgress: !!c.inProgress };
+    const cutH = (cutTo - c.start) / H, endPct = Math.round(pctAt(cutTo));
     series = [...series.filter(p => p.t < cutH), { t: round(cutH, 3), v: endPct }];
     tempSeries = tempSeries.filter(p => p.t <= cutH);
     padHours = padHours.slice(0, Math.ceil(cutH));
     duration = cutH;
     const drop = c.startPct - endPct;
-    c = { ...c, end: plan.cutAt, durationMs: plan.cutAt - c.start, endPct, inProgress: false,
-      fullMs: drop > 0 ? (plan.cutAt - c.start) / drop * 100 : null, maxTemp: undefined, avgTemp: undefined, thermal: undefined };
+    c = { ...c, end: cutTo, durationMs: cutTo - c.start, endPct, inProgress: false,
+      fullMs: drop > 0 ? (cutTo - c.start) / drop * 100 : null, maxTemp: undefined, avgTemp: undefined, thermal: undefined };
   }
   // complete (within FULL_CYCLE_MARGIN_H of the test's time) or short, for a fixed-time test
   const tt = TEST_TYPES.find(t => t.name === plan.name);
@@ -408,7 +415,7 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
     // interrupted run (back on charge soon after, or lost) the lab took out is kept too, cut where it was taken out.
     const isShort = new Set(cutShort.map(c => c.start));
     const takenOut = (d.interrupted || []).filter(c => !isShort.has(c.start) && c.start >= PLAN_FROM && c.startPct >= 95 && c.end > c.start
-      && /taken out/.test(planFor({ ...c, serial: d.serial }, ctx).why || ''))
+      && (p => /taken out/.test(p.why || '') || p.endAt != null)(planFor({ ...c, serial: d.serial }, ctx)))
       .map(c => ({ ...c, durationMs: c.durationMs ?? c.end - c.start, fullMs: c.startPct > c.endPct ? (c.end - c.start) / (c.startPct - c.endPct) * 100 : null }))
     for (const c of [...d.cycles, ...cutShort, ...takenOut, ...(run ? [run] : [])].sort((a, b) => a.start - b.start)) {
       const a = adaptCycle(d, c, rows, ctx);

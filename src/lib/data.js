@@ -127,6 +127,14 @@ export async function appScheduleJobs(body) {
 
 /** WLC by battery level, run by our server (server/wlcBattery.mjs): no body → { rules }; { pct, enabled, serials, by }
  *  adds one; { remove: id } drops one. */
+// notes kept on a device for good (server/deviceNotes.mjs): no body = read this device's; else add / edit / remove
+export async function deviceNotes(serial, body) {
+  const r = await fetch(body ? '/api/device-notes' : `/api/device-notes?serial=${encodeURIComponent(serial)}`,
+    body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ serial, ...body }) } : { cache: 'no-store' });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  return { ok: r.ok, http: r.status, ...(j || {}) };
+}
+
 export async function wlcBatteryRules(body) {
   const r = await fetch('/api/wlc-battery', body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : { cache: 'no-store' });
   let j = null; try { j = await r.json(); } catch (e) {}

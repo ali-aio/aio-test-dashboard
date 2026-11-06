@@ -629,7 +629,19 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   same way. A row reads "WLC off" when `wlc_status` is -1 (WLC off shows there at once; the pad flag lags minutes).
   Screen off is not wired in. Nothing else sends commands.
 
+### Device notes
+- **Notes on a device, kept for good** (the user, 6 Nov 2026: "after a week or month or year, if someone wants to see what happened
+  to those devices today, they see these notes"): the **Notes** card near the top of the device page (`DeviceNotes.jsx`, newest first, add / edit /
+  two-click remove), `GET/POST /api/device-notes` (`server/deviceNotes.mjs`, `data/device-notes.json`, gitignored, lab laptop only; lab devices only; removing only hides a note).
+- **6 Nov 2026, boot loop test** (the notes as written are on each device; this is the copy in git). **New firmware, shutdown voltage raised to 3400 mV**, to test
+  whether the voltage drop / cut-off is the main cause of the boot loop; each device is flashed, then drained several times: 00044, 00077, 00089, 00122,
+  00142, 00226, 00387, 00429, 00485, 00606, 00790 (not put on charge after 5 Nov's cycle, reporting v2.2.001) and 00080, 00280, 00833 (reporting v2.2.003 before the flash).
+  **Not flashed, Restaurant Case again:** 00064, 00100, 00172, 00188, 00231, 00232, 00318, 00442 (on charge from ~00:05, v2.2.001). 00281 has no battery (silent since 26 Oct): no note.
+
 ### What counts in a test
+- **An entry with `endsRuns: true` ends its runs at its end time, as finished runs** (`endAt` in `planFor`; the user, 6 Nov 2026). Set by hand on 5 Nov's cycle
+  (`A-mw330dpc`: Auto called it WLC + Discharge; the user: Restaurant Case, over at 23:59, by Tariq, `auto` dropped), as 11 devices stayed off the charger for the boot loop test:
+  they count as complete 14 h runs, not "ran past the 14 h cycle" (which is still the rule without the flag).
 - **Nothing before 25 Sep 2026** counts in any test (`PLAN_FROM`); earlier runs are Old cycles.
 - **Counts are cycles (bench runs), not device runs**: 15 Restaurant Case cycles of ~16 devices read
   "15 cycles · 24 devices", never "235" / "255" (`cyclesText`; GroupedColumns takes a group's `nText` for its tooltip).

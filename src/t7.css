@@ -2286,3 +2286,10 @@ tr.row-warn > td { background: color-mix(in srgb, var(--status-warning) 14%, tra
 .wlc-menu > button.plan-go:hover { background: color-mix(in srgb, var(--series-1) 85%, #000); }
 .wlc-menu > button.plan-go:disabled { opacity: .45; cursor: default; }
 .plan-battery { flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 9px; margin-top: 2px; }
+
+/* Notes on a device (device page) */
+.device-notes { display: flex; flex-direction: column; gap: 12px; }
+.device-note + .device-note { border-top: 1px solid var(--border); padding-top: 12px; }
+.device-note-head { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; font-size: 12.5px; }
+.device-note-tools { margin-left: auto; display: inline-flex; gap: 12px; font-size: 12px; }
+.device-note-text { margin-top: 4px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }

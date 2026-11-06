@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import PartStatus from '../components/PartStatus.jsx'
 import PhoneHistory from '../components/PhoneHistory.jsx'
+import DeviceNotes from '../components/DeviceNotes.jsx'
 import { subscribeWindow, getWindow, rowsFor, currentCycleStart } from '../lib/window.js'
 import { fetchHistoryRange } from '../lib/data.js'
 import { normalize } from '../lib/cycles.js'
@@ -63,6 +64,8 @@ export default function DeviceView({ serial, d, cycles, onOpenTest }) {
           </div>
         </div>
       </div>
+
+      <DeviceNotes serial={serial} />
 
       {!mine.length ? <><LiveChart serial={serial} d={d} /><EmptyNote>No finished cycles recorded for this device yet.</EmptyNote></> : <>
         <div className="stat-row">

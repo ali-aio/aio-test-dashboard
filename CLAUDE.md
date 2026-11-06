@@ -804,6 +804,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   cycle and nobody noticed): once a discharge cycle has run 10 min (named or not), every reporting device with `charging` true
   gets an amber banner above the tiles ("3 devices are still on the charger — the cycle started at 10:59: …", serials clickable)
   and an amber row in Devices today with "still on charger" in Off charger (`stillCharging` in `TodayView.jsx`).
+- **Most devices on charge shows the Charging Cycle until the next planned cycle's start time** (6 Nov 2026), not from 2 h before it, when it read "Planned · 0 devices reporting".
 - **Back on charge = the cycle is over**, whatever end time the plan gives it (the user, 30 Oct 2026: "once the device is
   put on charge the cycle ends there" — a Restaurant Case planned to 02:29 still showed at 21:21, its devices on charge since
   ~20:30). A planned cycle running now gives way to the **Charging Cycle** once most reporting devices are on charge and

@@ -136,7 +136,8 @@ export default function TodayView({ fleet }) {
     // to the Charging Cycle once most devices went on charge at least an hour after it started.
     const runningNow = cycleAt(decls0, now)
     const chargeStarts = [...charges.by.values()].map(c => c.t)
-    const backOnCharge = chargingMost && (!runningNow || median(chargeStarts) > runningNow.startMs + H)
+    // (cycleAt also returns a cycle starting within 2 h: not started yet, so the devices on charge are still the Charging Cycle — 6 Nov 2026)
+    const backOnCharge = chargingMost && (!runningNow || now < runningNow.startMs || median(chargeStarts) > runningNow.startMs + H)
     if (backOnCharge) {
       const starts = chargeStarts
       return { key: todayKey(), charging: true, status: 'inferred', testType: 'charging', tt: testType('charging'), src: null, decl: null,

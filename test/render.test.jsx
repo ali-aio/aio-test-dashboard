@@ -3,7 +3,7 @@ import { renderToString } from 'react-dom/server'
 import fs from 'node:fs'
 import { reclassify, DEFAULTS, dedupeOverlapping } from '../src/lib/cycles.js'
 import { adaptAll } from '../src/lib/adapt.js'
-import { filterCycles, filtersFor, distinct, kpis } from '../src/lib/t7cycles.js'
+import { filterCycles, filtersFor, distinct, kpis, hourlyProfile } from '../src/lib/t7cycles.js'
 import T7Overview from '../src/views/T7Overview.jsx'
 import TestDetail from '../src/views/TestDetailView.jsx'
 import Comparison from '../src/views/ComparisonView.jsx'
@@ -247,6 +247,13 @@ const mdmCases = []
     const byHour = (padHours) => testTypeFor({ serial: 'A', start: at(16, 14), end: at(16, 14) + 14 * 3600e3, durationMs: 14 * 3600e3, startPct: 100, endPct: 18, padH: 3, padHours }, { decls: rcd, rota: {}, DEV: [] })
     const ok = [true, true, true, false, false, false, false, false, false, false, false, false, false, false]
     want(byHour(ok) === 'Restaurant Case' && byHour(ok.map((v, i) => (i === 3 ? true : v))) === 'Restaurant Case', 'load hours 1-3, off by hour 4 or 5')
+    // Market Scenario: WLC switched on and off at set times is the test, so no pattern or length makes a device leave it
+    const msd = [{ id: 'm', at: 1, testType: 'market', from: '2026-10-10', to: '2026-10-10', startTime: '10:00', endTime: '23:59', group: { kind: 'all' } }]
+    const msPad = [false, true, false, false, true, true, false, true, false, false, true, false, true, false, false, true, false, true, false, false]
+    const ms = planFor({ serial: 'A', start: at(10, 10), end: at(10, 10) + 20 * 3600e3, durationMs: 20 * 3600e3, startPct: 100, endPct: 8, padH: 8, padHours: msPad }, { decls: msd, rota: {}, DEV: [] })
+    want(ms.name === 'Market Scenario' && ms.cutAt == null, `market scenario stays whole: ${JSON.stringify(ms)}`)
+    const bars = hourlyProfile([{ testType: 'Market Scenario', serial: 'A', series: [{ t: 0, v: 100 }, { t: 1, v: 88 }, { t: 2, v: 84 }], loadSeries: [], hourly: [{ h: 0, drop: 12, wireless: true }, { h: 1, drop: 4, wireless: false }] }])
+    want(bars[0].wirelessDrop === 12 && bars[1].withoutWirelessDrop === 4, `market scenario WLC bars: ${JSON.stringify(bars)}`)
     const noLoad = plan(16, 14, 14, 100, 18, { padHours: ok.map((v, i) => (i === 0 ? false : v)) })
     want(noLoad.name === 'Restaurant Case' && noLoad.cutAt === at(16, 14) && /hour 1/.test(noLoad.why), `no load in hour 1: left at its start: ${JSON.stringify(noLoad)}`)
     // a load still on in hour 6: the device left the cycle then; hours 1-5 still count
@@ -504,6 +511,7 @@ const mdmCases = []
     want(!applyAuto([], [done], { now, from: 0, state: r.state }).decls.length, 'deleted Auto entry is not re-added')
     // a person's entry for a test the readings can't tell (WLC on Phone) is never replaced
     want(!applyAuto([{ ...mine, testType: 'wlc_phone' }], [done], { now, from: 0 }).changes.length, 'wlc on phone kept')
+    want(!applyAuto([{ ...mine, testType: 'market' }], [done], { now, from: 0 }).changes.length, 'market scenario kept')
   })
   check('iPhone on the pad: typed readings merge per cell, gains per hour', () => {
     const d = '2026-10-27'

@@ -217,6 +217,7 @@ Firmware client at no venue); anything else answers 404. Every control call is i
   | Restaurant Case (RC) | A load on the pad for 3 h; the cycle runs 14 h. |
   | Discharge on Load only (LO) | Only a load on the pad, no ads, until the T7 powers off (0 %). |
   | Idle Cycle (IC) | On, off the charger, nothing running (no load, no test) until it powers off (~1 %/h). **Set by hand** for the devices it applies to (first: 00606, 00485 from 16 Oct 2026); never guessed by Auto, exempt from the 2 %/h floor, and not the bench's test on Today / alerts / Auto (`benchDecls`). |
+  | Market Scenario (MS) | WLC switched on and off at set times, the same for every device in the cycle, to see how a device behaves in the market. **Set by hand** (the pattern in the cycle note); never guessed or replaced by Auto, no set cycle or load time, so the pattern never counts as leaving the cycle. |
 - **Auto Cycle plan** (`src/lib/autoPlan.js`, tested; `server/autoplan.mjs`, run at the end of every sweep): the lab no
   longer has to enter each day. The server reads each bench's test from the readings and writes it into the shared plan
   (`data/plan.json`) with `auto: { at, final, basis, was? }` and `by: 'Auto'`; the Cycle plan and Today show an **Auto**
@@ -711,6 +712,9 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - A plan entry for some devices covers only those devices.
 - OS is **Android 15** for every cycle since 25 Sep (the MDM reports none); the OS tile counts devices, "Since 25 Sep".
 - No ageing seen up to ~100 cycles (load drain flat at ~11.5 %/h; the 12 / 11 / 12 / 11 pattern between age bands is noise).
+
+### Market Scenario
+- **The lab's what-if runs are their own test** (the user, 9 Nov 2026), `market` in `TEST_TYPES`, kept out of Restaurant Case's averages: the user gives the WLC on / off times (from a sheet or in chat), the same for every device in the cycle, run once, no battery trigger for now (several days and battery rules may come later). Each step is a one-off `wlc_on` / `wlc_off` job in `server/appSchedule.mjs`, and the cycle needs a hand entry in the plan **before it starts**, or Auto names the bench first. Its Drain by hour has WLC active / inactive bars (`WLC_BAR_TESTS`), an hour counting as active when a load was on for at least half of it.
 
 ### Auto plan
 - 16 Oct was a **Restaurant Case**, not WLC on Load: no whole-run call before 5 h of running; with a load on the pad the T7

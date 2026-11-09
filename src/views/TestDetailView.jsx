@@ -10,7 +10,7 @@ import { CTX } from '../lib/adapt.js'
 import { cycleTableCsv, cycleHoursCsv, downloadCsv } from '../lib/csv.js'
 import { Card, Stat, EmptyNote, Segmented } from '../components/Primitives.jsx'
 import { LineChart, GroupedColumns, BarRows } from '../components/t7charts.jsx'
-import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING } from '../lib/testtypes.js'
+import { LOAD_TEST_TYPES, FIELD_TEST_TYPES, FIELD_CHARGING, WLC_BAR_TESTS } from '../lib/testtypes.js'
 import { FULL_CYCLE_MARGIN_H } from '../lib/adapt.js'
 import { SPAN_LABEL, ADS_GAP_MIN, ADS_MIN_PCT } from '../lib/hostApp.js'
 const clock = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -115,7 +115,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const fixedH = TEST_TYPES.find((t) => t.name === testType)?.hours || null
   const shortLimit = fixedH ? `${Math.floor(fixedH - FULL_CYCLE_MARGIN_H)}h ${Math.round(((fixedH - FULL_CYCLE_MARGIN_H) % 1) * 60)}m` : null // "13h 30m"
   const isCharging = testType === 'Charging Cycle' || testType === FIELD_CHARGING
-  const isRestaurant = testType === 'Restaurant Case'
+  const isRestaurant = WLC_BAR_TESTS.has(testType) // Restaurant Case and Market Scenario: drain split by WLC active / inactive
   // The "Cycle time by build / pad state" strip (only Idle Cycle, Old cycles and Field Charging
   // still had it) is gone (the lab, Oct 2026): the battery chart and Drain by hour share one row
   const showSecondaryChart = false
@@ -313,7 +313,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const tableRows = [...inBench].filter((c) => { const q = tableQ.trim().toLowerCase(); return !q
     || [c.serial, c.firmware, c.date ? fmtDate(c.date) : ''].some((v) => String(v ?? '').toLowerCase().includes(q)) })
     .sort((a, b) => b.start - a.start)
-  const showPad = !isCharging && (isLoadTest || isField || ['WLC on Load', 'Discharge on Load only'].includes(testType))
+  const showPad = !isCharging && (isLoadTest || isField || ['WLC on Load', 'Discharge on Load only', 'Market Scenario'].includes(testType))
   const padOf = (c) => (showPad ? padSplit(hours?.[c.serial]?.h, c.start, c.end) : null)
   // Export: the table as shown (Overview), or every device's cycles hour by hour (Per hour)
   const [exportOpen, setExportOpen] = useState(false)

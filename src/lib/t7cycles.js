@@ -10,7 +10,7 @@
    ~100k arguments, and a month of fleet telemetry is 660k rows. Always reduce. */
 
 import { compareSerial } from './fmt.js';
-import { TEST_TYPE_NAMES, FIELD_DISCHARGE, FIELD_CHARGING, LOAD_TEST_TYPES } from './testtypes.js';
+import { TEST_TYPE_NAMES, FIELD_DISCHARGE, FIELD_CHARGING, LOAD_TEST_TYPES, WLC_BAR_TESTS } from './testtypes.js';
 
 const HOUR_SNAP = 0.05;   // how close to an integer hour a row must sit to count
 const isNum = (v) => v != null && Number.isFinite(v);
@@ -625,7 +625,7 @@ export function hourlyProfile(cycles) {
       if (!gain.has(h)) gain.set(h, [])
       gain.get(h).push(lh.get(h + 1) - v)
     }
-    if (c.testType === 'Restaurant Case' && !c.ownLoad) { // not a device whose load the lab ran its own way (noLoadCheck)
+    if (WLC_BAR_TESTS.has(c.testType) && !c.ownLoad) { // not a device whose load the lab ran its own way (noLoadCheck)
       for (const entry of c.hourly) {
         if (entry.wireless == null) continue // pad not known in that hour: in neither bar
         const target = entry.wireless ? wirelessDrop : withoutWirelessDrop

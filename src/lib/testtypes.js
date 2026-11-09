@@ -15,3 +15,5 @@ export const CHARGING_TEST_TYPES = new Set(['Charging Cycle', FIELD_CHARGING]);
 // Tests that run against a phone/load, where T7 also reports what the load gained. The
 // MDM reports only the T7's own battery, so those figures stay unavailable here.
 export const LOAD_TEST_TYPES = new Set(['WLC on Phone', 'WLC + Discharge on Ads', 'Restaurant Case']);
+// Tests whose Drain by hour is split into WLC active / WLC inactive
+export const WLC_BAR_TESTS = new Set(['Restaurant Case', 'Market Scenario']);

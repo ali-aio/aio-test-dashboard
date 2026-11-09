@@ -51,6 +51,10 @@ export const TEST_TYPES = [
   // by hand for the devices it applies to; never guessed by Auto, and not the bench's test on Today.
   { id: 'idle',       code: 'IC', name: 'Idle Cycle',             expect: 'discharge', idle: true,
     about: 'The T7 on and off the charger with nothing running (no load, no test), until it powers off. Set by hand for the devices it applies to.' },
+  // the lab's what-if runs (the user, 9 Nov 2026): WLC switched on and off at set times, the same for every device in the cycle.
+  // Set by hand, never guessed by Auto; no `hours` / `loadHours`, because the on / off pattern is the point of the test.
+  { id: 'market',     code: 'MS', name: 'Market Scenario',        expect: 'discharge',
+    about: 'WLC switched on and off at set times, the same for every device, to see how a device behaves in the market. Set by hand; put the pattern in the cycle note.' },
 ];
 /** Plan entries for the bench as a whole: an Idle Cycle (a device or two left idle) is not it. */
 export const benchDecls = decls => (decls || []).filter(d => !TEST_TYPES.find(t => t.id === d.testType)?.idle);

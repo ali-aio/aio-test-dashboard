@@ -229,7 +229,7 @@ export default function TodayView({ fleet }) {
   const stillCharging = cycleOn ? (T.serials || []).filter(sn => { const d = fleet.DMAP.get(sn); return d && online(d) && d.snap?.charging }).sort(byBenchOrder) : []
   const stillSet = new Set(stillCharging)
   // Devices today: drain with / without WLC for a test that places a load on the pad (or a test not named yet) — the user, 2 Nov 2026
-  const padCols = !T?.charging && (!T?.tt || T.tt.loadHours || ['wlc_load', 'load_only', 'wlc_phone'].includes(T.tt.id))
+  const padCols = !T?.charging && (!T?.tt || T.tt.loadHours || ['wlc_load', 'load_only', 'wlc_phone', 'market'].includes(T.tt.id))
   // Reached N %: while a "WLC off at ≤ N %" rule runs on the lab laptop, when each device first read N % or less since it
   // left the charger (the user, 4 Nov 2026: today's WLC on Load, load until 15 %, then WLC off — the boot-loop repro)
   const reachPct = !T.charging && auto.rules?.length ? Math.max(...auto.rules.map(x => x.pct)) : null

@@ -64,7 +64,7 @@ function fwRow(sn, fleet) {
       <td className="r mono" style={{ color: temp ? heat(temp) : 'inherit' }}>{temp ? `${temp.toFixed(1)} °C` : dash}</td>
       <td className="r mono" style={{ color: stats?.maxTemp != null ? heat(stats.maxTemp) : 'inherit' }}>{stats?.maxTemp != null ? `${stats.maxTemp.toFixed(1)} °C` : dash}</td>
       <td className="r mono" style={{ color: stats?.minAbove45 ? 'var(--bad)' : 'inherit' }}>{stats?.minAbove45 ? fmtDur(stats.minAbove45 * MIN) : dash}</td>
-      <td className="r mono fw-nowrap">{last?.build_id || dash}</td>
+      <td className="r mono fw-nowrap">{rows?.findLast(r => r.build_id)?.build_id || dash}</td>{/* the newest reading can be the live snapshot, which has no build */}
       <td className="r fw-nowrap">{s?.last_seen_at ? ago(Date.parse(s.last_seen_at)) : dash}</td>
       <td className="fw-nowrap"><span className="fw-switch"><AppToggle serial={sn} onScreen={code === SPAN.on} /><span className="secondary">{code ? APP_TEXT(code) : 'Not reported'}</span></span></td>
       <td className="fw-nowrap"><span className="fw-switch"><WlcToggle serial={sn} enabled={wlcOn} /><span className="secondary">{wlcOn ? (padLoad(e.wlc_status) === true ? 'On · load' : 'On') : 'Off'}</span></span></td>

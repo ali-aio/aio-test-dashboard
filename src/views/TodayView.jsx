@@ -45,25 +45,39 @@ function ChargeIcon({ state }) {
   )
 }
 
+// Several cycles at once (the user, 10 Nov 2026: the bench, plus cycles only for firmware-test devices): a full section each, the bench first, the firmware tests' table last.
 export default function TodayView({ fleet }) {
+  const fwTests = useSyncExternalStore(subscribeFw, getFw, getFw)
+  const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync)
+  const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
+  const auto = useAutomations() // what the lab laptop runs on its own: shown on the WLC and Ads tiles
+  useEffect(() => { loadWindow(fleet.DEV) }, [fleet.DEV])
+  useEffect(() => startPhoneSync(), []) // shared Today notes (data/phone.json)
+  useEffect(() => startRoomSync(), [])  // the room's temperature from the lab's ESP32-S3 + SHT30, every minute
+  const now = Date.now()
+  const sides = useMemo(() => {
+    const all = DECLS(), fwOnly = d => !testType(d.testType)?.idle && testType(d.testType)?.expect !== 'charge' && !benchDecls([d]).length
+    return [...cyclesOn(all, dayKey(now - 24 * H)), ...cyclesOn(all, todayKey())].filter(c => fwOnly(c.decl) && c.startMs <= now && now - c.endMs <= RECENT_H * H)
+  }, [fwTests, planSync.v, todayKey(), Math.floor(now / MIN), win.at2])
+  return (
+    <div className="view-stack today-sections">
+      <CycleSection fleet={fleet} auto={auto} side={null} />
+      {sides.map(c => <CycleSection key={c.decl.id} fleet={fleet} auto={auto} side={c} />)}
+      <FwTestsToday fleet={fleet} />
+    </div>
+  )
+}
+
+/** One cycle on Today. side = null: the bench (whatever is running on it); else a cycle only for firmware-test devices. */
+function CycleSection({ fleet, side, auto }) {
   const { DEV: allDev, allCycles, opts } = fleet
-  // a device on a firmware test is not part of the bench (the user, 6 Nov 2026): not in today's charge or cycle; it has its own section at the bottom
+  // a device on a firmware test is not part of the bench (the user, 6 Nov 2026): not in today's charge or cycle
   const fwTests = useSyncExternalStore(subscribeFw, getFw, getFw)
   const now = Date.now()
   const [planRev, setPlanRev] = useState(0) // bumped after a take-out / put-back, to re-read the plan
   const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync) // shared plan changed elsewhere
-  // Several tests at once (the user, 10 Nov 2026: the bench, plus cycles only for firmware-test devices): one tab each, the bench first.
-  const sides = useMemo(() => {
-    const all = DECLS(), fwOnly = d => !testType(d.testType)?.idle && testType(d.testType)?.expect !== 'charge' && !benchDecls([d]).length
-    return [...cyclesOn(all, dayKey(now - 24 * H)), ...cyclesOn(all, todayKey())].filter(c => fwOnly(c.decl) && c.startMs <= now && now - c.endMs <= RECENT_H * H)
-  }, [fwTests, planRev, planSync.v, todayKey(), Math.floor(now / MIN)])
-  const [sideId, setSideId] = useState(null)
-  const side = sides.find(c => c.decl.id === sideId) || null
-  const benchDev = useMemo(() => allDev.filter(d => !onFwTest(fwTests, d.serial, Date.now())), [allDev, fwTests])
-  const DEV = useMemo(() => (side ? allDev.filter(d => side.decl.group.serials.includes(d.serial)) : benchDev), [allDev, benchDev, side?.decl.id])
+  const DEV = useMemo(() => (side ? allDev.filter(d => side.decl.group.serials.includes(d.serial)) : allDev.filter(d => !onFwTest(fwTests, d.serial, Date.now()))), [allDev, fwTests, side?.decl.id])
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
-  const auto = useAutomations() // what the lab laptop runs on its own: shown on the WLC and Ads tiles
-  useEffect(() => { loadWindow(allDev) }, [allDev])
 
   // The day whose run is on now. A run planned 10:00 → 04:00 belongs to the day it started,
   // so until yesterday's overnight window closes (and today's has not opened) Today stays
@@ -126,13 +140,12 @@ export default function TodayView({ fleet }) {
   }, [DEV, win.at2])
   // shared Today notes (data/phone.json): the iPhone readings, and take-outs made before the test is known
   const phoneDb = useSyncExternalStore(subscribePhone, getPhone, getPhone)
-  useEffect(() => startPhoneSync(), [])
   // the room's temperature from the lab's ESP32-S3 + SHT30 (server/room.mjs), every minute
   const roomDb = useSyncExternalStore(subscribeRoom, getRoom, getRoom)
-  useEffect(() => startRoomSync(), [])
   const T = useMemo(() => {
-    if (side) return { ...dayFor(side.key), testType: side.decl.testType, tt: testType(side.decl.testType), decl: side.decl, src: side.decl,
-      serials: activeSerials(side.decl, DEV, now), removed: removedFrom(side.decl), startMs: side.startMs, endMs: side.endMs, overnight: side.overnight, cycleNo: 1, cycleCount: 1 }
+    if (side) { const src = DECLS().find(d => d.id === side.decl.id) || side.decl // this copy changes on a take-out or a note
+      return { ...dayFor(side.key), testType: src.testType, tt: testType(src.testType), decl: src, src,
+      serials: activeSerials(src, DEV, now), removed: removedFrom(src), startMs: side.startMs, endMs: side.endMs, overnight: side.overnight, cycleNo: 1, cycleCount: 1 } }
     const decls0 = benchDecls(DECLS())
     if (!cycleAt(decls0, now) && !chargingMost && bench) {
       // running, but no test on the plan for it yet: timed from when the bench came off the charger.
@@ -173,7 +186,7 @@ export default function TodayView({ fleet }) {
   // moved onto the plan entry as soon as one names the cycle (Auto, or a person on the Cycle plan)
   const canOut = !!T.decl || !!T.pendingOut
   useEffect(() => {
-    if (!T.decl) return
+    if (!T.decl || side) return // held for the bench's cycle
     const held = pendingOuts(phoneDb, T.key); if (!held.length) return
     const have = new Set((T.decl.removed || []).map(r => r.serial))
     for (const r of held) { if (!have.has(r.serial)) takeOut(GROUP, T.decl.id, r); setPendingOut(T.key, r.serial, null) }
@@ -181,7 +194,7 @@ export default function TodayView({ fleet }) {
   }, [T.decl?.id, T.key, phoneDb])
   // a note written before the test was known goes onto the plan entry once there is one (added after any note it has)
   useEffect(() => {
-    if (!T.decl) return
+    if (!T.decl || side) return
     const held = pendingNote(phoneDb, T.key); if (!held) return
     const cur = T.decl.note || ''
     if (!cur.includes(held)) setCycleNote(GROUP, T.decl.id, cur ? `${cur}\n${held}` : held)
@@ -387,13 +400,9 @@ export default function TodayView({ fleet }) {
   // rather than "No test set · Not started" for the seconds until they come (the user, 26 Oct 2026)
   const waiting = !win.at && !Object.keys(win.rows || {}).length && !win.err
 
+  if (side && waiting) return null // the bench's section says it is still loading
   return (
     <div className="view-stack">
-      {sides.length > 0 && !waiting && (() => {
-        const pick = cycleAt(benchDecls(DECLS()), now), name = pick ? testType(pick.decl.testType)?.name : 'Bench', n = pick ? activeSerials(pick.decl, benchDev, now).length : benchDev.length
-        return <Segmented ariaLabel="Tests running today" value={side ? side.decl.id : 'bench'} onChange={id => setSideId(id === 'bench' ? null : id)}
-          options={[{ id: 'bench', label: `${name} · ${n}` }, ...sides.map(c => ({ id: c.decl.id, label: `${testType(c.decl.testType)?.name} · ${c.decl.group.serials.length}` }))]} />
-      })()}
       <div className="card" style={{ borderLeft: `3px solid ${T.tt ? `var(--tt-${ttSlot(T.tt.id)})` : 'var(--border-strong)'}` }}>
         <div className="card-body today-head">
         <div className="today-head-main">
@@ -419,7 +428,7 @@ export default function TodayView({ fleet }) {
       </div>
 
       {/* readings that did not come for some devices: said here, retried by itself */}
-      <PartStatus window DEV={DEV} />
+      {!side && <PartStatus window DEV={DEV} />}
       {stillCharging.length > 0 && (
         <div className="banner banner-warn" role="alert">
           <svg viewBox="0 0 16 16" width="16" height="16" style={{ flex: 'none', marginTop: 2 }} aria-hidden="true" fill="currentColor"><path d="M9.2 1 3.5 9h3.6L6.6 15l5.9-8.2H8.8z" /></svg>
@@ -690,9 +699,8 @@ export default function TodayView({ fleet }) {
           </div>
         )}
         {/* an iPhone on the pad in place of the load: its battery, typed in each hour (the lab, 27 Oct 2026); last on the page (the user, 31 Oct 2026) */}
-        {!T.charging && (T.running || T.decl) && <PhoneOnPad day={T.key} start={Math.round(chartFrom / 60e3) * 60e3} end={T.endMs} serials={T.serials} now={now} ownStart={sn => runs.get(sn)?.start?.t ?? null} maxHours={T.tt?.loadHours ?? null} />}
+        {!side && !T.charging && (T.running || T.decl) && <PhoneOnPad day={T.key} start={Math.round(chartFrom / 60e3) * 60e3} end={T.endMs} serials={T.serials} now={now} ownStart={sn => runs.get(sn)?.start?.t ?? null} maxHours={T.tt?.loadHours ?? null} />}
       </>}
-      <FwTestsToday fleet={fleet} />
     </div>
   )
 }

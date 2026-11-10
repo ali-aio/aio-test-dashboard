@@ -2313,3 +2313,6 @@ tr.row-warn > td { background: color-mix(in srgb, var(--status-warning) 14%, tra
 
 .fw-nowrap { white-space: nowrap; }
 .fw-switch { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+
+/* Today: several cycles at once, a section each */
+.view-stack.today-sections { gap: 40px; }

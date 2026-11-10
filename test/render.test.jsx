@@ -28,6 +28,7 @@ import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneSta
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
 import { windowOn, cycleAt, benchDecls, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
 import { testTypeFor, planFor, temperaturePhases, runningCharge, adaptCycle, CTX } from '../src/lib/adapt.js'
+import { spanRun } from '../src/lib/curves.js'
 import { thermalTimingByDevice } from '../src/lib/thermal.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
 import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
@@ -829,6 +830,16 @@ const mdmCases = []
     want(cycleAt(benchDecls([bench, fw], tests), start + 3600e3)?.decl.id === 'bench', 'firmware-only entry left out')
     want(benchDecls([bench, fw, mixed, all], tests).map(d => d.id).join() === 'bench,mixed,all', 'a mixed or whole-bench entry stays')
     want(benchDecls([fw], []).length === 1, 'no test running: an ordinary entry')
+  })
+  check('a span test: one run per listed device, first to last reading in its window, up or down', () => {
+    const t0 = new Date(2026, 10, 10, 11, 30).getTime(), end = new Date(2026, 10, 10, 23, 59).getTime(), row = (m, b, ch) => ({ timestamp: new Date(t0 + m * 60e3).toISOString(), battery_pct: b, extra: { charging: !!ch } })
+    const rows = [row(-60, 40), ...[[6, 5], [40, 2], [70, 3, 1], [100, 8, 1], [140, 2], [200, 9, 1]].map(([m, b, c]) => row(m, b, c))]
+    const r = spanRun(rows, t0, end)
+    want(r.start === t0 + 6 * 60e3 && r.startPct === 5 && r.endPct === 9, JSON.stringify(r))
+    want(spanRun([row(5, 5)], t0, end) === null && spanRun(null, t0, end) === null, 'under two readings')
+    const decl = { id: 'b', testType: 'boot_loop', from: '2026-11-10', to: '2026-11-10', startTime: '11:30', endTime: '23:59', spanDays: 0, group: { kind: 'serials', serials: ['S1'] } }
+    const a = adaptCycle({ serial: 'S1', cycles: [] }, { ...r, spanRun: 'Reproducing Boot Loop', inProgress: false }, rows, { decls: [decl], rota: {}, DEV: [{ serial: 'S1' }] })
+    want(a.testType === 'Reproducing Boot Loop' && !a.leftCycle && a.dropPerHr > 0 && a.endBattery === 9, `${a.testType} ${a.leftCycle?.why} ${a.dropPerHr}`)
   })
   check('latestRun: a firmware-test device is timed from its own latest drain or charge', () => {
     const at = m => new Date(Date.UTC(2026, 10, 10, 0, m)).toISOString()

@@ -49,14 +49,22 @@ export default function TodayView({ fleet }) {
   const { DEV: allDev, allCycles, opts } = fleet
   // a device on a firmware test is not part of the bench (the user, 6 Nov 2026): not in today's charge or cycle; it has its own section at the bottom
   const fwTests = useSyncExternalStore(subscribeFw, getFw, getFw)
-  const DEV = useMemo(() => allDev.filter(d => !onFwTest(fwTests, d.serial, Date.now())), [allDev, fwTests])
+  const now = Date.now()
+  const [planRev, setPlanRev] = useState(0) // bumped after a take-out / put-back, to re-read the plan
+  const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync) // shared plan changed elsewhere
+  // Several tests at once (the user, 10 Nov 2026: the bench, plus cycles only for firmware-test devices): one tab each, the bench first.
+  const sides = useMemo(() => {
+    const all = DECLS(), fwOnly = d => !testType(d.testType)?.idle && testType(d.testType)?.expect !== 'charge' && !benchDecls([d]).length
+    return [...cyclesOn(all, dayKey(now - 24 * H)), ...cyclesOn(all, todayKey())].filter(c => fwOnly(c.decl) && c.startMs <= now && now - c.endMs <= RECENT_H * H)
+  }, [fwTests, planRev, planSync.v, todayKey(), Math.floor(now / MIN)])
+  const [sideId, setSideId] = useState(null)
+  const side = sides.find(c => c.decl.id === sideId) || null
+  const benchDev = useMemo(() => allDev.filter(d => !onFwTest(fwTests, d.serial, Date.now())), [allDev, fwTests])
+  const DEV = useMemo(() => (side ? allDev.filter(d => side.decl.group.serials.includes(d.serial)) : benchDev), [allDev, benchDev, side?.decl.id])
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
   const auto = useAutomations() // what the lab laptop runs on its own: shown on the WLC and Ads tiles
   useEffect(() => { loadWindow(allDev) }, [allDev])
 
-  const now = Date.now()
-  const [planRev, setPlanRev] = useState(0) // bumped after a take-out / put-back, to re-read the plan
-  const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync) // shared plan changed elsewhere
   // The day whose run is on now. A run planned 10:00 → 04:00 belongs to the day it started,
   // so until yesterday's overnight window closes (and today's has not opened) Today stays
   // on yesterday's run.
@@ -123,6 +131,8 @@ export default function TodayView({ fleet }) {
   const roomDb = useSyncExternalStore(subscribeRoom, getRoom, getRoom)
   useEffect(() => startRoomSync(), [])
   const T = useMemo(() => {
+    if (side) return { ...dayFor(side.key), testType: side.decl.testType, tt: testType(side.decl.testType), decl: side.decl, src: side.decl,
+      serials: activeSerials(side.decl, DEV, now), removed: removedFrom(side.decl), startMs: side.startMs, endMs: side.endMs, overnight: side.overnight, cycleNo: 1, cycleCount: 1 }
     const decls0 = benchDecls(DECLS())
     if (!cycleAt(decls0, now) && !chargingMost && bench) {
       // running, but no test on the plan for it yet: timed from when the bench came off the charger.
@@ -158,7 +168,7 @@ export default function TodayView({ fleet }) {
       // devices taken out of this cycle leave its charts and table from the moment they left
       serials: activeSerials(src, DEV, now), removed: removedFrom(src), startMs: pick.startMs, endMs: pick.endMs, overnight: pick.overnight,
       cycleNo: cyclesOn(decls, pick.key).findIndex(c => c.decl.id === src.id) + 1, cycleCount: cyclesOn(decls, pick.key).length }
-  }, [DEV, allCycles, win.at2, todayKey(), planRev, planSync.v, chargingMost, bench?.start, phoneDb])
+  }, [DEV, allCycles, win.at2, todayKey(), planRev, planSync.v, chargingMost, bench?.start, phoneDb, side?.decl.id, side?.endMs])
   // Take out works before the test is known too (the user, 27 Oct 2026): held for the bench, then
   // moved onto the plan entry as soon as one names the cycle (Auto, or a person on the Cycle plan)
   const canOut = !!T.decl || !!T.pendingOut
@@ -190,7 +200,7 @@ export default function TodayView({ fleet }) {
   const [takingOut, setTakingOut] = useState(null) // serial whose take-out form is open
 
   const winTo = Math.min(now, T.endMs)
-  const conf = useMemo(() => T.serials.map(s => conform(s, T.tt, T.startMs, winTo, { ended: T.endMs < now })), [T, win.at2])
+  const conf = useMemo(() => T.serials.map(s => conform(s, T.tt?.span ? null : T.tt, T.startMs, winTo, { ended: T.endMs < now })), [T, win.at2])
   const reporting = conf.filter(c => c.state !== 'silent')
   const conforming = conf.filter(c => c.state === 'conforming')
   const drifting = conf.filter(c => c.state === 'drifting')
@@ -226,7 +236,7 @@ export default function TodayView({ fleet }) {
   // devices still on the charger after the cycle started (the user, 4 Nov 2026: 00485 / 00606 / 00790 stayed on charge an
   // hour into the cycle and nobody noticed): a discharge cycle running for 10 min+, the device reporting and charging now
   const cycleOn = !T.charging && (T.running || T.decl) && T.startMs != null && now - T.startMs >= 10 * MIN && now < (T.endMs ?? Infinity)
-  const stillCharging = cycleOn ? (T.serials || []).filter(sn => { const d = fleet.DMAP.get(sn); return d && online(d) && d.snap?.charging }).sort(byBenchOrder) : []
+  const stillCharging = cycleOn && !T.tt?.span ? (T.serials || []).filter(sn => { const d = fleet.DMAP.get(sn); return d && online(d) && d.snap?.charging }).sort(byBenchOrder) : []
   const stillSet = new Set(stillCharging)
   // Devices today: drain with / without WLC for a test that places a load on the pad (or a test not named yet) — the user, 2 Nov 2026
   const padCols = !T?.charging && (!T?.tt || T.tt.loadHours || ['wlc_load', 'load_only', 'wlc_phone', 'market'].includes(T.tt.id))
@@ -379,6 +389,11 @@ export default function TodayView({ fleet }) {
 
   return (
     <div className="view-stack">
+      {sides.length > 0 && !waiting && (() => {
+        const pick = cycleAt(benchDecls(DECLS()), now), name = pick ? testType(pick.decl.testType)?.name : 'Bench', n = pick ? activeSerials(pick.decl, benchDev, now).length : benchDev.length
+        return <Segmented ariaLabel="Tests running today" value={side ? side.decl.id : 'bench'} onChange={id => setSideId(id === 'bench' ? null : id)}
+          options={[{ id: 'bench', label: `${name} · ${n}` }, ...sides.map(c => ({ id: c.decl.id, label: `${testType(c.decl.testType)?.name} · ${c.decl.group.serials.length}` }))]} />
+      })()}
       <div className="card" style={{ borderLeft: `3px solid ${T.tt ? `var(--tt-${ttSlot(T.tt.id)})` : 'var(--border-strong)'}` }}>
         <div className="card-body today-head">
         <div className="today-head-main">
@@ -453,10 +468,10 @@ export default function TodayView({ fleet }) {
             : medNow != null && medNow <= END_BAND ? 'Reaches 0 %: — (no drain rate yet)' : 'at the current rate'} />
         </>}
         {/* a yellow border on a tile where some devices behave differently from the rest (the user, 27 Oct 2026) */}
-        <Metric label="On track with plan" warn={!!T.tt && (drifting.length > 0 || silent > 0)} color={T.tt && conforming.length === T.serials.length ? 'var(--ok)' : drifting.length ? 'var(--warn)' : null}
+        <Metric label="On track with plan" warn={!!T.tt && !T.tt.span && (drifting.length > 0 || silent > 0)} color={T.tt && !T.tt.span && conforming.length === T.serials.length ? 'var(--ok)' : drifting.length ? 'var(--warn)' : null}
           // no test named yet: nothing to be on track with, so "—", not a 0 that reads as every device failing (the user, 27 Oct 2026)
-          value={!T.tt ? '—' : <>{conforming.length}<span className="secondary" style={{ fontSize: 13 }}> / {T.serials.length}</span></>}
-          delta={!T.tt ? 'no test named yet · set it on the Cycle plan, or Auto names it from the readings' : drifting.length || silent
+          value={!T.tt || T.tt.span ? '—' : <>{conforming.length}<span className="secondary" style={{ fontSize: 13 }}> / {T.serials.length}</span></>}
+          delta={T.tt?.span ? 'charges and discharges by design' : !T.tt ? 'no test named yet · set it on the Cycle plan, or Auto names it from the readings' : drifting.length || silent
             ? [drifting.length && `${drifting.length} drifting`, silent && `${silent} not reporting`].filter(Boolean).join(' · ')
             : 'every device matches the declared test'} />
         {/* wireless charging: devices whose pad is active now (a load placed on it), from the

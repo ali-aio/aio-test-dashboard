@@ -11,7 +11,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { detectCycles, normalize } from '../shared/cycles.js';
 import { appendReadings } from '../src/lib/mdmTrack.js';
-import { resampleRun, curveKey } from '../src/lib/curves.js';
+import { resampleRun, curveKey, spanRun, spanKey } from '../src/lib/curves.js';
+import { testType, windowOn } from '../src/lib/plan.js';
 import { extendLedger } from '../src/lib/drainAge.js';
 import { extendSlots, SLOT } from '../src/lib/drainHours.js';
 import { buildAutoPlan } from './autoplan.mjs';
@@ -167,6 +168,21 @@ export async function buildCurves({ root, devices, topup, get, log = () => {} })
     }
     save();
   });
+  // a finished cycle of a `span` test (Reproducing Boot Loop): each device's whole time in it, kept beside the curves, as the browser's
+  // readings only reach back 7 days. Stored once, 1 h after the cycle's end; 0 = no readings, not asked again.
+  const decls = Object.values(readJson(path.join(root, 'data', 'plan.json'))?.groups || {}).flatMap(g => g.decls || []);
+  for (const decl of decls.filter(x => testType(x.testType)?.span && x.group?.kind === 'serials')) {
+    const { startMs, endMs } = windowOn(decl.from, decl);
+    if (Date.now() < endMs + 3600e3) continue;
+    for (const serial of (decl.group.serials || []).filter(s => devices.includes(s) && !(spanKey(decl.id, s) in file.curves))) {
+      const rows = normalize(await history(get, serial, startMs, endMs, OPTS.recentIntervalSec));
+      const run = spanRun(rows, startMs, endMs), curve = run && resampleRun(rows, run.start, run.end);
+      file.curves[spanKey(decl.id, serial)] = run || 0;
+      if (run) file.curves[curveKey(serial, run.start)] = curve || 0;
+      run ? made++ : none++;
+      save();
+    }
+  }
   if (made || none) log(`curves: ${made} runs drawn, ${none} without full readings, ~${calls} history calls`);
   return { made, none };
 }

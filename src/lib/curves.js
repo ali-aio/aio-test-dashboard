@@ -45,6 +45,16 @@ export function resampleRun(rows, start, end) {
   return { s: STEP, b, c, fw: [...fw.entries()].sort((p, q) => q[1] - p[1])[0]?.[0] || null, w: inRun && w > inRun / 2 ? 1 : 0 };
 }
 
+/** A device's whole time in a `span` test (Reproducing Boot Loop: it never starts full, so the detector finds no run): first to
+ *  last reading inside the cycle's window, or null with under two readings. */
+export function spanRun(rows, from, to) {
+  const seg = (rows || []).filter(r => { const t = Date.parse(r.timestamp); return !r.empty && t >= from && t <= to; });
+  if (seg.length < 2) return null;
+  const a = seg[0], z = seg[seg.length - 1], start = Date.parse(a.timestamp), end = Date.parse(z.timestamp);
+  return end > start ? { start, end, startPct: a.battery_pct, endPct: z.battery_pct, durationMs: end - start, reason: 'span', fullMs: null } : null;
+}
+export const spanKey = (declId, serial) => `span:${declId}:${serial}`;
+
 /** A stored curve as the T7 series the charts take: [{ t: hours from start, v }]. */
 export function curveSeries(curve) {
   if (!curve) return null;

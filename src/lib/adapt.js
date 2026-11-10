@@ -16,7 +16,7 @@ import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, windo
 import { FIELD_DISCHARGE, FIELD_CHARGING } from './testtypes.js';
 import { perHourRate, HOUR_SNAP } from './t7cycles.js';
 import { mdmCyclesFor } from './mdmTrack.js';
-import { curveKey, curveSeries, resampleRun } from './curves.js';
+import { curveKey, curveSeries, resampleRun, spanRun, spanKey } from './curves.js';
 import { runningCycle } from './window.js';
 import { getFw, onFwTest } from './fwTests.js';
 import { TEMP_WARN, TEMP_LIMIT, chargeSegments } from './profile.js';
@@ -242,7 +242,7 @@ export function adaptCycle(d, c0, rows, ctx) {
   if (!series.length && c.curve?.length) series = c.curve.map(([m, v]) => ({ t: round(m / 60, 3), v }));
   const firmware = (stored && stored.fw) || fromWindow.firmware;
   const wireless = stored ? !!stored.w : fromWindow.wireless;
-  const charging = c.endPct > c.startPct;
+  const charging = !c.spanRun && c.endPct > c.startPct; // a span run goes up and down all along: it is one run of its test either way
   // a load on the pad in each hour of the run, from the sweep's 15-min slots (hours.json): on
   // when it was on for most of that hour's time on battery. Without slots for the hour, the
   // run's own pad state (on if the pad was on at any point) stands in. Restaurant Case's
@@ -253,7 +253,7 @@ export function adaptCycle(d, c0, rows, ctx) {
   // with the bench but got their load at 11:30, so "no load in hour 1" filed their Restaurant Case
   // under Old cycles (the user: "280 and 064 are not there"). Only when hour 1 had no load, the load
   // then came within 3 h, and the battery fell ≤ 2 points before it — so no ordinary run moves.
-  if (!charging && slots?.length) {
+  if (!charging && !c.spanRun && slots?.length) {
     const i0 = firstAtOrAfter(slots.length, k => slots[k][0], c.start), firstLoad = slots.findIndex((x, k) => k >= i0 && x[3] >= 5)
     if (firstLoad > i0 && slots[firstLoad][0] - c.start <= 3 * H && slots[firstLoad][0] - c.start >= 45 * 60e3 && slots[firstLoad][0] < c.end) {
       const idle = slots.slice(i0, firstLoad), dropped = idle.reduce((a, x) => a + (x[1] || 0), 0) / 10
@@ -290,7 +290,7 @@ export function adaptCycle(d, c0, rows, ctx) {
     for (let i = 1; i < s.length; i++) if (s[i].t >= x) { const a = s[i - 1], b = s[i]; return a.v + (b.v - a.v) * (x - a.t) / ((b.t - a.t) || 1); }
     return s[s.length - 1].v;
   };
-  const plan = planFor({ ...c, serial: d.serial, charging, padHours }, ctx, pctAt);
+  const plan = c.spanRun ? { name: c.spanRun } : planFor({ ...c, serial: d.serial, charging, padHours }, ctx, pctAt);
   // the lab ran this device's load its own way that cycle (`noLoadCheck`, e.g. 30 Oct's 30-min gaps): it stays in the
   // cycle, but its hours don't feed the test's WLC active / inactive per-hour bars or drains (the user, 3 Nov 2026: a
   // device with no load at the start isn't running the Restaurant Case — it showed WLC inactive in hours 1–3)
@@ -321,7 +321,7 @@ export function adaptCycle(d, c0, rows, ctx) {
   const hourly = perHourRate(hourVals, charging ? 'gain' : 'drop');
   const built = [];
   for (const h of [...hourVals.keys()].sort((a, b) => a - b)) {
-    if (hourVals.has(h + 1)) built.push({ h, drop: hourVals.get(h) - hourVals.get(h + 1), wireless: padInHour(h) });
+    if (hourVals.has(h + 1)) built.push({ h, drop: c.spanRun ? Math.max(0, hourVals.get(h) - hourVals.get(h + 1)) : hourVals.get(h) - hourVals.get(h + 1), wireless: padInHour(h) });
   }
   const temps = tempSeries.map(p => p.v);
   const start = new Date(c.start);
@@ -358,7 +358,7 @@ export function adaptCycle(d, c0, rows, ctx) {
     startBattery: c.startPct,
     endBattery: c.endPct,
     batteryDelta: c.endPct - c.startPct,
-    dropPerHr: round(hourly != null ? hourly : linear, 3),
+    dropPerHr: round(c.spanRun ? fallingRate(series) : hourly != null ? hourly : linear, 3),
     rateBasis: hourly != null ? 'whole hours' : 'straight line over the cycle',
     loadGainPerHr: null,  // the MDM reports the T7's battery, never the load's
     loadType: null,
@@ -395,6 +395,25 @@ export function adaptCycle(d, c0, rows, ctx) {
   };
 }
 
+/** Points lost per hour, over only the time the battery was falling (a span run also charges and sits switched off). */
+function fallingRate(series) {
+  let lost = 0, hours = 0;
+  for (let i = 1; i < series.length; i++) { const d = series[i - 1].v - series[i].v; if (d > 0) { lost += d; hours += series[i].t - series[i - 1].t; } }
+  return hours > 0 ? lost / hours : 0;
+}
+/** One run per plan entry of a `span` test listing this device: stored by the sweep once the cycle is over, until then from the readings. */
+function spanRunsFor(serial, decls, rows, curves, now = Date.now()) {
+  const out = [];
+  for (const decl of decls || []) {
+    const tt = ttById(decl.testType);
+    if (!tt?.span || decl.group?.kind !== 'serials' || !(decl.group.serials || []).includes(serial)) continue;
+    const { startMs, endMs } = windowOn(decl.from, decl);
+    const run = curves?.[spanKey(decl.id, serial)] || spanRun(rowsBetween(rows, startMs, endMs), startMs, endMs);
+    if (run) out.push({ ...run, spanRun: tt.name, inProgress: now <= endMs });
+  }
+  return out;
+}
+
 /** Every device's cycles, reshaped. `rowsFor(serial)` supplies history when we have it. */
 export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = null, hours = null, hostApp = null) {
   const decls = loadDecls(CTX.group), rota = loadRota(CTX.group);
@@ -418,7 +437,7 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
     const takenOut = (d.interrupted || []).filter(c => !isShort.has(c.start) && c.start >= PLAN_FROM && c.startPct >= 95 && c.end > c.start
       && (p => /taken out/.test(p.why || '') || p.endAt != null)(planFor({ ...c, serial: d.serial }, ctx)))
       .map(c => ({ ...c, durationMs: c.durationMs ?? c.end - c.start, fullMs: c.startPct > c.endPct ? (c.end - c.start) / (c.startPct - c.endPct) * 100 : null }))
-    for (const c of [...d.cycles, ...cutShort, ...takenOut, ...(run ? [run] : [])].sort((a, b) => a.start - b.start)) {
+    for (const c of [...d.cycles, ...cutShort, ...takenOut, ...(run ? [run] : []), ...spanRunsFor(d.serial, decls, rows, curves)].sort((a, b) => a.start - b.start)) {
       const a = adaptCycle(d, c, rows, ctx);
       if (a) out.push(a);
     }

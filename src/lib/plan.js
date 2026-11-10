@@ -57,6 +57,10 @@ export const TEST_TYPES = [
   // Set by hand, never guessed by Auto; no `hours` / `loadHours`, because the on / off pattern is the point of the test.
   { id: 'market',     code: 'MS', name: 'Market Scenario',        expect: 'discharge',
     about: 'WLC switched on and off at set times, the same for every device, to see how a device behaves in the market. Set by hand; put the pattern in the cycle note.' },
+  // the boot loop hunt (the user, 10 Nov 2026): charged to 3-4 %, discharged, again and again. No run ever starts full, so `span`:
+  // each device counts as one run over the cycle's time (spanRun in curves.js). Set by hand, never guessed by Auto.
+  { id: 'boot_loop',  code: 'BL', name: 'Reproducing Boot Loop',  expect: 'discharge', span: true,
+    about: 'Charged to 3-4 %, then discharged, again and again, to try to reproduce the boot loop. Set by hand; each device counts as one run over the time of the cycle.' },
 ];
 /** Plan entries for the bench as a whole: an Idle Cycle (a device or two left idle) is not it, nor an entry only for devices on a firmware test (they aren't on the bench). */
 const onlyFwDevices = (d, tests) => { const list = d.group?.kind === 'serials' ? d.group.serials || [] : []; return list.length > 0 && list.every(s => onFwTest(tests, s, timeOn(d.from, d.startTime))); };

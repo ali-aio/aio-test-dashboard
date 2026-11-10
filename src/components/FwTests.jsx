@@ -4,9 +4,9 @@ import { SortTable } from './SortTable.jsx'
 import { subscribeFw, getFw, saveFw } from '../lib/fwTests.js'
 import AppToggle from './AppToggle.jsx'
 import WlcToggle from './WlcToggle.jsx'
-import { rowsFor, latestRun, drainSince, drainSplit, dayStats } from '../lib/window.js'
+import { rowsFor, latestRun, drainSplit, dayStats } from '../lib/window.js'
 import { byBenchOrder, online, status, lifetimeCycles } from '../lib/device.js'
-import { ago, hm, MIN, H } from '../lib/format.js'
+import { ago, hm, MIN } from '../lib/format.js'
 import { fmtLifetime } from '../lib/fmt.js'
 import { fmtDur } from '../lib/cycles.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
@@ -37,14 +37,12 @@ const extraOf = d => { const e = d?.snap?.extra; if (typeof e !== 'string') retu
 const clock = t => (new Date(t).toDateString() === new Date().toDateString() ? hm(t) : `${hm(t)} ${new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' })}`)
 const APP_TEXT = code => (code === SPAN.otherApp ? 'Other app' : SPAN_LABEL[code])
 
-// One device's row, the same columns as Devices today (the user, 10 Nov 2026), timed from its own latest drain or charge; the app and WLC switches are the ones on Today's tiles.
+// One device's row, the columns of Devices today without Drain (the user, 10 Nov 2026), timed from its own latest drain or charge; the app and WLC switches are the ones on Today's tiles.
 // A plain function returning the <tr>: SortTable reads each row's cells from its props, so a component here would not sort.
 function fwRow(sn, fleet) {
   const d = fleet.DMAP?.get(sn), s = d?.snap, on = !!d && online(d), st = d ? status(d) : null, e = extraOf(d)
-  const rows = rowsFor(sn), last = rows?.[rows.length - 1]
+  const rows = rowsFor(sn)
   const run = on ? latestRun(rows) : null, drain = run && !run.charging ? run : null
-  const lastT = last ? Date.parse(last.timestamp) : 0
-  const gain = run?.charging && lastT - run.t >= 20 * MIN ? (last.battery_pct - run.pct) / ((lastT - run.t) / H) : null
   const split = drain ? drainSplit(rows, drain) : null
   const stats = run ? dayStats(sn, run.t) : null
   const app = fleet.hostAppNow?.get(sn), code = app ? stateCode(app) : null
@@ -57,7 +55,6 @@ function fwRow(sn, fleet) {
       <td><span className={`pill ${on ? 'pill-ok' : ''}`}>{!on ? 'Not reporting' : s.charging ? 'On charge' : 'On battery'}</span></td>
       <td className="r">{st?.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span> : dash}</td>
       <td className="r mono">{run ? (run.charging ? `on charge ${clock(run.t)}` : clock(run.t)) : dash}</td>
-      <td className="r mono">{run?.charging ? (gain > 0 ? `+${gain.toFixed(2)} %/h` : dash) : rate(drain && drainSince(rows, drain))}</td>
       <td className="r mono">{rate(split?.active)}</td>
       <td className="r mono">{rate(split?.none)}</td>
       <td className="r mono">{d ? fmtLifetime(lifetimeCycles(s)) : dash}</td>
@@ -80,7 +77,7 @@ export function FwTestsToday({ fleet }) {
     <Card key={t.id} title={t.name} sub={`${t.serials.length} devices · since ${date(t.startedAt)} · not part of today's cycle`}>
       <About t={t} />
       <div className="scroll-x">
-        <SortTable caption={t.name} head={[{ label: 'Device' }, { label: 'State' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' }, { label: 'Drain', className: 'r' },
+        <SortTable caption={t.name} head={[{ label: 'Device' }, { label: 'State' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' },
           { label: 'Drain with WLC', className: 'r' }, { label: 'Drain without WLC', className: 'r' }, { label: 'Cycles', className: 'r' }, { label: 'Device temp now', className: 'r' },
           { label: 'Peak device temp', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Firmware now', className: 'r' }, { label: 'Last seen', className: 'r' },
           { label: 'App', sortable: false }, { label: 'WLC', sortable: false }]}>

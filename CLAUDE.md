@@ -645,6 +645,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   Charging Cycle; its drains have no plan entry, so they fall under Old cycles and stay on its device page.
 - **Today:** a section per test running now, named after the test, last on the page (`FwTestsToday`): firmware, part tested, why, and each device with the columns of Devices today except **Drain** (taken out the same day: Drain with WLC / without WLC stay; the user, 10 Nov 2026; timed from its own latest drain or charge, `latestRun` in `window.js`), plus Firmware now, Last seen and the **App** ▶ / ■ and **WLC** ⚡ switches of Today's tiles (same commands, same confirm, lab devices only). Shown from
   when the test is set, not only once the day's cycle starts, so the page explains why those devices are missing.
+- **A device on a firmware test can still be put in a test by hand** (the user, 10 Nov 2026: 00226, 00089, 00429, 00080, 00833 ran down on a load, WLC on Load): a plan entry listing only such devices takes their runs, and stays out of Today and the bell (`benchDecls`), which would otherwise show it instead of the bench's cycle as the entry added last.
 - **Cycle plan:** the **Firmware tests** card at the bottom (`FwTestsLog`): each test's dates, firmware, part tested, why, result and devices (links); add, edit, End test (the devices go back to the bench), two-click remove.
 - **6 Nov Restaurant Case:** a hand entry for the 8 devices not flashed, planned 10:00–23:59 (the start time is an assumption; the lab has been starting ~10:05), with a note.
 

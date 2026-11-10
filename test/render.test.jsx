@@ -26,7 +26,7 @@ import RangePicker from '../src/components/RangePicker.jsx'
 import { parseReport, roomSummary, roomStats } from '../src/lib/room.js'
 import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart, readingAt, readT7s, padAt, onPadAt, pendingNote, iphoneEnd } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
-import { windowOn, cycleAt, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
+import { windowOn, cycleAt, benchDecls, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
 import { testTypeFor, planFor, temperaturePhases, runningCharge, adaptCycle, CTX } from '../src/lib/adapt.js'
 import { thermalTimingByDevice } from '../src/lib/thermal.js'
 import { sortValue, compareValues, SortTable } from '../src/components/SortTable.jsx'
@@ -818,6 +818,17 @@ const mdmCases = []
     want(onFwTest(tests, 'B', 9e9) && !onFwTest(tests, 'C', 150) && !onFwTest(undefined, 'A', 150), 'open end, other device, no tests')
     const r = withoutFwRuns({ A: [{ start: 50 }, { start: 150 }, { start: 250 }], C: [{ start: 150 }] }, tests)
     want(r.A.map(x => x.start).join() === '50,250' && r.C.length === 1, JSON.stringify(r))
+  })
+  check('a plan entry only for firmware-test devices is not the bench cycle, whichever was added last', () => {
+    const start = new Date(2026, 10, 10, 9, 50).getTime()
+    const tests = [{ serials: ['A', 'B'], startedAt: start - 1e9, endedAt: null }]
+    const entry = (id, at, group) => ({ id, at, testType: 'wlc_load', from: '2026-11-10', to: '2026-11-10', startTime: '09:50', endTime: '23:59', spanDays: 0, repeat: 'none', group })
+    const bench = entry('bench', 1, { kind: 'serials', serials: ['C', 'D'] }), fw = entry('fw', 2, { kind: 'serials', serials: ['A', 'B'] })
+    const mixed = entry('mixed', 3, { kind: 'serials', serials: ['A', 'C'] }), all = entry('all', 4, { kind: 'all' })
+    want(cycleAt([bench, fw], start + 3600e3)?.decl.id === 'fw', 'without the filter the newest entry wins')
+    want(cycleAt(benchDecls([bench, fw], tests), start + 3600e3)?.decl.id === 'bench', 'firmware-only entry left out')
+    want(benchDecls([bench, fw, mixed, all], tests).map(d => d.id).join() === 'bench,mixed,all', 'a mixed or whole-bench entry stays')
+    want(benchDecls([fw], []).length === 1, 'no test running: an ordinary entry')
   })
   check('latestRun: a firmware-test device is timed from its own latest drain or charge', () => {
     const at = m => new Date(Date.UTC(2026, 10, 10, 0, m)).toISOString()

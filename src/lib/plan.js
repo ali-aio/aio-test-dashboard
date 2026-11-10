@@ -17,6 +17,8 @@
 // read-only, so declarations are per-browser until a shared store is agreed. Everything
 // above goes through loadDecls/saveDecls and loadRota/saveRota, so moving them to the
 // backend is a change to those four functions and nothing else.
+import { getFw, onFwTest } from './fwTests.js';
+
 const DKEY = g => `cyclePlan:decls:v1:${g}`;
 const RKEY = g => `cyclePlan:rota:v1:${g}`;
 
@@ -56,8 +58,9 @@ export const TEST_TYPES = [
   { id: 'market',     code: 'MS', name: 'Market Scenario',        expect: 'discharge',
     about: 'WLC switched on and off at set times, the same for every device, to see how a device behaves in the market. Set by hand; put the pattern in the cycle note.' },
 ];
-/** Plan entries for the bench as a whole: an Idle Cycle (a device or two left idle) is not it. */
-export const benchDecls = decls => (decls || []).filter(d => !TEST_TYPES.find(t => t.id === d.testType)?.idle);
+/** Plan entries for the bench as a whole: an Idle Cycle (a device or two left idle) is not it, nor an entry only for devices on a firmware test (they aren't on the bench). */
+const onlyFwDevices = (d, tests) => { const list = d.group?.kind === 'serials' ? d.group.serials || [] : []; return list.length > 0 && list.every(s => onFwTest(tests, s, timeOn(d.from, d.startTime))); };
+export const benchDecls = (decls, tests = getFw()) => (decls || []).filter(d => !TEST_TYPES.find(t => t.id === d.testType)?.idle && !onlyFwDevices(d, tests));
 export const testType = id => TEST_TYPES.find(t => t.id === id) || null;
 export const ttSlot = id => Math.max(0, TEST_TYPES.findIndex(t => t.id === id)) + 1;
 

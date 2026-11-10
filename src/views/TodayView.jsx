@@ -210,7 +210,7 @@ export default function TodayView({ fleet }) {
   const coarse = useMemo(() => conf.filter(c => c.rows?.length).map(c => ({ c,
     // from 2 h before the window, so a device pulled early (09:46 for a 10:00 window) is seen leaving the charger
     // with no test and no run on the bench there is no run to time (it found last night's cycle's tail)
-    start: !T.tt && !T.running ? null : runStartOf(rowsFor(c.serial).filter(r => { const t = Date.parse(r.timestamp); return t >= T.startMs - 2 * H && t <= winTo })) })), [conf])
+    start: T.tt?.span || (!T.tt && !T.running) ? null : runStartOf(rowsFor(c.serial).filter(r => { const t = Date.parse(r.timestamp); return t >= T.startMs - 2 * H && t <= winTo })) })), [conf])
     // then pin each switch-off to the minute between the last reading on charge and the first off it
   const [refineRev, setRefineRev] = useState(0)
   useEffect(() => { let live = true
@@ -221,7 +221,7 @@ export default function TodayView({ fleet }) {
     return [c.serial, { start, rows: c.rows, rate: drainSince(c.rows, start), split: drainSplit(c.rows, start), now: c.rows[c.rows.length - 1].battery_pct }]
   })), [coarse, refineRev])
   const all = [...runs.values()], started = all.filter(r => r.start)
-  const runStart = started.length ? median(started.map(r => r.start.t)) : null
+  const runStart = T.tt?.span ? T.startMs : started.length ? median(started.map(r => r.start.t)) : null
   const nows = all.map(r => r.now), medNow = nows.length ? median(nows) : null
   const rates = started.map(r => r.rate).filter(v => v != null && v > 0)
   // a drain needs a few devices behind it: one device 20 min in is not the bench's rate (it put
@@ -443,13 +443,15 @@ export default function TodayView({ fleet }) {
             what is left, the end and the off-charger time go in the note, one per line */}
         <Metric label={ended ? 'Ran for' : 'Running for'}
           value={ended && runStart ? fmtDur(T.endMs - runStart) : runStart ? fmtDur(now - runStart) : 'Not started'}
-          delta={ended && runStart ? <>ended {hm(T.endMs)}<br />off charger {hm(runStart)}</>
+          delta={ended && runStart && !T.tt?.span ? <>ended {hm(T.endMs)}<br />off charger {hm(runStart)}</>
             : T.running ? <>off charger {hm(runStart || T.startMs)}<br />no test planned yet</>
+            : T.tt?.span ? <>{T.endMs > now ? `${fmtDur(T.endMs - now)} left · ends ${hm(T.endMs)}` : `ended ${hm(T.endMs)}`}</>
             : runStart ? <>{T.endMs > now ? `${fmtDur(T.endMs - now)} left · ends ${hm(T.endMs)}` : `planned end ${hm(T.endMs)} passed`}<br />off charger {hm(runStart)}</>
             : <>{started.length} of {all.length} devices off charger<br />planned {hm(T.startMs)} → {hm(T.endMs)}{T.overnight ? ' next day' : ''}</>} />
         <Metric label="Battery" value={medNow != null ? <>{medNow}%<ChargeIcon state={chargeNow} /></> : '—'}
           delta={nows.length ? `median · range ${Math.min(...nows)}–${Math.max(...nows)}%` : 'no readings yet'} />
-        {/* one tile; its drop-down splits the drain by what the T7 was doing (the user, Oct 2026) */}
+        {/* one tile; its drop-down splits the drain by what the T7 was doing (the user, Oct 2026); not for a test that goes up and down */}
+        {!T.tt?.span && <>
         <Stat label="Drain rate" value={rate ? <>{rate.toFixed(2)}<span className="secondary" style={{ fontSize: 13 }}> %/h</span></> : '—'}
           foot={rate ? `${(rate / 6).toFixed(2)}% per 10 min · median of ${rates.length}` : 'needs 20 min of running'}
           breakdownLabel="Drain with / without a load on the pad (ads run in both)" breakdownRight breakdownNoun="state"
@@ -466,6 +468,7 @@ export default function TodayView({ fleet }) {
             : etaEmpty ? `Reaches 0 % ≈ ${when(etaEmpty)} · ${fmtDur(etaEmpty - now)} from now`
             : medNow != null && medNow <= 0 ? 'Reached 0 %'
             : medNow != null && medNow <= END_BAND ? 'Reaches 0 %: — (no drain rate yet)' : 'at the current rate'} />
+        </>}
         </>}
         {/* a yellow border on a tile where some devices behave differently from the rest (the user, 27 Oct 2026) */}
         <Metric label="On track with plan" warn={!!T.tt && !T.tt.span && (drifting.length > 0 || silent > 0)} color={T.tt && !T.tt.span && conforming.length === T.serials.length ? 'var(--ok)' : drifting.length ? 'var(--warn)' : null}
@@ -623,7 +626,7 @@ export default function TodayView({ fleet }) {
               {conf.filter(c => matches(c.serial) && c.serial.toLowerCase().includes(listQ.trim().toLowerCase())).sort((a, b) => byBenchOrder(a.serial, b.serial)).map(c => { // the lab's bench order (BENCH_ORDER); a heading click still sorts
                 const r = runs.get(c.serial)
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
-                const st = status(d), s = dayStats(c.serial, T.startMs), cs = CSTATE[c.state]
+                const st = status(d), s = dayStats(c.serial, T.startMs), cs = T.tt?.span && c.state === 'untyped' ? ['pill-run', 'In test'] : CSTATE[c.state]
                 const row = <tr key={c.serial} className={`row-link${only === c.serial ? ' is-selected' : ''}${stillSet.has(c.serial) ? ' row-warn' : ''}`} onClick={() => focusDevice(c.serial)}
                   title={only === c.serial ? 'Click to show every device again' : `Show only ${c.serial} in the charts above`}>
                   <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button></td>

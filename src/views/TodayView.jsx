@@ -45,7 +45,8 @@ function ChargeIcon({ state }) {
   )
 }
 
-// Several cycles at once (the user, 10 Nov 2026: the bench, plus cycles only for firmware-test devices): a full section each, the bench first, the firmware tests' table last.
+// Several cycles at once (the user, 10 Nov 2026: the bench, plus cycles only for firmware-test devices): tick which to show, a full section each, the
+// bench first, the firmware tests' table last. Opens on the cycle with the most devices.
 export default function TodayView({ fleet }) {
   const fwTests = useSyncExternalStore(subscribeFw, getFw, getFw)
   const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync)
@@ -59,10 +60,36 @@ export default function TodayView({ fleet }) {
     const all = DECLS(), fwOnly = d => !testType(d.testType)?.idle && testType(d.testType)?.expect !== 'charge' && !benchDecls([d]).length
     return [...cyclesOn(all, dayKey(now - 24 * H)), ...cyclesOn(all, todayKey())].filter(c => fwOnly(c.decl) && c.startMs <= now && now - c.endMs <= RECENT_H * H)
   }, [fwTests, planSync.v, todayKey(), Math.floor(now / MIN), win.at2])
+  const [ticked, setTicked] = useState(null) // null until someone ticks: the default below, which follows the cycles as they change
+  const benchCycle = cycleAt(benchDecls(DECLS()), now), benchDev = fleet.DEV.filter(d => !onFwTest(fwTests, d.serial, now))
+  const choices = [
+    { id: 'bench', tt: benchCycle && testType(benchCycle.decl.testType), n: benchCycle ? activeSerials(benchCycle.decl, benchDev, now).length : benchDev.length, side: null },
+    ...sides.map(c => ({ id: c.decl.id, tt: testType(c.decl.testType), n: activeSerials(c.decl, fleet.DEV, now).length, side: c })),
+  ]
+  const largest = choices.reduce((a, b) => (b.n > a.n ? b : a)) // on a tie, the earlier one: the bench
+  const kept = (ticked || []).filter(id => choices.some(c => c.id === id))
+  const shown = kept.length ? kept : [largest.id]
+  const toggle = id => setTicked(shown.includes(id) ? shown.filter(x => x !== id) : [...shown, id])
+  const waiting = !win.at && !Object.keys(win.rows || {}).length && !win.err // still loading: the bench's section says so
   return (
     <div className="view-stack today-sections">
-      <CycleSection fleet={fleet} auto={auto} side={null} />
-      {sides.map(c => <CycleSection key={c.decl.id} fleet={fleet} auto={auto} side={c} />)}
+      {choices.length > 1 && !waiting && (
+        <div className="cycle-picker" role="group" aria-label="Cycles to show">
+          <span className="cycle-picker-title">Show cycles</span>
+          {choices.map(c => {
+            const on = shown.includes(c.id), only = on && shown.length === 1
+            return (
+              <label key={c.id} className={`cycle-pick${on ? ' on' : ''}`} title={only ? 'At least one cycle stays shown' : undefined}>
+                <input type="checkbox" checked={on} disabled={only} onChange={() => toggle(c.id)} />
+                <span className="cycle-pick-dot" style={{ background: c.tt ? `var(--tt-${ttSlot(c.tt.id)})` : 'var(--border-strong)' }} />
+                {c.tt?.name || 'Bench'} <span className="secondary">· {c.n} device{c.n === 1 ? '' : 's'}</span>
+              </label>
+            )
+          })}
+        </div>
+      )}
+      {waiting ? <CycleSection fleet={fleet} auto={auto} side={null} />
+        : choices.filter(c => shown.includes(c.id)).map(c => <CycleSection key={c.id} fleet={fleet} auto={auto} side={c.side} />)}
       <FwTestsToday fleet={fleet} />
     </div>
   )

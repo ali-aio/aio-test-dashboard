@@ -2316,3 +2316,11 @@ tr.row-warn > td { background: color-mix(in srgb, var(--status-warning) 14%, tra
 
 /* Today: several cycles at once, a section each */
 .view-stack.today-sections { gap: 40px; }
+
+.cycle-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: -24px; }
+.cycle-picker-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-right: 4px; }
+.cycle-pick { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border: 1px solid var(--border-strong); border-radius: 8px; font-size: 13px; cursor: pointer; background: var(--surface-1); }
+.cycle-pick.on { border-color: var(--series-1); box-shadow: inset 0 0 0 1px var(--series-1); font-weight: 600; }
+.cycle-pick input { margin: 0; accent-color: var(--series-1); }
+.cycle-pick input:disabled { cursor: not-allowed; }
+.cycle-pick-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }

@@ -236,6 +236,7 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
 // the same test within 3 h, as everywhere else). A click opens the test with that cycle picked.
 // Runs no plan claimed ("Old cycles") are left out — they are not cycles of a planned test.
 function AllCycles({ cycles, decls, onOpen }) {
+  const [open, setOpen] = useState(false) // a drop-down, closed by default (the user, 10 Nov 2026)
   // the daily recharge (Charging Cycle, from every charge since 25 Sep) is not a planned test: Overview only
   const rows = useMemo(() => benchCycles(cycles.filter((c) => !FIELD_TEST_TYPES.has(c.testType) && c.testType !== 'Charging Cycle')).reverse().map((b) => {
     const avg = (xs) => { const v = xs.filter((x) => x != null && Number.isFinite(x)); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null }
@@ -252,9 +253,11 @@ function AllCycles({ cycles, decls, onOpen }) {
   const pct = (v) => (v == null ? '—' : `${Math.round(v)}%`)
   return (
     <div className="card" style={{ marginTop: 16 }}>
-      <div className="card-head"><div><h2>All cycles</h2>
-        <div className="card-sub">{rows.length} cycle{rows.length === 1 ? '' : 's'}, newest first · battery is the average of the cycle's devices · click a row to open that cycle</div></div></div>
-      <div className="card-body">
+      <div className="card-head" role="button" tabIndex={0} aria-expanded={open} style={{ cursor: 'pointer' }}
+        onClick={() => setOpen(o => !o)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o => !o) } }}>
+        <div><h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{open ? '▾' : '▸'}</span>All cycles</h2>
+        <div className="card-sub">{rows.length} cycle{rows.length === 1 ? '' : 's'}, newest first{open ? " · battery is the average of the cycle's devices · click a row to open that cycle" : ' · click to show'}</div></div></div>
+      {open && <div className="card-body">
         {!rows.length ? <p className="secondary">No planned cycle has run yet.</p> :
           <div className="table-wrap" style={{ maxHeight: 520 }}>
             <SortTable caption="All cycles" head={[{ label: 'Date' }, { label: 'Test', style: { textAlign: 'left' } }, { label: 'Devices' }, { label: 'Start' }, { label: 'End' },
@@ -275,7 +278,7 @@ function AllCycles({ cycles, decls, onOpen }) {
               ))}
             </SortTable>
           </div>}
-      </div>
+      </div>}
     </div>
   )
 }

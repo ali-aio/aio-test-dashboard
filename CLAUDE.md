@@ -351,7 +351,7 @@ Firmware client at no venue); anything else answers 404. Every control call is i
   ≤ 30 % up to ≥ 90 %, with their own curve): **every charge from 25 Sep on is a Charging Cycle** with no plan entry
   (the lab recharges after every cycle, daily; their choice, Oct 2026), shown on the Overview and its Charging Cycle
   screen as battery gained, and left out of the Cycle plan's All cycles list.
-  The Cycle plan screen ends with **All cycles** (`AllCycles` in `CyclePlanView.jsx`): one row per bench
+  The Cycle plan screen has **All cycles** (`AllCycles` in `CyclePlanView.jsx`; a drop-down, closed by default — the user, 10 Nov 2026), above Firmware tests: one row per bench
   cycle of a planned test (`benchCycles`), newest first; a click opens that test with the cycle picked
   (`openCycle` in `App.jsx` -> `initialBench` on `TestDetailView`).
 - `index.html` + (inline module script) — **the previous dashboard (v1), no longer served** (its address

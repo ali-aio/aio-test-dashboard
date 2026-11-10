@@ -240,6 +240,30 @@ export function runStartOf(rows) {
   return null; // still on charge, or never fell far enough to call it a run
 }
 
+// A device's own latest stretch, with no cycle to anchor it (a device on a firmware test drains several times a day):
+// on charge → { charging: true, t, pct } from the bottom of the last drain; off it → runStartOf over the rows since the
+// charge before. Null when the window can't tell.
+export function latestRun(rows) {
+  const rs = (rows || []).filter(r => !r.empty && r.battery_pct != null);
+  if (rs.length < 2) return null;
+  const end = rs.length - 1, gap = i => Date.parse(rs[i + 1].timestamp) - Date.parse(rs[i].timestamp);
+  if (rs[end].extra?.charging) {
+    let low = end;
+    for (let j = end - 1; j >= 0 && gap(j) <= 2 * H; j--) {
+      if (rs[j].battery_pct < rs[low].battery_pct) low = j;
+      else if (rs[j].battery_pct > rs[low].battery_pct + 2) break;
+    }
+    return { charging: true, t: Date.parse(rs[low].timestamp), pct: rs[low].battery_pct };
+  }
+  let top = end, from = 0;
+  for (let j = end - 1; j >= 0; j--) {
+    if (gap(j) > 2 * H) { from = j + 1; break; }
+    if (rs[j].battery_pct > rs[top].battery_pct) top = j;
+    else if (rs[j].battery_pct < rs[top].battery_pct - 2) { from = j; break; }
+  }
+  return runStartOf(rs.slice(from));
+}
+
 // The window holds every check-in (about every 3 min), and the newest reading can be the live
 // snapshot, so the switch-off can still sit in a gap of a few minutes. Narrow it down: fetch just
 // that gap and take the first reading off the charger. One small request per device and run,

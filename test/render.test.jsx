@@ -34,6 +34,7 @@ import { presetRange, resolve, overlaps, dayRange } from '../src/lib/range.js'
 import { extendLedger, cumAt, lifetimeAt, drainByAge, liveLedgers } from '../src/lib/drainAge.js'
 import { runsFrom, benchesFrom, classifyBench, applyAuto } from '../src/lib/autoPlan.js'
 import { onFwTest, withoutFwRuns } from '../src/lib/fwTests.js'
+import { latestRun } from '../src/lib/window.js'
 import { slotBuckets, extendSlots, tagSlots, drainBands, conditionBands, padSplit } from '../src/lib/drainHours.js'
 import HealthView from '../src/components/BatteryHealth.jsx'
 import { healthRows, capacityIndex, earlyIndex, earlyDrain, fleetBaselines, loadClass, stressIndex, fleetP90, stressFactors, hoursAtFull, chargeSegments, medianToFull, slowCharges, gaugeJumps, shutdownsAbove, scoreOf, gradeOf, GRADE, SHUTDOWN, NO_FULL, JUMP } from '../src/lib/health.js'
@@ -817,6 +818,21 @@ const mdmCases = []
     want(onFwTest(tests, 'B', 9e9) && !onFwTest(tests, 'C', 150) && !onFwTest(undefined, 'A', 150), 'open end, other device, no tests')
     const r = withoutFwRuns({ A: [{ start: 50 }, { start: 150 }, { start: 250 }], C: [{ start: 150 }] }, tests)
     want(r.A.map(x => x.start).join() === '50,250' && r.C.length === 1, JSON.stringify(r))
+  })
+  check('latestRun: a firmware-test device is timed from its own latest drain or charge', () => {
+    const at = m => new Date(Date.UTC(2026, 10, 10, 0, m)).toISOString()
+    const r = (m, battery_pct, charging) => ({ timestamp: at(m), battery_pct, extra: { charging } })
+    // two drains with a charge between: the second one counts, from the charger's switch-off
+    const rows = [r(0, 90, false), r(30, 50, false), r(60, 10, false), r(70, 12, true), r(120, 80, true), r(150, 100, true), r(155, 100, false), r(200, 95, false), r(260, 88, false)]
+    const d = latestRun(rows)
+    want(d && !d.charging && d.t === Date.parse(at(150)) && d.pct === 100, JSON.stringify(d))
+    // on charge: from the bottom of the drain before it
+    const c = latestRun(rows.slice(0, 5))
+    want(c?.charging && c.t === Date.parse(at(60)) && c.pct === 10, JSON.stringify(c))
+    want(latestRun([r(0, 50, false)]) === null && latestRun(null) === null, 'too few readings')
+    // placeholders for a gap never count as a reading
+    const e = latestRun([...rows, { timestamp: at(270), battery_pct: 0, empty: true, extra: {} }])
+    want(e && !e.charging && e.t === d.t, 'empty row ignored')
   })
   check('an entry with endsRuns ends its runs at its end time, as finished runs (5 Nov 2026 Restaurant Case, over at 23:59)', () => {
     // 11 devices stayed off the charger past the end for the next test: not "ran past the 14 h cycle", not left, not short

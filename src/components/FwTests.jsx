@@ -2,9 +2,16 @@ import React, { useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Card } from './Primitives.jsx'
 import { SortTable } from './SortTable.jsx'
 import { subscribeFw, getFw, saveFw } from '../lib/fwTests.js'
-import { rowsFor } from '../lib/window.js'
-import { byBenchOrder, online } from '../lib/device.js'
-import { ago } from '../lib/format.js'
+import AppToggle from './AppToggle.jsx'
+import WlcToggle from './WlcToggle.jsx'
+import { rowsFor, latestRun, drainSince, drainSplit, dayStats } from '../lib/window.js'
+import { byBenchOrder, online, status, lifetimeCycles } from '../lib/device.js'
+import { ago, hm, MIN, H } from '../lib/format.js'
+import { fmtLifetime } from '../lib/fmt.js'
+import { fmtDur } from '../lib/cycles.js'
+import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
+import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
+import { padLoad } from '../lib/pad.js'
 
 // Firmware tests (the user, 6 Nov 2026). FwTestsToday: a section at the bottom of Today for each test running now, with its
 // devices as they are. FwTestsLog: the record at the bottom of the Cycle plan — what was tested, on which devices.
@@ -24,6 +31,47 @@ const About = ({ t }) => (
   </dl>
 )
 
+const dash = <span className="secondary">—</span>
+const rate = v => (v != null && v > 0 ? `${v.toFixed(2)} %/h` : dash)
+const extraOf = d => { const e = d?.snap?.extra; if (typeof e !== 'string') return e || {}; try { return JSON.parse(e) } catch (x) { return {} } }
+const clock = t => (new Date(t).toDateString() === new Date().toDateString() ? hm(t) : `${hm(t)} ${new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' })}`)
+const APP_TEXT = code => (code === SPAN.otherApp ? 'Other app' : SPAN_LABEL[code])
+
+// One device's row, the same columns as Devices today (the user, 10 Nov 2026), timed from its own latest drain or charge; the app and WLC switches are the ones on Today's tiles.
+// A plain function returning the <tr>: SortTable reads each row's cells from its props, so a component here would not sort.
+function fwRow(sn, fleet) {
+  const d = fleet.DMAP?.get(sn), s = d?.snap, on = !!d && online(d), st = d ? status(d) : null, e = extraOf(d)
+  const rows = rowsFor(sn), last = rows?.[rows.length - 1]
+  const run = on ? latestRun(rows) : null, drain = run && !run.charging ? run : null
+  const lastT = last ? Date.parse(last.timestamp) : 0
+  const gain = run?.charging && lastT - run.t >= 20 * MIN ? (last.battery_pct - run.pct) / ((lastT - run.t) / H) : null
+  const split = drain ? drainSplit(rows, drain) : null
+  const stats = run ? dayStats(sn, run.t) : null
+  const app = fleet.hostAppNow?.get(sn), code = app ? stateCode(app) : null
+  const wlcOn = e.wlc_status != null && e.wlc_status !== '' ? +e.wlc_status !== -1 : e.wlc_charging === true
+  const temp = on && s.battery_temp_c ? s.battery_temp_c : null
+  const heat = v => (v >= TEMP_LIMIT ? 'var(--bad)' : v >= TEMP_WARN ? 'var(--warn)' : 'inherit')
+  return (
+    <tr key={sn}>
+      <td className="mono"><a className="link-btn plain-link mono" href={devHref(sn)} title={`Open ${sn}`}>{sn}</a></td>
+      <td><span className={`pill ${on ? 'pill-ok' : ''}`}>{!on ? 'Not reporting' : s.charging ? 'On charge' : 'On battery'}</span></td>
+      <td className="r">{st?.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span> : dash}</td>
+      <td className="r mono">{run ? (run.charging ? `on charge ${clock(run.t)}` : clock(run.t)) : dash}</td>
+      <td className="r mono">{run?.charging ? (gain > 0 ? `+${gain.toFixed(2)} %/h` : dash) : rate(drain && drainSince(rows, drain))}</td>
+      <td className="r mono">{rate(split?.active)}</td>
+      <td className="r mono">{rate(split?.none)}</td>
+      <td className="r mono">{d ? fmtLifetime(lifetimeCycles(s)) : dash}</td>
+      <td className="r mono" style={{ color: temp ? heat(temp) : 'inherit' }}>{temp ? `${temp.toFixed(1)} °C` : dash}</td>
+      <td className="r mono" style={{ color: stats?.maxTemp != null ? heat(stats.maxTemp) : 'inherit' }}>{stats?.maxTemp != null ? `${stats.maxTemp.toFixed(1)} °C` : dash}</td>
+      <td className="r mono" style={{ color: stats?.minAbove45 ? 'var(--bad)' : 'inherit' }}>{stats?.minAbove45 ? fmtDur(stats.minAbove45 * MIN) : dash}</td>
+      <td className="r mono fw-nowrap">{last?.build_id || dash}</td>
+      <td className="r fw-nowrap">{s?.last_seen_at ? ago(Date.parse(s.last_seen_at)) : dash}</td>
+      <td className="fw-nowrap"><span className="fw-switch"><AppToggle serial={sn} onScreen={code === SPAN.on} /><span className="secondary">{code ? APP_TEXT(code) : 'Not reported'}</span></span></td>
+      <td className="fw-nowrap"><span className="fw-switch"><WlcToggle serial={sn} enabled={wlcOn} /><span className="secondary">{wlcOn ? (padLoad(e.wlc_status) === true ? 'On · load' : 'On') : 'Off'}</span></span></td>
+    </tr>
+  )
+}
+
 export function FwTestsToday({ fleet }) {
   const tests = useSyncExternalStore(subscribeFw, getFw, getFw)
   const now = Date.now()
@@ -31,20 +79,12 @@ export function FwTestsToday({ fleet }) {
   return live.map(t => (
     <Card key={t.id} title={t.name} sub={`${t.serials.length} devices · since ${date(t.startedAt)} · not part of today's cycle`}>
       <About t={t} />
-      <div className="table-wrap">
-        <SortTable caption={t.name} head={[{ label: 'Device', style: { textAlign: 'left' } }, { label: 'Battery' }, { label: 'State' }, { label: 'Firmware now' }, { label: 'Last seen' }]}>
-          {[...t.serials].sort((a, b) => byBenchOrder(short(a), short(b))).map(sn => {
-            const d = fleet.DMAP?.get(sn), s = d?.snap, rows = rowsFor(sn), last = rows?.[rows.length - 1]
-            const on = d && online(d)
-            return (
-              <tr key={sn}>
-                <td style={{ textAlign: 'left' }}><a className="link-btn mono" href={devHref(sn)}>{short(sn)}</a></td>
-                <td>{s?.battery_pct != null ? `${s.battery_pct}%` : '—'}</td>
-                <td>{!on ? 'Not reporting' : s.charging ? 'On charge' : 'On battery'}</td>
-                <td>{last?.build_id || '—'}</td>
-                <td>{s?.last_seen_at ? ago(Date.parse(s.last_seen_at)) : '—'}</td>
-              </tr>)
-          })}
+      <div className="scroll-x">
+        <SortTable caption={t.name} head={[{ label: 'Device' }, { label: 'State' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' }, { label: 'Drain', className: 'r' },
+          { label: 'Drain with WLC', className: 'r' }, { label: 'Drain without WLC', className: 'r' }, { label: 'Cycles', className: 'r' }, { label: 'Device temp now', className: 'r' },
+          { label: 'Peak device temp', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' }, { label: 'Firmware now', className: 'r' }, { label: 'Last seen', className: 'r' },
+          { label: 'App', sortable: false }, { label: 'WLC', sortable: false }]}>
+          {[...t.serials].sort(byBenchOrder).map(sn => fwRow(sn, fleet))}
         </SortTable>
       </div>
     </Card>
@@ -56,7 +96,7 @@ function FwForm({ DEV, test, onDone }) {
     day: dayInput(test?.startedAt ?? Date.now()), serials: new Set(test?.serials || []) }))
   const [err, setErr] = useState('')
   const set = k => e => setF({ ...f, [k]: e.target.value })
-  const all = useMemo(() => [...new Set([...DEV.map(d => d.serial), ...(test?.serials || [])])].sort((a, b) => byBenchOrder(short(a), short(b))), [DEV, test])
+  const all = useMemo(() => [...new Set([...DEV.map(d => d.serial), ...(test?.serials || [])])].sort(byBenchOrder), [DEV, test])
   const flip = s => { const n = new Set(f.serials); n.has(s) ? n.delete(s) : n.add(s); setF({ ...f, serials: n }) }
   const ok = f.name.trim() && f.serials.size && f.day
   const save = async () => {
@@ -113,7 +153,7 @@ export function FwTestsLog({ DEV }) {
                   <button type="button" className="link-btn" onClick={() => twice(`${t.id}:remove`, { remove: t.id })}>{arm === `${t.id}:remove` ? 'Click again to remove' : 'Remove'}</button>
                 </span></div>
               <About t={t} />
-              <div className="fw-devs-list"><span className="fw-k">Devices ({t.serials.length})</span> {[...t.serials].sort((a, b) => byBenchOrder(short(a), short(b))).map(s => <a key={s} className="link-btn mono" href={devHref(s)}>{short(s)}</a>)}</div>
+              <div className="fw-devs-list"><span className="fw-k">Devices ({t.serials.length})</span> {[...t.serials].sort(byBenchOrder).map(s => <a key={s} className="link-btn mono" href={devHref(s)}>{short(s)}</a>)}</div>
             </div>))}
         </div>
       </div>

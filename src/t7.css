@@ -2309,3 +2309,6 @@ tr.row-warn > td { background: color-mix(in srgb, var(--status-warning) 14%, tra
 .fw-wide { grid-column: 1 / -1; }
 .fw-devs { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
 .fw-devs label { flex-direction: row; align-items: center; gap: 4px; color: var(--text-primary); }
+
+.fw-nowrap { white-space: nowrap; }
+.fw-switch { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }

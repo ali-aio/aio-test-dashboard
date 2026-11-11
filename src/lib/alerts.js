@@ -56,6 +56,7 @@ const median = xs => { const a = [...xs].sort((x, y) => x - y), m = a.length >> 
 export function findOddOnes(decls, DEV, now = Date.now(), hostApp = null) {
   const cyc = cycleAt(benchDecls(decls), now);
   if (!cyc || now < cyc.startMs) return null; // not started yet (cycleAt also returns one about to start)
+  if (testType(cyc.decl.testType)?.span) return null; // charged and discharged by design (Reproducing Boot Loop): nothing is odd
   const serials = new Set(activeSerials(cyc.decl, DEV, now));
   const mine = DEV.filter(d => serials.has(d.serial) && d.snap);
   const live = mine.filter(d => onlineAt(d, now));

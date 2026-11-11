@@ -45,6 +45,10 @@ function ChargeIcon({ state }) {
   )
 }
 
+// The bench: every device not on a firmware test, plus firmware-test devices the bench's cycle names by serial (the user, 11 Nov 2026:
+// the whole lab on one Reproducing Boot Loop cycle).
+const benchDevices = (allDev, fwTests, decl, now) => allDev.filter(d => !onFwTest(fwTests, d.serial, now) || (decl?.group?.kind === 'serials' && (decl.group.serials || []).includes(d.serial)))
+
 // Several cycles at once (the user, 10 Nov 2026: the bench, plus cycles only for firmware-test devices): tick which to show, a full section each, the
 // bench first, the firmware tests' table last. Opens on the cycle with the most devices.
 export default function TodayView({ fleet }) {
@@ -61,7 +65,7 @@ export default function TodayView({ fleet }) {
     return [...cyclesOn(all, dayKey(now - 24 * H)), ...cyclesOn(all, todayKey())].filter(c => fwOnly(c.decl) && c.startMs <= now && now - c.endMs <= RECENT_H * H)
   }, [fwTests, planSync.v, todayKey(), Math.floor(now / MIN), win.at2])
   const [ticked, setTicked] = useState(null) // null until someone ticks: the default below, which follows the cycles as they change
-  const benchCycle = cycleAt(benchDecls(DECLS()), now), benchDev = fleet.DEV.filter(d => !onFwTest(fwTests, d.serial, now))
+  const benchCycle = cycleAt(benchDecls(DECLS()), now), benchDev = benchDevices(fleet.DEV, fwTests, benchCycle?.decl, now)
   const choices = [
     { id: 'bench', tt: benchCycle && testType(benchCycle.decl.testType), n: benchCycle ? activeSerials(benchCycle.decl, benchDev, now).length : benchDev.length, side: null },
     ...sides.map(c => ({ id: c.decl.id, tt: testType(c.decl.testType), n: activeSerials(c.decl, fleet.DEV, now).length, side: c })),
@@ -103,7 +107,8 @@ function CycleSection({ fleet, side, auto }) {
   const now = Date.now()
   const [planRev, setPlanRev] = useState(0) // bumped after a take-out / put-back, to re-read the plan
   const planSync = useSyncExternalStore(subscribePlan, getPlanSync, getPlanSync) // shared plan changed elsewhere
-  const DEV = useMemo(() => (side ? allDev.filter(d => side.decl.group.serials.includes(d.serial)) : allDev.filter(d => !onFwTest(fwTests, d.serial, Date.now()))), [allDev, fwTests, side?.decl.id])
+  const benchDecl = side ? null : cycleAt(benchDecls(DECLS()), now)?.decl
+  const DEV = useMemo(() => (side ? allDev.filter(d => side.decl.group.serials.includes(d.serial)) : benchDevices(allDev, fwTests, benchDecl, Date.now())), [allDev, fwTests, side?.decl.id, benchDecl?.id, benchDecl?.mod])
   const win = useSyncExternalStore(subscribeWindow, getWindow, getWindow)
 
   // The day whose run is on now. A run planned 10:00 → 04:00 belongs to the day it started,
@@ -187,7 +192,8 @@ function CycleSection({ fleet, side, auto }) {
     const runningNow = cycleAt(decls0, now)
     const chargeStarts = [...charges.by.values()].map(c => c.t)
     // (cycleAt also returns a cycle starting within 2 h: not started yet, so the devices on charge are still the Charging Cycle — 6 Nov 2026)
-    const backOnCharge = chargingMost && (!runningNow || now < runningNow.startMs || median(chargeStarts) > runningNow.startMs + H)
+    // (not in a test that charges by design: Reproducing Boot Loop)
+    const backOnCharge = chargingMost && !testType(runningNow?.decl.testType)?.span && (!runningNow || now < runningNow.startMs || median(chargeStarts) > runningNow.startMs + H)
     if (backOnCharge) {
       const starts = chargeStarts
       return { key: todayKey(), charging: true, status: 'inferred', testType: 'charging', tt: testType('charging'), src: null, decl: null,

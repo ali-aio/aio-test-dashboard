@@ -72,9 +72,13 @@ function fwRow(sn, fleet) {
 export function FwTestsToday({ fleet }) {
   const tests = useSyncExternalStore(subscribeFw, getFw, getFw)
   const now = Date.now()
-  const live = tests.filter(t => t.startedAt <= now && t.endedAt == null)
-  return live.map(t => (
-    <Card key={t.id} title={t.name} sub={`${t.serials.length} devices · since ${date(t.startedAt)} · not part of today's cycle`}>
+  // running now: open-ended, or set for a day (11 Nov 2026: every device on the boot loop test for that day only); tests of one name
+  // share one section, their devices together, described by the one started first
+  const live = tests.filter(t => t.startedAt <= now && (t.endedAt == null || now <= t.endedAt)).sort((a, b) => a.startedAt - b.startedAt)
+  const byName = new Map()
+  for (const t of live) { const g = byName.get(t.name); if (g) g.serials = [...new Set([...g.serials, ...t.serials])]; else byName.set(t.name, { ...t, serials: [...t.serials] }) }
+  return [...byName.values()].map(t => (
+    <Card key={t.id} title={t.name} sub={`${t.serials.length} devices · since ${date(t.startedAt)}`}>
       <About t={t} />
       <div className="scroll-x">
         <SortTable caption={t.name} head={[{ label: 'Device' }, { label: 'State' }, { label: 'Battery', className: 'r' }, { label: 'Off charger', className: 'r' },

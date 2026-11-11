@@ -675,7 +675,7 @@ function CycleSection({ fleet, side, auto }) {
                   title={only === c.serial ? 'Click to show every device again' : `Show only ${c.serial} in the charts above`}>
                   <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button></td>
                   <td><span className={`pill ${cs[0]}`}>{cs[1]}</span></td>
-                  {rebootCol && <td className="r"><RebootCell decl={T.decl} serial={c.serial} onSaved={() => setPlanRev(v => v + 1)} /></td>}
+                  {rebootCol && <td className="r"><RebootCell decl={T.decl} serial={c.serial} onSaved={() => setPlanRev(v => v + 1)}>{T.decl.reboots?.[c.serial] ?? ''}</RebootCell>{/* the child is only for sorting by this column */}</td>}
                   <td className="r">{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span> : <span className="secondary">—</span>}</td>
                   {/* in a Charging Cycle: when it went on charge and how fast it gains (the user, 27 Oct 2026: it showed a negative drain) */}
                   {T.charging ? (() => { const ch = charges.by.get(c.serial), h = ch ? (ch.at - ch.t) / H : 0, g = ch && h >= 1 / 3 ? (ch.now - ch.pct) / h : null

@@ -301,6 +301,17 @@ export function setCycleNote(group, declId, note) {
   const decls = loadDecls(group).map(d => d.id !== declId ? d : { ...d, note: String(note || '').trim().slice(0, 2000) || undefined });
   saveDecls(group, decls); return decls;
 }
+/** How many times a device was rebooted in a cycle (Reproducing Boot Loop: charged to 1-4 %, off the charger until it powers off),
+ *  counted by the lab and typed on Today (the user, 11 Nov 2026). n = null clears it. */
+export function setReboots(group, declId, serial, n) {
+  const decls = loadDecls(group).map(d => {
+    if (d.id !== declId) return d;
+    const reboots = { ...(d.reboots || {}) };
+    if (n == null || !Number.isFinite(n) || n < 0) delete reboots[serial]; else reboots[serial] = Math.round(n);
+    return { ...d, reboots: Object.keys(reboots).length ? reboots : undefined };
+  });
+  saveDecls(group, decls); return decls;
+}
 /** The note of the planned cycle a run that started at `start` belongs to, or null. */
 export const cycleNote = (decls, start, name = null) =>
   cycleAt(name ? decls.filter(d => testType(d.testType)?.name === name) : decls, start)?.decl?.note || null;

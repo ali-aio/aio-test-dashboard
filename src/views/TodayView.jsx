@@ -10,7 +10,7 @@ import { subscribePhone, getPhone, startPhoneSync, pendingOuts, setPendingOut, p
 import { subscribePlan, getPlanSync } from '../lib/planSync.js'
 import { SortTable } from '../components/SortTable.jsx'
 import { loadWindow, subscribeWindow, getWindow, rowsFor, buckets, dayStats, conform, temp, runStartOf, refineStarts, refinedStart, drainSince, drainSplit, WINDOW_HOURS } from '../lib/window.js'
-import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, benchDecls, activeSerials, removedFrom, takeOut, putBack, TAKE_OUT_REASONS, takeOutReasons, loadDecls, loadRota, setCycleNote } from '../lib/plan.js'
+import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, dayLong, dayLabel, timeOn, windowOn, cyclesOn, cycleAt, benchDecls, activeSerials, removedFrom, takeOut, putBack, setReboots, TAKE_OUT_REASONS, takeOutReasons, loadDecls, loadRota, setCycleNote } from '../lib/plan.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
 import { median, pctl, hm, dt, ago, MIN, H } from '../lib/format.js'
@@ -285,6 +285,8 @@ function CycleSection({ fleet, side, auto }) {
   const stillCharging = cycleOn && !T.tt?.span ? (T.serials || []).filter(sn => { const d = fleet.DMAP.get(sn); return d && online(d) && d.snap?.charging }).sort(byBenchOrder) : []
   const stillSet = new Set(stillCharging)
   // Devices today: drain with / without WLC for a test that places a load on the pad (or a test not named yet) — the user, 2 Nov 2026
+  // Reproducing Boot Loop: how many times each device was rebooted, counted by the lab (the user, 11 Nov 2026)
+  const rebootCol = !!T.tt?.span && !!T.decl
   const padCols = !T?.charging && (!T?.tt || T.tt.loadHours || ['wlc_load', 'load_only', 'wlc_phone', 'market'].includes(T.tt.id))
   // Reached N %: while a "WLC off at ≤ N %" rule runs on the lab laptop, when each device first read N % or less since it
   // left the charger (the user, 4 Nov 2026: today's WLC on Load, load until 15 %, then WLC off — the boot-loop repro)
@@ -658,7 +660,7 @@ function CycleSection({ fleet, side, auto }) {
                 </span>
               : <span className="secondary">{reporting.length} reporting · click to show every device — click one to chart it alone</span>}
           </div>
-          {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, { label: 'Battery', className: 'r' }, { label: T.charging ? 'On charger' : 'Off charger', className: 'r' },
+          {listShown && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Against plan' }, ...(rebootCol ? [{ label: 'Reboots', className: 'r' }] : []), { label: 'Battery', className: 'r' }, { label: T.charging ? 'On charger' : 'Off charger', className: 'r' },
               { label: T.charging ? 'Charge rate' : 'Drain', className: 'r' },
               ...(padCols ? [{ label: 'Drain with WLC', className: 'r' }, { label: 'Drain without WLC', className: 'r' }] : []),
               ...(reachPct != null ? [{ label: `Reached ${reachPct} %`, className: 'r' }] : []),
@@ -673,6 +675,7 @@ function CycleSection({ fleet, side, auto }) {
                   title={only === c.serial ? 'Click to show every device again' : `Show only ${c.serial} in the charts above`}>
                   <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button></td>
                   <td><span className={`pill ${cs[0]}`}>{cs[1]}</span></td>
+                  {rebootCol && <td className="r"><RebootCell decl={T.decl} serial={c.serial} onSaved={() => setPlanRev(v => v + 1)} /></td>}
                   <td className="r">{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span> : <span className="secondary">—</span>}</td>
                   {/* in a Charging Cycle: when it went on charge and how fast it gains (the user, 27 Oct 2026: it showed a negative drain) */}
                   {T.charging ? (() => { const ch = charges.by.get(c.serial), h = ch ? (ch.at - ch.t) / H : 0, g = ch && h >= 1 / 3 ? (ch.now - ch.pct) / h : null
@@ -872,6 +875,23 @@ function TakeOutForm({ serial, cycle, onSave, onCancel }) {
 // for the first 3 h and which with a 30-min gap). Saved on the plan entry, so every browser and the
 // test screen see it.
 // Before the cycle's test is known it takes `note` / `onSave` instead (held in data/phone.json, moved onto the entry later).
+/** The lab's reboot count for one device in this cycle: click to type it, Enter or leaving the box saves (shared through the plan). */
+function RebootCell({ decl, serial, onSaved }) {
+  const cur = decl.reboots?.[serial]
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState('')
+  const save = () => {
+    const v = text.trim(), n = v === '' ? null : Number(v)
+    if (v === '' || Number.isInteger(n)) { if (n !== (cur ?? null)) { setReboots(GROUP, decl.id, serial, n); onSaved() } }
+    setEditing(false)
+  }
+  if (editing) return <input className="reboot-input mono" autoFocus inputMode="numeric" value={text} aria-label={`Reboots of ${serial}`}
+    onChange={e => setText(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))} onBlur={save}
+    onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }} onClick={e => e.stopPropagation()} />
+  return <button type="button" className="link-btn plain-link mono reboot-btn" title={`Times ${serial} was rebooted in this cycle · click to change`}
+    onClick={e => { e.stopPropagation(); setText(cur != null ? String(cur) : ''); setEditing(true) }}>{cur != null ? cur : '—'}</button>
+}
+
 function CycleNote({ decl, note, onSave, onSaved }) {
   const cur = decl ? decl.note || '' : note || ''
   const [editing, setEditing] = useState(false)

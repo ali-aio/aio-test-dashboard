@@ -79,7 +79,9 @@ export const buildFromSerial = (serial) => (!serial ? null : /BU/i.test(String(s
 // The order the lab wants Today's Devices today list in (the user, 27 Oct 2026 — the bench's own
 // order). A device not on the list goes after these, by serial.
 export const BENCH_ORDER = ['00142', '00077', '00226', '00089', '00429', '00387', '00044', '00122', '00172', '00100', '00442', '00281',
-  '00232', '00318', '00080', '00188', '00280', '00064', '00231', '00833', '00875', '00485', '00606', '00790'].map(n => `AT070AABU${n}`);
+  '00232', '00318', '00080', '00188', '00280', '00064', '00231', '00833', '00875', '00485', '00606', '00790'].map(n => `AT070AABU${n}`)
+  // two validation-build T7s on the bench from 11 Nov 2026 (the boot loop test), another serial prefix
+  .concat(['AT070AA2600030', 'AT070AA2600037']);
 const benchRank = new Map(BENCH_ORDER.map((s, i) => [s, i]));
 export const byBenchOrder = (a, b) => (benchRank.get(a) ?? 1e9) - (benchRank.get(b) ?? 1e9) || (a < b ? -1 : a > b ? 1 : 0);
 

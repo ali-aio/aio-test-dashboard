@@ -566,6 +566,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 - **After every change:** `npm test`, `npm run build`, commit (with `dist/`), push to `main`, deploy
   (`scripts/deploy-lab.sh`, the lab laptop). Don't ask first; deploying is part of the change.
 - The QA key above is to be used without asking again.
+- **Write down what the user mentions about the lab** (the user, 12 Nov 2026: "if someone sees today's cycle after a month or two and notices the drain went up, you noted the phone was replaced"): a swap, an early end, a device taken off, a flash — record it unasked as a **cycle note** on that day's plan entry (times from the readings where possible) and as **device notes** when it is about particular devices, then say what was written. The notes are the lab's record; the chat is not.
 - **Never drive the user's own browser.** To check a page, use a separate headless browser profile.
 - **The lab's cycle sheets** (`/home/tariq/Documents/cycles-record`, CSVs) are inconsistent: use them **only** for
   Drain rate by battery age (`scripts/sheet-runs.mjs` → `data/sheet-runs.json`), never for the plan, Auto or Health.

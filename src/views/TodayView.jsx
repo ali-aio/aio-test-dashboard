@@ -24,6 +24,7 @@ import { padLoad } from '../lib/pad.js'
 import { subscribeRoom, getRoom, startRoomSync, roomSummary } from '../lib/room.js'
 import { subscribeFw, getFw, onFwTest } from '../lib/fwTests.js'
 import { FwTestsToday } from '../components/FwTests.jsx'
+import { NotesIn } from '../components/DeviceNotes.jsx'
 
 // A battery end label that would sit on the 0% / 100% axis mark only repeats the axis.
 const pctLabel = v => { const r = Math.round(v); return r >= 100 || r <= 0 ? null : `${r}%` }
@@ -601,7 +602,9 @@ function CycleSection({ fleet, side, auto }) {
           <div className="pick-bar">
             <span>{picked.size === 0 ? 'No devices ticked'
               : picked.size <= 3 ? <>Showing only <b className="mono">{[...picked].join(', ')}</b></>
-              : <>Showing <b>{picked.size}</b> of {sorted.length} devices</>}</span>
+              : <>Showing <b>{picked.size}</b> of {sorted.length} devices</>}
+              {/* the notes written on this device during this cycle, if any (the user, 12 Nov 2026) */}
+              {only && <NotesIn serial={only} windows={[[T.startMs, Math.min(now, T.endMs ?? now)]]} />}</span>
             <button type="button" className="btn btn-sm" onClick={() => setPicked(null)}>× Clear selection</button>
           </div>
         )}

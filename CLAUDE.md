@@ -635,7 +635,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 ### Device notes
 - **Notes on a device, kept for good** (the user, 6 Nov 2026: "after a week or month or year, if someone wants to see what happened
   to those devices today, they see these notes"): the **Notes** card at the bottom of the device page (`DeviceNotes.jsx`, newest first, add / edit /
-  two-click remove), `GET/POST /api/device-notes` (`server/deviceNotes.mjs`, `data/device-notes.json`, gitignored, lab laptop only; lab devices only; removing only hides a note).
+  two-click remove), `GET/POST /api/device-notes`; and, not highlighted, **in the "Showing only" bar when a device is clicked** in a cycle's list on Today or a test screen — only the notes written from the cycle's start day to the day after its end, with a link to all of them (`NotesIn`; the user, 12 Nov 2026: "no need to highlight, the user should see them by clicking on the device") (`server/deviceNotes.mjs`, `data/device-notes.json`, gitignored, lab laptop only; lab devices only; removing only hides a note).
 - **6 Nov 2026, boot loop test** (the notes as written are on each device; this is the copy in git). **New firmware, shutdown voltage raised to 3400 mV**, to test
   whether the voltage drop / cut-off is the main cause of the boot loop; each device is flashed, then drained several times: 00044, 00077, 00089, 00122,
   00142, 00226, 00387, 00429, 00485, 00606, 00790 (not put on charge after 5 Nov's cycle, reporting v2.2.001) and 00080, 00280, 00833 (reporting v2.2.003 before the flash).

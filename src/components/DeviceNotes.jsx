@@ -70,3 +70,27 @@ export default function DeviceNotes({ serial }) {
     </Card>
   )
 }
+
+// The notes written on a device during a cycle, shown quietly when someone clicks that device in a cycle's list (the user, 12 Nov 2026:
+// "no need to highlight the notes, the user should see them by clicking on the device"). A note counts for a cycle when it was written
+// from the day the cycle started to the day after it ended. Plain lines in the "Showing only" bar; all of them stay on the device page.
+const DAY = 86400e3
+const dayStart = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime() }
+export function NotesIn({ serial, windows }) {
+  const [notes, setNotes] = useState([])
+  useEffect(() => {
+    let live = true
+    setNotes([])
+    deviceNotes(serial).then(j => { if (live && j.ok) setNotes(j.notes || []) }).catch(() => {})
+    return () => { live = false }
+  }, [serial])
+  const inCycle = n => (windows || []).some(([a, b]) => n.at >= dayStart(a) && n.at < dayStart(b ?? a) + 2 * DAY)
+  const shown = notes.filter(inCycle)
+  if (!shown.length) return null
+  return (
+    <span className="pick-out">
+      {shown.map(n => <span key={n.id}><b>Note on {serial.replace(/^AT070AABU/, '')} · {when(n.at)}:</b> <span style={{ whiteSpace: 'pre-wrap' }}>{n.text}</span></span>)}
+      <a className="link" href={`#/nx/device/${serial}`}>All notes on this device</a>
+    </span>
+  )
+}

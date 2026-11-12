@@ -16,6 +16,7 @@ import { SPAN_LABEL, ADS_GAP_MIN, ADS_MIN_PCT } from '../lib/hostApp.js'
 const clock = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 const fmtMin = (m) => { m = Math.round(m); return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` }
 import { TEST_TYPES } from '../lib/plan.js'
+import { NotesIn } from '../components/DeviceNotes.jsx'
 import { padSplit } from '../lib/drainHours.js'
 import PickDevicesDialog from '../components/PickDevicesDialog.jsx'
 import {
@@ -467,7 +468,9 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             {/* devices taken out of this cycle on the Today screen: in its charts up to then; their whole run is under Left the cycle */}
             {benchSel && cycleNote(loadDecls(CTX.group), benchSel.start, testType) && <span className="pick-out"><b>Note:</b> <span style={{ whiteSpace: 'pre-wrap' }}>{cycleNote(loadDecls(CTX.group), benchSel.start, testType)}</span></span>}
             {benchSel && (() => { const out = takenOutOf(loadDecls(CTX.group), benchSel.start); return out.length ? <span className="pick-out">
-              <b>{out.length} taken out of this cycle:</b>{out.map((r) => <span key={r.serial + r.at}>{takenOutText(r)}</span>)}</span> : null })()}</span>
+              <b>{out.length} taken out of this cycle:</b>{out.map((r) => <span key={r.serial + r.at}>{takenOutText(r)}</span>)}</span> : null })()}
+            {/* the notes written on the clicked device during its cycles in view (the user, 12 Nov 2026) */}
+            {focus && <NotesIn serial={focus} windows={cycles.map((c) => [c.start, c.end])} />}</span>
           <button type="button" className="btn btn-sm" onClick={clearPick}>× Clear selection</button>
         </div>
       )}

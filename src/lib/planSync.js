@@ -14,6 +14,16 @@ import { setPlanSink, rawPlan, writeRawPlan, mergeDecl3 } from './plan.js';
 // group -> Map(id -> the entry as last seen on the server): the common copy a 409 merges both saves against
 const bases = new Map();
 const setBase = (group, decls) => bases.set(group, new Map((decls || []).map(d => [d.id, JSON.parse(JSON.stringify(d))])));
+// groups with a save not yet on the server (its push failed, e.g. the server was restarting): a pull must not replace it
+// (the user, 12 Nov 2026: a take-out "got back in by itself" — the failed save was overwritten by the next minute's pull)
+const dirty = new Set();
+/** The server's copy with this browser's unsaved changes laid over it, entry by entry (mergeDecl3). */
+function overlay(group, srv) {
+  const local = rawPlan(group), theirs = new Map(srv.decls.map(d => [d.id, d])), base = bases.get(group) || new Map();
+  const mine = new Set(local.decls.map(d => d.id));
+  return { decls: [...srv.decls.filter(d => !mine.has(d.id)),
+    ...local.decls.map(d => (theirs.has(d.id) ? mergeDecl3(base.get(d.id), d, theirs.get(d.id)) : d))], rota: { ...srv.rota, ...local.rota } };
+}
 
 const state = { v: 0, status: 'local', at: null, error: null };
 const subs = new Set();
@@ -62,12 +72,20 @@ export async function pullPlan(group) {
     else set({ status: 'synced', at: Date.now(), error: null });
     return;
   }
+  if (revs.get(group) !== srv.rev && dirty.has(group)) {
+    // a save of ours never reached the server: keep it on top of the newer copy and send it again
+    writeRawPlan(group, overlay(group, srv)); setBase(group, srv.decls);
+    revs.set(group, srv.rev); bump();
+    await pushPlan(group);
+    return;
+  }
   if (revs.get(group) !== srv.rev) {
     writeRawPlan(group, srv); setBase(group, srv.decls);
     revs.set(group, srv.rev);
     set({ status: 'synced', at: Date.now(), error: null });
     bump();
-  } else set({ status: 'synced', at: Date.now(), error: null });
+  } else if (dirty.has(group)) await pushPlan(group); // the server has nothing newer, but our last save didn't arrive: send it again
+  else set({ status: 'synced', at: Date.now(), error: null });
 }
 
 let pushing = Promise.resolve();
@@ -85,25 +103,21 @@ async function doPush(group, retry = true) {
       const { current } = await r.json();
       // both saves kept, field by field (take-outs and reboot counts per device), against the copy both started from
       // (mergeDecl3; without one, the newer copy of the entry wins); entries only we have are kept
-      const theirs = new Map(current.decls.map(d => [d.id, d])), base = bases.get(group) || new Map();
-      const mine = new Set(local.decls.map(d => d.id));
-      const merged = [...current.decls.filter(d => !mine.has(d.id)),
-        ...local.decls.map(d => (theirs.has(d.id) ? mergeDecl3(base.get(d.id), d, theirs.get(d.id)) : d))];
-      writeRawPlan(group, { decls: merged, rota: { ...current.rota, ...local.rota } });
+      writeRawPlan(group, overlay(group, current)); setBase(group, current.decls);
       revs.set(group, current.rev);
       bump();
       return doPush(group, false);
     }
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
     const { rev } = await r.json();
-    revs.set(group, rev); setBase(group, local.decls);
+    revs.set(group, rev); setBase(group, local.decls); dirty.delete(group);
     set({ status: 'synced', at: Date.now(), error: null });
   } catch (e) { set({ status: 'error', error: e.message }); }
 }
 
 /** Start syncing one group: pull now, every minute and on tab focus; push on every save. */
 export function startPlanSync(group) {
-  setPlanSink(g => { bump(); pushPlan(g); });
+  setPlanSink(g => { dirty.add(g); bump(); pushPlan(g); });
   pullPlan(group);
   const t = setInterval(() => { if (!document.hidden) pullPlan(group); }, 60e3);
   const vis = () => { if (!document.hidden) pullPlan(group); };

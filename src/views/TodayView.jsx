@@ -555,7 +555,9 @@ function CycleSection({ fleet, side, auto }) {
         {roomDb.sensors?.length > 0 && (() => {
           const from = T.startMs && T.startMs < now ? T.startMs : now - 24 * H
           const rows = roomDb.sensors.map(x => ({ id: x.id, s: roomSummary(x.rows, from, now) })).filter(r => r.s).sort((a, b) => a.id < b.id ? -1 : 1)
-          const unplugged = roomDb.usb && !roomDb.usb.open ? ' · not plugged into the lab laptop' : ''
+          // the sensor sends over Wi-Fi (AIO-Office, 12 Nov 2026), or over the laptop's USB: say which to check
+          const unplugged = roomDb.wifi?.lastAt ? ' · check its power and the AIO-Office Wi-Fi'
+            : roomDb.usb && !roomDb.usb.open ? ' · not on Wi-Fi or the lab laptop\'s USB' : ''
           if (!rows.length) return <Metric label="Room temp" value="—" warn delta={`no reading in the last 24 h${unplugged || ' · check the sensor'}`} />
           const main = rows.find(r => !r.s.stale) || rows[0], s = main.s
           const since = T.startMs && T.startMs < now ? `since ${hm(from)}` : 'last 24 h'

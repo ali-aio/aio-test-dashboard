@@ -3,7 +3,11 @@
 Sends the lab's room temperature and humidity to the dashboard on the lab laptop every minute;
 Today shows it as the **Room temp** tile (range and average since the cycle started).
 
-**How it's connected (2 Nov 2026): a USB cable into the lab laptop**, either USB-C port. The board prints
+**How it's connected (12 Nov 2026): Wi-Fi, AIO-Office**, powered by any USB adapter; it POSTs each reading to the lab
+laptop (mDNS name, else `LAPTOP_IP`) and keeps up to 4 h of readings it couldn't send. Flash with `WIFI_SSID` / `WIFI_PASS`
+set in `secrets.h` (gitignored; `build/`, which holds the compiled password, is gitignored too).
+
+**Before that (2 – 11 Nov 2026): a USB cable into the lab laptop**, either USB-C port — still works as a fallback. The board prints
 `ROOM {"sensor":"room","t":23.19,"rh":50.4}` every minute on both ports; the dashboard's server reads them
 (`server/roomSerial.mjs` → `server/room-serial.py`) and picks the board up again by itself after an unplug.
 Check on the laptop: `curl -s localhost:8090/api/room | head -c 300` (`usb.open: true`). Wi-Fi is optional (below).

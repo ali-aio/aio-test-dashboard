@@ -259,14 +259,14 @@ http.createServer(async (req, res) => {
       }
       if (p === '/api/room') {
         const n = k => +url.searchParams.get(k) || 0;
-        return json(req, res, 200, { ...room.get({ hours: n('hours') || 24, from: n('from') || null, to: n('to') || null, step: n('step') }), usb: roomSerial?.status() || null });
+        return json(req, res, 200, { ...room.get({ hours: n('hours') || 24, from: n('from') || null, to: n('to') || null, step: n('step') }), usb: roomSerial?.status() || null, wifi: room.wifi() });
       }
       // the ESP32-S3 + SHT30 in the lab sending the room's reading (firmware/room-sensor/)
       if (p === '/api/room/report') {
         let q = Object.fromEntries(url.searchParams);
         if (req.method === 'POST') { try { q = { ...q, ...(await readPhoneBody(req)) }; } catch (e) { return json(req, res, 400, { error: 'body must be JSON' }); } }
         else if (req.method !== 'GET') return json(req, res, 405, { error: 'GET or POST' });
-        const r = room.report(q);
+        const r = room.report(q, (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress);
         return json(req, res, r.ok ? 200 : r.code, r);
       }
       if (p === '/api/fw-tests') {

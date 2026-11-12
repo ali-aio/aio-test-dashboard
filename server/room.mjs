@@ -24,13 +24,20 @@ export function createRoom(root, { log = () => {} } = {}) {
     }
   } catch (e) { if (e.code !== 'ENOENT') log(`room.jsonl: ${e.message}`); }
 
+  let wifi = null; // the last report over Wi-Fi (since this server started)
   return {
-    report(q) {
+    wifi: () => wifi,
+    // `from` = the sender's address on a Wi-Fi report (kept for /api/room's `wifi`), none for a USB line
+    report(q, from = null) {
       const r = parseReport(q);
       if (r.error) return { ok: false, code: 400, error: r.error };
+      if (from) wifi = { lastAt: Date.now(), ip: from };
       const rows = db.get(r.sensor) || db.set(r.sensor, []).get(r.sensor);
-      const last = rows[rows.length - 1]?.[0] ?? 0;
-      const fresh = r.rows.filter(x => x[0] > last); // a batch resent after a lost answer isn't stored twice
+      // a batch resent after a lost answer isn't stored twice, nor the same reading arriving both over USB and Wi-Fi
+      // (the board powered from the laptop with Wi-Fi on): one a minute, so anything within 20 s of the last is a copy
+      let prev = rows[rows.length - 1]?.[0] ?? 0;
+      const fresh = [];
+      for (const x of r.rows) if (x[0] > prev + 20e3) { fresh.push(x); prev = x[0]; }
       rows.push(...fresh);
       try { fs.mkdirSync(path.dirname(file), { recursive: true }); if (fresh.length) fs.appendFileSync(file, fresh.map(x => JSON.stringify([r.sensor, ...x])).join('\n') + '\n'); }
       catch (e) { log(`room.jsonl: ${e.message}`); }

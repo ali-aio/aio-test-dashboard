@@ -859,7 +859,11 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   "Reaches 0 % ≈ 21:40 · 1h 05m from now" (the user, 2 Nov 2026).
 - **Room temp** (the user, 2 Nov 2026: the T7s report only their battery's temperature): an **ESP32-S3 + SHT30**
   (`firmware/room-sensor/`, Arduino, no extra libraries; SDA GPIO 8, SCL GPIO 9; an ESP32-S3-N16R8 DevKit, FQBN in that README)
-  reads the room every minute and is **plugged into the lab laptop's USB** (the user, 2 Nov 2026; no Wi-Fi): it prints
+  reads the room every minute and **sends it over Wi-Fi** (the user, 12 Nov 2026: "best through Wi-Fi" — on the laptop's USB it
+  was unplugged for a day unnoticed): network **AIO-Office**, the laptop found by mDNS (`test-team-IdeaPad-3-15ITL6.local`), else
+  10.32.2.135, `POST /api/room/report`; powered by any USB adapter. The password is only in the gitignored `secrets.h` (and the
+  gitignored `build/`). `/api/room` carries `wifi: {lastAt, ip}` (since the server started); the server drops a reading within
+  20 s of the previous one, so USB + Wi-Fi at once never doubles. Until 12 Nov it was **plugged into the lab laptop's USB**: it prints
   `ROOM {"sensor","t","rh"}` on both USB-C ports, and `server/roomSerial.mjs` runs `server/room-serial.py` (stdlib Python; finds
   the CH343 / Espressif port, releases DTR / RTS so the board isn't held in reset) and stores each line, restarting the reader
   20 s after an unplug. `/api/room` carries `usb: {port, open, lastLine, error}`; the tile says "not plugged into the lab laptop".

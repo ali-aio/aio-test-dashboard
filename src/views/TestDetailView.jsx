@@ -313,6 +313,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const tableRows = [...inBench].filter((c) => { const q = tableQ.trim().toLowerCase(); return !q
     || [c.serial, c.firmware, c.date ? fmtDate(c.date) : ''].some((v) => String(v ?? '').toLowerCase().includes(q)) })
     .sort((a, b) => b.start - a.start)
+  // Reproducing Boot Loop: the lab's reboot count per device, typed on Today (the user, 12 Nov 2026: "the reboot column in yesterday's devices")
+  const isSpan = !!TEST_TYPES.find(t => t.name === testType)?.span
   const showPad = !isCharging && (isLoadTest || isField || ['WLC on Load', 'Discharge on Load only', 'Market Scenario'].includes(testType))
   const padOf = (c) => (showPad ? padSplit(hours?.[c.serial]?.h, c.start, c.end) : null)
   // Export: the table as shown (Overview), or every device's cycles hour by hour (Per hour)
@@ -759,7 +761,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
         <div className="table-wrap" style={{ maxHeight: 460 }}>
           <SortTable caption={`Every ${testType} cycle`} head={[
             ...(tableSerials.length === 1 ? [] : [{ label: 'Device', style: { textAlign: 'left' } }]), { label: 'Date' }, { label: 'Started' }, { label: 'Ended' },
-            { label: 'Cycle time' }, { label: 'Start' }, { label: isCharging ? 'Charged to' : 'End' },
+            { label: 'Cycle time' }, ...(isSpan ? [{ label: 'Reboots' }] : []), { label: 'Start' }, { label: isCharging ? 'Charged to' : 'End' },
             { label: isCharging ? 'Charge rate' : 'Drain' },
             ...(showPad ? [{ label: 'Drain with WLC' }, { label: 'Drain without WLC' }] : []),
             { label: 'Peak device temp' }, ...(expectsAds ? [{ label: 'Ads on screen' }] : []), { label: 'Battery cycles' },
@@ -776,6 +778,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                 <td className={c.short ? 'short-cycle' : undefined}
                   title={c.short ? `Short cycle: ran ${fmtHours(c.ranH)}, under ${shortLimit} of the ${fixedH} h cycle` : c.ranH != null && c.ranH !== c.duration ? `Ran ${fmtHours(c.ranH)}: within ${FULL_CYCLE_MARGIN_H * 60} min of ${fixedH} h, counted as a complete cycle` : undefined}>
                   {fmtHours(c.duration)}{c.short ? <span> · short</span> : null}</td>
+                {isSpan && <td title="times the lab rebooted it in this cycle (typed on Today)">{c.reboots ?? '—'}</td>}
                 <td>{fmtPct(c.startBattery)}</td>
                 <td>{fmtPct(c.endBattery)}</td>
                 <td>{fmtRate(c.dropPerHr)}</td>

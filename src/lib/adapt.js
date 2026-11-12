@@ -386,6 +386,7 @@ export function adaptCycle(d, c0, rows, ctx) {
     loadSeries: [], ramSeries: [],
     avgRam: null, maxRam: null,
     reason: c.reason,
+    reboots: c.reboots ?? null, // Reproducing Boot Loop: the lab's count, from the plan entry
     inProgress: !!c.inProgress, // the discharge running now (window.js runningCycle), not finished yet
     fullMs: c.fullMs,
     // the MDM's own cycles for this run (recorded counter end − start), null before recording began
@@ -409,7 +410,7 @@ function spanRunsFor(serial, decls, rows, curves, now = Date.now()) {
     if (!tt?.span || decl.group?.kind !== 'serials' || !(decl.group.serials || []).includes(serial)) continue;
     const { startMs, endMs } = windowOn(decl.from, decl);
     const run = curves?.[spanKey(decl.id, serial)] || spanRun(rowsBetween(rows, startMs, endMs), startMs, endMs);
-    if (run) out.push({ ...run, spanRun: tt.name, inProgress: now <= endMs });
+    if (run) out.push({ ...run, spanRun: tt.name, inProgress: now <= endMs, reboots: decl.reboots?.[serial] ?? null });
   }
   return out;
 }

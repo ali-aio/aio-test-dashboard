@@ -10,7 +10,10 @@
 //   first — a server that has never stored this group's plan takes this browser's, so
 //           plans made before sharing existed are not lost.
 // Served without the backend (no /api/plan), it stays per browser, exactly as before.
-import { setPlanSink, rawPlan, writeRawPlan } from './plan.js';
+import { setPlanSink, rawPlan, writeRawPlan, mergeDecl3 } from './plan.js';
+// group -> Map(id -> the entry as last seen on the server): the common copy a 409 merges both saves against
+const bases = new Map();
+const setBase = (group, decls) => bases.set(group, new Map((decls || []).map(d => [d.id, JSON.parse(JSON.stringify(d))])));
 
 const state = { v: 0, status: 'local', at: null, error: null };
 const subs = new Set();
@@ -60,7 +63,7 @@ export async function pullPlan(group) {
     return;
   }
   if (revs.get(group) !== srv.rev) {
-    writeRawPlan(group, srv);
+    writeRawPlan(group, srv); setBase(group, srv.decls);
     revs.set(group, srv.rev);
     set({ status: 'synced', at: Date.now(), error: null });
     bump();
@@ -80,12 +83,12 @@ async function doPush(group, retry = true) {
       body: JSON.stringify({ ...local, baseRev: revs.get(group) || 0 }) });
     if (r.status === 409 && retry) {
       const { current } = await r.json();
-      // the newer copy of each entry wins (`mod`, stamped on every save, here and by the server's
-      // Auto plan); ours are kept when neither says, and so are entries only we have
-      const theirs = new Map(current.decls.map(d => [d.id, d])), stamp = d => d.mod || d.at || 0;
+      // both saves kept, field by field (take-outs and reboot counts per device), against the copy both started from
+      // (mergeDecl3; without one, the newer copy of the entry wins); entries only we have are kept
+      const theirs = new Map(current.decls.map(d => [d.id, d])), base = bases.get(group) || new Map();
       const mine = new Set(local.decls.map(d => d.id));
       const merged = [...current.decls.filter(d => !mine.has(d.id)),
-        ...local.decls.map(d => (theirs.has(d.id) && stamp(theirs.get(d.id)) > stamp(d) ? theirs.get(d.id) : d))];
+        ...local.decls.map(d => (theirs.has(d.id) ? mergeDecl3(base.get(d.id), d, theirs.get(d.id)) : d))];
       writeRawPlan(group, { decls: merged, rota: { ...current.rota, ...local.rota } });
       revs.set(group, current.rev);
       bump();
@@ -93,7 +96,7 @@ async function doPush(group, retry = true) {
     }
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
     const { rev } = await r.json();
-    revs.set(group, rev);
+    revs.set(group, rev); setBase(group, local.decls);
     set({ status: 'synced', at: Date.now(), error: null });
   } catch (e) { set({ status: 'error', error: e.message }); }
 }

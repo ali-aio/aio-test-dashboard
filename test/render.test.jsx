@@ -26,7 +26,7 @@ import RangePicker from '../src/components/RangePicker.jsx'
 import { parseReport, roomSummary, roomStats } from '../src/lib/room.js'
 import { mergePhone, cleanPhone, phoneDevices, phoneHours, pendingOuts, phoneStart, readingAt, readT7s, padAt, onPadAt, pendingNote, iphoneEnd } from '../src/lib/phoneLog.js'
 import { csvField, readingsCsv, cyclesCsv, extraKeys, estimateRows, cycleHoursCsv } from '../src/lib/csv.js'
-import { windowOn, cycleAt, benchDecls, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
+import { windowOn, cycleAt, benchDecls, mergeDecl3, nextCycleTimes, cyclesOn, activeSerials, overlapsOn, loadDecls } from '../src/lib/plan.js'
 import { testTypeFor, planFor, temperaturePhases, runningCharge, adaptCycle, CTX } from '../src/lib/adapt.js'
 import { spanRun } from '../src/lib/curves.js'
 import { thermalTimingByDevice } from '../src/lib/thermal.js'
@@ -840,6 +840,18 @@ const mdmCases = []
     const decl = { id: 'b', testType: 'boot_loop', from: '2026-11-10', to: '2026-11-10', startTime: '11:30', endTime: '23:59', spanDays: 0, group: { kind: 'serials', serials: ['S1'] } }
     const a = adaptCycle({ serial: 'S1', cycles: [] }, { ...r, spanRun: 'Reproducing Boot Loop', inProgress: false }, rows, { decls: [decl], rota: {}, DEV: [{ serial: 'S1' }] })
     want(a.testType === 'Reproducing Boot Loop' && !a.leftCycle && a.dropPerHr > 0 && a.endBattery === 9, `${a.testType} ${a.leftCycle?.why} ${a.dropPerHr}`)
+  })
+  check('two saves of one cycle at once keep both: a take-out survives a newer note edit, put-backs and reboots per device', () => {
+    const base = { id: 'x', mod: 10, note: 'a', removed: [{ serial: 'S1', at: 5 }], reboots: { S1: 1 } }
+    const mine = { ...base, mod: 20, removed: [{ serial: 'S1', at: 5 }, { serial: 'S2', at: 19 }] }            // I take S2 out
+    const theirs = { ...base, mod: 30, note: 'b', removed: [{ serial: 'S1', at: 5 }, { serial: 'S3', at: 25 }] } // they note + take S3 out
+    const m = mergeDecl3(base, mine, theirs)
+    want(m.note === 'b' && m.removed.map(r => r.serial).sort().join() === 'S1,S2,S3' && m.mod === 30, JSON.stringify(m))
+    const back = mergeDecl3(base, { ...base, mod: 20, removed: [] }, theirs)                                   // I put S1 back
+    want(back.removed.map(r => r.serial).join() === 'S3', JSON.stringify(back))
+    const rb = mergeDecl3(base, { ...base, mod: 20, reboots: { S1: 1, S2: 4 } }, { ...base, mod: 30, reboots: { S1: 2 } })
+    want(rb.reboots.S1 === 2 && rb.reboots.S2 === 4, JSON.stringify(rb))
+    want(mergeDecl3(null, mine, theirs) === theirs && mergeDecl3(base, mine, null) === mine, 'no base: newer wins; only mine: mine')
   })
   check('latestRun: a firmware-test device is timed from its own latest drain or charge', () => {
     const at = m => new Date(Date.UTC(2026, 10, 10, 0, m)).toISOString()

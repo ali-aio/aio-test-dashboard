@@ -290,6 +290,30 @@ export function activeSerials(decl, DEV, t = Date.now()) {
 }
 /** Was this run cut short by the device being taken out of its cycle? */
 export const takenOutDuring = (decl, serial, end) => (decl?.removed || []).some(r => r.serial === serial && r.at < end);
+/** Two saves of one cycle at once (a 409): keep both people's changes, field by field, against the copy both started from
+ *  (`base`). The user, 12 Nov 2026: a take-out "got back in by itself" — a save to the same cycle seconds later was newer as a
+ *  whole and replaced it. Take-outs are merged per device and reboot counts per device, so two people taking out two
+ *  devices both stick; a put-back removes only its own device. Without a base, the newer copy wins as before. */
+export function mergeDecl3(base, mine, theirs) {
+  const stamp = d => d?.mod || d?.at || 0, J = x => JSON.stringify(x);
+  if (!theirs) return mine;
+  if (!base) return stamp(theirs) > stamp(mine) ? theirs : mine;
+  const out = { ...theirs };
+  for (const k of new Set([...Object.keys(mine), ...Object.keys(base)])) {
+    if (k === 'mod' || k === 'removed' || k === 'reboots' || J(mine[k]) === J(base[k])) continue;
+    if (mine[k] === undefined) delete out[k]; else out[k] = mine[k];
+  }
+  const bySerial = a => new Map((a || []).map(r => [r.serial, r]));
+  const B = bySerial(base.removed), M = bySerial(mine.removed), T = bySerial(theirs.removed);
+  for (const [s, r] of M) if (J(B.get(s)) !== J(r)) T.set(s, r);
+  for (const s of B.keys()) if (!M.has(s)) T.delete(s);
+  if (T.size || theirs.removed || mine.removed) out.removed = [...T.values()];
+  const Bo = base.reboots || {}, Mo = mine.reboots || {}, To = { ...(theirs.reboots || {}) };
+  for (const k of new Set([...Object.keys(Bo), ...Object.keys(Mo)])) if (Mo[k] !== Bo[k]) { if (Mo[k] == null) delete To[k]; else To[k] = Mo[k]; }
+  if (Object.keys(To).length) out.reboots = To; else delete out.reboots;
+  out.mod = Math.max(stamp(mine), stamp(theirs));
+  return out;
+}
 export function takeOut(group, declId, rec) {
   const decls = loadDecls(group).map(d => d.id !== declId ? d
     : { ...d, removed: [...(d.removed || []).filter(r => r.serial !== rec.serial), { at: Date.now(), ...rec }] });

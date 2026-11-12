@@ -471,7 +471,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           <button type="button" className="btn btn-sm" onClick={clearPick}>× Clear selection</button>
         </div>
       )}
-      <div ref={chartsRef} style={{ scrollMarginTop: 80 }} className={showSecondaryChart ? 'grid grid-2 detail-charts-with-secondary' : 'grid grid-2'}>
+      <div ref={chartsRef} style={{ scrollMarginTop: 80 }} className={isSpan ? 'grid' : showSecondaryChart ? 'grid grid-2 detail-charts-with-secondary' : 'grid grid-2'}>
       <Card expandable
         title="T7 battery over elapsed time"
         sub={activeMode === 'serial'
@@ -633,7 +633,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
           </Card></div>
         ))}
 
-        <div className={showSecondaryChart && !isLoadTest ? 'span-all' : undefined}><Card expandable title={testType === 'WLC on Phone'
+        {/* not for a test that charges and discharges by design (Reproducing Boot Loop): its hours go up and down — the user, 12 Nov 2026: "confusing" */}
+        {!isSpan && <div className={showSecondaryChart && !isLoadTest ? 'span-all' : undefined}><Card expandable title={testType === 'WLC on Phone'
           ? 'T7 drain and load gain by hour of the cycle'
           : isCharging ? 'Battery gained by hour of the cycle' : 'Drain by hour of the cycle'}
           sub={isCharging
@@ -725,7 +726,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
               )}
             </div>
           )}
-        </Card></div>
+        </Card></div>}
       </div>
 
       {/* devices that left the cycle: counted up to then, and each one's whole run on request (the user, 2 Nov 2026) */}

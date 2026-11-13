@@ -928,6 +928,11 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   showing no load around then (a not-charging reading with the pad still loaded is not a removal). A column **Full / off pad**
   ("97 % · 15:48 / off the pad"); hours after a device's end read —; once every iPhone has finished, no hour after the last end
   is shown (no "next"); Gained / Per hour run to the end, Full at = time from the start to 100 % ("3h 30m").
+  **Today always shows each iPhone's battery** (the user, 13 Nov 2026: "Today always shows the iPhone charge, so I know how much
+  charge is there"): an **iPhones** card after the cycle sections (`IphonesNow.jsx`), whatever runs (any test, Charging Cycle, no test),
+  one tile per phone: %, ⚡ while charging, read time, on / off the pad (its T7's `wlc_status` now); amber with "not heard from since"
+  after 75 min. Unlike the iPhone on the pad card, the % shows on or off the pad. 13 Nov: the iPhones (70–82 %) were off the pads, a load
+  on 00790 / 00606 / 00485 from ~09:05; they go back on once run down to 0 % (held cycle note + device notes).
   Phones (iPhone 13 Pro Max each): **iphone1** `00008110-001854382288401E` on **00790**, **iphone2**
   `00008110-000574683A80401E` on **00606**, **iphone3** `00008110-00142D603E20401E` on **00485**.
   **After the cycle** (the user, 29 Oct 2026: "when the cycle ends does it show the phone data"): a read-only **iPhone on the

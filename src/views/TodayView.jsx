@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } fro
 import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
 import PartStatus from '../components/PartStatus.jsx'
 import PhoneOnPad from '../components/PhoneOnPad.jsx'
+import IphonesNow from '../components/IphonesNow.jsx'
 import AppToggle, { AppToggleAll } from '../components/AppToggle.jsx'
 import { useAutomations } from '../components/useAutomations.js'
 import WlcToggle, { WlcToggleAll } from '../components/WlcToggle.jsx'
@@ -95,6 +96,8 @@ export default function TodayView({ fleet }) {
       )}
       {waiting ? <CycleSection fleet={fleet} auto={auto} side={null} />
         : choices.filter(c => shown.includes(c.id)).map(c => <CycleSection key={c.id} fleet={fleet} auto={auto} side={c.side} />)}
+      {/* each iPhone's battery, on the pad or not, whatever runs today (the user, 13 Nov 2026) */}
+      {!waiting && <IphonesNow now={now} />}
       <FwTestsToday fleet={fleet} />
     </div>
   )

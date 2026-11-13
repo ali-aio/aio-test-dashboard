@@ -96,8 +96,8 @@ export default function TodayView({ fleet }) {
       )}
       {waiting ? <CycleSection fleet={fleet} auto={auto} side={null} />
         : choices.filter(c => shown.includes(c.id)).map(c => <CycleSection key={c.id} fleet={fleet} auto={auto} side={c.side} />)}
-      {/* each iPhone's battery, on the pad or not, whatever runs today (the user, 13 Nov 2026) */}
-      {!waiting && <IphonesNow now={now} />}
+      {/* each iPhone's battery, whatever runs today (the user, 13 Nov 2026): in the bench's section, or here when that isn't shown */}
+      {!waiting && !shown.includes('bench') && <IphonesNow now={now} />}
       <FwTestsToday fleet={fleet} />
     </div>
   )
@@ -742,7 +742,9 @@ function CycleSection({ fleet, side, auto }) {
             </SortTable></div>}
           </div>
         )}
-        {/* an iPhone on the pad in place of the load: its battery, typed in each hour (the lab, 27 Oct 2026); last on the page (the user, 31 Oct 2026) */}
+        {/* the iPhones, last on the page (the user, 31 Oct 2026): each one's battery always (13 Nov 2026), and in a discharge cycle the
+            hourly table of an iPhone on the pad in place of the load (the lab, 27 Oct 2026), one card */}
+        {!side && (T.charging || !(T.running || T.decl)) && <IphonesNow now={now} />}
         {!side && !T.charging && (T.running || T.decl) && <PhoneOnPad day={T.key} start={Math.round(chartFrom / 60e3) * 60e3} end={T.endMs} serials={T.serials} now={now} ownStart={sn => runs.get(sn)?.start?.t ?? null} maxHours={T.tt?.loadHours ?? null} />}
       </>}
     </div>

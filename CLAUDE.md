@@ -933,7 +933,10 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   ("97 % · 15:48 / off the pad"); hours after a device's end read —; once every iPhone has finished, no hour after the last end
   is shown (no "next"); Gained / Per hour run to the end, Full at = time from the start to 100 % ("3h 30m").
   **Today always shows each iPhone's battery** (the user, 13 Nov 2026: "Today always shows the iPhone charge, so I know how much
-  charge is there"): an **iPhones** card after the cycle sections (`IphonesNow.jsx`), whatever runs (any test, Charging Cycle, no test),
+  charge is there"): **one iPhones card**, last on Today (the user, 13 Nov 2026: the tiles on top, "Add a T7 with an iPhone…" at its
+  top right, and the hourly table — headed **On the pad**, with the start — only once an iPhone is on a pad; no empty "No iPhone on a pad"
+  card). In a discharge cycle it is `PhoneOnPad.jsx` (using `IphoneTiles` / `IphonesSub` from `IphonesNow.jsx`); otherwise (Charging
+  Cycle, no test, the bench's section not ticked) `IphonesNow.jsx` alone, whatever runs,
   one tile per phone: %, ⚡ while charging, read time, on the pad (the phone charging and its T7 loaded; a load on the pad alone may be the lab's load, not the phone) or off it, highlighted after 75 min
   with nothing; **a disconnected phone's tile is highlighted red at once** (the user, 13 Nov 2026: the lab laptop's latest try didn't reach it,
   `.stat.is-down`, "disconnected · last read 09:24", and "N disconnected" in the card's subtitle). Unlike the iPhone on the pad card, the % shows on or off the pad. 13 Nov: the iPhones (70–82 %) were off the pads, a load

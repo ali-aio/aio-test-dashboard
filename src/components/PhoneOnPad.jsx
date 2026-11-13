@@ -3,6 +3,7 @@ import { subscribePhone, getPhone, setPhoneStart, phoneStart, phoneDevices, phon
 import { rowsFor } from '../lib/window.js'
 import { padLoad } from '../lib/pad.js'
 import { hm, H } from '../lib/format.js'
+import { useIphones, IphonesSub, IphoneTiles } from './IphonesNow.jsx'
 
 // Today: the T7s carrying an iPhone on the wireless pad in place of the load, and the iPhone's
 // battery typed in by the lab each hour of the cycle, with each hour's gain (the lab, 27 Oct 2026).
@@ -52,7 +53,7 @@ function Cell({ day, serial, h, value, auto, title }) {
 // Under the T7's serial: the iPhone's battery as last read over Wi-Fi, or that it isn't answering
 function PhoneLive({ ph, now, onPad }) {
   // no load on the T7's pad now = the iPhone was taken off it: its battery isn't shown (the user, 2 Nov 2026)
-  if (onPad === false) return <div className="phone-live off" title="the iPhone isn't charging on this T7's pad now — its battery is shown only while it is (the iPhones card below has it either way)">iPhone off the pad</div>
+  if (onPad === false) return <div className="phone-live off" title="the iPhone isn't charging on this T7's pad now — its battery is shown only while it is (the battery tiles above have it either way)">iPhone off the pad</div>
   // the phone sends on the hour (its Shortcuts automation) and is read over Wi-Fi while awake, so
   // its latest reading can be up to an hour old and still be on time
   const stale = !ph.lastOk || now - ph.lastOk > 75 * 60e3
@@ -65,6 +66,7 @@ const hhmm = t => { const d = new Date(t); return `${String(d.getHours()).padSta
 export default function PhoneOnPad({ day, start: benchStart, end, serials, now, ownStart = () => null, maxHours = null }) {
   const db = useSyncExternalStore(subscribePhone, getPhone, getPhone)
   const ip = useSyncExternalStore(subscribeIphones, getIphones, getIphones)
+  const { phones, down } = useIphones(now)
   // the T7s carrying an iPhone: the ones picked by hand, and any whose iPhone the lab laptop has been
   // reading over Wi-Fi during this cycle (unless someone took it off the list with ×)
   const picked = phoneDevices(db, day)
@@ -109,18 +111,20 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
     const has = hours.some(h => db.cells?.[cellKey(day, s, h)]?.pct != null)
     if (!has || confirm(`Take ${s} off the iPhone list? Its typed readings stay on record and come back if you add it again.`)) setPhoneDevice(day, s, false, by())
   }
-  return (
-    <div className="card">
-      <div className="card-head">
-        <div><h2>iPhone on the pad</h2>
-          <div className="card-sub">iPhone battery % each hour · gain below · T7 battery in grey · start{' '}
+  // one card (the user, 13 Nov 2026): each iPhone's battery on top, the picker at the top right, and the hourly table
+  // under them only once an iPhone is on a pad (no empty "No iPhone on a pad" card)
+  const startLine = <div className="card-sub">iPhone battery % each hour · gain below · T7 battery in grey · start{' '}
             {editing
               ? <input type="time" className="input phone-start" autoFocus defaultValue={hhmm(start)} aria-label="Start time of the iPhone hours"
                   onBlur={e => { setStart(e.target.value); setEditing(false) }} onKeyDown={e => { if (e.key === 'Enter') setStart(e.currentTarget.value); if (e.key === 'Escape') setEditing(false) }} />
               : <button type="button" className="link-btn" title={manual != null ? 'set by hand · click to change' : own.length ? 'when these T7s came off the charger · click to change' : 'the cycle start · click to change'}
                   onClick={() => setEditing(true)}>{hm(start)} ✎</button>}
             {manual != null && !editing && <> · <button type="button" className="link-btn" onClick={() => setPhoneStart(day, null, by())}>use {hm(auto)} (off charger)</button></>}
-          </div></div>
+          </div>
+  return (
+    <div className="card">
+      <div className="card-head">
+        <div><h2>iPhones</h2><IphonesSub down={down} /></div>
         <span style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
           {/* picking a T7 adds it straight away (no Add button — the user, 27 Oct 2026) */}
           <select className="control" value="" onChange={e => { if (e.target.value) setPhoneDevice(day, e.target.value, true, by()) }} aria-label="Add a T7 with an iPhone on its pad">
@@ -129,8 +133,9 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
           </select>
         </span>
       </div>
-      {!devices.length ? <div className="empty">No iPhone on a pad in this cycle. Pick the T7 above to start noting the iPhone's battery each hour.</div> :
-      <div className="scroll-x"><table className="data phone-table">
+      {phones.length > 0 && <div className="card-body"><IphoneTiles phones={phones} now={now} /></div>}
+      {devices.length > 0 && <div className="card-body" style={{ paddingBottom: 6, borderTop: '1px solid var(--border)' }}><h3 style={{ margin: 0 }}>On the pad</h3>{startLine}</div>}
+      {devices.length > 0 && <div className="scroll-x"><table className="data phone-table">
         <thead><tr><th>T7</th>
           {hours.map(h => <th key={h} className="r"><div>{h === 0 ? 'Start' : `${h} h`}{start + h * H > now ? <span className="secondary" style={{ fontWeight: 400 }}> · next</span> : null}</div><div className="secondary" style={{ fontWeight: 400 }}>{hm(start + h * H)}</div></th>)}
           {anyEnd && <th className="r"><div>Full / off pad</div><div className="secondary" style={{ fontWeight: 400 }}>iPhone</div></th>}

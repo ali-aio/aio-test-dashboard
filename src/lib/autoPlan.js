@@ -172,7 +172,8 @@ export function applyAuto(decls, benches, { now = Date.now(), state = {}, from =
       continue;
     }
     if (hit) {
-      if (hit.testType === c.tt || !c.final || !DETECTABLE.has(hit.testType) || applied[hit.id]) continue;
+      // keepTest: the lab ran this test its own way (13 Nov 2026: WLC on Load with the load off at 15 %, which reads as another test)
+      if (hit.testType === c.tt || !c.final || !DETECTABLE.has(hit.testType) || applied[hit.id] || hit.keepTest) continue;
       const was = { testType: hit.testType, by: hit.by || '' };
       if (hit.repeat === 'none' && (hit.to || hit.from) === hit.from) {
         list = list.map(d => (d.id === hit.id ? { ...d, testType: c.tt, auto: { ...auto, was }, mod: now } : d));

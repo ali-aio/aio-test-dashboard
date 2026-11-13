@@ -8,6 +8,7 @@
 //
 // The log (what was raised, when, whether it was read) is per browser, in localStorage:
 // "read" is one person's state, not the lab's.
+import { onBenchAt } from './device.js';
 import { cycleAt, benchDecls, activeSerials, testType, loadDecls } from './plan.js';
 import { SPAN, SPAN_LABEL, stateCode } from './hostApp.js';
 import { padLoad } from './pad.js';
@@ -151,7 +152,7 @@ export const saveAlerts = log => { try { localStorage.setItem(KEY, JSON.stringif
 
 /** One pass: read the plan, check the fleet, update and return the stored log. */
 export function checkAlerts(group, DEV, now = Date.now(), hostApp = null) {
-  const log = mergeAlerts(loadAlerts(), findOddOnes(loadDecls(group), DEV, now, hostApp), now);
+  const log = mergeAlerts(loadAlerts(), findOddOnes(loadDecls(group), DEV.filter(d => onBenchAt(d.serial, now)), now, hostApp), now);
   saveAlerts(log);
   return log;
 }

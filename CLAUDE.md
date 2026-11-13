@@ -231,7 +231,7 @@ Firmware client at no venue); anything else answers 404. Every control call is i
   pad the T7 can report `charging` for up to an hour while its battery falls; `runsFrom` ends a run on `charging` only
   when the battery rises (now or within 30 min), or that day's runs split in two. A running bench is added once it can be told
   (`final: false`, kept up to date). A person's entry for a different detectable test is **replaced once the run ends**
-  (the lab's choice, Oct 2026), keeping `auto.was`; a several-day entry gets a one-day override instead. An entry a person
+  (the lab's choice, Oct 2026), keeping `auto.was`; never on an entry with **`keepTest: true`** (the lab ran the test its own way: 13 Nov 2026, WLC on Load with WLC off at 15 %, which reads as WLC + Discharge); a several-day entry gets a one-day override instead. An entry a person
   edits (the form drops `auto`) or deletes is never touched again (`data/autoplan.json`: `made`, `applied`, plus every
   device's runs since 25 Sep so a sweep re-reads only 2 days at 5-min spacing). Every save stamps `mod`; a 409 merge in
   `planSync.js` keeps the newer copy of each entry, so a browser can't undo the server's update.
@@ -558,6 +558,13 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   value) and on the server (`server.mjs`); the laptop's `server/config.json` and every `data/*.json` were re-labelled
   "HW Testing" (plan.json's group key too) with the app stopped, backups in `data/backup-2026-10-30/`. "Test Cycles" still
   exists in the MDM but holds only 20 of them.
+- **The lab's list can be changed on the Summary screen** (the user, 13 Nov 2026: "remove 281 … or add a section in Summary to add a device,
+  then show it on Today from that day on"): the **Lab devices** card (`LabDevices.jsx`, last on Summary, collapsible) — devices on the bench
+  with Remove (two clicks), an Add box (a serial the MDM knows; `00281` = AT070AABU00281), Removed with Add back, and the log. Kept on the lab
+  laptop (`server/labDevices.mjs`, `GET/POST /api/lab-devices`, `data/lab-devices.json`, gitignored) as changes over `BENCH_ORDER`;
+  `onBenchAt(serial, t)` in `device.js` applies each from the start of its day: **removed = off Today and the bell from that day, its past
+  cycles stay** (`keepDevice` keeps every device ever listed); added = a lab device, on Today from that day. Each change also writes a device
+  note. **00281 removed on 13 Nov 2026** (no battery, silent since 26 Oct; the user will say when it comes back).
 - **00848 and 00854 are left out everywhere** (the user, 30 Oct 2026: "don't include these in any cycle"): `EXCLUDED_SERIALS`
   in `src/lib/device.js`, filtered out of the device list in the browser (`fetchDevices`), the server's `/api/devices` and
   the sweep — so no cycle, chart, plan, Auto plan, alert or export has them. Add a serial there to drop another.

@@ -2331,3 +2331,10 @@ tr.row-warn > td { background: color-mix(in srgb, var(--status-warning) 14%, tra
 /* Today · Reboots (Reproducing Boot Loop): a typed count per device */
 .reboot-input { width: 4.5em; text-align: right; padding: 2px 6px; border: 1px solid var(--series-1); border-radius: 6px; background: var(--surface-1); color: var(--text-primary); font-size: 13px; }
 .reboot-btn { min-width: 2.5em; text-align: right; text-decoration: underline dotted; text-underline-offset: 3px; }
+
+/* Summary · Lab devices */
+.lab-devices { display: flex; flex-direction: column; gap: 12px; }
+.lab-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lab-add input:first-child { width: 260px; } .lab-add input:nth-child(2) { flex: 1; min-width: 200px; }
+.lab-off, .lab-log { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.error-text { color: var(--bad); font-size: 12.5px; }

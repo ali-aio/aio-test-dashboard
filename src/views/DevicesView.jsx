@@ -6,6 +6,7 @@ import EventForm from '../components/EventForm.jsx'
 import DataQualityCard from '../components/DataQualityCard.jsx'
 import DrainByAge from '../components/DrainByAge.jsx'
 import BatteryHealth from '../components/BatteryHealth.jsx'
+import LabDevices from '../components/LabDevices.jsx'
 import { kpis, maxOf, batteryCycles } from '../lib/t7cycles.js'
 import {
   eventsBySerial, worstSeverity, SEVERITY_LEVEL, removeEvent,
@@ -330,6 +331,8 @@ export default function DevicesView({
       <DataQualityCard issues={issues} files={files} />
 
       {fleet && <BatteryHealth fleet={fleet} cycles={healthCycles || cycles} />}
+
+      {fleet && <LabDevices fleet={fleet} />}
 
       {editing && (
         <EventForm

@@ -6,7 +6,7 @@
 //     every open tab on every machine, rate-limited per client.
 //   · opened as plain files / another static host: direct calls to the MDM with the QA key
 //     from Settings, as before.
-import { keepDevice } from './device.js';
+import { keepDevice, setLabChanges } from './device.js';
 export function apiBase() { return (localStorage.getItem('apiBase') || '').replace(/\/$/, ''); }
 export function apiKey() { return localStorage.getItem('apiKey') || ''; }
 export function hasConfig() { return BACKEND || !!(apiBase() && apiKey()); }
@@ -87,6 +87,14 @@ function cacheSet(key, value) {
   try { sessionStorage.setItem(key, JSON.stringify({ t: Date.now(), v: value })); } catch (e) { /* storage full/private mode — just skip caching */ }
 }
 
+/** The lab list's changes made on the Summary screen (server/labDevices.mjs); no body = read, else { add | remove, by, note }. */
+export async function labDevices(body) {
+  const r = await fetch('/api/lab-devices', body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : { cache: 'no-store' });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  if (r.ok && j?.changes) setLabChanges(j.changes);
+  return { ok: r.ok, http: r.status, ...(j || {}) };
+}
+
 export async function fetchDevices(opts = {}) {
   const group = scopeGroup();
   const key = `cache:devices:${group}`;
@@ -95,6 +103,7 @@ export async function fetchDevices(opts = {}) {
     if (cached) return cached;
   }
   const qs = ''; // every device; the lab's are picked by keepDevice (LAB_SERIALS), not by an MDM group
+  if (BACKEND) await labDevices().catch(() => {}); // the Summary screen's changes, before the list is filtered
   const data = BACKEND ? await call(`/api/devices${qs}`) : await call(`${apiBase()}/api/v1/testdata/devices${qs}`, { 'X-API-Key': apiKey() });
   const kept = Array.isArray(data) ? data.filter(keepDevice) : data; // EXCLUDED_SERIALS (device.js)
   cacheSet(key, kept);

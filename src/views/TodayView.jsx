@@ -15,7 +15,7 @@ import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, d
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
 import { median, pctl, hm, dt, ago, MIN, H } from '../lib/format.js'
-import { online, status, lifetimeCycles, byBenchOrder } from '../lib/device.js'
+import { online, status, lifetimeCycles, byBenchOrder, onBenchAt } from '../lib/device.js'
 import { fmtLifetime } from '../lib/fmt.js'
 import { GROUP } from '../lib/fleet.js'
 import { MultiLineChart, tooltipHtml } from '../components/charts.jsx'
@@ -67,7 +67,7 @@ export default function TodayView({ fleet }) {
     return [...cyclesOn(all, dayKey(now - 24 * H)), ...cyclesOn(all, todayKey())].filter(c => fwOnly(c.decl) && c.startMs <= now && now - c.endMs <= RECENT_H * H)
   }, [fwTests, planSync.v, todayKey(), Math.floor(now / MIN), win.at2])
   const [ticked, setTicked] = useState(null) // null until someone ticks: the default below, which follows the cycles as they change
-  const benchCycle = cycleAt(benchDecls(DECLS()), now), benchDev = benchDevices(fleet.DEV, fwTests, benchCycle?.decl, now)
+  const benchCycle = cycleAt(benchDecls(DECLS()), now), benchDev = benchDevices(fleet.DEV.filter(d => onBenchAt(d.serial, now)), fwTests, benchCycle?.decl, now)
   const choices = [
     { id: 'bench', tt: benchCycle && testType(benchCycle.decl.testType), n: benchCycle ? activeSerials(benchCycle.decl, benchDev, now).length : benchDev.length, side: null },
     ...sides.map(c => ({ id: c.decl.id, tt: testType(c.decl.testType), n: activeSerials(c.decl, fleet.DEV, now).length, side: c })),
@@ -105,7 +105,9 @@ export default function TodayView({ fleet }) {
 
 /** One cycle on Today. side = null: the bench (whatever is running on it); else a cycle only for firmware-test devices. */
 function CycleSection({ fleet, side, auto }) {
-  const { DEV: allDev, allCycles, opts } = fleet
+  const { allCycles, opts } = fleet
+  // a device removed on the Summary screen is off Today from that day on (the user, 13 Nov 2026)
+  const allDev = useMemo(() => fleet.DEV.filter(d => onBenchAt(d.serial)), [fleet.DEV, todayKey()])
   // a device on a firmware test is not part of the bench (the user, 6 Nov 2026): not in today's charge or cycle
   const fwTests = useSyncExternalStore(subscribeFw, getFw, getFw)
   const now = Date.now()

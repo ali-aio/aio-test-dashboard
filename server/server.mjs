@@ -38,6 +38,7 @@ import { createWlcToggler } from './wlcToggle.mjs';
 import { createAppSchedule } from './appSchedule.mjs';
 import { createWlcBattery } from './wlcBattery.mjs';
 import { createDeviceNotes } from './deviceNotes.mjs';
+import { createLabDevices } from './labDevices.mjs';
 import { createFwTests } from './fwTests.mjs';
 import { createIphones } from './iphones.mjs';
 import { createRoom } from './room.mjs';
@@ -70,6 +71,11 @@ const plan = createPlanStore(ROOT);
 // the iPhone readings typed in on Today (server/phone.mjs)
 const phone = createPhoneStore(ROOT);
 const deviceNotes = createDeviceNotes(ROOT);
+// before anything filters devices: the Summary screen's changes to the lab's list (keepDevice reads them)
+const labDevices = createLabDevices(ROOT, {
+  exists: async serial => (await mdm.get('/api/v1/testdata/devices', { ttlMs: DEVICES_TTL })).some(d => d.serial_number === serial),
+  note: (serial, text, by) => deviceNotes.post(serial, { text, by }),
+});
 const fwTests = createFwTests(ROOT, { keep: keepDevice });
 // WLC toggling on a timer (server/wlcToggle.mjs): every switch through the MDM, logged like a button press
 const wlcToggler = createWlcToggler(ROOT, {
@@ -274,6 +280,13 @@ http.createServer(async (req, res) => {
         if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });
         let body = {}; try { body = await readPhoneBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
         const r = fwTests.post(body);
+        return json(req, res, r.error ? 400 : 200, r);
+      }
+      if (p === '/api/lab-devices') {
+        if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, labDevices.list());
+        if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });
+        let body = {}; try { body = await readPhoneBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
+        const r = await labDevices.post(body);
         return json(req, res, r.error ? 400 : 200, r);
       }
       if (p === '/api/device-notes') {

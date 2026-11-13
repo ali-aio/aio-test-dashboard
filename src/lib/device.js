@@ -92,4 +92,21 @@ export const EXCLUDED_SERIALS = new Set(['AT070AABU00848', 'AT070AABU00854']);
 // spread over Test Cycles, San Jose Office and none), each time leaving the dashboard on a 404. A new T7 on the bench
 // goes into BENCH_ORDER (in its bench place).
 export const LAB_SERIALS = new Set(BENCH_ORDER);
-export const keepDevice = (row) => { const sn = row?.serial_number ?? row?.serial; return LAB_SERIALS.has(sn) && !EXCLUDED_SERIALS.has(sn); };
+// Changes made on the Summary screen since (server/labDevices.mjs, data/lab-devices.json; the user, 13 Nov 2026): a device added
+// is a lab device from then on; one removed is off Today / the bell from its day on, while its past cycles stay (it is still kept).
+let LAB_CHANGES = [], EVER = new Set(BENCH_ORDER);
+const dayStart = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+export function setLabChanges(changes) {
+  LAB_CHANGES = [...(changes || [])].sort((a, b) => a.at - b.at);
+  EVER = new Set([...BENCH_ORDER, ...LAB_CHANGES.filter(c => c.action === 'add').map(c => c.serial)]);
+}
+export const labChanges = () => LAB_CHANGES;
+/** On the bench at moment t: BENCH_ORDER, then each change from the start of its day. */
+export function onBenchAt(serial, t = Date.now()) {
+  let on = LAB_SERIALS.has(serial);
+  for (const c of LAB_CHANGES) if (c.serial === serial && dayStart(c.at) <= t) on = c.action === 'add';
+  return on && !EXCLUDED_SERIALS.has(serial);
+}
+/** "00281" → AT070AABU00281; a full serial as it is; else null. */
+export const fullSerial = (s) => { const v = String(s || '').trim().toUpperCase(); return /^\d{5}$/.test(v) ? `AT070AABU${v}` : /^[A-Z0-9]{8,24}$/.test(v) ? v : null; };
+export const keepDevice = (row) => { const sn = row?.serial_number ?? row?.serial; return EVER.has(sn) && !EXCLUDED_SERIALS.has(sn); };

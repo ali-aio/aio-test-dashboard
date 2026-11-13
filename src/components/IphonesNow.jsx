@@ -28,7 +28,8 @@ export default function IphonesNow({ now }) {
                 {l ? <>{l.pct}<span className="secondary" style={{ fontSize: 13 }}>%</span>{l.charging ? <span title="charging" style={{ fontSize: 16 }}> ⚡</span> : null}</> : '—'}</div>
               <div className="stat-foot">
                 {!l ? 'not read yet' : stale ? `not heard from since ${hm(l.at)}${new Date(l.at).toDateString() !== new Date(now).toDateString() ? ` ${new Date(l.at).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : ''}` : `read ${hm(l.at)} · ${l.charging ? 'charging' : 'not charging'}`}
-                {pad === true ? ' · on the pad' : pad === false ? ' · off the pad' : ''}
+                {/* the T7's pad having a load doesn't mean it's the iPhone (13 Nov: a load in its place): on the pad = the phone charging and the pad loaded */}
+                {!l || stale ? '' : l.charging && pad !== false ? ' · on the pad' : l.charging ? ' · on a charger, not the pad' : ' · off the pad'}
               </div>
             </div>)
         })}

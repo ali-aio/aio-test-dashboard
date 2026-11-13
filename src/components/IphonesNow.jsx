@@ -13,21 +13,24 @@ export default function IphonesNow({ now }) {
   const ip = useSyncExternalStore(subscribeIphones, getIphones, getIphones)
   const phones = ip.phones || []
   if (!phones.length) return null
+  const down = phones.filter(p => !p.lastOk || now - p.lastOk > STALE || (!!p.error && p.lastTry > p.lastOk)).length
   return (
     <div className="card">
       <div className="card-head"><div><h2>iPhones</h2>
-        <div className="card-sub">Battery as last read by the lab laptop over Wi-Fi (every 5 min while the phone is awake)</div></div></div>
+        <div className="card-sub">Battery as last read by the lab laptop over Wi-Fi (every 5 min while the phone is awake){down ? <> · <b style={{ color: 'var(--status-critical)' }}>{down} disconnected</b> — unlock {down === 1 ? 'it' : 'them'} and keep {down === 1 ? 'it' : 'them'} on the laptop's Wi-Fi</> : null}</div></div></div>
       <div className="card-body"><div className="stat-row">
         {phones.map(p => {
-          const l = p.last, stale = !p.lastOk || now - p.lastOk > STALE
+          // disconnected = the lab laptop's latest try didn't reach it (and nothing came since): the tile is highlighted at once
+          // (the user, 13 Nov 2026: "if the phone is disconnected then highlight that card"), not after the 75 min of the On the pad card
+          const l = p.last, stale = !p.lastOk || now - p.lastOk > STALE || (!!p.error && p.lastTry > p.lastOk)
           const pad = p.t7 ? padAt(rowsFor(p.t7), now) : null
           return (
-            <div key={p.udid} className={`stat${stale ? ' is-warn' : ''}`} title={`${p.name || 'iPhone'} · ${p.udid}${p.error ? ` · last try: ${p.error}` : ''}`}>
+            <div key={p.udid} className={`stat${stale ? ' is-down' : ''}`} title={`${p.name || 'iPhone'} · ${p.udid}${p.error ? ` · last try: ${p.error}` : ''}`}>
               <div className="stat-label">{p.key || p.name || 'iPhone'}{p.t7 ? <> · <a className="link mono" href={`#/nx/device/${p.t7}`}>{p.t7.slice(-5)}</a></> : null}</div>
-              <div className="stat-value" style={stale ? { color: 'var(--status-critical)' } : undefined}>
+              <div className="stat-value" style={stale ? { color: 'var(--text-muted)' } : undefined}>
                 {l ? <>{l.pct}<span className="secondary" style={{ fontSize: 13 }}>%</span>{l.charging ? <span title="charging" style={{ fontSize: 16 }}> ⚡</span> : null}</> : '—'}</div>
               <div className="stat-foot">
-                {!l ? 'not read yet' : stale ? `not heard from since ${hm(l.at)}${new Date(l.at).toDateString() !== new Date(now).toDateString() ? ` ${new Date(l.at).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : ''}` : `read ${hm(l.at)} · ${l.charging ? 'charging' : 'not charging'}`}
+                {!l ? 'not read yet' : stale ? `disconnected · last read ${hm(l.at)}${new Date(l.at).toDateString() !== new Date(now).toDateString() ? ` ${new Date(l.at).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : ''}` : `read ${hm(l.at)} · ${l.charging ? 'charging' : 'not charging'}`}
                 {/* the T7's pad having a load doesn't mean it's the iPhone (13 Nov: a load in its place): on the pad = the phone charging and the pad loaded */}
                 {!l || stale ? '' : l.charging && pad !== false ? ' · on the pad' : l.charging ? ' · on a charger, not the pad' : ' · off the pad'}
               </div>

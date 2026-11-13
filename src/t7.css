@@ -2202,6 +2202,9 @@ input.phone-auto { font-style: italic; }
 
 /* a tile where some devices behave differently from the rest (Today) */
 .stat.is-warn, button.stat.is-warn:hover { border-color: var(--status-warning); box-shadow: 0 0 0 1px var(--status-warning) inset; }
+/* an iPhone the lab laptop can't reach (IphonesNow) */
+.stat.is-down { border-color: var(--status-critical); box-shadow: 0 0 0 1px var(--status-critical) inset; background: color-mix(in srgb, var(--status-critical) 8%, var(--surface-1)); }
+.stat.is-down .stat-foot { color: var(--status-critical); }
 .phone-start { width: 110px; min-height: 26px; padding: 2px 6px; display: inline-block; vertical-align: middle; }
 
 /* notes kept on a test's cycles (test screen) */

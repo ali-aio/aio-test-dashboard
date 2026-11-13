@@ -923,6 +923,10 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   dont show iphone reading"): an hour is filled from the iPhone only when the T7 had a load on its pad (`padLoad`) within
   15 min of it (`padAt` / `onPadAt` in `phoneLog.js`, tested; no T7 readings there = not known, kept); a T7 joins the card
   only from readings taken on the pad; under the serial grey "iPhone off the pad" while its pad has no load. Typed values stay.
+  **On the pad = the iPhone charging there**, not just a load on the pad (the user, 13 Nov 2026: the phones hadn't drained, a load went on
+  00790 / 00606 / 00485 in their place, and the card filled the hours from the phones lying beside them — "start these readings once the
+  iPhone is placed on the pad"): `onPadAt` / `readT7s` (and `PhoneHistory`) also need the reading's charging flag; "iPhone off the pad" too
+  when the phone isn't charging. (A Shortcuts report carries no charging flag, so it fills an hour only once that is sent.)
   **Full / off pad** (the user, 4 Nov 2026: replace the empty "next" hour with "the time when the iPhone was removed from charge or
   reached 100"): `iphoneEnd` in `phoneLog.js` (tested) — the first reading at 100 %, or the iPhone stopping charging with the T7's pad
   showing no load around then (a not-charging reading with the pad still loaded is not a removal). A column **Full / off pad**

@@ -52,7 +52,7 @@ function Cell({ day, serial, h, value, auto, title }) {
 // Under the T7's serial: the iPhone's battery as last read over Wi-Fi, or that it isn't answering
 function PhoneLive({ ph, now, onPad }) {
   // no load on the T7's pad now = the iPhone was taken off it: its battery isn't shown (the user, 2 Nov 2026)
-  if (onPad === false) return <div className="phone-live off" title="no load on this T7's pad now — the iPhone's battery is shown only while it is on the pad">iPhone off the pad</div>
+  if (onPad === false) return <div className="phone-live off" title="the iPhone isn't charging on this T7's pad now — its battery is shown only while it is (the iPhones card below has it either way)">iPhone off the pad</div>
   // the phone sends on the hour (its Shortcuts automation) and is read over Wi-Fi while awake, so
   // its latest reading can be up to an hour old and still be on time
   const stale = !ph.lastOk || now - ph.lastOk > 75 * 60e3
@@ -141,7 +141,7 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
           const first = p.rows.find(r => r.pct != null && hours.includes(r.h))
           if (e && first) { p.total = e.pct - first.pct; const span = (e.at - (start + first.h * H)) / H; p.perH = span > 0 ? p.total / span : null }
           return <tr key={s}>
-            <td className="mono">{s}{ph ? <PhoneLive ph={ph} now={now} onPad={padAt(rowsFor(s), now)} /> : null}</td>
+            <td className="mono">{s}{ph ? <PhoneLive ph={ph} now={now} onPad={padAt(rowsFor(s), now) === false || (ph.last && !ph.last.charging) ? false : padAt(rowsFor(s), now)} /> : null}</td>
             {p.rows.filter(r => hours.includes(r.h)).map(r => { const t7 = start + r.h * H > now ? null : t7At(s, start + r.h * H); if (e && start + r.h * H > e.at) return <td key={r.h} className="r secondary" title={`the iPhone ${e.why === 'full' ? 'reached 100 %' : 'came off the pad'} at ${hm(e.at)}`}>—</td>; if (!shown.get(s).has(r.h)) return <td key={r.h} className="r secondary" title="no load on this T7's pad in the hour before">no load</td>; return (
               <td key={r.h} className="r">
                 <Cell day={day} serial={s} h={r.h} value={r.auto ? null : r.pct} auto={r.auto?.pct} title={`iPhone battery on ${s} at ${hm(start + r.h * H)} (${r.h === 0 ? 'cycle start' : `hour ${r.h}`})${r.auto ? (r.auto.est ? ` · from the iPhone: between ${r.auto.est.a}% at ${hm(r.auto.est.from)} and ${r.auto.est.b}% at ${hm(r.auto.est.to)} — type to replace` : ` · read from the iPhone at ${hm(r.auto.at)} — type to replace`) : ''}`} />

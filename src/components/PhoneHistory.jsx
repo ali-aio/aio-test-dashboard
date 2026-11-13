@@ -14,7 +14,7 @@ export default function PhoneHistory({ cycles }) {
   const db = useSyncExternalStore(subscribePhone, getPhone, getPhone)
   const ip = useSyncExternalStore(subscribeIphones, getIphones, getIphones)
   // an iPhone read over Wi-Fi during the run counts as picked (unless taken off the list on Today)
-  const readDuring = c => (ip.readings?.[c.serial] || []).filter(r => r[0] >= c.start && r[0] <= (c.end ?? c.start + 24 * H) && padAt(rowsFor(c.serial), r[0]) !== false).length >= 2
+  const readDuring = c => (ip.readings?.[c.serial] || []).filter(r => r[0] >= c.start && r[0] <= (c.end ?? c.start + 24 * H) && r[2] && padAt(rowsFor(c.serial), r[0]) !== false).length >= 2
   useEffect(() => startPhoneSync(), [])
   // the T7s with an iPhone on each cycle day, among these cycles
   const byDay = new Map()

@@ -589,6 +589,9 @@ const mdmCases = []
     const off = phoneHours(db, d, sn, 3, h => onPadAt(rows, t7, t0 + h * H))
     want(off.rows[1].pct === 60 && off.rows[3].pct == null, 'typed stays; off the pad left empty')
     want(readT7s({ readings: { [sn]: rows } }, t0 + 2.5 * H, t0 + 4 * H, () => t7).length === 0, 'an iPhone read only off the pad doesn\'t add its T7')
+    // 13 Nov 2026: a load on the pad in the iPhone's place, the phone beside it not charging → not the iPhone's hours, and no T7 added
+    const idle = rows.map(([t, pct]) => [t, pct, 0])
+    want(onPadAt(idle, t7, t0 + H) === null && readT7s({ readings: { [sn]: idle } }, t0, t0 + 2 * H, () => t7).length === 0, 'a load on the pad but the iPhone not charging: not on the pad')
     // when the iPhone finished (4 Nov 2026): 100 %, or off the pad = stopped charging with the pad showing no load
     const pad = (offAt) => { const a = []; for (let t = t0; t <= t0 + 5 * H; t += 3 * M) a.push({ timestamp: new Date(t).toISOString(), extra: { wlc_status: t >= offAt && t < offAt + 3 * M ? 0 : 1 } }); return a }
     const fullRows = [[t0, 20, 1], [t0 + H, 60, 1], [t0 + 2 * H, 100, 1], [t0 + 2.5 * H, 100, 1]]

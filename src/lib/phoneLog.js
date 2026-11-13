@@ -114,10 +114,13 @@ export function padAt(rows, t, win = PAD_WIN) {
   return seen;
 }
 
-/** The iPhone's reading at t (readingAt), only while the T7's pad had a load then (padAt not false). */
+/** The iPhone's reading at t (readingAt), only while it is on the pad: the iPhone charging, and the T7's pad with a load
+ *  then (padAt not false). A load on the pad alone may be the lab's own load in the iPhone's place (the user, 13 Nov 2026: the
+ *  iPhones hadn't drained, a load went on 00790 / 00606 / 00485, and the card filled the hours from the phones lying beside
+ *  them — "start these readings once the iPhone is placed on the pad"). */
 export const onPadAt = (phoneRows, t7Rows, t, now = Infinity) => {
   const r = readingAt(phoneRows, t, now);
-  return r && padAt(t7Rows, t) !== false ? r : null;
+  return r && r.charging && padAt(t7Rows, t) !== false ? r : null;
 };
 
 /** When the iPhone on this T7 finished, from its own readings since `from` (rows [[t, pct, charging]], oldest first):
@@ -144,9 +147,9 @@ export function iphoneEnd(rows, t7Rows, from) {
   return null;
 }
 
-/** The T7s whose iPhone was read at least twice in [a, b) while on the pad (`rowsOf(t7)` = its MDM readings). */
+/** The T7s whose iPhone was read at least twice in [a, b) while on the pad — charging, the pad with a load (`rowsOf(t7)` = its MDM readings). */
 export const readT7s = (ip, a, b, rowsOf = () => null) => Object.entries(ip?.readings || {})
-  .filter(([t7, rows]) => rows.filter(r => r[0] >= a && r[0] < b && padAt(rowsOf(t7), r[0]) !== false).length >= 2).map(([t7]) => t7);
+  .filter(([t7, rows]) => rows.filter(r => r[0] >= a && r[0] < b && r[2] && padAt(rowsOf(t7), r[0]) !== false).length >= 2).map(([t7]) => t7);
 
 const ipSubs = new Set();
 let ip = { phones: [], readings: {} };

@@ -845,8 +845,8 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   (Restaurant Case, WLC + Discharge, WLC on Load, Load only, WLC on Phone) or one not named yet: each device since it left the
   charger, over its time with a load on the pad / with none (`drainSplit` `active` / `none`; under 20 min = —).
 - **Devices today: Reached 15 %** (the user, 4 Nov 2026, WLC on Load to reproduce the boot loop: load until 15 %, then WLC off):
-  shown only while a "WLC off at ≤ N %" battery rule is set on the lab laptop (`useAutomations().rules`, N = the rule's %), in a
-  discharge cycle; each device's first reading at N % or less since it left the charger (`reachAt` in `TodayView.jsx`), else —.
+  shown only while a "WLC off at ≤ N %" battery rule is set on the lab laptop (`useAutomations().rules`, N = the rule's %), and only in a
+  **WLC on Load** cycle (the user, 14 Nov 2026: not in Ads only); each device's first reading at N % or less since it left the charger (`reachAt` in `TodayView.jsx`), else —.
 - **Devices today** lists the devices in the lab's bench order (`BENCH_ORDER` in `src/lib/device.js`, the user, 27 Oct 2026:
   00142, 00077, 00226 … 00606, 00790); any other device after them by serial. A heading click still sorts; the third click returns to it.
 - **WLC · load placed** drop-down: the devices **different from the rest** (no load while most have one, or a load while

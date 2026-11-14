@@ -296,7 +296,8 @@ function CycleSection({ fleet, side, auto }) {
   const padCols = !T?.charging && (!T?.tt || T.tt.loadHours || ['wlc_load', 'load_only', 'wlc_phone', 'market'].includes(T.tt.id))
   // Reached N %: while a "WLC off at ≤ N %" rule runs on the lab laptop, when each device first read N % or less since it
   // left the charger (the user, 4 Nov 2026: today's WLC on Load, load until 15 %, then WLC off — the boot-loop repro)
-  const reachPct = !T.charging && auto.rules?.length ? Math.max(...auto.rules.map(x => x.pct)) : null
+  // only in WLC on Load (the user, 14 Nov 2026: not in Ads only — no load there for the rule to switch off)
+  const reachPct = !T.charging && T.tt?.id === 'wlc_load' && auto.rules?.length ? Math.max(...auto.rules.map(x => x.pct)) : null
   const reachAt = r => { if (reachPct == null || !r?.start || !r.rows) return null
     for (const x of r.rows) { const t = Date.parse(x.timestamp); if (t >= r.start.t && !x.empty && x.battery_pct != null && x.battery_pct <= reachPct) return t }
     return null }

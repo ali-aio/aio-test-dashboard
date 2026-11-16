@@ -77,23 +77,60 @@ export function makeEvent(input) {
 
 /* --------------------------------------------------------------------- API */
 
+// Shared on the lab laptop as device notes (server/deviceNotes.mjs): one note per device the event names, sharing the event's id as
+// `group`, so it shows on each device's page and when the device is clicked in a cycle (the user, 16 Nov 2026: "I logged an event for a
+// device in Summary and then searched the device — nothing is showing there"). Until then events lived in this browser's IndexedDB only;
+// those are moved to the server the first time the list is read.
+const by = () => { try { return localStorage.getItem('declaredBy') || '' } catch (e) { return '' } }
+const post = async body => {
+  const r = await fetch('/api/device-notes', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`)
+}
+const textOf = e => `${e.type} (${e.severity})${e.note ? `: ${e.note}` : ''}`
+
 export async function saveEvent(event) {
-  await withStore(STORES.events, 'readwrite', (store) => store.put(event))
+  // editing: the old notes go, the new ones take their place (same group)
+  await post({ removeEvent: event.id }).catch(() => {})
+  for (const serial of event.serials)
+    await post({ serial, text: textOf(event), by: by(), event: { type: event.type, severity: event.severity, at: event.at, note: event.note, group: event.id } })
   return event
+}
+
+let migrated = false
+async function moveLocalEvents(onServer) {
+  if (migrated || !isAvailable()) return
+  migrated = true
+  try {
+    const local = (await withStore(STORES.events, 'readonly', (store) => store.getAll())) || []
+    for (const e of local) if (!onServer.has(e.id)) await saveEvent(e)
+    if (local.length) await withStore(STORES.events, 'readwrite', (store) => store.clear())
+  } catch (e) { migrated = false }
 }
 
 /** Every event, most recent first. */
 export async function listEvents() {
-  const all = await withStore(STORES.events, 'readonly', (store) => store.getAll())
-  return (all ?? []).sort((a, b) => b.at - a.at)
+  const read = async () => {
+    const r = await fetch('/api/device-notes?events=1', { cache: 'no-store' })
+    const j = r.ok ? await r.json() : { notes: [] }
+    const groups = new Map()
+    for (const n of j.notes || []) {
+      const g = n.event.group || n.id
+      if (!groups.has(g)) groups.set(g, { id: g, at: n.event.at, serials: [], type: n.event.type, severity: n.event.severity, note: n.event.note || '', createdAt: n.at, updatedAt: n.mod })
+      groups.get(g).serials.push(n.serial)
+    }
+    return groups
+  }
+  let groups = await read()
+  if (!migrated) { await moveLocalEvents(new Set(groups.keys())); groups = await read() }
+  return [...groups.values()].sort((a, b) => b.at - a.at)
 }
 
 export async function removeEvent(id) {
-  await withStore(STORES.events, 'readwrite', (store) => store.delete(id))
+  await post({ removeEvent: id })
 }
 
 export async function clearEvents() {
-  await withStore(STORES.events, 'readwrite', (store) => store.clear())
+  for (const e of await listEvents()) await removeEvent(e.id)
 }
 
 /** Restore from an export file, keeping anything already stored. */

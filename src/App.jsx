@@ -26,6 +26,7 @@ import DeviceSearch from './components/DeviceSearch.jsx'
 import ExportDialog from './components/ExportDialog.jsx'
 import TodayView from './views/TodayView.jsx'
 import CyclePlanView from './views/CyclePlanView.jsx'
+import { listEvents } from './lib/events.js'
 
 CTX.group = GROUP
 
@@ -82,6 +83,10 @@ export default function App() {
   // Cycles in T7's shape. The curve on each one comes from the history window, so cycles
   // older than it carry their summary but no per-hour series — the charts say so.
   const fwTests = useSyncExternalStore(subscribeFw, getFw, getFw)
+  // device events logged on Summary, shared through the lab laptop (device notes with `event`)
+  const [events, setEvents] = useState([])
+  const reloadEvents = () => listEvents().then(setEvents).catch(() => {})
+  useEffect(() => { reloadEvents() }, [])
   useEffect(() => startFwSync(), [])
   const cycles = useMemo(() => (DEV.length ? adaptAll(DEV, rowsFor, fleet.readings, fleet.curves, fleet.hours, fleet.hostApp) : []),
     [DEV, fleet.allCycles, win.at2, fleet.readings, fleet.curves, fleet.hours, fleet.hostApp, planSync.v, fwTests])
@@ -163,7 +168,7 @@ export default function App() {
           {view === 'overview' && <T7Overview cycles={scoped} onPickTestType={openTestType} onFilter={applyFilter} onOpenDevice={openDeviceTest} onOpenDevicePage={sn => { location.hash = `#/nx/device/${encodeURIComponent(sn)}`; window.scrollTo(0, 0) }} snapOf={sn => fleet.DMAP.get(sn)?.snap} testType={filters.testType} allSerials={allSerials} lifetime={lifetime} initialBench={benchPick} hours={fleet.hours} />}
           {view === 'comparison' && <ComparisonView cycles={scoped} testType={filters.testType} allSerials={allSerials} />}
           {view === 'thermal' && <ThermalView cycles={scoped} allSerials={allSerials} onFilter={applyFilter} />}
-          {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={[]} onEventsChanged={() => {}} onFilter={applyFilter} onOpenTest={openDeviceTest} issues={[]} files={[]} snapOf={sn => fleet.DMAP.get(sn)?.snap} drops={fleet.drops} hours={fleet.hours} sheetRuns={fleet.sheetRuns} fleet={fleet} healthCycles={cycles} />}
+          {view === 'summary' && <DevicesView cycles={scoped} allSerials={allSerials} events={events} onEventsChanged={reloadEvents} onFilter={applyFilter} onOpenTest={openDeviceTest} issues={[]} files={[]} snapOf={sn => fleet.DMAP.get(sn)?.snap} drops={fleet.drops} hours={fleet.hours} sheetRuns={fleet.sheetRuns} fleet={fleet} healthCycles={cycles} />}
         </ErrorBoundary>
       </div>
     )

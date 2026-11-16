@@ -50,7 +50,8 @@ export default function DeviceNotes({ serial }) {
         {notes.map(n => (
           <div key={n.id} className="device-note">
             <div className="device-note-head">
-              <b>{when(n.at)}</b>{n.by && <span className="secondary"> · {n.by}</span>}
+              {n.event ? <><b>{n.event.type}</b> <span className={`pill pill-${n.event.severity === 'critical' ? 'bad' : n.event.severity === 'serious' ? 'warn' : 'run'}`}>{n.event.severity}</span>{' '}<b>{when(n.event.at)}</b><span className="secondary"> · logged on Summary</span></>
+                : <b>{when(n.at)}</b>}{n.by && <span className="secondary"> · {n.by}</span>}
               {n.mod > n.at + 1000 && <span className="secondary" title={`Edited ${when(n.mod)}`}> · edited</span>}
               <span className="device-note-tools">
                 <button type="button" className="link-btn" onClick={() => setEditing({ id: n.id, text: n.text })}>✎ edit</button>
@@ -84,12 +85,12 @@ export function NotesIn({ serial, windows }) {
     deviceNotes(serial).then(j => { if (live && j.ok) setNotes(j.notes || []) }).catch(() => {})
     return () => { live = false }
   }, [serial])
-  const inCycle = n => (windows || []).some(([a, b]) => n.at >= dayStart(a) && n.at < dayStart(b ?? a) + 2 * DAY)
+  const inCycle = n => { const t = n.event?.at ?? n.at; return (windows || []).some(([a, b]) => t >= dayStart(a) && t < dayStart(b ?? a) + 2 * DAY) }
   const shown = notes.filter(inCycle)
   if (!shown.length) return null
   return (
     <span className="pick-out">
-      {shown.map(n => <span key={n.id}><b>Note on {serial.replace(/^AT070AABU/, '')} · {when(n.at)}:</b> <span style={{ whiteSpace: 'pre-wrap' }}>{n.text}</span></span>)}
+      {shown.map(n => <span key={n.id}><b>{n.event ? n.event.type : 'Note'} on {serial.replace(/^AT070AABU/, '')} · {when(n.event?.at ?? n.at)}:</b> <span style={{ whiteSpace: 'pre-wrap' }}>{n.text}</span></span>)}
       <a className="link" href={`#/nx/device/${serial}`}>All notes on this device</a>
     </span>
   )

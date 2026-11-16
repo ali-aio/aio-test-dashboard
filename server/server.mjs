@@ -290,9 +290,10 @@ http.createServer(async (req, res) => {
         return json(req, res, r.error ? 400 : 200, r);
       }
       if (p === '/api/device-notes') {
-        if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, deviceNotes.list(url.searchParams.get('serial')));
+        if (req.method === 'GET' || req.method === 'HEAD') return json(req, res, 200, url.searchParams.get('events') ? deviceNotes.events() : deviceNotes.list(url.searchParams.get('serial')));
         if (req.method !== 'POST') return json(req, res, 405, { error: 'GET or POST' });
         let body = {}; try { body = await readPhoneBody(req); } catch (e) { return json(req, res, 400, { error: e.message }); }
+        if (body.removeEvent) { const r = deviceNotes.removeEvent(String(body.removeEvent)); return json(req, res, r.error ? 404 : 200, r); }
         const serial = String(body.serial || '');
         if (!keepDevice({ serial_number: serial })) return json(req, res, 403, { error: `${serial} is not a lab device` });
         const r = deviceNotes.post(serial, body);

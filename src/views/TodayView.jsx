@@ -682,9 +682,11 @@ function CycleSection({ fleet, side, auto }) {
                 const r = runs.get(c.serial)
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
                 const st = status(d), s = dayStats(c.serial, T.startMs), cs = T.tt?.span && c.state === 'untyped' ? ['pill-run', 'In test'] : CSTATE[c.state]
-                const row = <tr key={c.serial} className={`row-link${only === c.serial ? ' is-selected' : ''}${stillSet.has(c.serial) ? ' row-warn' : ''}`} onClick={() => focusDevice(c.serial)}
-                  title={only === c.serial ? 'Click to show every device again' : `Show only ${c.serial} in the charts above`}>
-                  <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button></td>
+                const off = !online(d), seen = d.snap?.last_seen_at ? Date.parse(d.snap.last_seen_at) : null // offline = no check-in for 15 min (the user, 17 Nov 2026: highlight it red)
+                const row = <tr key={c.serial} className={`row-link${only === c.serial ? ' is-selected' : ''}${off ? ' row-down' : stillSet.has(c.serial) ? ' row-warn' : ''}`} onClick={() => focusDevice(c.serial)}
+                  title={off ? `${c.serial} is offline — ${seen ? `last check-in ${ago(seen)}` : 'never checked in'}` : only === c.serial ? 'Click to show every device again' : `Show only ${c.serial} in the charts above`}>
+                  <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button>
+                    {off && <div className="down-note">offline{seen ? ` · seen ${ago(seen)}` : ''}</div>}</td>
                   <td><span className={`pill ${cs[0]}`}>{cs[1]}</span></td>
                   {rebootCol && <td className="r"><RebootCell decl={T.decl} serial={c.serial} onSaved={() => setPlanRev(v => v + 1)}>{T.decl.reboots?.[c.serial] ?? ''}</RebootCell>{/* the child is only for sorting by this column */}</td>}
                   <td className="r">{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span> : <span className="secondary">—</span>}</td>

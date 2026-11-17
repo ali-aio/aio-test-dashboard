@@ -683,7 +683,7 @@ function CycleSection({ fleet, side, auto }) {
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
                 const st = status(d), s = dayStats(c.serial, T.startMs), cs = T.tt?.span && c.state === 'untyped' ? ['pill-run', 'In test'] : CSTATE[c.state]
                 const off = !online(d), seen = d.snap?.last_seen_at ? Date.parse(d.snap.last_seen_at) : null // offline = no check-in for 15 min (the user, 17 Nov 2026: highlight it red)
-                const row = <tr key={c.serial} className={`row-link${only === c.serial ? ' is-selected' : ''}${off ? ' row-down' : stillSet.has(c.serial) ? ' row-warn' : ''}`} onClick={() => focusDevice(c.serial)}
+                const row = <tr key={c.serial} className={`row-link${only === c.serial ? ' is-selected' : ''}${stillSet.has(c.serial) ? ' row-warn' : ''}`} onClick={() => focusDevice(c.serial)}
                   title={off ? `${c.serial} is offline — ${seen ? `last check-in ${ago(seen)}` : 'never checked in'}` : only === c.serial ? 'Click to show every device again' : `Show only ${c.serial} in the charts above`}>
                   <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(c.serial) }}>{c.serial}</button>
                     {off && <div className="down-note">offline{seen ? ` · seen ${ago(seen)}` : ''}</div>}</td>

@@ -50,7 +50,7 @@ function fwRow(sn, fleet) {
   const temp = on && s.battery_temp_c ? s.battery_temp_c : null
   const heat = v => (v >= TEMP_LIMIT ? 'var(--bad)' : v >= TEMP_WARN ? 'var(--warn)' : 'inherit')
   return (
-    <tr key={sn} className={on ? undefined : 'row-down'}>
+    <tr key={sn}>
       <td className="mono"><a className="link-btn plain-link mono" href={devHref(sn)} title={`Open ${sn}`}>{sn}</a>
         {!on && <div className="down-note">offline{s?.last_seen_at ? ` · seen ${ago(Date.parse(s.last_seen_at))}` : ''}</div>}</td>
       <td><span className={`pill ${on ? 'pill-ok' : ''}`}>{!on ? 'Not reporting' : s.charging ? 'On charge' : 'On battery'}</span></td>

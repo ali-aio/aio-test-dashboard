@@ -1,9 +1,9 @@
 // Lab room temperature / humidity → the test dashboard on the lab laptop.
 // ESP32-S3 + SHT30 (I2C, address 0x44; 0x45 with ADDR pulled high). Every READ_S seconds it reads the SHT30 and
 // prints one line on both USB-C ports (COM at 115200, and the chip's own USB):  ROOM {"sensor":"room","t":23.63,"rh":52.2}
-// The lab's way (2 Nov 2026): the board is plugged into the lab laptop's USB, whose server reads those lines
-// (server/roomSerial.mjs + room-serial.py) — no Wi-Fi. With WIFI_PASS set in secrets.h it also
-// POSTs {"sensor","readings":[{"t","rh","ago"}]} to http://<laptop>:8090/api/room/report
+// The lab's way (18 Nov 2026): over Wi-Fi, following the lab laptop between AIO-Office and UniFi - HW Team (WIFI_* and
+// WIFI2_* in secrets.h). Plugged into the laptop's USB, the server reads those lines too (server/roomSerial.mjs).
+// It POSTs {"sensor","readings":[{"t","rh","ago"}]} to http://<laptop>:8090/api/room/report
 // (server/room.mjs). Readings that couldn't be sent (laptop restarting, Wi-Fi down) are kept, up to
 // QUEUE_MAX, and go with the next post, each with how many seconds ago it was taken.
 //
@@ -51,21 +51,45 @@ static bool readSht30(float &t, float &rh) {
   return true;
 }
 
+// The networks to try, in order: the lab laptop moves between AIO-Office and UniFi - HW Team (Nov 2026), and the
+// two can't reach each other, so the sensor follows it: after SWITCH_AFTER failed posts in a row (or a network it
+// can't join) it moves to the next one. Each has its own fallback address for the laptop (mDNS comes first).
+struct Net { const char *ssid, *pass, *ip; };
+static const Net NETS[] = {
+  { WIFI_SSID, WIFI_PASS, LAPTOP_IP },
+#ifdef WIFI2_SSID
+  { WIFI2_SSID, WIFI2_PASS, LAPTOP_IP2 },
+#endif
+};
+static const int NNETS = sizeof(NETS) / sizeof(NETS[0]);
+static const int SWITCH_AFTER = 3; // failed posts in a row, one a minute
+static int cur = 0, fails = 0;
+
+static void nextNet(const char *why) {
+  if (NNETS < 2) return;
+  Serial0.printf("wifi: %s on %s, trying %s\n", why, NETS[cur].ssid, NETS[(cur + 1) % NNETS].ssid);
+  MDNS.end();
+  WiFi.disconnect(true);
+  cur = (cur + 1) % NNETS; fails = 0;
+  laptop = IPAddress(); lastResolve = 0;
+}
+
 static void wifiUp() {
   if (WiFi.status() == WL_CONNECTED) return;
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  WiFi.begin(NETS[cur].ssid, NETS[cur].pass);
   for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(250);
-  if (WiFi.status() == WL_CONNECTED) { Serial0.printf("wifi %s\n", WiFi.localIP().toString().c_str()); MDNS.begin(SENSOR_NAME); }
+  if (WiFi.status() == WL_CONNECTED) { Serial0.printf("wifi %s on %s\n", WiFi.localIP().toString().c_str(), NETS[cur].ssid); MDNS.begin(SENSOR_NAME); }
+  else nextNet("couldn't join");
 }
 
-// the laptop's address: mDNS (its IP is DHCP), re-asked every 10 min, else LAPTOP_IP
+// the laptop's address: mDNS (its IP is DHCP), re-asked every 10 min, else this network's fallback address
 static IPAddress laptopIp() {
   if (laptop == IPAddress() || millis() - lastResolve > 600000UL) {
     lastResolve = millis();
     IPAddress ip = MDNS.queryHost(LAPTOP_MDNS, 2000);
     if (ip != IPAddress()) laptop = ip;
-    else if (laptop == IPAddress()) laptop.fromString(LAPTOP_IP);
+    else if (laptop == IPAddress()) laptop.fromString(NETS[cur].ip);
   }
   return laptop;
 }
@@ -88,8 +112,10 @@ static bool sendQueue() {
   int code = http.POST(body);
   http.end();
   Serial0.printf("POST %s → %d (%d readings)\n", url.c_str(), code, qn);
-  if (code == 200) { qn = 0; return true; }
+  if (code == 200) { qn = 0; fails = 0; return true; }
   if (code < 0) lastResolve = 0; // couldn't connect: ask mDNS again next time
+  // the laptop not reachable here (or answering with an error) several times running: it may be on the other network
+  if (++fails >= SWITCH_AFTER) nextNet("laptop not reachable");
   return false;
 }
 

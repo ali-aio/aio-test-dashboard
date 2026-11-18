@@ -875,8 +875,11 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
 - **Room temp** (the user, 2 Nov 2026: the T7s report only their battery's temperature): an **ESP32-S3 + SHT30**
   (`firmware/room-sensor/`, Arduino, no extra libraries; SDA GPIO 8, SCL GPIO 9; an ESP32-S3-N16R8 DevKit, FQBN in that README)
   reads the room every minute and **sends it over Wi-Fi** (the user, 12 Nov 2026: "best through Wi-Fi" — on the laptop's USB it
-  was unplugged for a day unnoticed): network **AIO-Office**, the laptop found by mDNS (`test-team-IdeaPad-3-15ITL6.local`), else
-  10.32.2.135, `POST /api/room/report`; powered by any USB adapter. The password is only in the gitignored `secrets.h` (and the
+  was unplugged for a day unnoticed), `POST /api/room/report`, powered by any USB adapter. **It follows the lab laptop between
+  AIO-Office and UniFi - HW Team** (the user, 18 Nov 2026: the laptop had moved to UniFi on its own and nothing arrived for 6 days;
+  the two networks can't reach each other): `WIFI_*` and `WIFI2_*` in `secrets.h`, after 3 failed posts in a row (or a network it
+  can't join) it switches (`nextNet`), keeping its readings meanwhile; the laptop found by mDNS (`test-team-IdeaPad-3-15ITL6.local`),
+  else that network's address (10.32.2.135 / 192.168.201.27). First switch seen 18 Nov 11:47 → 11:50, no gap. The password is only in the gitignored `secrets.h` (and the
   gitignored `build/`). `/api/room` carries `wifi: {lastAt, ip}` (since the server started); the server drops a reading within
   20 s of the previous one, so USB + Wi-Fi at once never doubles. Until 12 Nov it was **plugged into the lab laptop's USB**: it prints
   `ROOM {"sensor","t","rh"}` on both USB-C ports, and `server/roomSerial.mjs` runs `server/room-serial.py` (stdlib Python; finds

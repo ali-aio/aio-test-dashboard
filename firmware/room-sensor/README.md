@@ -3,7 +3,9 @@
 Sends the lab's room temperature and humidity to the dashboard on the lab laptop every minute;
 Today shows it as the **Room temp** tile (range and average since the cycle started).
 
-**How it's connected (12 Nov 2026): Wi-Fi, AIO-Office**, powered by any USB adapter; it POSTs each reading to the lab
+**How it's connected (18 Nov 2026): Wi-Fi, following the lab laptop between AIO-Office and UniFi - HW Team**
+(`WIFI_*` / `WIFI2_*` in `secrets.h`; after 3 failed posts it tries the other network). Before 18 Nov: AIO-Office only;
+powered by any USB adapter; it POSTs each reading to the lab
 laptop (mDNS name, else `LAPTOP_IP`) and keeps up to 4 h of readings it couldn't send. Flash with `WIFI_SSID` / `WIFI_PASS`
 set in `secrets.h` (gitignored; `build/`, which holds the compiled password, is gitignored too).
 

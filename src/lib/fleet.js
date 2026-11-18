@@ -159,7 +159,7 @@ export async function boot() {
   if (!hasConfig()) { state.error = 'No API key configured.'; bump(); return; }
   try {
     const [rows, hist] = await Promise.all([
-      fetchDevices({ fresh: true }),
+      devicesWithRetry(),
       fetch('/data/cycles.json').then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
     // The static import is most of the history (364 cycles against the sweep's ~20). It was
@@ -185,7 +185,17 @@ export async function boot() {
     topUp().catch(e => console.warn('history top-up failed:', e));
   } catch (e) {
     state.error = e.message === 'Failed to fetch' ? 'Network error — the MDM is unreachable from this machine.' : `The MDM answered ${e.message}.`;
+    state.error += ' Trying again every 30 s.';
     bump();
+    setTimeout(() => { if (!state.ready) boot() }, 30e3); // 18 Nov 2026: one MDM timeout left the page blank until a reload
+  }
+}
+
+// The first device list, tried 3 times (the MDM can take 30 s and time out once, 18 Nov 2026)
+async function devicesWithRetry() {
+  for (let i = 0; ; i++) {
+    try { return await fetchDevices({ fresh: true }) }
+    catch (e) { if (i >= 2) throw e; await new Promise(r => setTimeout(r, i ? 10e3 : 3e3)) }
   }
 }
 

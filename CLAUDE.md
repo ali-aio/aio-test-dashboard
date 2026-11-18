@@ -795,6 +795,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   spinner "Loading the battery curves (try 2 of 3)…", or "Couldn't load … · Retry": the battery / drain-by-hour charts and
   Every cycle on a test screen, the Overview above its cards, Today above its tiles, Thermal, Comparison, the device page,
   Drain by battery age, Battery health. Nothing shows once all is in.
+- **A slow MDM never blanks the page** (18 Nov 2026: the MDM's device list took 10–30 s and timed out, and the page showed only "The MDM answered The operation was aborted due to timeout" with nothing under it, until a reload): `/api/devices` answers with the last list it got (`data/devices-last.json`, up to a day old, header `x-devices-stale`) when the MDM fails, and the page's first device list is tried 3 times, then again every 30 s (`devicesWithRetry` / `boot` in `fleet.js`).
 - **While the latest data is still coming, say so** (the user, 26 Oct 2026: Today drew the stored copy, then changed a few
   seconds later): a thin progress bar along the header's bottom (`SyncBar.jsx`; readings devices done / devices from
   `getProgress` in `window.js` — its own store, so a tick doesn't re-run `adaptAll` — plus the data files), with a label

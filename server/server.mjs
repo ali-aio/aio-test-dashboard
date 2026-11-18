@@ -61,6 +61,22 @@ const CFG = {
   ratePerMin: +(process.env.RATE_PER_MIN || fileCfg.ratePerMin || 120),
 };
 const DEVICES_TTL = 20e3, HISTORY_TTL = 60e3, HOSTAPP_TTL = 30e3, MAX_RANGE = 7 * 86400e3 + 60e3;
+// The last device list the MDM gave, kept on disk too: when the MDM is slow or down (18 Nov 2026: its list took 10–30 s and
+// timed out, and a browser opening the page got only the error) /api/devices answers with this copy (up to a day old),
+// marked `x-devices-stale` with its age, instead of failing.
+const LAST_DEVICES_FILE = path.join(ROOT, 'data', 'devices-last.json');
+let lastDevices = null; try { lastDevices = JSON.parse(fs.readFileSync(LAST_DEVICES_FILE, 'utf8')); } catch (e) {}
+async function labDeviceList() {
+  try {
+    const rows = await mdm.get('/api/v1/testdata/devices', { ttlMs: DEVICES_TTL });
+    if (!lastDevices || Date.now() - lastDevices.at > 60e3) { lastDevices = { at: Date.now(), rows }; fs.promises.writeFile(LAST_DEVICES_FILE, JSON.stringify(lastDevices)).catch(() => {}); }
+    else lastDevices = { ...lastDevices, rows };
+    return { rows, staleAt: null };
+  } catch (e) {
+    if (lastDevices && Date.now() - lastDevices.at < 86400e3) return { rows: lastDevices.rows, staleAt: lastDevices.at, why: e.message };
+    throw e;
+  }
+}
 const mdm = createClient({ base: CFG.base, key: CFG.key, log: m => console.log(`[mdm] ${m}`) });
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.md': 'text/plain; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
@@ -400,7 +416,8 @@ http.createServer(async (req, res) => {
       if (!CFG.key) return json(req, res, 503, { error: 'no API key configured on the server' });
       if (p === '/api/devices') {
         // the lab's own device list (LAB_SERIALS in src/lib/device.js), not an MDM group: the groups keep changing
-        return json(req, res, 200, (await mdm.get('/api/v1/testdata/devices', { ttlMs: DEVICES_TTL })).filter(keepDevice), { 'cache-control': `private, max-age=${DEVICES_TTL / 1000}` });
+        const { rows, staleAt, why } = await labDeviceList()
+        return json(req, res, 200, rows.filter(keepDevice), staleAt ? { 'cache-control': 'no-store', 'x-devices-stale': String(staleAt), 'x-devices-why': encodeURIComponent(why || '') } : { 'cache-control': `private, max-age=${DEVICES_TTL / 1000}` });
       }
       // which tablets have the host app (the ads) on screen now — Today and the bell
       if (p === '/api/host-app') {

@@ -254,7 +254,7 @@ http.createServer(async (req, res) => {
         const r = plan.put(g, body);
         return r.conflict ? json(req, res, 409, { error: 'the plan changed since you loaded it', current: r.current }) : json(req, res, 200, r);
       }
-      if (p === '/api/iphones') return json(req, res, 200, iphones.get());
+      if (p === '/api/iphones') { const n = k => { const v = url.searchParams.get(k); return v == null || v === '' ? undefined : +v }; return json(req, res, 200, iphones.get({ from: n('from'), to: n('to') })); }
       // an iPhone sending its own battery (its Shortcuts automation; server/iphones.mjs)
       if (p === '/api/iphones/report') {
         let q = Object.fromEntries(url.searchParams);

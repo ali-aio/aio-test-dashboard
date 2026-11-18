@@ -20,14 +20,16 @@
 // means changing only that file, not its shortcuts.
 //
 //   GET /api/iphones → { phones: [{ udid, t7, name, last, lastOk, error }], readings: { <t7>: [[t, pct, charging]] }, at }
-// Readings live in data/iphone-readings.json (gitignored), kept READ_DAYS days, stamped with the T7
+// Readings live in data/iphone-readings.json (gitignored), kept for good, stamped with the T7
 // the phone was on at the time, so moving a phone to another T7 doesn't rewrite its past.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 
-const POLL_MIN = 5, KEEP_DAYS = 120, READ_DAYS = 14;
+// kept for good (the user, 18 Nov 2026: "store all these iPhone readings, later we might need how the iPhone charges vs the load");
+// GET /api/iphones gives the last READ_DAYS unless ?from=&to= (ms) asks for another span
+const POLL_MIN = 5, READ_DAYS = 14;
 
 export function createIphones(root, { python = path.join(os.homedir(), '.venv-ios', 'bin', 'python'), log = () => {} } = {}) {
   const cfgFile = path.join(root, 'data', 'iphones.json');
@@ -67,8 +69,6 @@ export function createIphones(root, { python = path.join(os.homedir(), '.venv-io
           st.lastOk = now; st.error = null; st.ip = r.ip || st.ip;
         } else st.error = 'not reachable over Wi-Fi (locked and asleep, off AIO-Office, or not unlocked since it restarted)';
       }
-      const cut = now - KEEP_DAYS * 86400e3;
-      for (const u of Object.keys(db.readings)) db.readings[u] = db.readings[u].filter(x => x[0] >= cut);
       try { save(); } catch (e) { log(`iphone-readings.json: ${e.message}`); }
     });
   }
@@ -92,10 +92,10 @@ export function createIphones(root, { python = path.join(os.homedir(), '.venv-io
 
   return {
     report,
-    get() {
-      const list = phones(), cut = Date.now() - READ_DAYS * 86400e3, readings = {};
+    get({ from, to } = {}) {
+      const list = phones(), cut = Number.isFinite(from) ? from : Date.now() - READ_DAYS * 86400e3, end = Number.isFinite(to) ? to : Infinity, readings = {};
       for (const [u, rows] of Object.entries(db.readings))
-        for (const [t, pct, ch, t7] of rows) if (t >= cut && t7) (readings[t7] ||= []).push([t, pct, ch]);
+        for (const [t, pct, ch, t7] of rows) if (t >= cut && t <= end && t7) (readings[t7] ||= []).push([t, pct, ch]);
       return {
         enabled,
         phones: Object.entries(list).map(([udid, p]) => {

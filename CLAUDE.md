@@ -922,7 +922,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
   **Read from the iPhone itself over Wi-Fi** (the user, 2 Nov 2026: "this device is put on 790 … so its charging value shows
   there"): the lab laptop reads each paired iPhone's battery every 5 min (`server/iphones.mjs` runs `server/iphone-battery.py`
   with pymobiledevice3 in `~/.venv-ios` on the laptop — not an npm dependency; `GET /api/iphones`; readings in
-  `data/iphone-readings.json`, stamped with the T7 the phone was on). Which iPhone is on which T7: `data/iphones.json` on the
+  `data/iphone-readings.json`, stamped with the T7 the phone was on; **kept for good** — the user, 18 Nov 2026: "later we might need how the iPhone charges vs the load" — `GET /api/iphones` gives the last 14 days, or `?from=&to=` (ms) any span). Which iPhone is on which T7: `data/iphones.json` on the
   laptop (`{ "phones": { "<udid>": { "t7", "name" } } }`, gitignored, read every poll). An hour with nothing typed shows the
   reading within 10 min of it in blue italics (`readingAt` / `phoneHours(…, auto)` in `phoneLog.js`, tested); a typed value wins.
   A T7 whose iPhone was read twice in the cycle joins the card by itself (× still takes it off); under its serial

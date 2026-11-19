@@ -628,7 +628,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   And **When battery reaches N %** → Set (the user, 3 Nov 2026: "at 15 % disable WLC"): a rule on the lab laptop
   (`server/wlcBattery.mjs`, `GET/POST /api/wlc-battery`, `data/wlc-battery.json`, gitignored) checked every minute against the
   MDM's device list — each device on battery at or below N % gets the switch once, re-armed when it is back above N + 10 %
-  (recharged), so it holds for every cycle until removed; chip "WLC off at ≤15% · 3 ×" (hover: which devices, when, at what %).
+  (recharged), so it holds for every cycle until removed; its **Set** is two clicks, no pop-up ("Click again to set", armed 5 s — 19 Nov 2026: Set did nothing on a browser that blocks the site's dialogs, like Put back on 4 Nov); chip "WLC off at ≤15% · 3 ×" (hover: which devices, when, at what %).
   **What runs on its own shows on the tile** (the user, 3 Nov 2026: "when any process is running, show it"): `useAutomations`
   (`src/components/useAutomations.js`, polls the three endpoints every 30 s) adds a blue "⟳ …" line under the WLC tile (toggling /
   hold / scheduled WLC / battery rules) and the Ads on screen tile (scheduled open / close); the drop-downs keep the chips with ×. **The toggling runs on the lab laptop**

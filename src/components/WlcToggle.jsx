@@ -137,8 +137,8 @@ export function WlcToggleAll({ serials, enabledCount }) {
     load(); const t = setInterval(load, 30e3)
     return () => { live = false; clearInterval(t) }
   }, [])
-  const addRule = async (to, pct) => {
-    if (!confirm(`Turn wireless charging ${to ? 'ON' : 'OFF'} on each of the ${serials.length} devices when its own battery reaches ${pct}%? It runs on the lab laptop for every cycle until you remove it.`)) return
+  const addRule = async (to, pct, armed = false) => {
+    if (!armed && !confirm(`Turn wireless charging ${to ? 'ON' : 'OFF'} on each of the ${serials.length} devices when its own battery reaches ${pct}%? It runs on the lab laptop for every cycle until you remove it.`)) return
     const j = await wlcBatteryRules({ pct, enabled: to, serials, by: by() })
     if (j.ok) { setRules(j.rules || []); setHold(null) } else alert(`Couldn't set: ${j.error || j.http}`)
   }
@@ -185,7 +185,7 @@ export function WlcToggleAll({ serials, enabledCount }) {
           actions={[{ id: 'wlc_on', label: 'WLC on', verb: 'Turn WLC on', prep: 'for', back: 'WLC off' }, { id: 'wlc_off', label: 'WLC off', verb: 'Turn WLC off', prep: 'for', back: 'WLC on' }]}
           onNow={act => { setHold(null); all(act === 'wlc_on') }}
           onPlan={plan}
-          extra={<BatteryRow onSet={pct => addRule(false, pct)} />} />}
+          extra={<BatteryRow n={serials.length} onSet={pct => addRule(false, pct, true)} />} />}
       </span>
       <span className="wlc-menu-wrap">
         <button type="button" className="btn btn-sm" disabled={busy} aria-expanded={menu} onClick={() => { setHold(null); setMenu(m => !m) }}>Toggle ▾</button>
@@ -213,14 +213,20 @@ export function WlcToggleAll({ serials, enabledCount }) {
 }
 // "WLC on ▾" / "WLC off ▾": for how long, then back
 // each device on its own, when its battery reaches a level (the user, 3 Nov 2026: "at 15 % disable WLC")
-function BatteryRow({ onSet }) {
+// Two clicks, no pop-up (19 Nov 2026: Set "not working" — a browser that blocks the site's dialogs answers confirm() with
+// no, silently, so nothing was sent; the same as Put back on 4 Nov)
+function BatteryRow({ onSet, n }) {
   const [pct, setPct] = useState('')
+  const [armed, setArmed] = useState(false)
+  useEffect(() => { if (!armed) return; const t = setTimeout(() => setArmed(false), 5000); return () => clearTimeout(t) }, [armed])
+  const click = () => { if (!(+pct >= 1)) return; if (armed) { setArmed(false); onSet(+pct) } else setArmed(true) }
   return (
     <span className="plan-row plan-battery"><span className="plan-k">Or</span>
       <span>WLC off on each device when its battery reaches</span>
-      <input className="input" inputMode="numeric" placeholder="%" value={pct} onChange={e => setPct(e.target.value.replace(/\D/g, '').slice(0, 2))}
-        onKeyDown={e => { if (e.key === 'Enter' && +pct >= 1) onSet(+pct) }} aria-label="Battery %" style={{ width: 52 }} />
-      <button type="button" className="btn btn-sm" disabled={!(+pct >= 1)} onClick={() => onSet(+pct)}>Set</button>
+      <input className="input" inputMode="numeric" placeholder="%" value={pct} onChange={e => { setPct(e.target.value.replace(/\D/g, '').slice(0, 2)); setArmed(false) }}
+        onKeyDown={e => { if (e.key === 'Enter') click() }} aria-label="Battery %" style={{ width: 52 }} />
+      <button type="button" className={`btn btn-sm${armed ? ' btn-warn' : ''}`} disabled={!(+pct >= 1)} onClick={click}
+        title={armed ? `WLC off on each of the ${n} devices when its own battery reaches ${pct}% — runs on the lab laptop for every cycle until removed` : undefined}>{armed ? 'Click again to set' : 'Set'}</button>
     </span>
   )
 }

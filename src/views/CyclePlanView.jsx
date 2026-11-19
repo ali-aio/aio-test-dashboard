@@ -153,7 +153,7 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
                       : r.status === 'inferred' ? <><Chip r={r} /><span className="tname">No test set</span><span className="tdev">{amountOn(c.key)}</span></>
                       : c.inMonth && !carried.length && !charges.length ? <span className="declare">{future ? '+ set test' : 'no cycle'}</span> : null}
                     {charges.map(b => <span key={b.key} className="charge-line"
-                      title={`Charging Cycle from ${hm(b.start)} · ${new Set(b.list.map(x => x.serial)).size} devices`}>⚡ Charging {hm(b.start)} · {new Set(b.list.map(x => x.serial)).size}</span>)}
+                      title={`Charging Cycle from ${hm(b.start)} · ${new Set(b.list.map(x => x.serial)).size} devices`}>⚡ {hm(b.start)} · {new Set(b.list.map(x => x.serial)).size}</span>)}
                     {carried.length > 0 && c.inMonth && <span className="carry">↪ {testType(carried[0].decl.testType)?.code} until {hm(carried[0].endMs)}{!r.tt && future ? ' · + next cycle' : ''}</span>}
                     {c.inMonth && overlapsOn(decls, c.key, DEV).length > 0 && <span className="overlap-flag" title="Two cycles overlap on this day — open it to see">⚠ cycles overlap</span>}
                   </button>

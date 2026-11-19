@@ -2225,6 +2225,7 @@ input.phone-auto { font-style: italic; }
 .app-btn:disabled { opacity: .6; cursor: progress; }
 .app-btn.is-ok { color: var(--status-good); border-color: var(--status-good); }
 .app-btn.is-bad { color: var(--status-critical); border-color: var(--status-critical); }
+.app-btn.is-wait { color: var(--status-warning); border-color: var(--status-warning); }
 /* rows with a control (Ads on screen): the serial never gives way; the yes/no bar adds nothing there */
 .sb-row-wrap .sb-label { flex: 1 0 auto; }
 .sb-row-wrap .sb-bar { display: none; }

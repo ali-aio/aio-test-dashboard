@@ -30,15 +30,17 @@ export default function WlcToggle({ serial, enabled: live }) {
     setState('busy')
     try {
       const r = await wlcCommand(serial, to, by())
-      if (r.ok) { setFlip({ on: to, at: Date.now() }); setState(null); refreshSoon() }
+      // 19 Nov 2026: tablets that had dropped off the MDM answered "connected: false" and the click looked like it did nothing
+      if (r.ok && r.connected === false) { setFlip({ on: to, at: Date.now() }); setState({ wait: true, text: `Sent, but ${serial} isn't connected to the MDM right now — it switches WLC ${to ? 'on' : 'off'} when it reconnects` }); setTimeout(() => setState(null), 120e3); refreshSoon() }
+      else if (r.ok) { setFlip({ on: to, at: Date.now() }); setState(null); refreshSoon() }
       else { setState({ text: r.error || `HTTP ${r.http}` }); setTimeout(() => setState(null), 15000) }
     } catch (err) { setState({ text: err.message }); setTimeout(() => setState(null), 15000) }
   }
-  const busy = state === 'busy', fail = state && !busy ? state : null
-  const title = busy ? `Switching WLC on ${serial}…` : fail ? `Failed: ${fail.text}` : `Turn WLC ${enabled ? 'off' : 'on'} on ${serial}`
+  const busy = state === 'busy', wait = state?.wait ? state : null, fail = state && !busy && !wait ? state : null
+  const title = busy ? `Switching WLC on ${serial}…` : fail ? `Failed: ${fail.text}` : wait ? wait.text : `Turn WLC ${enabled ? 'off' : 'on'} on ${serial}`
   return (
-    <button type="button" className={`app-btn${fail ? ' is-bad' : ''}`} disabled={busy} title={title} aria-label={title} onClick={run}>
-      {busy ? <span className="spin" style={{ width: 11, height: 11 }} /> : fail ? '!' : <Bolt off={!enabled} />}
+    <button type="button" className={`app-btn${fail ? ' is-bad' : wait ? ' is-wait' : ''}`} disabled={busy} title={title} aria-label={title} onClick={run}>
+      {busy ? <span className="spin" style={{ width: 11, height: 11 }} /> : fail ? '!' : wait ? '…' : <Bolt off={!enabled} />}
     </button>
   )
 }
@@ -67,12 +69,12 @@ export function WlcToggleAll({ serials, enabledCount }) {
   const all = async (to, e) => {
     e?.stopPropagation()
     if (!serials.length || !confirm(`Turn wireless charging ${to ? 'ON' : 'OFF'} on all ${serials.length} devices?`)) return
-    const p = { to, done: 0, total: serials.length, failed: [] }; setProg({ ...p })
+    const p = { to, done: 0, total: serials.length, failed: [], waiting: [] }; setProg({ ...p })
     const queue = [...serials], who = by()
     await Promise.all([0, 1, 2].map(async () => {
       while (queue.length) {
         const sn = queue.shift()
-        try { const r = await wlcCommand(sn, to, who); if (!r.ok) p.failed.push(`${sn}: ${r.error || r.http}`) } catch (err) { p.failed.push(`${sn}: ${err.message}`) }
+        try { const r = await wlcCommand(sn, to, who); if (!r.ok) p.failed.push(`${sn}: ${r.error || r.http}`); else if (r.connected === false) p.waiting.push(sn) } catch (err) { p.failed.push(`${sn}: ${err.message}`) }
         p.done++; setProg({ ...p })
       }
     }))
@@ -150,7 +152,7 @@ export function WlcToggleAll({ serials, enabledCount }) {
   const chips = jobs.map(j => (
     <span key={j.id} className="app-job" title={`${j.serials.length} devices · set by ${j.by || '—'}${j.last ? ` · last: ${j.last.ok} of ${j.last.total} at ${new Date(j.last.at).toLocaleString()}` : ''}`}>
       {wlcJobText(j)}<button type="button" aria-label={`Remove ${wlcJobText(j)}`} onClick={() => dropJob(j)}>×</button></span>))
-  const result = prog && !busy ? `WLC ${prog.to ? 'on' : 'off'}: ${prog.total - prog.failed.length} of ${prog.total}${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}` : null
+  const result = prog && !busy ? `WLC ${prog.to ? 'on' : 'off'}: ${prog.total - prog.failed.length} of ${prog.total}${prog.failed.length ? ` · ${prog.failed.length} failed` : ''}${prog.waiting?.length ? ` · ${prog.waiting.length} not connected` : ''}` : null
   if (job?.active && job.hold) {
     return (
       <span className="app-all" onClick={e => e.stopPropagation()}>
@@ -173,7 +175,7 @@ export function WlcToggleAll({ serials, enabledCount }) {
   }
   return (
     <span className="app-all" onClick={e => e.stopPropagation()}>
-      {result && <span className={`hint${prog.failed.length ? ' app-all-bad' : ''}`} title={prog.failed.join('\n') || undefined}>{result}</span>}
+      {result && <span className={`hint${prog.failed.length || prog.waiting?.length ? ' app-all-bad' : ''}`} title={[...prog.failed, ...(prog.waiting?.length ? [`Not connected to the MDM right now (they switch when they reconnect): ${prog.waiting.join(', ')}`] : [])].join('\n') || undefined}>{result}</span>}
       {chips}{ruleChips}
       {busy && <span className="hint"><span className="spin" style={{ width: 10, height: 10 }} /> {prog.done} / {prog.total}…</span>}
       {/* one form: on / off · now or at a time · for how long · once or every day (the user, 5 Nov 2026) */}

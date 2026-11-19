@@ -15,6 +15,8 @@ import { TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur, rt } from '../lib/cycles.js'
 import { hm, day } from '../lib/format.js'
 
+const CHARGE = 'Charging Cycle'
+
 // This screen IS the test-type column. Declare a date window, a device group and a test
 // type, and every MDM row inside that window is stamped with it. See src/lib/plan.js for
 // the resolution order (declaration > weekly rota > inferred > unclassified).
@@ -28,6 +30,14 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
   // the bench cycle (what ran) behind a planned one: same test, started in its window or up to
   // EARLY_START_H before it — what "View cycle" opens
   const benches = useMemo(() => benchCycles(cycles), [cycles])
+  // "Show charging cycles" (the user, 19 Nov 2026: so nobody wonders what a day was about): one tick box
+  // shared by the calendar and All cycles; each bench charge shows on the day it started
+  const [withCharge, setWithCharge] = useState(false)
+  const chargesOn = useMemo(() => {
+    const m = new Map()
+    for (const b of benches) if (b.testType === CHARGE) { const k = dayKey(b.start); if (!m.has(k)) m.set(k, []); m.get(k).push(b) }
+    return m
+  }, [benches])
   const ranIn = c => { const name = testType(c.decl.testType)?.name
     return benches.filter(b => b.testType === name && b.start >= c.startMs - EARLY_START_H * 3600e3 && b.start <= c.endMs).pop() || null }
   const viewBtn = c => { const b = onOpenCycle && ranIn(c)
@@ -96,6 +106,9 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
             <div className="plan-legend">
               <span><i className="declared" />Planned</span><span><i className="confirmed" />Planned &amp; ran</span>
               <span><i className="inferred" />Ran, no test set</span><span><i className="unclassified" />No test, no cycle</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', color: 'var(--text-secondary)' }}
+                title="Also show each charge (the daily recharge) on the day it started">
+                <input type="checkbox" checked={withCharge} onChange={e => setWithCharge(e.target.checked)} />⚡ Charging cycles</label>
             </div>
             <div className="plan-nav">
               <button aria-label="Previous month" onClick={() => { const d = new Date(ym.y, ym.m - 1, 1); setYm({ y: d.getFullYear(), m: d.getMonth() }) }}>‹</button>
@@ -119,6 +132,7 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
             <div className="plan-grid">
               {cells.map(c => {
                 const r = c.r, future = c.key >= todayKey(), carried = carriedInto(decls, c.key)
+                const charges = withCharge && c.inMonth ? chargesOn.get(c.key) || [] : []
                 return (
                   <button key={c.key} className={`plan-day ${c.inMonth ? '' : 'out'} ${c.isToday ? 'today' : ''} ${c.key === sel ? 'sel' : ''}`}
                     title={`${dayLabel(c.key)} · ${STATUS[r.status].label}`}
@@ -137,7 +151,9 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
                           <span className="tdev">{r.cycles.length} cycles</span></>
                       : <><Chip r={r} /><span className="tname">{r.tt.name}</span><span className="tdev">{r.serials.length} devices</span></>)
                       : r.status === 'inferred' ? <><Chip r={r} /><span className="tname">No test set</span><span className="tdev">{amountOn(c.key)}</span></>
-                      : c.inMonth && !carried.length ? <span className="declare">{future ? '+ set test' : 'no cycle'}</span> : null}
+                      : c.inMonth && !carried.length && !charges.length ? <span className="declare">{future ? '+ set test' : 'no cycle'}</span> : null}
+                    {charges.map(b => <span key={b.key} className="charge-line"
+                      title={`Charging Cycle from ${hm(b.start)} · ${new Set(b.list.map(x => x.serial)).size} devices`}>⚡ Charging {hm(b.start)} · {new Set(b.list.map(x => x.serial)).size}</span>)}
                     {carried.length > 0 && c.inMonth && <span className="carry">↪ {testType(carried[0].decl.testType)?.code} until {hm(carried[0].endMs)}{!r.tt && future ? ' · + next cycle' : ''}</span>}
                     {c.inMonth && overlapsOn(decls, c.key, DEV).length > 0 && <span className="overlap-flag" title="Two cycles overlap on this day — open it to see">⚠ cycles overlap</span>}
                   </button>
@@ -226,7 +242,7 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
 
         </div>
       </div>
-      <AllCycles cycles={cycles} decls={decls} onOpen={onOpenCycle} />
+      <AllCycles cycles={cycles} decls={decls} onOpen={onOpenCycle} withCharge={withCharge} setWithCharge={setWithCharge} />
       <FwTestsLog DEV={DEV} />
     </div>
   )
@@ -238,10 +254,8 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
 // The daily recharge (Charging Cycle, every charge since 25 Sep) is not a planned test, so it is
 // hidden unless "Show charging cycles" is ticked (the user, 19 Nov 2026: so each day reads as what it
 // was — a charge between two tests, not a gap).
-const CHARGE = 'Charging Cycle'
-function AllCycles({ cycles, decls, onOpen }) {
+function AllCycles({ cycles, decls, onOpen, withCharge, setWithCharge }) {
   const [open, setOpen] = useState(false) // a drop-down, closed by default (the user, 10 Nov 2026)
-  const [withCharge, setWithCharge] = useState(false)
   const rows = useMemo(() => benchCycles(cycles.filter((c) => !FIELD_TEST_TYPES.has(c.testType) && (withCharge || c.testType !== CHARGE))).reverse().map((b) => {
     const avg = (xs) => { const v = xs.filter((x) => x != null && Number.isFinite(x)); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null }
     const temps = b.list.map((c) => c.maxTemp).filter((x) => x != null)

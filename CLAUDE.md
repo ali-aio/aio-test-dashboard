@@ -354,7 +354,8 @@ Firmware client at no venue); anything else answers 404. Every control call is i
   screen as battery gained, and in the Cycle plan's All cycles list only with **Show charging cycles** ticked.
   The Cycle plan screen has **All cycles** (`AllCycles` in `CyclePlanView.jsx`; a drop-down, closed by default — the user, 10 Nov 2026), above Firmware tests: one row per bench
   cycle of a planned test (`benchCycles`), newest first; a **Show charging cycles** tick box in its header (off by default, not remembered; ticking it opens
-  the card) adds every bench charge as a grey "⚡ Charging Cycle" row between the tests (the user, 19 Nov 2026: "so the user won't confuse what each day
+  the card; the same switch as the calendar's **⚡ Charging cycles** tick box beside its legend, which adds "⚡ Charging 23:53 · 18" to the day each bench charge
+  started and replaces that day's "no cycle") adds every bench charge as a grey "⚡ Charging Cycle" row between the tests (the user, 19 Nov 2026: "so the user won't confuse what each day
   was about"); a click opens that test with the cycle picked
   (`openCycle` in `App.jsx` -> `initialBench` on `TestDetailView`).
 - `index.html` + (inline module script) — **the previous dashboard (v1), no longer served** (its address

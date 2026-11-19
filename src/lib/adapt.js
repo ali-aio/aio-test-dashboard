@@ -444,7 +444,7 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
     }
     // charges (the sweep's charge segments, ≤ 30 % up to ≥ 90 %): every charge from 25 Sep on is
     // a Charging Cycle — the lab recharges after every cycle, daily, with no plan entry needed
-    // (the lab's choice, Oct 2026); it shows on the Overview, not in the Cycle plan's list
+    // (the lab's choice, Oct 2026); it shows on the Overview, and in the Cycle plan's All cycles only with "Show charging cycles" ticked
     const live = runningCharge(rows, d.charges);
     for (const s of live ? [...(d.charges || []), live] : d.charges || []) {
       if (s.start < PLAN_FROM) continue;

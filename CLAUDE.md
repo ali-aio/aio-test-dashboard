@@ -351,9 +351,11 @@ Firmware client at no venue); anything else answers 404. Every control call is i
   Charging Cycle, a charge never a discharge test. The charges themselves are the sweep's charge segments (`d.charges`,
   ≤ 30 % up to ≥ 90 %, with their own curve): **every charge from 25 Sep on is a Charging Cycle** with no plan entry
   (the lab recharges after every cycle, daily; their choice, Oct 2026), shown on the Overview and its Charging Cycle
-  screen as battery gained, and left out of the Cycle plan's All cycles list.
+  screen as battery gained, and in the Cycle plan's All cycles list only with **Show charging cycles** ticked.
   The Cycle plan screen has **All cycles** (`AllCycles` in `CyclePlanView.jsx`; a drop-down, closed by default — the user, 10 Nov 2026), above Firmware tests: one row per bench
-  cycle of a planned test (`benchCycles`), newest first; a click opens that test with the cycle picked
+  cycle of a planned test (`benchCycles`), newest first; a **Show charging cycles** tick box in its header (off by default, not remembered; ticking it opens
+  the card) adds every bench charge as a grey "⚡ Charging Cycle" row between the tests (the user, 19 Nov 2026: "so the user won't confuse what each day
+  was about"); a click opens that test with the cycle picked
   (`openCycle` in `App.jsx` -> `initialBench` on `TestDetailView`).
 - `index.html` + (inline module script) — **the previous dashboard (v1), no longer served** (its address
   redirects to the React app; the file stays for reference and for `shared/`'s callers), one page, hash-routed:
@@ -726,7 +728,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   with a set cycle time covers them. A run that started below 95 % still isn't a cycle (00280 that day, off the charger at 89 %).
 - A run only takes a test of its own kind: a discharge is never a Charging Cycle, a charge never a discharge test.
 - **Every charge since 25 Sep is a Charging Cycle** (the daily recharge), shown as battery **gained**; on the Overview,
-  not in the Cycle plan's All cycles.
+  and in the Cycle plan's All cycles only when **Show charging cycles** is ticked.
   A charge **running now** counts too, from any level (`runningCharge` in `adapt.js`, from the live readings; the sweep
   keeps only ≤ 30 % → ≥ 90 %): on charge now, ≥ 3 points gained, no stored charge covering it — an in-progress Charging
   Cycle, left out of averages like any running run (the user, 28 Oct 2026: devices back on charge while the rest of the

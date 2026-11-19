@@ -235,18 +235,24 @@ export default function CyclePlanView({ fleet, cycles = [], onOpenCycle }) {
 // Every cycle the plan has produced, newest first: one row per bench cycle (devices starting
 // the same test within 3 h, as everywhere else). A click opens the test with that cycle picked.
 // Runs no plan claimed ("Old cycles") are left out — they are not cycles of a planned test.
+// The daily recharge (Charging Cycle, every charge since 25 Sep) is not a planned test, so it is
+// hidden unless "Show charging cycles" is ticked (the user, 19 Nov 2026: so each day reads as what it
+// was — a charge between two tests, not a gap).
+const CHARGE = 'Charging Cycle'
 function AllCycles({ cycles, decls, onOpen }) {
   const [open, setOpen] = useState(false) // a drop-down, closed by default (the user, 10 Nov 2026)
-  // the daily recharge (Charging Cycle, from every charge since 25 Sep) is not a planned test: Overview only
-  const rows = useMemo(() => benchCycles(cycles.filter((c) => !FIELD_TEST_TYPES.has(c.testType) && c.testType !== 'Charging Cycle')).reverse().map((b) => {
+  const [withCharge, setWithCharge] = useState(false)
+  const rows = useMemo(() => benchCycles(cycles.filter((c) => !FIELD_TEST_TYPES.has(c.testType) && (withCharge || c.testType !== CHARGE))).reverse().map((b) => {
     const avg = (xs) => { const v = xs.filter((x) => x != null && Number.isFinite(x)); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null }
     const temps = b.list.map((c) => c.maxTemp).filter((x) => x != null)
     return { b, devices: new Set(b.list.map((c) => c.serial)).size,
       start: Math.min(...b.list.map((c) => c.start)), end: Math.max(...b.list.map((c) => c.end ?? c.start)),
       running: b.list.some((c) => c.inProgress),
       bStart: avg(b.list.map((c) => c.startBattery)), bEnd: avg(b.list.map((c) => c.endBattery)),
-      peak: temps.length ? Math.max(...temps) : null, out: takenOutOf(decls, b.start) }
-  }), [cycles, decls])
+      peak: temps.length ? Math.max(...temps) : null, charge: b.testType === CHARGE,
+      out: b.testType === CHARGE ? [] : takenOutOf(decls, b.start) }
+  }), [cycles, decls, withCharge])
+  const nCharge = rows.filter((r) => r.charge).length
   const date = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).replace('Sept', 'Sep')
   const endText = (r) => r.running ? 'running' : dayKey(r.end) === dayKey(r.start) ? hm(r.end)
     : `${new Date(r.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).replace('Sept', 'Sep')}, ${hm(r.end)}`
@@ -256,16 +262,22 @@ function AllCycles({ cycles, decls, onOpen }) {
       <div className="card-head" role="button" tabIndex={0} aria-expanded={open} style={{ cursor: 'pointer' }}
         onClick={() => setOpen(o => !o)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o => !o) } }}>
         <div><h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{open ? '▾' : '▸'}</span>All cycles</h2>
-        <div className="card-sub">{rows.length} cycle{rows.length === 1 ? '' : 's'}, newest first{open ? " · battery is the average of the cycle's devices · click a row to open that cycle" : ' · click to show'}</div></div></div>
+        <div className="card-sub">{rows.length} cycle{rows.length === 1 ? '' : 's'}{withCharge ? ` (${nCharge} charging)` : ''}, newest first{open ? " · battery is the average of the cycle's devices · click a row to open that cycle" : ' · click to show'}</div></div>
+        <label style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}
+          title="Also list each charge (the daily recharge), so every day shows what it was">
+          <input type="checkbox" checked={withCharge} onChange={(e) => { setWithCharge(e.target.checked); if (e.target.checked) setOpen(true) }} />
+          Show charging cycles</label></div>
       {open && <div className="card-body">
-        {!rows.length ? <p className="secondary">No planned cycle has run yet.</p> :
+        {!rows.length ? <p className="secondary">{withCharge ? 'No cycle has run yet.' : 'No planned cycle has run yet.'}</p> :
           <div className="table-wrap" style={{ maxHeight: 520 }}>
             <SortTable caption="All cycles" head={[{ label: 'Date' }, { label: 'Test', style: { textAlign: 'left' } }, { label: 'Devices' }, { label: 'Start' }, { label: 'End' },
               { label: 'Battery start' }, { label: 'Battery end' }, { label: 'Highest temp' }, { label: 'Taken out', style: { textAlign: 'left' } }]}>
               {rows.map((r) => (
-                <tr key={r.b.key} className="row-link" onClick={() => onOpen?.(r.b.testType, r.b.key)} title={`Open ${r.b.testType}, this cycle`}>
+                <tr key={r.b.key} className="row-link" onClick={() => onOpen?.(r.b.testType, r.b.key)} title={`Open ${r.b.testType}, this cycle`}
+                  style={r.charge ? { color: 'var(--text-secondary)' } : undefined}>
                   <td>{date(r.start)}</td>
-                  <td style={{ textAlign: 'left' }}>{r.b.testType}</td>
+                  <td style={{ textAlign: 'left' }}>{r.charge ? <>⚡ {r.b.testType}</> : r.b.testType}</td>
                   <td>{r.devices}</td>
                   <td>{hm(r.start)}</td>
                   <td>{endText(r)}</td>

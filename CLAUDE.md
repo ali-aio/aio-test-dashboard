@@ -859,7 +859,7 @@ not known yet"** → most devices on charge, **Charging Cycle** → a cycle that
 - **Devices today** has **Drain with WLC / Drain without WLC** beside Drain (the user, 2 Nov 2026) for a test that places a load
   (Restaurant Case, WLC + Discharge, WLC on Load, Load only, WLC on Phone) or one not named yet: each device since it left the
   charger, over its time with a load on the pad / with none (`drainSplit` `active` / `none`; under 20 min = —).
-- **An offline device says so in Devices today** (the user, 17 Nov 2026): no check-in for 15 min (`online` in `device.js`) → red "offline · seen 18m ago" under the serial (`down-note`), the row itself not highlighted (the user: "no need to highlight the full row"); the firmware section's table the same.
+- **An offline device says so in Devices today** (the user, 17 Nov 2026): no check-in for 15 min (`online` in `device.js`) → red "offline · seen 18m ago" under the serial (`down-note`), the row itself not highlighted (the user: "no need to highlight the full row"); the firmware section's table the same; its **Battery** shows the last reported % in grey (the user, 20 Nov 2026), not —.
 - **Devices today: Reached 15 %** (the user, 4 Nov 2026, WLC on Load to reproduce the boot loop: load until 15 %, then WLC off):
   shown only while a "WLC off at ≤ N %" battery rule is set on the lab laptop (`useAutomations().rules`, N = the rule's %), and only in a
   **WLC on Load** cycle (the user, 14 Nov 2026: not in Ads only); each device's first reading at N % or less since it left the charger (`reachAt` in `TodayView.jsx`), else —.

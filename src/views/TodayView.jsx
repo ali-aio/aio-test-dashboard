@@ -689,7 +689,9 @@ function CycleSection({ fleet, side, auto }) {
                     {off && <div className="down-note">offline{seen ? ` · seen ${ago(seen)}` : ''}</div>}</td>
                   <td><span className={`pill ${cs[0]}`}>{cs[1]}</span></td>
                   {rebootCol && <td className="r"><RebootCell decl={T.decl} serial={c.serial} onSaved={() => setPlanRev(v => v + 1)}>{T.decl.reboots?.[c.serial] ?? ''}</RebootCell>{/* the child is only for sorting by this column */}</td>}
-                  <td className="r">{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span> : <span className="secondary">—</span>}</td>
+                  <td className="r">{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span>
+                    : off && d.snap?.battery_pct != null ? <span className="batt num secondary" title={`last reported${seen ? ` ${ago(seen)}` : ''}`}>{d.snap.battery_pct}%<span className="bar stale"><i style={{ width: `${d.snap.battery_pct}%` }} /></span></span>
+                    : <span className="secondary">—</span>}</td>{/* offline: the last reported % in grey (the user, 20 Nov 2026) */}
                   {/* in a Charging Cycle: when it went on charge and how fast it gains (the user, 27 Oct 2026: it showed a negative drain) */}
                   {T.charging ? (() => { const ch = charges.by.get(c.serial), h = ch ? (ch.at - ch.t) / H : 0, g = ch && h >= 1 / 3 ? (ch.now - ch.pct) / h : null
                     return <><td className="r mono" title={ch ? `from ${ch.pct}% at ${hm(ch.t)}` : undefined}>{ch ? hm(ch.t) : <span className="secondary">not on charge</span>}</td>

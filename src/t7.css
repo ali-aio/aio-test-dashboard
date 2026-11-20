@@ -1827,6 +1827,7 @@ button.stat.is-open .stat-chevron {
 .batt .bar i { display: block; height: 100%; background: var(--series-1); border-radius: 3px; }
 .batt .bar.ok i { background: var(--status-good); }
 .batt .bar.warn i { background: var(--status-warning); }
+.batt .bar.stale i { background: var(--text-secondary); opacity: .5; }
 
 /* The bench grid of device tiles. */
 .bench { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }

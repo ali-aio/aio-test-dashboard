@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { wlcCommand, wlcToggleJob, appScheduleJobs, wlcBatteryRules } from '../lib/data.js'
 import { poll } from '../lib/fleet.js'
 import { useKeepOnScreen } from './Primitives.jsx'
+import { ask } from './ask.js'
 import ActionPlanner, { fmtLen } from './ActionPlanner.jsx'
 
 // Wireless charging on a lab T7's pad on / off, from Today's "WLC · load placed" drop-down (the user, 2 Nov 2026).
@@ -26,7 +27,7 @@ export default function WlcToggle({ serial, enabled: live }) {
   const run = async e => {
     e.stopPropagation()
     const to = !enabled
-    if (!confirm(`Turn wireless charging ${to ? 'ON' : 'OFF'} on ${serial}?`)) return
+    if (!await ask(`Turn wireless charging ${to ? 'ON' : 'OFF'} on ${serial}?`)) return
     setState('busy')
     try {
       const r = await wlcCommand(serial, to, by())
@@ -68,7 +69,7 @@ export function WlcToggleAll({ serials, enabledCount }) {
   const offCount = serials.length - enabledCount
   const all = async (to, e) => {
     e?.stopPropagation()
-    if (!serials.length || !confirm(`Turn wireless charging ${to ? 'ON' : 'OFF'} on all ${serials.length} devices?`)) return
+    if (!serials.length || !await ask(`Turn wireless charging ${to ? 'ON' : 'OFF'} on all ${serials.length} devices?`)) return
     const p = { to, done: 0, total: serials.length, failed: [], waiting: [] }; setProg({ ...p })
     const queue = [...serials], who = by()
     await Promise.all([0, 1, 2].map(async () => {
@@ -87,7 +88,7 @@ export function WlcToggleAll({ serials, enabledCount }) {
     const first = !(enabledCount * 2 > serials.length)
     const end = endAt()
     const until_ = end ? `until ${clock(end)}, then WLC ${endOn ? 'ON' : 'OFF'} on all` : 'until you press Stop'
-    if (!confirm(`Toggle wireless charging on all ${serials.length} devices every ${fmtEvery(everyMin)}, ${until_}? First: WLC ${first ? 'ON' : 'OFF'} now. It runs on the lab laptop.`)) return
+    if (!await ask(`Toggle wireless charging on all ${serials.length} devices every ${fmtEvery(everyMin)}, ${until_}? First: WLC ${first ? 'ON' : 'OFF'} now. It runs on the lab laptop.`)) return
     const j = await wlcToggleJob({ serials, everyMin, first, by: by(), endAt: end, endState: endOn })
     if (j.ok) { setJob(j); refreshSoon() } else alert(`Couldn't start: ${j.error || j.http}`)
   }
@@ -98,7 +99,7 @@ export function WlcToggleAll({ serials, enabledCount }) {
     setHold(null)
     if (!(min >= 1) || !serials.length) return
     const end = Date.now() + min * 60e3
-    if (!confirm(`Turn wireless charging ${to ? 'ON' : 'OFF'} on all ${serials.length} devices for ${fmtEvery(min)}, then back ${to ? 'OFF' : 'ON'} at ${clock(end)}? It runs on the lab laptop.`)) return
+    if (!await ask(`Turn wireless charging ${to ? 'ON' : 'OFF'} on all ${serials.length} devices for ${fmtEvery(min)}, then back ${to ? 'OFF' : 'ON'} at ${clock(end)}? It runs on the lab laptop.`)) return
     const j = await wlcToggleJob({ serials, hold: true, first: to, by: by(), endAt: end, endState: !to })
     if (j.ok) { setJob(j); refreshSoon() } else alert(`Couldn't start: ${j.error || j.http}`)
   }
@@ -113,7 +114,7 @@ export function WlcToggleAll({ serials, enabledCount }) {
   }, [])
   const keepWlc = j => (j.jobs || []).filter(x => x.action.startsWith('wlc_'))
   const plan = async ({ action, at, daily, durationMin, sentence }) => {
-    if (!confirm(`${sentence} It runs on the lab laptop${daily ? ', every day until you remove it' : ''}.`)) return
+    if (!await ask(`${sentence} It runs on the lab laptop${daily ? ', every day until you remove it' : ''}.`)) return
     const j = await appScheduleJobs({ action, at, daily, durationMin, serials, by: by() })
     if (j.ok) { setJobs(keepWlc(j)); setHold(null); refreshSoon() } else alert(`Couldn't set: ${j.error || j.http}`)
   }
@@ -121,12 +122,12 @@ export function WlcToggleAll({ serials, enabledCount }) {
     const [h, m] = time.split(':').map(Number), d = new Date(); d.setHours(h, m, 0, 0)
     if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1)
     const at = d.getTime()
-    if (!confirm(`Turn wireless charging ${to ? 'ON' : 'OFF'} on all ${serials.length} devices ${daily ? `every day at ${clock(at).replace(' tomorrow', '')}` : `at ${clock(at)}`}? It runs on the lab laptop${daily ? ', until you remove it' : ''}.`)) return
+    if (!await ask(`Turn wireless charging ${to ? 'ON' : 'OFF'} on all ${serials.length} devices ${daily ? `every day at ${clock(at).replace(' tomorrow', '')}` : `at ${clock(at)}`}? It runs on the lab laptop${daily ? ', until you remove it' : ''}.`)) return
     const j = await appScheduleJobs({ action: to ? 'wlc_on' : 'wlc_off', at, daily, serials, by: by() })
     if (j.ok) { setJobs(keepWlc(j)); setHold(null) } else alert(`Couldn't schedule: ${j.error || j.http}`)
   }
   const dropJob = async (job) => {
-    if (!confirm(`Remove "${wlcJobText(job)}"?`)) return
+    if (!await ask(`Remove "${wlcJobText(job)}"?`)) return
     const j = await appScheduleJobs({ remove: job.id }); if (j.ok) setJobs(keepWlc(j))
   }
   // WLC by battery level: each device switched once when its battery reaches the level, again after each recharge
@@ -138,12 +139,12 @@ export function WlcToggleAll({ serials, enabledCount }) {
     return () => { live = false; clearInterval(t) }
   }, [])
   const addRule = async (to, pct, armed = false) => {
-    if (!armed && !confirm(`Turn wireless charging ${to ? 'ON' : 'OFF'} on each of the ${serials.length} devices when its own battery reaches ${pct}%? It runs on the lab laptop for every cycle until you remove it.`)) return
+    if (!armed && !await ask(`Turn wireless charging ${to ? 'ON' : 'OFF'} on each of the ${serials.length} devices when its own battery reaches ${pct}%? It runs on the lab laptop for every cycle until you remove it.`)) return
     const j = await wlcBatteryRules({ pct, enabled: to, serials, by: by() })
     if (j.ok) { setRules(j.rules || []); setHold(null) } else alert(`Couldn't set: ${j.error || j.http}`)
   }
   const dropRule = async (r) => {
-    if (!confirm(`Remove "${ruleText(r)}"?`)) return
+    if (!await ask(`Remove "${ruleText(r)}"?`)) return
     const j = await wlcBatteryRules({ remove: r.id }); if (j.ok) setRules(j.rules || [])
   }
   const ruleChips = rules.map(r => { const f = Object.entries(r.fired || {})

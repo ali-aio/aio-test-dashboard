@@ -641,6 +641,7 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   `{enabled}` → MDM `POST …/devices/{serial}/wlc` (answers at once; a disconnected tablet takes it on reconnect), logged the
   same way. **A tablet not connected to the MDM** (answer `connected: false`) gets an amber "…" on its ⚡ (hover: "Sent, but … isn't connected to the MDM right now — it switches when it reconnects"), and WLC on / off on all says "· N not connected" (19 Nov 2026: the user found the switches "not working" from another laptop; the log showed every laptop's commands reached the MDM, but most tablets had dropped off it from ~10:50 for a few minutes, and the click looked like it did nothing).
   A row reads "WLC off" when `wlc_status` is -1 (WLC off shows there at once; the pad flag lags minutes).
+  **Every device command asks in the page, never with the browser's confirm()** (`ask()` in `src/components/ask.js`, a box drawn on the page; Enter = Yes, Escape / outside = Cancel): 20 Nov 2026 the lab laptop's browser silently answered "no" to confirm(), so Open never left it (no line in `commands.jsonl`) while another laptop worked — the same cause as Put back (4 Nov) and Set (19 Nov).
   Screen off is not wired in. Nothing else sends commands.
 
 ### Device notes

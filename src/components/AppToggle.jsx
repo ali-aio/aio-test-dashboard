@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { appCommand, appScheduleJobs, appBulk } from '../lib/data.js'
 import { pollHostApp } from '../lib/fleet.js'
 import { useKeepOnScreen } from './Primitives.jsx'
+import { ask } from './ask.js'
 import ActionPlanner, { fmtLen } from './ActionPlanner.jsx'
 
 // Open / close Nugget (the device's role app) on one lab tablet, from Today's "Ads on screen" drop-down (the user,
@@ -23,7 +24,7 @@ export default function AppToggle({ serial, onScreen: live }) {
   const action = onScreen ? 'close' : 'open'
   const run = async (e, act = action) => {
     e?.stopPropagation()
-    if (!confirm(`${action === 'open' ? 'Open' : 'Close'} ${APP} on ${serial}?`)) return
+    if (!await ask(`${action === 'open' ? 'Open' : 'Close'} ${APP} on ${serial}?`)) return
     setState('busy')
     try {
       const r = await appCommand(serial, action, by())
@@ -66,7 +67,7 @@ export function AppToggleAll({ serials, onScreenCount }) {
   }, [])
   const run = async (e, act = action) => {
     e?.stopPropagation()
-    if (!serials.length || !confirm(`${act === 'open' ? 'Open' : 'Close'} ${APP} on all ${serials.length} devices? It runs on the lab laptop.`)) return
+    if (!serials.length || !await ask(`${act === 'open' ? 'Open' : 'Close'} ${APP} on all ${serials.length} devices? It runs on the lab laptop.`)) return
     const j = await appBulk({ action: act, serials, by: by() })
     if (j.ok || j.http === 409) setProg(j)
     if (!j.ok) { alert(j.error || `HTTP ${j.http}`); return }
@@ -90,12 +91,12 @@ export function AppToggleAll({ serials, onScreenCount }) {
   }, [])
   // one form: open / close · now or at a time · for how long · once or every day (the user, 5 Nov 2026)
   const plan = async ({ action: act, at, daily, durationMin, sentence }) => {
-    if (!confirm(`${sentence} It runs on the lab laptop${daily ? ', every day until you remove it' : ''}.`)) return
+    if (!await ask(`${sentence} It runs on the lab laptop${daily ? ', every day until you remove it' : ''}.`)) return
     const j = await appScheduleJobs({ action: act, at, daily, durationMin, serials, by: by() })
     if (j.ok) { setJobs(appJobs(j)); setMenu(false); refreshSoon() } else alert(`Couldn't set: ${j.error || j.http}`)
   }
   const drop = async (job) => {
-    if (!confirm(`Remove "${jobText(job)}"?`)) return
+    if (!await ask(`Remove "${jobText(job)}"?`)) return
     const j = await appScheduleJobs({ remove: job.id }); if (j.ok) setJobs(appJobs(j))
   }
   return (

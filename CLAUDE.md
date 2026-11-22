@@ -758,6 +758,9 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   **27 Oct 2026** (back on charge after 8.4 h, toggle experiment from 15:00) stays an **incomplete Restaurant Case** (the
   user's choice): one cycle, its hours count, every run short and out of the averages.
 
+- **21 Nov 2026 Ads only, still running on 22 Nov** (the user): every lab T7 stopped checking in at 04:04–04:09 on 22 Nov at 36–41 % (the MDM was up), and
+  Auto ended the cycle there. Entry `A-mwq00qo0` set by hand (`keepTest`, `auto` dropped, by Tariq) to run to 22 Nov 23:59, with a cycle note.
+
 ### Average, not P95
 - Every figure over many cycles is the **average**. P95 (on the bad side, Excel's `PERCENTILE.INC`, with an Average / P95
   switch in the filter bar) was built on 21 Oct 2026 and **reverted the same day at the user's request** (commit 4a70045,

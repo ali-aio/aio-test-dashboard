@@ -760,6 +760,10 @@ when a request changes a rule here, edit the line (don't add a contradicting one
 
 - **21 Nov 2026 Ads only, still running on 22 Nov** (the user): every lab T7 stopped checking in at 04:04–04:09 on 22 Nov at 36–41 % (the MDM was up), and
   Auto ended the cycle there. Entry `A-mwq00qo0` set by hand (`keepTest`, `auto` dropped, by Tariq) to run to 22 Nov 23:59, with a cycle note.
+  **All 21 devices count in it** (the user, 23 Nov: "the cycle was completed, the MDM went down"): the entry has **`lostEnd`** (the reason), so a run
+  that went silent above 5 % (the detector's `offline`) inside it is kept as the cycle's, with `endUnknown` on it: "· end not recorded" in Every cycle
+  (the reason on hover) and the CSV's Left the cycle column, and out of the whole-run averages (`incomplete`), since its time and end battery stop at
+  the last reading. 6 devices reported to the end (10:53–12:36 on 22 Nov, 2–7 %); 15 stop at 04:03–04:09.
 
 ### Average, not P95
 - Every figure over many cycles is the **average**. P95 (on the bad side, Excel's `PERCENTILE.INC`, with an Average / P95

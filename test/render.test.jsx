@@ -717,6 +717,20 @@ const mdmCases = []
     const k = kpis(bench)
     want(k.avgDuration === 14 && k.avgEndBattery === 20 && Math.abs(k.avgDropPerHr - 5.7) < 1e-9 && k.avgPeakTemp === 52, JSON.stringify(k))
   })
+  await checkAsync('the sweep never saves an empty device list over the stored cycles', async () => {
+    // 19 Nov 2026, 15:05: the MDM listed 0 devices once, the sweep saved that, and every cycle older than 14 days was lost
+    const { sweep } = await import('../server/sweep.mjs')
+    const os = await import('node:os'), path = await import('node:path')
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sweep-')); fs.mkdirSync(path.join(root, 'data'))
+    const file = path.join(root, 'data', 'topup.json')
+    const stored = JSON.stringify({ at: Date.now() - 3600e3, group: 'G', devices: { AT070AABU00790: { cycles: [{ start: 1, end: 2, startPct: 100, endPct: 1 }] } } })
+    fs.writeFileSync(file, stored)
+    let threw = false
+    try { await sweep({ base: 'x', group: 'G', root, get: async () => [] }) } catch (e) { threw = /no lab devices/.test(e.message) }
+    want(threw, 'an empty device list fails the sweep')
+    want(fs.readFileSync(file, 'utf8') === stored, 'and the stored file is left as it was')
+    fs.rmSync(root, { recursive: true, force: true })
+  })
   await checkAsync('a data file: retried, then ok / missing / failed (the page shows each)', async () => {
     const real = globalThis.fetch, calls = []
     const answer = (list) => { globalThis.fetch = async (url) => { calls.push(url); const a = list.shift(); if (a === 'net') throw new Error('Failed to fetch'); return { ok: a === 200, status: a, json: async () => ({ curves: { k: 1 } }) } } }

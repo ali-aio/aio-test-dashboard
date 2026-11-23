@@ -58,6 +58,9 @@ export async function sweep({ base, group, root, get, plan, log = () => {} }) {
   const from = Math.min(anchor - 3 * DAY, now - 14 * DAY);
   // the lab's own device list (LAB_SERIALS), whatever MDM group each is in; `group` stays only as the data files' label
   const devices = (await get('/api/v1/testdata/devices')).filter(keepDevice);
+  // 19 Nov 2026, 15:05: the MDM answered once with no devices, the sweep saved an empty file, and every cycle older than the
+  // 14-day window (6 Oct – 5 Nov) was lost. An answer with no lab device is a failed sweep: the previous file stays.
+  if (!devices.length) throw new Error('the MDM listed no lab devices; keeping the previous data');
   log(`${devices.length} devices in "${group}", history since ${new Date(from).toISOString()}`);
   recordLifetime(root, group, devices, now, log);
 
@@ -81,6 +84,8 @@ export async function sweep({ base, group, root, get, plan, log = () => {} }) {
     else { failed.push(serial); if (PREV[serial]) out[serial] = PREV[serial]; log(`${serial}: ${r.e.message}`); }
   });
   if (devices.length && failed.length === devices.length) throw new Error(`every device failed, e.g. ${serialMsg(results)}`);
+  // a device the MDM left out of this answer keeps what was stored for it (it is still a lab device; its cycles are its record)
+  for (const [serial, v] of Object.entries(PREV)) if (!out[serial] && keepDevice({ serial_number: serial })) { out[serial] = v; log(`${serial}: not in the MDM's list this time, kept its stored cycles`); }
 
   const file = { at: now, group, source: base, from, method: { ...OPTS, rule: 'full (>=95%, off charger) -> last reading <5% -> no check-in for offlineMin' }, failed, devices: out };
   const target = path.join(root, 'data', 'topup.json'), tmp = target + '.tmp';

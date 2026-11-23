@@ -135,7 +135,10 @@ function plannedTest(cycle, { decls, rota, DEV }) {
     // devices whose load the lab ran differently that cycle (30 Oct 2026: load with 30-min gaps, WLC switched from the MDM)
     // are still in it — the user: "add the 30-minute gap devices in today's cycle"; their load hours are not checked
     const skipLoad = (hit.decl.noLoadCheck || []).includes(cycle.serial);
-    return { name: ttById(hit.decl.testType)?.name || FIELD_DISCHARGE, removedAt, skipLoad, declared: true, planEnd: hit.decl.endsRuns ? hit.endMs : null };
+    // `lostEnd` (text): the lab says the cycle's runs were completed, but their end isn't in the readings (21 Nov 2026: the MDM's
+    // testing API went down and the T7s' check-ins stop at 36–41 %); a run that went silent is kept, its end marked not recorded
+    return { name: ttById(hit.decl.testType)?.name || FIELD_DISCHARGE, removedAt, skipLoad, declared: true, planEnd: hit.decl.endsRuns ? hit.endMs : null,
+      lostEnd: hit.decl.lostEnd || null };
   }
   const key = dayKey(cycle.start);
   const r = resolveDay(key, { decls: [], rota, ran: 1, devices: 0 });
@@ -294,7 +297,10 @@ export function adaptCycle(d, c0, rows, ctx) {
   // the lab ran this device's load its own way that cycle (`noLoadCheck`, e.g. 30 Oct's 30-min gaps): it stays in the
   // cycle, but its hours don't feed the test's WLC active / inactive per-hour bars or drains (the user, 3 Nov 2026: a
   // device with no load at the start isn't running the Restaurant Case — it showed WLC inactive in hours 1–3)
-  const ownLoad = !charging && !!plannedTest({ ...c, serial: d.serial, charging }, ctx).skipLoad;
+  const planned = plannedTest({ ...c, serial: d.serial, charging }, ctx)
+  const ownLoad = !charging && !!planned.skipLoad;
+  // the run went silent and the lab says the cycle finished (`lostEnd` on the entry): kept, its end not recorded
+  const endUnknown = !charging && c.reason === 'offline' && planned.lostEnd ? String(planned.lostEnd) : null;
   // left the cycle part-way (taken out, or stopped doing what the test does): the run up to then
   let fullRun = null;
   const cutTo = plan.cutAt ?? plan.endAt ?? null;
@@ -348,7 +354,10 @@ export function adaptCycle(d, c0, rows, ctx) {
     // what the test does) or a short fixed-time run. Its hours still count; the whole-run averages
     // (cycle time, end battery, drain, peak temp) leave it out (the lab, 21 Oct 2026: "if 20 of 24
     // reach 14 h, average those, not the ones taken out")
-    incomplete: !!shortRun || plan.cutAt != null,
+    incomplete: !!shortRun || plan.cutAt != null || !!endUnknown,
+    // completed by the lab's word, but the readings stop before its end (why, from the plan entry); its time and end battery
+    // are only up to the last reading, so it is out of the whole-run averages like an incomplete run
+    endUnknown,
     // the host app (the ads) on screen during the run, from data/hostapp.json (src/lib/hostApp.js):
     // { onPct, onS, screenOffS, otherAppS, unknownS, knownS, longestOff } or null when not reported
     // (client older than 1.11.0, or before 17 Oct 2026); adsGap: a test that runs ads, and they
@@ -438,7 +447,13 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
     const takenOut = (d.interrupted || []).filter(c => !isShort.has(c.start) && c.start >= PLAN_FROM && c.startPct >= 95 && c.end > c.start
       && (p => /taken out/.test(p.why || '') || p.endAt != null)(planFor({ ...c, serial: d.serial }, ctx)))
       .map(c => ({ ...c, durationMs: c.durationMs ?? c.end - c.start, fullMs: c.startPct > c.endPct ? (c.end - c.start) / (c.startPct - c.endPct) * 100 : null }))
-    for (const c of [...d.cycles, ...cutShort, ...takenOut, ...(run ? [run] : []), ...spanRunsFor(d.serial, decls, rows, curves)].sort((a, b) => a.start - b.start)) {
+    // A run that went silent (the detector's "offline", above 5 %) in a cycle the lab says was completed (`lostEnd` on its entry,
+    // 21 Nov 2026: the MDM went down overnight and 15 of 21 devices' readings stop at 36–41 %): kept, its end marked not recorded.
+    const seen = new Set([...isShort, ...takenOut.map(c => c.start)]);
+    const lostEnd = (d.interrupted || []).filter(c => !seen.has(c.start) && c.reason === 'offline' && c.start >= PLAN_FROM && c.startPct >= 95
+      && c.end > c.start && plannedTest({ ...c, serial: d.serial }, ctx).lostEnd)
+      .map(c => ({ ...c, durationMs: c.durationMs ?? c.end - c.start, fullMs: c.startPct > c.endPct ? (c.end - c.start) / (c.startPct - c.endPct) * 100 : null }))
+    for (const c of [...d.cycles, ...cutShort, ...takenOut, ...lostEnd, ...(run ? [run] : []), ...spanRunsFor(d.serial, decls, rows, curves)].sort((a, b) => a.start - b.start)) {
       const a = adaptCycle(d, c, rows, ctx);
       if (a) out.push(a);
     }

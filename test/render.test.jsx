@@ -917,6 +917,24 @@ const mdmCases = []
       want(!out.some(c => c.serial === 'S3'), 'a run that started at 89 % is not counted')
     } finally { CTX.group = prev; localStorage.removeItem(key) }
   })
+  check('a cycle the lab says was completed keeps the runs that went silent, end not recorded', () => {
+    // 21 Nov 2026: Ads only, the MDM went down overnight; 15 of 21 devices' readings stop at 36-41 % ("offline")
+    const H = 3600e3, t0 = Date.UTC(2026, 10, 21, 6), end = t0 + 17 * H
+    const decl = { id: 'Z', testType: 'disch_ads', from: '2026-11-21', to: '2026-11-21', startTime: '11:00', endTime: '23:59', spanDays: 1,
+      repeat: 'none', group: { kind: 'serials', serials: ['S2', 'S3'] } }
+    const key = 'cyclePlan:decls:v1:LOSTEND', prev = CTX.group
+    CTX.group = 'LOSTEND'
+    try {
+      const run = { start: t0, end, startPct: 100, endPct: 40, reason: 'offline' }
+      const dev = [{ serial: 'S2', cycles: [], interrupted: [run], charges: [] }, { serial: 'S3', cycles: [], interrupted: [{ ...run, startPct: 89 }], charges: [] }]
+      localStorage.setItem(key, JSON.stringify([decl]))
+      want(!adaptAll(dev).some(c => c.serial === 'S2'), 'without lostEnd a silent run stays out')
+      localStorage.setItem(key, JSON.stringify([{ ...decl, lostEnd: 'the MDM was down' }]))
+      const out = adaptAll(dev), s2 = out.find(c => c.serial === 'S2')
+      want(s2 && s2.testType === 'Ads only' && s2.endUnknown === 'the MDM was down' && s2.incomplete, JSON.stringify(s2 && { t: s2.testType, e: s2.endUnknown, i: s2.incomplete }))
+      want(!out.some(c => c.serial === 'S3'), 'a run that started at 89 % is still not counted')
+    } finally { CTX.group = prev; localStorage.removeItem(key) }
+  })
   check('ads on screen: a fresh check-in beats a lagging host-app list', () => {
     // 2 Nov 2026: the MDM's list said "Offline" for 00172 while it checked in with Nugget in front
     const now = Date.parse('2026-11-02T05:53:00Z'), pkg = 'aio.app.nugget.uatv2'

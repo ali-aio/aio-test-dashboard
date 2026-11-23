@@ -375,7 +375,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             breakdownLabel: `${fixedH ? `Short cycles (under ${shortLimit} of the ${fixedH} h) and runs` : 'Runs'} that left the cycle · not in the averages · newest first`,
             breakdownWide: true, breakdownRight: true, breakdownNoun: 'run',
             breakdown: shortRuns.map((c) => ({ id: c.id, label: `${fmtSerial(c.serial)} · ${fmtDate(c.date)}`, value: c.ranH ?? c.duration, display: fmtHours(c.ranH ?? c.duration),
-              hint: c.leftCycle ? `· ${c.leftCycle.why}` : '· back on charge early', highlight: !!c.short, onClick: () => pickDevice(c.serial) })),
+              hint: c.leftCycle ? `· ${c.leftCycle.why}` : c.endUnknown ? '· end not recorded' : '· back on charge early', highlight: !!c.short, onClick: () => pickDevice(c.serial) })),
           } : {})} />
         {isRestaurant ? (() => {
           // the tile is the drain with WLC; its drop-down adds the drain without (the user, 3 Nov 2026)
@@ -778,7 +778,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                 {tableSerials.length !== 1 && <td style={{ textAlign: 'left' }}><button type="button" className="link-btn plain-link mono" onClick={(e) => { e.stopPropagation(); pickDevice(c.serial) }}>{fmtSerial(c.serial)}</button></td>}
                 <td>{c.date ? fmtDate(c.date) : '—'}</td>
                 <td>{c.start != null ? new Date(c.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                <td title={c.leftCycle ? `Left the cycle at ${fmtEnded(c)}: ${c.leftCycle.why}. Counted up to then.` : undefined}>{fmtEnded(c)}{c.leftCycle ? <span className="left-cycle"> · left cycle</span> : null}</td>
+                <td title={c.leftCycle ? `Left the cycle at ${fmtEnded(c)}: ${c.leftCycle.why}. Counted up to then.` : c.endUnknown ? `Completed, but its end isn't in the readings: ${c.endUnknown}. Shown up to the last reading, ${fmtEnded(c)}; not in the averages.` : undefined}>{fmtEnded(c)}{c.leftCycle ? <span className="left-cycle"> · left cycle</span> : c.endUnknown ? <span className="left-cycle"> · end not recorded</span> : null}</td>
                 <td className={c.short ? 'short-cycle' : undefined}
                   title={c.short ? `Short cycle: ran ${fmtHours(c.ranH)}, under ${shortLimit} of the ${fixedH} h cycle` : c.ranH != null && c.ranH !== c.duration ? `Ran ${fmtHours(c.ranH)}: within ${FULL_CYCLE_MARGIN_H * 60} min of ${fixedH} h, counted as a complete cycle` : undefined}>
                   {fmtHours(c.duration)}{c.short ? <span> · short</span> : null}</td>

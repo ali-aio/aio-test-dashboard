@@ -138,7 +138,7 @@ export function cycleTableCsv(cycles, { charging = false, pad = false, wlc = nul
     ['Ended date', (c) => (c.inProgress ? '' : local(c.end).slice(0, 10))],
     ['Ended', (c) => (c.inProgress ? 'running' : local(c.end).slice(11, 16))],
     // the device left the cycle part-way (taken out, or stopped doing what the test does): counted up to then
-    ['Left the cycle', (c) => (c.leftCycle ? c.leftCycle.why : '')],
+    ['Left the cycle', (c) => (c.leftCycle ? c.leftCycle.why : c.endUnknown ? `end not recorded: ${c.endUnknown}` : '')],
     ['Cycle time (h)', (c) => num(c.duration, 2)],
     // what it actually ran; a complete fixed-time run's cycle time is the test's full time
     ['Ran (h)', (c) => num(c.ranH ?? c.duration, 2)],

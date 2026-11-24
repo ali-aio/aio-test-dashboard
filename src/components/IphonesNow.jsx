@@ -1,4 +1,4 @@
-import React, { useSyncExternalStore } from 'react'
+import React, { useState, useSyncExternalStore } from 'react'
 import { subscribeIphones, getIphones, padAt } from '../lib/phoneLog.js'
 import { rowsFor } from '../lib/window.js'
 import { hm } from '../lib/format.js'
@@ -46,13 +46,26 @@ export function IphoneTiles({ phones, now }) {
   )
 }
 
+/** The card's title row as a drop-down toggle, like Devices today (the user, 24 Nov 2026: "make the iPhones a drop-down too"). */
+export function IphonesHead({ open, setOpen, down, children }) {
+  const toggle = () => setOpen(o => !o)
+  return (
+    <div className="card-head" role="button" tabIndex={0} aria-expanded={open} style={{ cursor: 'pointer' }}
+      onClick={toggle} onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle() } }}>
+      <div><h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{open ? '▾' : '▸'}</span>iPhones</h2><IphonesSub down={down} /></div>
+      {children}
+    </div>
+  )
+}
+
 export default function IphonesNow({ now }) {
   const { phones, down } = useIphones(now)
+  const [open, setOpen] = useState(false) // closed by default, like the other drop-downs on Today
   if (!phones.length) return null
   return (
     <div className="card">
-      <div className="card-head"><div><h2>iPhones</h2><IphonesSub down={down} /></div></div>
-      <div className="card-body"><IphoneTiles phones={phones} now={now} /></div>
+      <IphonesHead open={open} setOpen={setOpen} down={down} />
+      {open && <div className="card-body"><IphoneTiles phones={phones} now={now} /></div>}
     </div>
   )
 }

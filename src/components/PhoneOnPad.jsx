@@ -3,7 +3,7 @@ import { subscribePhone, getPhone, setPhoneStart, phoneStart, phoneDevices, phon
 import { rowsFor } from '../lib/window.js'
 import { padLoad } from '../lib/pad.js'
 import { hm, H } from '../lib/format.js'
-import { useIphones, IphonesSub, IphoneTiles } from './IphonesNow.jsx'
+import { useIphones, IphonesSub, IphoneTiles, IphonesHead } from './IphonesNow.jsx'
 
 // Today: the T7s carrying an iPhone on the wireless pad in place of the load, and the iPhone's
 // battery typed in by the lab each hour of the cycle, with each hour's gain (the lab, 27 Oct 2026).
@@ -82,6 +82,7 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
   const manual = phoneStart(db, day)
   const start = manual ?? auto
   const [editing, setEditing] = useState(false)
+  const [open, setOpen] = useState(false) // a drop-down, closed by default (the user, 24 Nov 2026)
   const setStart = v => { // "HH:MM" on the cycle's day (the day after if before the auto start's day … kept simple: nearest to auto)
     if (!v) return
     const [hh, mm] = v.split(':').map(Number), d = new Date(auto); d.setHours(hh, mm, 0, 0)
@@ -123,19 +124,18 @@ export default function PhoneOnPad({ day, start: benchStart, end, serials, now, 
           </div>
   return (
     <div className="card">
-      <div className="card-head">
-        <div><h2>iPhones</h2><IphonesSub down={down} /></div>
-        <span style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+      <IphonesHead open={open} setOpen={setOpen} down={down}>
+        <span style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
           {/* picking a T7 adds it straight away (no Add button — the user, 27 Oct 2026) */}
           <select className="control" value="" onChange={e => { if (e.target.value) setPhoneDevice(day, e.target.value, true, by()) }} aria-label="Add a T7 with an iPhone on its pad">
             <option value="">Add a T7 with an iPhone…</option>
             {free.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </span>
-      </div>
-      {phones.length > 0 && <div className="card-body"><IphoneTiles phones={phones} now={now} /></div>}
-      {devices.length > 0 && <div className="card-body" style={{ paddingBottom: 6, borderTop: '1px solid var(--border)' }}><h3 style={{ margin: 0 }}>On the pad</h3>{startLine}</div>}
-      {devices.length > 0 && <div className="scroll-x"><table className="data phone-table">
+      </IphonesHead>
+      {open && phones.length > 0 && <div className="card-body"><IphoneTiles phones={phones} now={now} /></div>}
+      {open && devices.length > 0 && <div className="card-body" style={{ paddingBottom: 6, borderTop: '1px solid var(--border)' }}><h3 style={{ margin: 0 }}>On the pad</h3>{startLine}</div>}
+      {open && devices.length > 0 && <div className="scroll-x"><table className="data phone-table">
         <thead><tr><th>T7</th>
           {hours.map(h => <th key={h} className="r"><div>{h === 0 ? 'Start' : `${h} h`}{start + h * H > now ? <span className="secondary" style={{ fontWeight: 400 }}> · next</span> : null}</div><div className="secondary" style={{ fontWeight: 400 }}>{hm(start + h * H)}</div></th>)}
           {anyEnd && <th className="r"><div>Full / off pad</div><div className="secondary" style={{ fontWeight: 400 }}>iPhone</div></th>}

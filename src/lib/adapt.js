@@ -12,11 +12,11 @@
 //   · android    — no OS/SDK field exists anywhere in the check-in payload
 //   · load gain  — the MDM reports the T7's own battery, never the phone/load's
 import { buildFromSerial } from './device.js';
-import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, windowOn, cycleAt, loadDecls, loadRota } from './plan.js';
+import { TEST_TYPES, testType as ttById, resolveDay, groupSerials, dayKey, windowOn, cycleAt, loadDecls, loadRota, EARLY_START_H } from './plan.js';
 import { FIELD_DISCHARGE, FIELD_CHARGING } from './testtypes.js';
 import { perHourRate, HOUR_SNAP } from './t7cycles.js';
 import { mdmCyclesFor } from './mdmTrack.js';
-import { curveKey, curveSeries, resampleRun, spanRun, spanKey } from './curves.js';
+import { curveKey, curveSeries, resampleRun, spanRun, spanKey, partRun, partKey } from './curves.js';
 import { runningCycle } from './window.js';
 import { getFw, onFwTest } from './fwTests.js';
 import { TEMP_WARN, TEMP_LIMIT, chargeSegments } from './profile.js';
@@ -301,6 +301,8 @@ export function adaptCycle(d, c0, rows, ctx) {
   const ownLoad = !charging && !!planned.skipLoad;
   // the run went silent and the lab says the cycle finished (`lostEnd` on the entry): kept, its end not recorded
   const endUnknown = !charging && c.reason === 'offline' && planned.lostEnd ? String(planned.lostEnd) : null;
+  // on the cycle's bench, but its run didn't start full (below 95 %): in the cycle, out of the whole-run averages
+  const partialStart = c.partStart ? c.startPct : null;
   // left the cycle part-way (taken out, or stopped doing what the test does): the run up to then
   let fullRun = null;
   const cutTo = plan.cutAt ?? plan.endAt ?? null;
@@ -354,7 +356,8 @@ export function adaptCycle(d, c0, rows, ctx) {
     // what the test does) or a short fixed-time run. Its hours still count; the whole-run averages
     // (cycle time, end battery, drain, peak temp) leave it out (the lab, 21 Oct 2026: "if 20 of 24
     // reach 14 h, average those, not the ones taken out")
-    incomplete: !!shortRun || plan.cutAt != null || !!endUnknown,
+    incomplete: !!shortRun || plan.cutAt != null || !!endUnknown || partialStart != null,
+    partialStart,
     // completed by the lab's word, but the readings stop before its end (why, from the plan entry); its time and end battery
     // are only up to the last reading, so it is out of the whole-run averages like an incomplete run
     endUnknown,
@@ -411,6 +414,21 @@ function fallingRate(series) {
   for (let i = 1; i < series.length; i++) { const d = series[i - 1].v - series[i].v; if (d > 0) { lost += d; hours += series[i].t - series[i - 1].t; } }
   return hours > 0 ? lost / hours : 0;
 }
+/** A device a planned discharge cycle lists by serial, with no run of its own starting in the cycle (it came off the charger below
+ *  95 %, so the detector has none): its discharge in the cycle (`partRun`), stored by the sweep once the cycle is over, until then
+ *  from the readings. Kept out of the averages (`partialStart` → incomplete). The user, 24 Nov 2026. */
+function partRunsFor(serial, decls, rows, curves, have, now = Date.now()) {
+  const out = [];
+  for (const decl of decls || []) {
+    const tt = ttById(decl.testType);
+    if (!tt || tt.span || tt.expect === 'charge' || decl.group?.kind !== 'serials' || !(decl.group.serials || []).includes(serial)) continue;
+    const { startMs, endMs } = windowOn(decl.from, decl);
+    if (startMs < PLAN_FROM || have.some(c => c.start >= startMs - EARLY_START_H * H && c.start <= endMs)) continue;
+    const from = startMs - 30 * 60e3, run = curves?.[partKey(decl.id, serial)] || partRun(rowsBetween(rows, from, endMs), from, endMs);
+    if (run) out.push({ ...run, partStart: true, inProgress: !curves?.[partKey(decl.id, serial)] && now <= endMs && run.end > now - 30 * 60e3 });
+  }
+  return out;
+}
 /** One run per plan entry of a `span` test listing this device: stored by the sweep once the cycle is over, until then from the readings. */
 function spanRunsFor(serial, decls, rows, curves, now = Date.now()) {
   const out = [];
@@ -453,7 +471,10 @@ export function adaptAll(DEV, rowsFor = () => null, readings = null, curves = nu
     const lostEnd = (d.interrupted || []).filter(c => !seen.has(c.start) && c.reason === 'offline' && c.start >= PLAN_FROM && c.startPct >= 95
       && c.end > c.start && plannedTest({ ...c, serial: d.serial }, ctx).lostEnd)
       .map(c => ({ ...c, durationMs: c.durationMs ?? c.end - c.start, fullMs: c.startPct > c.endPct ? (c.end - c.start) / (c.startPct - c.endPct) * 100 : null }))
-    for (const c of [...d.cycles, ...cutShort, ...takenOut, ...lostEnd, ...(run ? [run] : []), ...spanRunsFor(d.serial, decls, rows, curves)].sort((a, b) => a.start - b.start)) {
+    const runs = [...d.cycles, ...cutShort, ...takenOut, ...lostEnd, ...(run ? [run] : []), ...spanRunsFor(d.serial, decls, rows, curves)]
+    // listed on a planned discharge cycle, on its bench, but its run didn't start full: still that cycle's (partRunsFor)
+    runs.push(...partRunsFor(d.serial, decls, rows, curves, [...runs, ...(d.interrupted || [])]))
+    for (const c of runs.sort((a, b) => a.start - b.start)) {
       const a = adaptCycle(d, c, rows, ctx);
       if (a) out.push(a);
     }

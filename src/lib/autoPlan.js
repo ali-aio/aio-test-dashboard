@@ -67,18 +67,25 @@ export function runsFrom(rows, now = Date.now()) {
     if (ended === 'silent' && e.b <= 10) ended = 'off';
     if (ended === 'running' || (durH >= 1 && drop >= 5))
       runs.push({ start: s.t, end: e.t, startPct: s.b, endPct: e.b, ended, durH: round(durH, 2), rate: durH > 0 ? round(drop / durH, 2) : null,
+        ...(cur.partial ? { partial: true } : {}),
         padH: round(padH, 2), pad5H: round(pad5H, 2), padEnd });
     cur = null;
   };
+  let wasCharging = false;
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i], prev = pts[i - 1];
     const charging = typeof p.ch === 'boolean' ? p.ch && (!cur || p.b > cur.last.b || rises(i)) : !!prev && p.b > prev.b;
+    const after = wasCharging; wasCharging = charging;
     if (cur) {
       if (p.t - cur.last.t > GAP) close('silent');
       else if (charging) close('charge');
       else { cur.pts.push(p); cur.last = p; continue; }
     }
     if (!charging && p.b >= 95) cur = { pts: [p], last: p };
+    // not full: off the charger below 95 %, or a load placed on a device already on battery — not a cycle of its own, but a
+    // device on the bench with the rest (the user, 24 Nov 2026: 00429 at 94 %, 00089 at 78 %, 00318 at 49 %, 00387 at 41 %
+    // ran with the bench and must be in that cycle); `partial` runs never make or name a bench (benchesFrom)
+    else if (!charging && (after || (p.pad && prev && !prev.pad && !prev.ch))) cur = { pts: [p], last: p, partial: true };
   }
   if (cur) close(now - cur.last.t > GAP ? 'silent' : 'running');
   return runs;
@@ -86,8 +93,9 @@ export function runsFrom(rows, now = Date.now()) {
 
 /** Runs of several devices that started within BENCH_GAP_H of each other: one bench each. */
 export function benchesFrom(runsBySerial, { minDevices = MIN_DEVICES } = {}) {
-  const all = Object.entries(runsBySerial).flatMap(([serial, runs]) => (runs || []).map(r => ({ ...r, serial })))
+  const every = Object.entries(runsBySerial).flatMap(([serial, runs]) => (runs || []).map(r => ({ ...r, serial })))
     .sort((a, b) => a.start - b.start);
+  const all = every.filter(r => !r.partial), partial = every.filter(r => r.partial);
   const out = []; let cur = null;
   for (const r of all) {
     if (!cur || r.start - cur.start > BENCH_GAP_H * H) { cur = { start: r.start, runs: [] }; out.push(cur); }
@@ -95,8 +103,10 @@ export function benchesFrom(runsBySerial, { minDevices = MIN_DEVICES } = {}) {
   }
   // the bench's start and end are its devices' medians: one device taken off early, or left
   // running a day longer, must not stretch the cycle over the next day's
+  // devices that ran with the bench without starting full join its device list (`also`), never its test or times
   return out.filter(b => b.runs.length >= minDevices)
-    .map(b => ({ ...b, start: median(b.runs.map(r => r.start)), end: median(b.runs.map(r => r.end)) }));
+    .map(b => ({ ...b, start: median(b.runs.map(r => r.start)), end: median(b.runs.map(r => r.end)) }))
+    .map(b => ({ ...b, also: [...new Set(partial.filter(r => Math.abs(r.start - b.start) <= BENCH_GAP_H * H && !b.runs.some(x => x.serial === r.serial)).map(r => r.serial))] }));
 }
 
 /** Which test a bench ran: { tt, final, basis, endMs } or { tt: null, why }. `final` is false
@@ -154,7 +164,7 @@ export function applyAuto(decls, benches, { now = Date.now(), state = {}, from =
     const c = classifyBench(b, now);
     if (!c.tt) continue;
     const startMs = Math.floor(b.start / 300e3) * 300e3, key = dayKey(startMs), endKey = dayKey(c.endMs);
-    const serials = b.runs.map(r => r.serial).sort();
+    const serials = [...b.runs.map(r => r.serial), ...(b.also || [])].sort();
     const auto = { at: now, final: c.final, basis: c.basis };
     const fields = { testType: c.tt, from: key, to: key, startTime: hm(startMs), endTime: hm(c.endMs), spanDays: Math.max(0, daysBetween(key, endKey)),
       repeat: 'none', group: { kind: 'serials', serials } };

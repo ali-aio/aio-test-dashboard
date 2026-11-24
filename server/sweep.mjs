@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { detectCycles, normalize } from '../shared/cycles.js';
 import { appendReadings } from '../src/lib/mdmTrack.js';
-import { resampleRun, curveKey, spanRun, spanKey } from '../src/lib/curves.js';
+import { resampleRun, curveKey, spanRun, spanKey, partRun, partKey } from '../src/lib/curves.js';
 import { testType, windowOn } from '../src/lib/plan.js';
 import { extendLedger } from '../src/lib/drainAge.js';
 import { extendSlots, SLOT } from '../src/lib/drainHours.js';
@@ -183,6 +183,23 @@ export async function buildCurves({ root, devices, topup, get, log = () => {} })
       const rows = normalize(await history(get, serial, startMs, endMs, OPTS.recentIntervalSec));
       const run = spanRun(rows, startMs, endMs), curve = run && resampleRun(rows, run.start, run.end);
       file.curves[spanKey(decl.id, serial)] = run || 0;
+      if (run) file.curves[curveKey(serial, run.start)] = curve || 0;
+      run ? made++ : none++;
+      save();
+    }
+  }
+  // a device a finished planned discharge cycle lists, whose run didn't start full (the detector has none): its run in that cycle
+  // (src/lib/curves.js partRun), kept like a span run — the user, 24 Nov 2026: such devices stay in the cycle when it is viewed later.
+  // Once, 1 h after the cycle's end, for cycles that ended in the last 30 days; 0 = nothing to keep.
+  for (const decl of decls.filter(x => { const tt = testType(x.testType); return tt && !tt.span && tt.expect !== 'charge' && x.group?.kind === 'serials'; })) {
+    const { startMs, endMs } = windowOn(decl.from, decl);
+    if (Date.now() < endMs + 3600e3 || Date.now() - endMs > 30 * DAY) continue;
+    for (const serial of (decl.group.serials || []).filter(s => devices.includes(s) && !(partKey(decl.id, s) in file.curves))) {
+      const t = topup?.[serial] || {};
+      if ([...(t.cycles || []), ...(t.interrupted || [])].some(c => c.start >= startMs - 2 * 3600e3 && c.start <= endMs)) { file.curves[partKey(decl.id, serial)] = 0; continue; }
+      const rows = normalize(await history(get, serial, startMs - 30 * 60e3, endMs, OPTS.recentIntervalSec));
+      const run = partRun(rows, startMs - 30 * 60e3, endMs), curve = run && resampleRun(rows, run.start, run.end);
+      file.curves[partKey(decl.id, serial)] = run || 0;
       if (run) file.curves[curveKey(serial, run.start)] = curve || 0;
       run ? made++ : none++;
       save();

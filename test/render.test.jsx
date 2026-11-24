@@ -949,6 +949,37 @@ const mdmCases = []
       want(!out.some(c => c.serial === 'S3'), 'a run that started at 89 % is still not counted')
     } finally { CTX.group = prev; localStorage.removeItem(key) }
   })
+  check('a device on the bench that did not start full is in the cycle (on its list, and as a run marked not full)', () => {
+    // 24 Nov 2026: 00429 came off at 94 %, 00089 at 78 %, 00387 at 41 % with the bench; Auto listed only the 18 that started at 100 %
+    const H = 3600e3, M = 60e3, t0 = Date.UTC(2026, 10, 23, 17, 15)
+    const dev = (start, b0, { charged = true } = {}) => {
+      const rows = []
+      if (charged) for (let t = start - H; t < start; t += 10 * M) rows.push({ timestamp: new Date(t).toISOString(), battery_pct: b0, extra: { charging: true, wlc_status: 0 } })
+      let b = b0
+      for (let t = start; t <= start + 8 * H && b > 1; t += 5 * M) { rows.push({ timestamp: new Date(t).toISOString(), battery_pct: Math.round(b), extra: { charging: false, wlc_status: 1 } }); b -= 12 * 5 / 60 }
+      return rows
+    }
+    const now = t0 + 20 * H
+    const full = Object.fromEntries(['A', 'B', 'C'].map((s, i) => [s, runsFrom(dev(t0 + i * 5 * M, 100), now)]))
+    const low = runsFrom(dev(t0, 78), now)
+    want(low.length === 1 && low[0].partial && low[0].startPct === 78, `a run from 78 % off the charger: ${JSON.stringify(low)}`)
+    const b = benchesFrom({ ...full, D: low })[0]
+    want(b.runs.length === 3 && b.also.join() === 'D', `bench made of the full runs, D only on its list: ${b.runs.length} ${b.also}`)
+    want(benchesFrom({ D: low, E: low, F: low }).length === 0, 'not-full runs never make a bench by themselves')
+    // later, on the test screen: D listed on the entry, its run from the readings, marked not full and out of the averages
+    const decl = { id: 'P', testType: 'wlc_load', from: '2026-11-23', to: '2026-11-23', startTime: '22:15', endTime: '06:00', spanDays: 1,
+      repeat: 'none', group: { kind: 'serials', serials: ['S1', 'D'] } }
+    const key = 'cyclePlan:decls:v1:PARTTEST', prev = CTX.group
+    localStorage.setItem(key, JSON.stringify([decl])); CTX.group = 'PARTTEST'
+    try {
+      const rows = dev(t0, 78)
+      const out = adaptAll([{ serial: 'D', cycles: [], interrupted: [], charges: [] }], s => (s === 'D' ? rows : null))
+      const d = out.find(c => c.serial === 'D')
+      want(d && d.testType === 'WLC on Load' && d.partialStart === 78 && d.incomplete, JSON.stringify(d && { t: d.testType, p: d.partialStart, i: d.incomplete }))
+      const none = adaptAll([{ serial: 'X', cycles: [], interrupted: [], charges: [] }], () => dev(t0, 78))
+      want(!none.some(c => c.serial === 'X'), 'a device not on the entry gets no run')
+    } finally { CTX.group = prev; localStorage.removeItem(key) }
+  })
   check('ads on screen: a fresh check-in beats a lagging host-app list', () => {
     // 2 Nov 2026: the MDM's list said "Offline" for 00172 while it checked in with Nugget in front
     const now = Date.parse('2026-11-02T05:53:00Z'), pkg = 'aio.app.nugget.uatv2'

@@ -54,6 +54,26 @@ export function spanRun(rows, from, to) {
   return end > start ? { start, end, startPct: a.battery_pct, endPct: z.battery_pct, durationMs: end - start, reason: 'span', fullMs: null } : null;
 }
 export const spanKey = (declId, serial) => `span:${declId}:${serial}`;
+/** A device on a planned cycle's bench whose run didn't start full (below 95 %: no cycle by the detector's rule): its discharge
+ *  from the first reading off the charger in [from, to] until it goes back on charge (the battery rises), stops reporting for
+ *  45 min, or `to`. Null under 1 h or 5 points. The user, 24 Nov 2026: such devices are in that cycle, on Today and later. */
+export function partRun(rows, from, to) {
+  const seg = (rows || []).filter(r => { const t = Date.parse(r.timestamp); return !r.empty && typeof r.battery_pct === 'number' && t >= from && t <= to; });
+  let i = seg.findIndex(r => !r.extra?.charging);
+  if (i < 0) return null;
+  const run = [seg[i]];
+  for (let k = i + 1; k < seg.length; k++) {
+    const r = seg[k], last = run[run.length - 1];
+    if (Date.parse(r.timestamp) - Date.parse(last.timestamp) > 45 * 60e3) break;
+    if (r.extra?.charging && r.battery_pct > last.battery_pct) break;
+    run.push(r);
+  }
+  const a = run[0], z = run[run.length - 1], start = Date.parse(a.timestamp), end = Date.parse(z.timestamp);
+  if (end - start < 3600e3 || a.battery_pct - z.battery_pct < 5) return null;
+  return { start, end, startPct: a.battery_pct, endPct: z.battery_pct, durationMs: end - start, reason: 'partial', partStart: true,
+    fullMs: (end - start) / (a.battery_pct - z.battery_pct) * 100 };
+}
+export const partKey = (declId, serial) => `part:${declId}:${serial}`;
 
 /** A stored curve as the T7 series the charts take: [{ t: hours from start, v }]. */
 export function curveSeries(curve) {

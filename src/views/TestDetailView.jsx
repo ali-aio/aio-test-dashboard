@@ -375,7 +375,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
             breakdownLabel: `${fixedH ? `Short cycles (under ${shortLimit} of the ${fixedH} h) and runs` : 'Runs'} that left the cycle · not in the averages · newest first`,
             breakdownWide: true, breakdownRight: true, breakdownNoun: 'run',
             breakdown: shortRuns.map((c) => ({ id: c.id, label: `${fmtSerial(c.serial)} · ${fmtDate(c.date)}`, value: c.ranH ?? c.duration, display: fmtHours(c.ranH ?? c.duration),
-              hint: c.leftCycle ? `· ${c.leftCycle.why}` : c.endUnknown ? '· end not recorded' : '· back on charge early', highlight: !!c.short, onClick: () => pickDevice(c.serial) })),
+              hint: c.leftCycle ? `· ${c.leftCycle.why}` : c.endUnknown ? '· end not recorded' : c.partialStart != null ? `· started at ${c.partialStart} %` : '· back on charge early', highlight: !!c.short, onClick: () => pickDevice(c.serial) })),
           } : {})} />
         {isRestaurant ? (() => {
           // the tile is the drain with WLC; its drop-down adds the drain without (the user, 3 Nov 2026)
@@ -783,7 +783,9 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
                   title={c.short ? `Short cycle: ran ${fmtHours(c.ranH)}, under ${shortLimit} of the ${fixedH} h cycle` : c.ranH != null && c.ranH !== c.duration ? `Ran ${fmtHours(c.ranH)}: within ${FULL_CYCLE_MARGIN_H * 60} min of ${fixedH} h, counted as a complete cycle` : undefined}>
                   {fmtHours(c.duration)}{c.short ? <span> · short</span> : null}</td>
                 {isSpan && <td title="times the lab rebooted it in this cycle (typed on Today)">{c.reboots ?? '—'}</td>}
-                <td>{fmtPct(c.startBattery)}</td>
+                <td className={c.partialStart != null ? 'left-cycle' : undefined}
+                  title={c.partialStart != null ? `Ran with this cycle's bench but came off the charger at ${c.partialStart} %, not full: in the cycle, not in its averages` : undefined}>
+                  {fmtPct(c.startBattery)}{c.partialStart != null ? <span> · not full</span> : null}</td>
                 <td>{fmtPct(c.endBattery)}</td>
                 <td>{fmtRate(c.dropPerHr)}</td>
                 {showPad && (() => { const p = padOf(c), cell = (x, what) => <td title={x ? `${fmtHours(x.hours)} ${what}` : `under 30 min ${what}`}>{x ? fmtRate(x.rate) : '—'}</td>

@@ -690,6 +690,13 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   (`planFor` → `cutAt`), shown as "· left cycle" with the reason on hover. A device starting up to 3 h late is still in.
   **It never disappears from that cycle** (2 Nov 2026), however early it left: the test screen's **Left the cycle** card lists
   it with ▸ Full run, its whole run as it happened (not counted).
+- **A device on the cycle's bench that didn't start full is still in the cycle** (the user, 24 Nov 2026: "devices that are not in the cycle should
+  also be on Today, and later in that cycle when it is viewed"; 23 Nov's bench had 00429 at 94 %, 00089 at 78 %, 00318 at 49 %, 00387 at 41 %, and
+  Auto listed only the 18 at 100 %): Auto's `runsFrom` also keeps **`partial`** runs — off the charger below 95 %, or a load placed on a device
+  already on battery — which never make or name a bench, but join its device list (`also` in `benchesFrom`), so Today lists them. On the test screen
+  a device an entry lists with no run of its own gets one from its readings (`partRun` in `curves.js`, `partRunsFor` in `adapt.js`; stored by the
+  sweep 1 h after the cycle ends as `part:<id>:<serial>`), with **`partialStart`** (its start %): "· not full" beside its start battery, the CSV's
+  Left the cycle column, and out of the whole-run averages (`incomplete`). The 95 % rule for what is a cycle stays.
 - An hour without readings is neither WLC active nor inactive (null), never filled from the run's flag.
 - **Devices in one cycle can leave the charger at different times** (the user, said more than once; 30 Oct 2026: "be careful
   with it"): every per-device rule — load hours, cycle length, short cycle, drain, the iPhone card's hours — uses **that

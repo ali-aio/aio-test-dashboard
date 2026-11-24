@@ -1,6 +1,7 @@
 import { splitText, splitBy, cyclesText, deviceCyclesText, countCycles, benchCycles } from '../lib/splitCycles.js'
 import PhoneHistory from '../components/PhoneHistory.jsx'
 import LeftCycle from '../components/LeftCycle.jsx'
+import NotFullStart from '../components/NotFullStart.jsx'
 import { fetchRoomRange, roomStats, ROOM_FROM } from '../lib/room.js'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import PartStatus from '../components/PartStatus.jsx'
@@ -311,7 +312,7 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
   const serialsHere = [...new Set(cycles.map((c) => c.serial))]
 
   // the Every cycle table's rows as shown: the search matches the serial, the firmware or the date
-  const tableRows = [...inBench].filter((c) => { const q = tableQ.trim().toLowerCase(); return !q
+  const tableRows = [...inBench].filter((c) => c.partialStart == null).filter((c) => { const q = tableQ.trim().toLowerCase(); return !q
     || [c.serial, c.firmware, c.date ? fmtDate(c.date) : ''].some((v) => String(v ?? '').toLowerCase().includes(q)) })
     .sort((a, b) => b.start - a.start)
   // Reproducing Boot Loop: the lab's reboot count per device, typed on Today (the user, 12 Nov 2026: "the reboot column in yesterday's devices")
@@ -734,6 +735,8 @@ export default function TestDetailView({ cycles: allCycles, testType, allSerials
 
       {/* devices that left the cycle: counted up to then, and each one's whole run on request (the user, 2 Nov 2026) */}
       {!isCharging && <LeftCycle cycles={inBench} styleMap={styleMap} onPick={pickDevice} />}
+      {/* ran with the bench but didn't start full: listed apart (the user, 24 Nov 2026) */}
+      {!isCharging && <NotFullStart cycles={inBench} onPick={pickDevice} />}
 
       {/* Every cycle in scope, one row each — with one device picked (Summary → a test row),
           this is that device's history for the test: which days it ran and how each went. */}

@@ -695,8 +695,12 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   Auto listed only the 18 at 100 %): Auto's `runsFrom` also keeps **`partial`** runs — off the charger below 95 %, or a load placed on a device
   already on battery — which never make or name a bench, but join its device list (`also` in `benchesFrom`), so Today lists them. On the test screen
   a device an entry lists with no run of its own gets one from its readings (`partRun` in `curves.js`, `partRunsFor` in `adapt.js`; stored by the
-  sweep 1 h after the cycle ends as `part:<id>:<serial>`), with **`partialStart`** (its start %): "· not full" beside its start battery, the CSV's
-  Left the cycle column, and out of the whole-run averages (`incomplete`). The 95 % rule for what is a cycle stays.
+  sweep 1 h after the cycle ends as `part:<id>:<serial>`), with **`partialStart`** (its start %), the CSV's Left the cycle column, and out of the
+  whole-run averages (`incomplete`). The 95 % rule for what is a cycle stays.
+  **They are listed apart** (the user, 24 Nov 2026: "there should be a separate drop-down for devices that weren't in the cycle"): on Today a
+  **Not fully charged at the start (N)** drop-down after Devices today, closed by default (device, off charger, battery then / now, drain, state;
+  a click charts it alone), and they are out of Devices today, the charts and the bench's figures (`notFull` in `TodayView.jsx`: off the charger
+  below 95 %); on each test screen a **Not fully charged at the start** card after Left the cycle (`NotFullStart.jsx`), and out of Every cycle.
 - An hour without readings is neither WLC active nor inactive (null), never filled from the run's flag.
 - **Devices in one cycle can leave the charger at different times** (the user, said more than once; 30 Oct 2026: "be careful
   with it"): every per-device rule — load hours, cycle length, short cycle, drain, the iPhone card's hours — uses **that

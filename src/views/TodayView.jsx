@@ -272,7 +272,11 @@ function CycleSection({ fleet, side, auto }) {
     const start = refinedStart(c.serial, s0) || s0
     return [c.serial, { start, rows: c.rows, rate: drainSince(c.rows, start), split: drainSplit(c.rows, start), now: c.rows[c.rows.length - 1].battery_pct }]
   })), [coarse, refineRev])
-  const all = [...runs.values()], started = all.filter(r => r.start)
+  // came off the charger below 95 % with the bench: not fully charged at the start — in the cycle, but in their own drop-down,
+  // not the list, the charts or the bench's figures (the user, 24 Nov 2026: "there should be a separate drop-down for them")
+  const notFull = useMemo(() => new Set(!T.charging && !T.tt?.span ? [...runs].filter(([, r]) => r.start && r.start.pct < 95).map(([sn]) => sn) : []),
+    [runs, T.charging, T.tt?.span])
+  const all = [...runs].filter(([sn]) => !notFull.has(sn)).map(([, r]) => r), started = all.filter(r => r.start)
   const runStart = T.tt?.span ? T.startMs : started.length ? median(started.map(r => r.start.t)) : null
   const nows = all.map(r => r.now), medNow = nows.length ? median(nows) : null
   const rates = started.map(r => r.rate).filter(v => v != null && v > 0)
@@ -335,6 +339,7 @@ function CycleSection({ fleet, side, auto }) {
   const matches = sn => !q || sn.toLowerCase().includes(q)
   const [listOpen, setListOpen] = useState(false)
   const [outOpen, setOutOpen] = useState(false) // Taken out of this cycle, closed by default
+  const [nfOpen, setNfOpen] = useState(false) // Not fully charged at the start, closed by default
   const [putting, setPutting] = useState(null), putTimer = useRef(null) // Put back armed for this serial
   const [listQ, setListQ] = useState('') // search inside the Devices today list
   const listShown = listOpen || !!q
@@ -344,7 +349,9 @@ function CycleSection({ fleet, side, auto }) {
   // a taken-out device clicked in "Taken out of this cycle" is charted alone too (its readings, not in the cycle's list)
   const outPicked = picked ? [...picked].filter(sn => !conf.some(c => c.serial === sn) && (T.removed || []).some(r => r.serial === sn))
     .map(sn => ({ serial: sn, rows: rowsFor(sn), state: 'silent' })) : []
-  const shown = [...conf, ...outPicked].filter(c => c.rows?.length && isOn(c.serial) && matches(c.serial))
+  // a not-fully-charged device is charted only when clicked in its drop-down (alone)
+  const nfPicked = c => picked != null && picked.size === 1 && picked.has(c.serial)
+  const shown = [...conf.filter(c => !notFull.has(c.serial) || nfPicked(c)), ...outPicked].filter(c => c.rows?.length && isOn(c.serial) && matches(c.serial))
   const few = shown.length <= 4 // few enough to label every line by name
 
   const lastOf = c => c.rows[c.rows.length - 1].battery_pct
@@ -662,7 +669,7 @@ function CycleSection({ fleet, side, auto }) {
           {/* closed by default; a search opens it, since the search is about these rows */}
           <div className="card-head" role="button" tabIndex={0} aria-expanded={listShown} style={{ cursor: 'pointer' }}
             onClick={() => setListOpen(o => !o)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setListOpen(o => !o) } }}>
-            <h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{listShown ? '▾' : '▸'}</span>Devices today ({conf.filter(c => matches(c.serial)).length})</h2>
+            <h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{listShown ? '▾' : '▸'}</span>Devices today ({conf.filter(c => matches(c.serial) && !notFull.has(c.serial)).length})</h2>
             {/* the list's search sits in its title row, only while the list is open */}
             {listShown
               ? <span style={{ display: 'flex', alignItems: 'center', gap: 10 }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
@@ -678,7 +685,7 @@ function CycleSection({ fleet, side, auto }) {
               { label: 'Cycles', className: 'r' }, { label: 'Device temp now', className: 'r' },
               { label: 'Peak device temp', className: 'r' }, { label: `≥${TEMP_LIMIT} °C`, className: 'r' },
               ...(canOut ? [{ label: '', sortable: false }] : [])]}>
-              {conf.filter(c => matches(c.serial) && c.serial.toLowerCase().includes(listQ.trim().toLowerCase())).sort((a, b) => byBenchOrder(a.serial, b.serial)).map(c => { // the lab's bench order (BENCH_ORDER); a heading click still sorts
+              {conf.filter(c => matches(c.serial) && !notFull.has(c.serial) && c.serial.toLowerCase().includes(listQ.trim().toLowerCase())).sort((a, b) => byBenchOrder(a.serial, b.serial)).map(c => { // the lab's bench order (BENCH_ORDER); a heading click still sorts
                 const r = runs.get(c.serial)
                 const d = fleet.DMAP.get(c.serial); if (!d) return null
                 const st = status(d), s = dayStats(c.serial, T.startMs), cs = T.tt?.span && c.state === 'untyped' ? ['pill-run', 'In test'] : CSTATE[c.state]
@@ -719,6 +726,30 @@ function CycleSection({ fleet, side, auto }) {
               })}
           </SortTable></div>}
         </div>
+        {notFull.size > 0 && (
+          <div className="card">
+            {/* devices that came off the charger with the bench below 95 %: in the cycle, listed apart (the user, 24 Nov 2026) */}
+            <div className="card-head" role="button" tabIndex={0} aria-expanded={nfOpen} style={{ cursor: 'pointer' }}
+              onClick={() => setNfOpen(o => !o)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setNfOpen(o => !o) } }}>
+              <h2><span aria-hidden="true" style={{ display: 'inline-block', width: 16 }}>{nfOpen ? '▾' : '▸'}</span>Not fully charged at the start ({notFull.size})</h2>
+              <span className="secondary">came off the charger below 95 % · not in the list, charts or figures above · click one to chart it alone</span></div>
+            {nfOpen && <div className="scroll-x"><SortTable head={[{ label: 'Device' }, { label: 'Off charger', className: 'r' }, { label: 'Battery then', className: 'r' }, { label: 'Battery now', className: 'r' }, { label: 'Drain', className: 'r' }, { label: 'State' }]}>
+              {[...notFull].sort(byBenchOrder).map(sn => {
+                const r = runs.get(sn), d = fleet.DMAP.get(sn), off = d ? !online(d) : true, seen = d?.snap?.last_seen_at ? Date.parse(d.snap.last_seen_at) : null
+                return <tr key={sn} className={`row-link${only === sn ? ' is-selected' : ''}`} onClick={() => focusDevice(sn)}
+                  title={only === sn ? 'Click to show every device again' : `Show only ${sn} in the charts above`}>
+                  <td className="mono"><button type="button" className="link-btn plain-link mono" onClick={e => { e.stopPropagation(); focusDevice(sn) }}>{sn}</button>
+                    {off && <div className="down-note">offline{seen ? ` · seen ${ago(seen)}` : ''}</div>}</td>
+                  <td className="r mono">{r?.start ? (dayKey(r.start.t) === todayKey() ? hm(r.start.t) : dt(r.start.t)) : '—'}</td>
+                  <td className="r num">{r?.start ? `${r.start.pct}%` : '—'}</td>
+                  <td className="r num">{d?.snap?.battery_pct != null ? <span className={off ? 'secondary' : undefined}>{d.snap.battery_pct}%</span> : '—'}</td>
+                  <td className="r mono">{r?.rate != null && r.rate > 0 ? `${r.rate.toFixed(2)} %/h` : <span className="secondary">—</span>}</td>
+                  <td>{off ? <span className="secondary">offline</span> : d?.snap?.charging ? 'on charge' : 'on battery'}</td>
+                </tr>
+              })}
+            </SortTable></div>}
+          </div>
+        )}
         {canOut && T.removed?.length > 0 && (
           <div className="card">
             {/* a drop-down like Devices today, closed by default (the user, 27 Oct 2026) */}

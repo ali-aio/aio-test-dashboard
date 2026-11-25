@@ -11,7 +11,7 @@
 import { onBenchAt } from './device.js';
 import { cycleAt, benchDecls, activeSerials, testType, loadDecls } from './plan.js';
 import { SPAN, SPAN_LABEL, stateCode } from './hostApp.js';
-import { padLoad } from './pad.js';
+import { padLoad, padMisplaced } from './pad.js';
 
 const KEY = 'alertsLog';
 const KEEP_MS = 3 * 86400e3, MAX = 80;
@@ -83,6 +83,9 @@ export function findOddOnes(decls, DEV, now = Date.now(), hostApp = null) {
     out.push({ serial: d.serial, kind: `ads:${code}`, title: `ads stopped: ${SPAN_LABEL[code].toLowerCase()} since ${hh}`,
       others: `${tt.name} runs ads the whole time` });
   }
+  // a load misplaced on the pad (wlc_status 2: on it but not charged; the user, 25 Nov 2026), any number of devices
+  for (const d of live) if (padMisplaced(extraOf(d.snap).wlc_status))
+    out.push({ serial: d.serial, kind: 'wlc-misplaced', title: 'load misplaced on the wireless pad', others: 'the pad reports the load is not placed right, so it is not charged' });
   if (n < MIN_DEVICES) return { cyc, live: n, odd: out };
 
   for (const f of FEATURES) {

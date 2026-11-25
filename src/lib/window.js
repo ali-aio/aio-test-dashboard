@@ -322,7 +322,7 @@ export function runningCycle(rows, lastFinished, now = Date.now()) {
 }
 
 // The same run split by what the T7 was doing, in points per hour: WLC active (a load on its
-// wireless pad, wlc_status ≠ 0), WLC inactive (the pad on, wlc_charging, but no load) and ads only
+// wireless pad, wlc_status 1; 2 = misplaced, not a load), WLC inactive (the pad on, wlc_charging, but no load) and ads only
 // (the pad off). Ads run in all three. Each gap between two readings off the charger, ≤ 30 min apart,
 // counts for the state of its first reading; a state needs 20 min of readings, else null.
 // Restaurant Case: 3 h with the load, then without — one number for both hides each (the user, Oct 2026).

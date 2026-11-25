@@ -721,7 +721,12 @@ when a request changes a rule here, edit the line (don't add a contradicting one
   its curve is shifted to match. Runs that drain from the start never move (a 14 h Restaurant Case can't turn short).
   Guarded by the test "a Restaurant Case whose load went on late …" (the 29 Oct case, rebuilt from 15-min slots; also checks
   that a run draining from the start keeps its start, and a run with no curve yet isn't read as "no drain").
-- **A load on the pad = `wlc_status` > 0** (`padLoad` in `src/lib/pad.js`, used wherever wlc_status is read): **-1 is not a
+- **`wlc_status`: 1 = load placed (charged), 2 = load misplaced (on the pad, not charged), 0 = no load, -1 = not known / WLC off**
+  (the user, 25 Nov 2026: "you are confusing load placed with pad misplaced" — until then every value > 0 was a load). A load on the pad =
+  `wlc_status` 1 only (`padLoad` in `src/lib/pad.js`, used wherever wlc_status is read; `padMisplaced` / `padText` beside it): Today's **WLC · load
+  placed** reads "Load misplaced" for 2 (on top, amber, counted in the foot), the firmware table "On · load misplaced", the bell raises "load misplaced
+  on the wireless pad" for any device, the CSV's Wireless pad column says load placed / load misplaced / no load / not known; `hours.json` went to v 4
+  (rebuilt from the whole history). **-1 is not a
   load** (the pad's error / not-known code), and in the 15-min slots **a lone reading with a load between two without is a
   blip** (`dropLoneLoads`). 26 Oct 2026: the Idle Cycle's per-hour CSV showed 12 and 6 min of load on 00485 / 00606 on
   19 Oct — 00485 from two -1 readings, 00606 from two lone 2s. `hours.json` went to v 3 so the server rebuilt it.

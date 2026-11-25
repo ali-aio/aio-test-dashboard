@@ -18,7 +18,7 @@ import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
 import { findOddOnes, mergeAlerts } from '../src/lib/alerts.js'
 import { compactSpans, mergeSpans, screenTime, adsGap, mergeHostApp } from '../src/lib/hostApp.js'
-import { padLoad } from '../src/lib/pad.js'
+import { padLoad, padMisplaced } from '../src/lib/pad.js'
 import { loadPart, getSnapshot } from '../src/lib/fleet.js'
 import { runStartOf, drainSplit } from '../src/lib/window.js'
 import { takeOutReasons } from '../src/lib/plan.js'
@@ -582,7 +582,7 @@ const mdmCases = []
     want(p.rows[2].pct === 80 && p.rows[2].auto.est && p.rows[3].pct === 95 && p.rows[3].gain === 15 && p.total === 45, 'a gap filled from the readings either side')
     want(readT7s({ readings: { [sn]: rows, X: [[t0, 5, 0]] } }, t0, t0 + H).join() === sn, 'a T7 counts as carrying an iPhone after two readings')
     // the iPhone taken off the pad (the user, 2 Nov 2026): the T7's pad has no load from hour 2 → no reading shown
-    const t7 = []; for (let t = t0 - 10 * M; t <= t0 + 3 * H; t += 3 * M) t7.push({ timestamp: new Date(t).toISOString(), extra: { wlc_status: t < t0 + 100 * M ? 2 : 0 } })
+    const t7 = []; for (let t = t0 - 10 * M; t <= t0 + 3 * H; t += 3 * M) t7.push({ timestamp: new Date(t).toISOString(), extra: { wlc_status: t < t0 + 100 * M ? 1 : 0 } })
     want(padAt(t7, t0 + H) === true && padAt(t7, t0 + 2.5 * H) === false && padAt([], t0) === null && padAt(t7, t0 + 9 * H) === null, 'load on the pad around a time')
     want(onPadAt(rows, t7, t0 + H)?.pct === 65 && onPadAt(rows, t7, t0 + 3 * H) === null, 'reading shown on the pad, hidden once off it')
     want(onPadAt(rows, [], t0 + H)?.pct === 65, 'no T7 readings there: not known, the reading stays')
@@ -637,10 +637,10 @@ const mdmCases = []
     // Serial and Time (local) are always there; the local time depends on the machine's zone, so it is cut out to compare
     const noLocal = (line) => { const f = line.split(','); f.splice(1, 1); return f.join(',') }
     want(csv[0] === 'Serial,Time (local),"Time (UTC, ISO)",Battery %,Battery temp °C,Charging,Wireless pad,extra.foo', csv[0])
-    want(noLocal(csv[1]) === 'A,2026-10-09T10:00:00Z,80,31.5,no,on,x' && noLocal(csv[2]) === 'A,2026-10-09T10:10:00Z,79,31.7,yes,,', csv.slice(1).join(' | '))
+    want(noLocal(csv[1]) === 'A,2026-10-09T10:00:00Z,80,31.5,no,load placed,x' && noLocal(csv[2]) === 'A,2026-10-09T10:10:00Z,79,31.7,yes,,', csv.slice(1).join(' | '))
     // the user, 29 Oct 2026: only Battery % and Wireless pad ticked still says which device and when
     const only = readingsCsv(rows, ['battery_pct', 'wlc_status'], []).trim().split('\r\n')
-    want(only[0] === 'Serial,Time (local),Battery %,Wireless pad' && only[1].startsWith('A,2026-10-09 ') && only[1].endsWith(',80,on'), only.slice(0, 2).join(' | '))
+    want(only[0] === 'Serial,Time (local),Battery %,Wireless pad' && only[1].startsWith('A,2026-10-09 ') && only[1].endsWith(',80,load placed'), only.slice(0, 2).join(' | '))
     want(extraKeys(rows).join() === 'foo', 'extra keys')
     const cc = cyclesCsv([{ serial: 'B', testType: 'WLC on Load', start: 1, end: 2, startBattery: 100, endBattery: 20, mdmCycles: null }], ['serial', 'testType', 'batteryCycles', 'cyclesSource']).trim().split('\r\n')
     want(cc[1] === 'B,WLC on Load,0.80,battery drop ÷ 100', cc[1])
@@ -761,13 +761,14 @@ const mdmCases = []
     const h = renderToString(<TestDetail cycles={rc} testType="Restaurant Case" allSerials={all} />).replace(/<!-- -->/g, '')
     want(h.includes('Ads on screen') && h.includes('1 with ads stopped') && h.includes('70%'), 'tile and column on the test screen')
   })
-  check('wireless pad: -1 is not a load, a lone reading with a load is a blip (idle 00485 / 00606, 19 Oct)', () => {
-    want(padLoad(2) === true && padLoad('1') === true && padLoad(0) === false && padLoad(-1) === false && padLoad(null) === null, 'padLoad')
+  check('wireless pad: -1 is not a load, 2 is a load misplaced (25 Nov 2026), a lone reading with a load is a blip (idle 00485 / 00606, 19 Oct)', () => {
+    want(padLoad(2) === false && padMisplaced(2) === true && padMisplaced(1) === false && padLoad('1') === true && padLoad(0) === false && padLoad(-1) === false && padLoad(null) === null, 'padLoad')
     const t0 = Date.UTC(2026, 9, 19, 5), row = (min, wlc) => ({ timestamp: new Date(t0 + min * 60e3).toISOString(), battery_pct: 40, extra: { charging: false, wlc_status: wlc } })
     const minutes = (rows) => slotBuckets(rows).reduce((a, x) => a + x[3], 0)
-    want(minutes([0, 3, 6, 9, 12].map((m, i) => row(m, [0, 0, 2, 0, 0][i]))) === 0, 'a lone 2 between 0s: no load')
+    want(minutes([0, 3, 6, 9, 12].map((m, i) => row(m, [0, 0, 1, 0, 0][i]))) === 0, 'a lone 1 between 0s: no load')
     want(minutes([0, 3, 6, 9, 12].map((m, i) => row(m, [0, -1, -1, 0, 0][i]))) === 0, '-1: no load')
-    want(minutes([0, 3, 6, 9, 12].map((m, i) => row(m, [0, 2, 2, 2, 0][i]))) === 9, 'a real load still counts')
+    want(minutes([0, 3, 6, 9, 12].map((m, i) => row(m, [0, 1, 1, 1, 0][i]))) === 9, 'a real load still counts')
+    want(minutes([0, 3, 6, 9, 12].map((m, i) => row(m, [0, 2, 2, 2, 0][i]))) === 0, 'a misplaced load is no load')
   })
   check('Today: drain split into WLC active / inactive / ads only', () => {
     const t0 = Date.UTC(2026, 9, 21, 5), row = (min, pct, wlc) => ({ timestamp: new Date(t0 + min * 60e3).toISOString(), battery_pct: pct, extra: { charging: false, wlc_status: wlc } })

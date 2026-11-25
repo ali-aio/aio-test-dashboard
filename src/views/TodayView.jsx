@@ -21,7 +21,7 @@ import { GROUP } from '../lib/fleet.js'
 import { MultiLineChart, tooltipHtml } from '../components/charts.jsx'
 import { Segmented, Stat } from '../components/Primitives.jsx'
 import { buildStyleMap, keyBackground } from '../lib/palette.js'
-import { padLoad } from '../lib/pad.js'
+import { padLoad, padMisplaced } from '../lib/pad.js'
 import { subscribeRoom, getRoom, startRoomSync, roomSummary } from '../lib/room.js'
 import { subscribeFw, getFw, onFwTest } from '../lib/fwTests.js'
 import { FwTestsToday } from '../components/FwTests.jsx'
@@ -542,24 +542,25 @@ function CycleSection({ fleet, side, auto }) {
       const inCycle = new Set(T.serials)
       const rows = (T.serials.length ? DEV.filter(d => inCycle.has(d.serial)) : DEV).map(d => {
             const e = typeof d.snap?.extra === 'string' ? (() => { try { return JSON.parse(d.snap.extra) } catch (x) { return {} } })() : (d.snap?.extra || {})
-            // wlc_status 1/2 = a load placed and being charged (seen during WLC on Load);
+            // wlc_status 1 = a load placed and being charged, 2 = a load misplaced (not charged; src/lib/pad.js);
             // wlc_charging alone = the pad switched on, nothing on it
-            const on = padLoad(e.wlc_status) === true, padOn = e.wlc_charging === true
+            const on = padLoad(e.wlc_status) === true, mis = padMisplaced(e.wlc_status) === true, padOn = e.wlc_charging === true
             // WLC switched off reads wlc_status -1 at once (the pad flag lags minutes; 27 Oct 2026 experiment)
             const wlcOn = e.wlc_status != null && e.wlc_status !== '' ? +e.wlc_status !== -1 : padOn
-            return { d, on, padOn, wlcOn, live: online(d) }
+            return { d, on, mis, padOn, wlcOn, live: online(d) }
           })
           // the devices doing something different from the rest go on top, highlighted (the user, 27 Oct 2026:
           // "load not placed here"): with a load on most pads, the ones without; with most bare, the ones with
           const n = rows.filter(r => r.on).length, most = n * 2 >= rows.length
-          rows.forEach(r => { r.odd = r.on !== most })
-          rows.sort((a, b) => (b.odd - a.odd) || (b.on - a.on) || (b.padOn - a.padOn) || byBenchOrder(a.d.serial, b.d.serial))
+          rows.forEach(r => { r.odd = r.on !== most || r.mis }) // a misplaced load is always flagged
+          rows.sort((a, b) => (b.mis - a.mis) || (b.odd - a.odd) || (b.on - a.on) || (b.padOn - a.padOn) || byBenchOrder(a.d.serial, b.d.serial))
           return <Stat label="WLC · load placed" warn={rows.some(r => r.odd)} value={<>{n}<span className="secondary" style={{ fontSize: 13 }}> / {rows.length}</span></>}
-            foot={<>{(() => { const k = rows.filter(r => r.padOn && !r.on).length; return k ? `load on the pad · ${k} pad on, no load` : 'load on the pad' })()}
+            foot={<>{(() => { const k = rows.filter(r => r.padOn && !r.on && !r.mis).length, m = rows.filter(r => r.mis).length
+              return ['load placed', m && <b key="m" style={{ color: 'var(--status-warning)' }}>{m} load misplaced</b>, k && `${k} pad on, no load`].filter(Boolean).reduce((a, x, i) => i ? [...a, ' · ', x] : [x], []) })()}
               {auto.wlc.length > 0 && <span className="auto-run" title="Running on the lab laptop — open the card to see or stop it"><br />⟳ {auto.wlc.join(' · ')}</span>}</>}
             breakdownLabel="WLC" breakdownRight breakdownWide breakdownNoun="device"
             breakdown={rows.map(r => ({ id: r.d.serial, label: r.d.serial, value: r.on ? 1 : 0, warn: r.odd,
-              display: !r.wlcOn ? 'WLC off' : r.on ? 'Load placed' : r.padOn ? 'Pad on, no load' : 'No load', hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial),
+              display: !r.wlcOn ? 'WLC off' : r.on ? 'Load placed' : r.mis ? 'Load misplaced' : r.padOn ? 'Pad on, no load' : 'No load', hint: r.live ? undefined : '· offline', onClick: () => focusDevice(r.d.serial),
               // WLC on / off on that T7 (the user, 2 Nov 2026)
               action: <WlcToggle serial={r.d.serial} enabled={r.wlcOn} /> }))}
             breakdownAction={<WlcToggleAll serials={rows.map(r => r.d.serial)} enabledCount={rows.filter(r => r.wlcOn).length} />} />

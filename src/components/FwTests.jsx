@@ -11,7 +11,7 @@ import { fmtLifetime } from '../lib/fmt.js'
 import { fmtDur } from '../lib/cycles.js'
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { SPAN, SPAN_LABEL, stateCode } from '../lib/hostApp.js'
-import { padLoad } from '../lib/pad.js'
+import { padLoad, padMisplaced } from '../lib/pad.js'
 
 // Firmware tests (the user, 6 Nov 2026). FwTestsToday: a section at the bottom of Today for each test running now, with its
 // devices as they are. FwTestsLog: the record at the bottom of the Cycle plan — what was tested, on which devices.
@@ -66,7 +66,7 @@ function fwRow(sn, fleet) {
       <td className="r mono fw-nowrap">{rows?.findLast(r => r.build_id)?.build_id || dash}</td>{/* the newest reading can be the live snapshot, which has no build */}
       <td className="r fw-nowrap">{s?.last_seen_at ? ago(Date.parse(s.last_seen_at)) : dash}</td>
       <td className="fw-nowrap"><span className="fw-switch"><AppToggle serial={sn} onScreen={code === SPAN.on} /><span className="secondary">{code ? APP_TEXT(code) : 'Not reported'}</span></span></td>
-      <td className="fw-nowrap"><span className="fw-switch"><WlcToggle serial={sn} enabled={wlcOn} /><span className="secondary">{wlcOn ? (padLoad(e.wlc_status) === true ? 'On · load' : 'On') : 'Off'}</span></span></td>
+      <td className="fw-nowrap"><span className="fw-switch"><WlcToggle serial={sn} enabled={wlcOn} /><span className="secondary">{wlcOn ? (padLoad(e.wlc_status) === true ? 'On · load' : padMisplaced(e.wlc_status) === true ? 'On · load misplaced' : 'On') : 'Off'}</span></span></td>
     </tr>
   )
 }

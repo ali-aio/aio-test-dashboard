@@ -1,4 +1,5 @@
 import { roomStats } from './room.js'
+import { padText } from './pad.js'
 // CSV export: column definitions for the two kinds of export and the CSV text itself.
 // Plain JS, no DOM (the dialog in components/ExportDialog.jsx does the fetching and the
 // download), so it is testable in Node.
@@ -34,7 +35,7 @@ export const READING_COLUMNS = [
   // charger type, wireless charging and charger voltage are only in a device's *latest*
   // check-in (/testdata/devices), never in its history rows, so they are not offered here;
   // nor is last_seen_at, which history repeats on every row as the device's current value.
-  { key: 'wlc_status', label: 'Wireless pad', get: (r) => { const v = extraOf(r).wlc_status; return v == null || v === '' ? '' : +v === 0 ? 'off' : +v < 0 ? `not known (status ${v})` : +v === 1 ? 'on' : `on (status ${v})` } },
+  { key: 'wlc_status', label: 'Wireless pad', get: (r) => padText(extraOf(r).wlc_status) },
   { key: 'build_id', label: 'Firmware (build)', get: (r) => r.build_id ?? '' },
   { key: 'wifi_rssi', label: 'Wi-Fi signal dBm', get: (r) => num(extraOf(r).wifi_rssi) },
   { key: 'wifi', label: 'Wi-Fi network', get: (r) => String(extraOf(r).wifi ?? '').replace(/^"(.*)"$/, '$1') },

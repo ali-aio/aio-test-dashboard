@@ -15,7 +15,7 @@ import { testType, ttSlot, resolveDay, STATUS, groupSerials, todayKey, dayKey, d
 import { TEMP_WARN, TEMP_LIMIT } from '../lib/profile.js'
 import { fmtDur } from '../lib/cycles.js'
 import { median, pctl, hm, dt, ago, MIN, H } from '../lib/format.js'
-import { online, status, lifetimeCycles, byBenchOrder, onBenchAt } from '../lib/device.js'
+import { online, status, lifetimeCycles, byBenchOrder, onBenchAt, batterySortKey } from '../lib/device.js'
 import { fmtLifetime } from '../lib/fmt.js'
 import { GROUP } from '../lib/fleet.js'
 import { MultiLineChart, tooltipHtml } from '../components/charts.jsx'
@@ -697,7 +697,7 @@ function CycleSection({ fleet, side, auto }) {
                     {off && <div className="down-note">offline{seen ? ` · seen ${ago(seen)}` : ''}</div>}</td>
                   <td><span className={`pill ${cs[0]}`}>{cs[1]}</span></td>
                   {rebootCol && <td className="r"><RebootCell decl={T.decl} serial={c.serial} onSaved={() => setPlanRev(v => v + 1)}>{T.decl.reboots?.[c.serial] ?? ''}</RebootCell>{/* the child is only for sorting by this column */}</td>}
-                  <td className="r">{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span>
+                  <td className="r" data-sort={batterySortKey(d)}>{st.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span>
                     : off && d.snap?.battery_pct != null ? <span className="batt num secondary" title={`last reported${seen ? ` ${ago(seen)}` : ''}`}>{d.snap.battery_pct}%<span className="bar stale"><i style={{ width: `${d.snap.battery_pct}%` }} /></span></span>
                     : <span className="secondary">—</span>}</td>{/* offline: the last reported % in grey (the user, 20 Nov 2026) */}
                   {/* in a Charging Cycle: when it went on charge and how fast it gains (the user, 27 Oct 2026: it showed a negative drain) */}

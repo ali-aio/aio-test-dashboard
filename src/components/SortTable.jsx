@@ -5,6 +5,7 @@ import React, { useMemo, useState } from 'react'
 // table's own order. Values are read from what the cell shows, so a table needs no extra
 // sort data: "9.1 h", "10.03%/h", "47.6 °C", "84 runs", "13h 45m", "09:34 PM",
 // "7 May 2026" all compare as the quantity they show. Blank cells ("—") sink to the end.
+// A cell with a numeric data-sort is sorted by that instead (Battery: % then last check-in).
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
@@ -82,7 +83,10 @@ export function SortTable({ head, children, className = 'data', caption }) {
     if (!sort) return rows
     const val = (tr) => {
       const cells = React.Children.toArray(tr.props.children).filter(React.isValidElement)
-      return sortValue(cellText(cells[sort.key]?.props.children))
+      const cell = cells[sort.key]
+      // a cell may give its own sort number (data-sort), e.g. Battery: the % first, then when it was last heard from
+      const own = cell?.props['data-sort']
+      return typeof own === 'number' && Number.isFinite(own) ? own : sortValue(cellText(cell?.props.children))
     }
     // A row marked data-attached (e.g. a form opened under a device) travels with the row
     // above it, so sorting never separates them.

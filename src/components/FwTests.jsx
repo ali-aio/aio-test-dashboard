@@ -5,7 +5,7 @@ import { subscribeFw, getFw, saveFw } from '../lib/fwTests.js'
 import AppToggle from './AppToggle.jsx'
 import WlcToggle from './WlcToggle.jsx'
 import { rowsFor, latestRun, drainSplit, dayStats } from '../lib/window.js'
-import { byBenchOrder, online, status, lifetimeCycles } from '../lib/device.js'
+import { byBenchOrder, online, status, lifetimeCycles, batterySortKey } from '../lib/device.js'
 import { ago, hm, MIN } from '../lib/format.js'
 import { fmtLifetime } from '../lib/fmt.js'
 import { fmtDur } from '../lib/cycles.js'
@@ -54,7 +54,7 @@ function fwRow(sn, fleet) {
       <td className="mono"><a className="link-btn plain-link mono" href={devHref(sn)} title={`Open ${sn}`}>{sn}</a>
         {!on && <div className="down-note">offline{s?.last_seen_at ? ` · seen ${ago(Date.parse(s.last_seen_at))}` : ''}</div>}</td>
       <td><span className={`pill ${on ? 'pill-ok' : ''}`}>{!on ? 'Not reporting' : s.charging ? 'On charge' : 'On battery'}</span></td>
-      <td className="r">{st?.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span>
+      <td className="r" data-sort={d ? batterySortKey(d) : undefined}>{st?.pct != null ? <span className="batt num">{st.pct}%<span className={`bar ${st.pct < 20 ? 'warn' : st.k === 'ready' ? 'ok' : 'run'}`}><i style={{ width: `${st.pct}%` }} /></span></span>
         : !on && s?.battery_pct != null ? <span className="batt num secondary" title={`last reported${s.last_seen_at ? ` ${ago(Date.parse(s.last_seen_at))}` : ''}`}>{s.battery_pct}%<span className="bar stale"><i style={{ width: `${s.battery_pct}%` }} /></span></span> : dash}</td>
       <td className="r mono">{run ? (run.charging ? `on charge ${clock(run.t)}` : clock(run.t)) : dash}</td>
       <td className="r mono">{rate(split?.active)}</td>

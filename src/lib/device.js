@@ -110,3 +110,13 @@ export function onBenchAt(serial, t = Date.now()) {
 /** "00281" → AT070AABU00281; a full serial as it is; else null. */
 export const fullSerial = (s) => { const v = String(s || '').trim().toUpperCase(); return /^\d{5}$/.test(v) ? `AT070AABU${v}` : /^[A-Z0-9]{8,24}$/.test(v) ? v : null; };
 export const keepDevice = (row) => { const sn = row?.serial_number ?? row?.serial; return EVER.has(sn) && !EXCLUDED_SERIALS.has(sn); };
+
+// Battery as a sort number (Devices today, firmware tables; the user, 28 Nov 2026: "the devices that powered off
+// earlier, and then so on"): the % first, and among equal %, the one last heard from earlier counts as lower — so
+// lowest first lists the devices that went off first. A device reporting now counts as heard from now.
+export function batterySortKey(d, now = Date.now()) {
+  const pct = d?.snap?.battery_pct
+  if (typeof pct !== 'number') return null
+  const seen = online(d) ? now : Date.parse(d.snap.last_seen_at) || now
+  return pct * 1e13 + seen
+}

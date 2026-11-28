@@ -12,7 +12,7 @@ import Devices from '../src/views/DevicesView.jsx'
 import Today from '../src/views/TodayView.jsx'
 import CyclePlan from '../src/views/CyclePlanView.jsx'
 import DeviceView from '../src/views/DeviceView.jsx'
-import { lifetimeOf, cyclesInRange, keepDevice } from '../src/lib/device.js'
+import { lifetimeOf, cyclesInRange, keepDevice, batterySortKey } from '../src/lib/device.js'
 import FilterBar, { FilterPills } from '../src/components/FilterBar.jsx'
 import { DateList } from '../src/components/DatePicker.jsx'
 import { splitText, countCycles, cyclesText, benchCycles } from '../src/lib/splitCycles.js'
@@ -760,6 +760,11 @@ const mdmCases = []
       .map((c, i) => ({ ...c, screen: { ...st, onPct: i ? 99 : 70 }, adsGap: i === 0 }))
     const h = renderToString(<TestDetail cycles={rc} testType="Restaurant Case" allSerials={all} />).replace(/<!-- -->/g, '')
     want(h.includes('Ads on screen') && h.includes('1 with ads stopped') && h.includes('70%'), 'tile and column on the test screen')
+  })
+  check('Battery sorts by %, then by when the device was last heard from (powered off first = lowest)', () => {
+    const now = Date.UTC(2026, 10, 28, 10), dev = (pct, minAgo) => ({ snap: { battery_pct: pct, last_seen_at: new Date(now - minAgo * 60e3).toISOString() } })
+    const a = batterySortKey(dev(1, 600), now), b = batterySortKey(dev(1, 30), now), c = batterySortKey(dev(0, 20), now), live = batterySortKey(dev(1, 1), now), hi = batterySortKey(dev(3, 900), now)
+    want(c < a && a < b && b < live && live < hi, [a, b, c, live, hi].join(' '))
   })
   check('wireless pad: -1 is not a load, 2 is a load misplaced (25 Nov 2026), a lone reading with a load is a blip (idle 00485 / 00606, 19 Oct)', () => {
     want(padLoad(2) === false && padMisplaced(2) === true && padMisplaced(1) === false && padLoad('1') === true && padLoad(0) === false && padLoad(-1) === false && padLoad(null) === null, 'padLoad')
